@@ -172,12 +172,20 @@ final class EventServer {
     }
 
     private func handleStop(payload: [String: Any]) {
+        // Best-effort: read the transcript JSONL and extract Claude's most
+        // recent assistant message so we can surface it in the notch.
+        var responseText: String? = nil
+        if let path = payload["transcript_path"] as? String, !path.isEmpty {
+            responseText = lastAssistantText(fromTranscriptAt: path)
+        }
+
         Task { @MainActor [weak state] in
             guard let state else { return }
             let title = (payload["title"] as? String) ?? "Claude finished"
             let detail = (payload["detail"] as? String) ?? detailFromHookPayload(payload)
             let source = (payload["source"] as? String) ?? "Claude Code"
             let frontBID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+            if let r = responseText { state.noteClaudeResponse(r) }
             state.enqueueCompleted(.init(
                 title: title,
                 detail: detail,
@@ -186,6 +194,39 @@ final class EventServer {
                 originatorBundleID: frontBID
             ))
         }
+    }
+
+    /// Tail the JSONL transcript and pull the most recent assistant text
+    /// content. Tolerant of multiple message shapes Claude Code emits.
+    private func lastAssistantText(fromTranscriptAt path: String) -> String? {
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)) else { return nil }
+        guard let body = String(data: data, encoding: .utf8) else { return nil }
+        let lines = body.split(separator: "\n", omittingEmptySubsequences: true)
+        for raw in lines.reversed() {
+            guard let lineData = raw.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any] else {
+                continue
+            }
+            // Shape A: top-level "role" + "content"
+            // Shape B: { "type":"assistant", "message": { "role":"assistant", "content": [...] } }
+            let inner = (obj["message"] as? [String: Any]) ?? obj
+            let role = (inner["role"] as? String) ?? (obj["type"] as? String) ?? ""
+            guard role == "assistant" else { continue }
+
+            if let text = (inner["content"] as? String), !text.isEmpty {
+                return text
+            }
+            if let blocks = inner["content"] as? [[String: Any]] {
+                let texts = blocks.compactMap { b -> String? in
+                    if let t = b["text"] as? String, !t.isEmpty { return t }
+                    return nil
+                }
+                if !texts.isEmpty {
+                    return texts.joined(separator: " ")
+                }
+            }
+        }
+        return nil
     }
 
     private func handleThinking(payload: [String: Any]) {

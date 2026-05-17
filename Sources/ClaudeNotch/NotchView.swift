@@ -30,6 +30,8 @@ struct NotchView: View {
             let perQuestion: CGFloat = 28 + 12 + CGFloat(q.questions.first?.options.count ?? 1) * 30
             let visible = max(180, 70 + CGFloat(q.questions.count) * perQuestion)
             return CGSize(width: 600, height: min(inset + visible, inset + 520))
+        case .compose:
+            return CGSize(width: 560, height: inset + 110)
         }
     }
 
@@ -118,15 +120,18 @@ struct NotchView: View {
                 state.resolveCurrentQuestion(nil)
             })
             .transition(.scale(scale: 0.94).combined(with: .opacity))
+        case .compose:
+            ComposeCard(state: state)
+                .transition(.scale(scale: 0.94).combined(with: .opacity))
         }
     }
 
     private var cornerRadius: CGFloat {
-        if isCollapsedIdle { return 9 }   // small radius matching Mac notch curve
+        if isCollapsedIdle { return 9 }
         switch state.mode {
         case .idle:        return 14
         case .thinking:    return 16
-        case .permission, .completed, .question: return 22
+        case .permission, .completed, .question, .compose: return 22
         }
     }
 
@@ -168,19 +173,28 @@ private struct NotchShape: Shape {
 private struct IdlePill: View {
     @ObservedObject var state: AppState
 
+    private var subtitle: String {
+        if !state.lastClaudeResponse.isEmpty { return state.lastClaudeResponse }
+        if !state.lastActivity.isEmpty       { return state.lastActivity }
+        if !state.lastUserPrompt.isEmpty     { return state.lastUserPrompt }
+        return "ready"
+    }
+
+    private var dotColor: Color {
+        if !state.lastClaudeResponse.isEmpty { return Color.green }
+        if !state.lastActivity.isEmpty       { return Color.blue }
+        return Color.gray
+    }
+
     var body: some View {
         HStack(spacing: 10) {
-            Circle()
-                .fill(state.lastActivity.isEmpty ? Color.green : Color.blue)
-                .frame(width: 8, height: 8)
+            Circle().fill(dotColor).frame(width: 8, height: 8)
             VStack(alignment: .leading, spacing: 1) {
                 Text(state.currentProject.isEmpty ? "ClaudeNotch" : state.currentProject)
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)
                     .lineLimit(1)
-                Text(state.lastActivity.isEmpty
-                     ? (state.lastUserPrompt.isEmpty ? "ready" : state.lastUserPrompt)
-                     : state.lastActivity)
+                Text(subtitle)
                     .font(.system(size: 10, design: .rounded))
                     .foregroundColor(.white.opacity(0.55))
                     .lineLimit(1)
@@ -188,6 +202,60 @@ private struct IdlePill: View {
             }
             Spacer(minLength: 0)
         }
+    }
+}
+
+// MARK: - Compose
+
+private struct ComposeCard: View {
+    @ObservedObject var state: AppState
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "paperplane.fill")
+                    .foregroundColor(.cyan)
+                    .font(.system(size: 13, weight: .semibold))
+                Text("Send to Claude")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundColor(.cyan.opacity(0.9))
+                    .textCase(.uppercase)
+                if !state.currentProject.isEmpty {
+                    Text("·").foregroundColor(.white.opacity(0.3))
+                    Text(state.currentProject)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.6))
+                        .lineLimit(1)
+                }
+                Spacer()
+            }
+
+            TextField("type your message…", text: $state.composeText, onCommit: {
+                state.sendCompose()
+            })
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.white.opacity(0.08))
+                )
+                .focused($focused)
+
+            HStack {
+                Spacer()
+                NotchButton(label: "Cancel", style: .secondary, shortcut: "⎋") {
+                    state.cancelCompose()
+                }
+                NotchButton(label: "Send", style: .primary, shortcut: "⏎") {
+                    state.sendCompose()
+                }
+            }
+        }
+        .onAppear { focused = true }
     }
 }
 

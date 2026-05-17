@@ -16,9 +16,27 @@ final class KeyboardMonitor {
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             Task { @MainActor in self?.handle(event) }
         }
+        // Local monitor fires on the main thread. We synchronously decide
+        // whether to consume the event so the responder chain doesn't beep.
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            Task { @MainActor in self?.handle(event) }
-            return event
+            MainActor.assumeIsolated {
+                guard let self else { return event }
+                if self.shouldConsume(event) {
+                    self.handle(event)
+                    return nil      // consumed — no system beep
+                }
+                return event
+            }
+        }
+    }
+
+    private func shouldConsume(_ event: NSEvent) -> Bool {
+        guard let state else { return false }
+        let isOurKey = (event.keyCode == 36 || event.keyCode == 76 || event.keyCode == 53)
+        guard isOurKey else { return false }
+        switch state.mode {
+        case .permission, .completed, .question, .compose: return true
+        default: return false
         }
     }
 
@@ -33,11 +51,9 @@ final class KeyboardMonitor {
         guard let state else { return }
         debugLog("key keyCode=\(event.keyCode) hover=\(state.isHovering) mode=\(state.mode)")
 
-        // For Enter/Esc, drop the hover requirement: if a card is showing,
-        // the user clearly meant the keystroke for the notch.
         let cardActive: Bool = {
             switch state.mode {
-            case .permission, .completed, .question: return true
+            case .permission, .completed, .question, .compose: return true
             default: return false
             }
         }()
@@ -53,6 +69,8 @@ final class KeyboardMonitor {
                 state.resolveCurrentPermission(.ask)
             case .completed:
                 state.dismissCurrentCompleted()
+            case .compose:
+                state.sendCompose()
             default:
                 break
             }
@@ -68,6 +86,8 @@ final class KeyboardMonitor {
                 state.resolveCurrentQuestion(nil)
             case .completed:
                 state.dismissCurrentCompleted()
+            case .compose:
+                state.cancelCompose()
             default:
                 break
             }

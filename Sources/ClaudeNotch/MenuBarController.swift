@@ -4,7 +4,7 @@ import Combine
 import IOKit.hid
 
 @MainActor
-final class MenuBarController: NSObject {
+final class MenuBarController: NSObject, NSMenuDelegate {
     let item: NSStatusItem
     let state: AppState
 
@@ -17,6 +17,7 @@ final class MenuBarController: NSObject {
     private var statusItem: NSMenuItem!
     private var cancellables = Set<AnyCancellable>()
     private var permissionsTimer: Timer?
+    private var isMenuOpen = false
 
     init(state: AppState) {
         self.state = state
@@ -96,6 +97,7 @@ final class MenuBarController: NSObject {
         let quit = NSMenuItem(title: "Quit ClaudeNotch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
 
+        menu.delegate = self
         item.menu = menu
 
         state.$sessionAllowlist
@@ -109,7 +111,7 @@ final class MenuBarController: NSObject {
             .store(in: &cancellables)
 
         Publishers.CombineLatest3(state.$currentProject, state.$lastActivity, state.$lastUserPrompt)
-            .receive(on: RunLoop.main)
+            .throttle(for: .milliseconds(400), scheduler: RunLoop.main, latest: true)
             .sink { [weak self] _, _, _ in self?.refreshStatusLine() }
             .store(in: &cancellables)
 
@@ -118,10 +120,31 @@ final class MenuBarController: NSObject {
         refreshRecentProjects()
         refreshStatusLine()
 
-        // macOS doesn't fire notifications when permissions toggle, so we poll.
-        permissionsTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.refreshPermissions() }
+        // Slower poll (12s) so background ticks don't compete with menu redraw
+        // — we also explicitly refresh just-in-time when the menu opens.
+        permissionsTimer = Timer.scheduledTimer(withTimeInterval: 12.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                guard !self.isMenuOpen else { return }
+                self.refreshPermissions()
+            }
         }
+    }
+
+    // NSMenuDelegate — pause background refreshes while the user is in the menu
+    // and refresh once on open so the state is fresh without churn.
+    nonisolated func menuWillOpen(_ menu: NSMenu) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.isMenuOpen = true
+            self.refreshPermissions()
+            self.refreshStatusLine()
+            self.refreshRecentProjects()
+        }
+    }
+
+    nonisolated func menuDidClose(_ menu: NSMenu) {
+        Task { @MainActor [weak self] in self?.isMenuOpen = false }
     }
 
     private func refreshPermissions() {
@@ -294,31 +317,9 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func sendMessagePrompt() {
-        let alert = NSAlert()
-        alert.messageText = "Send message to Claude"
-        alert.informativeText = state.currentProject.isEmpty
-            ? "Will type into the currently-frontmost terminal."
-            : "Will type into the terminal running session: \(state.currentProject)"
-
-        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 380, height: 24))
-        input.placeholderString = "type your message…"
-        alert.accessoryView = input
-        alert.addButton(withTitle: "Send")
-        alert.addButton(withTitle: "Cancel")
-
-        // Make sure the alert can take focus.
-        NSApp.activate(ignoringOtherApps: true)
-        DispatchQueue.main.async { input.becomeFirstResponder() }
-
-        let result = alert.runModal()
-        guard result == .alertFirstButtonReturn else { return }
-        let text = input.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-
-        let target = state.lastOriginatorBundleID
-            ?? NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-            ?? "com.apple.Terminal"
-        TerminalAutomator.sendText(text, toBundleID: target)
+        // Open the compose card in the notch itself — feels native and
+        // doesn't rely on NSAlert (which is unreliable for accessory apps).
+        state.beginCompose()
     }
 
     @objc private func toggleLaunchAtLogin() {

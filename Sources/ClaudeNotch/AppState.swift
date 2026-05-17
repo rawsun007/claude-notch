@@ -7,6 +7,7 @@ enum NotchMode: Equatable {
     case permission(PermissionRequest)
     case completed(CompletedTask)
     case question(QuestionRequest)
+    case compose
 }
 
 struct AskOption: Identifiable, Equatable {
@@ -121,6 +122,9 @@ final class AppState: ObservableObject {
     @Published private(set) var recentProjects: [String] = []      // ordered, deduped cwds (newest first)
     @Published private(set) var lastOriginatorBundleID: String? = nil
     @Published private(set) var lastHookAt: Date? = nil
+    @Published private(set) var lastClaudeResponse: String = ""
+    @Published var composeText: String = ""
+    @Published private(set) var isComposing: Bool = false
 
     // After this many seconds without a hook, drop the activity line.
     private let activityStaleAfter: TimeInterval = 90
@@ -164,7 +168,39 @@ final class AppState: ObservableObject {
         currentCwd = ""
         lastActivity = ""
         lastUserPrompt = ""
+        lastClaudeResponse = ""
         lastHookAt = nil
+    }
+
+    func noteClaudeResponse(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        lastClaudeResponse = String(trimmed.prefix(240))
+        lastHookAt = Date()
+    }
+
+    // MARK: - Compose (send message to Claude)
+
+    func beginCompose() {
+        composeText = ""
+        isComposing = true
+        recompute()
+    }
+
+    func sendCompose() {
+        let text = composeText.trimmingCharacters(in: .whitespacesAndNewlines)
+        defer { cancelCompose() }
+        guard !text.isEmpty else { return }
+        let target = lastOriginatorBundleID
+            ?? NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        guard let bid = target else { return }
+        TerminalAutomator.sendText(text, toBundleID: bid)
+    }
+
+    func cancelCompose() {
+        composeText = ""
+        isComposing = false
+        recompute()
     }
 
     private func ensureStaleTimer() {
@@ -289,7 +325,9 @@ final class AppState: ObservableObject {
 
     private func recompute() {
         let next: NotchMode
-        if let q = questionQueue.first {
+        if isComposing {
+            next = .compose
+        } else if let q = questionQueue.first {
             next = .question(q)
         } else if let p = permissionQueue.first {
             next = .permission(p)

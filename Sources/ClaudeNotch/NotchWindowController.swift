@@ -135,8 +135,9 @@ final class NotchWindowController {
 
         if animated {
             NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.32
-                ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.22, 1.0, 0.36, 1.0)
+                ctx.duration = 0.26
+                // Snappy at start, gentle settle — close to iOS Dynamic Island.
+                ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.33, 1.0, 0.5, 1.0)
                 ctx.allowsImplicitAnimation = true
                 window.animator().setFrame(frame, display: true)
             }
