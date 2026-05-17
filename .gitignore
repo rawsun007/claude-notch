@@ -1,0 +1,25 @@
+# Swift / SwiftPM build artifacts
+.build/
+.swiftpm/
+Package.resolved
+*.xcodeproj/
+DerivedData/
+
+# Built .app bundle (regenerate via ./build.sh)
+ClaudeNotch.app/
+
+# macOS junk
+.DS_Store
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local Claude Code project state
+.claude/settings.local.json
+
+# Local debug + hook logs (runtime artifacts)
+/tmp/claudenotch-*.log
+claudenotch-*.log

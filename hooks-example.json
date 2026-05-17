@@ -1,0 +1,35 @@
+{
+  "hooks": {
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -c '{message: (.message // \"Claude needs your attention\"), detail: (.cwd // \"\"), source: \"Claude Code\", session_id: (.session_id // \"\")}' | curl -s -X POST http://127.0.0.1:53127/notification -H 'Content-Type: application/json' --data-binary @- >/dev/null"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -c '{title: \"Claude is done\", detail: ((.cwd // \"\") | split(\"/\") | last // \"\"), source: \"Claude Code\", session_id: (.session_id // \"\")}' | curl -s -X POST http://127.0.0.1:53127/stop -H 'Content-Type: application/json' --data-binary @- >/dev/null"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -c '{label: (\"Using \" + (.tool_name // \"tool\")), tool_name: (.tool_name // \"\")}' | curl -s -X POST http://127.0.0.1:53127/pretool -H 'Content-Type: application/json' --data-binary @- >/dev/null"
+          }
+        ]
+      }
+    ]
+  }
+}
