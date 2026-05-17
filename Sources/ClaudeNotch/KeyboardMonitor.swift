@@ -35,7 +35,7 @@ final class KeyboardMonitor {
         let isOurKey = (event.keyCode == 36 || event.keyCode == 76 || event.keyCode == 53)
         guard isOurKey else { return false }
         switch state.mode {
-        case .permission, .completed, .question, .compose: return true
+        case .permission, .completed, .question, .compose, .responseDetail: return true
         default: return false
         }
     }
@@ -53,7 +53,7 @@ final class KeyboardMonitor {
 
         let cardActive: Bool = {
             switch state.mode {
-            case .permission, .completed, .question, .compose: return true
+            case .permission, .completed, .question, .compose, .responseDetail: return true
             default: return false
             }
         }()
@@ -71,6 +71,8 @@ final class KeyboardMonitor {
                 state.dismissCurrentCompleted()
             case .compose:
                 state.sendCompose()
+            case .responseDetail:
+                state.closeResponseDetail()
             default:
                 break
             }
@@ -88,6 +90,8 @@ final class KeyboardMonitor {
                 state.dismissCurrentCompleted()
             case .compose:
                 state.cancelCompose()
+            case .responseDetail:
+                state.closeResponseDetail()
             default:
                 break
             }

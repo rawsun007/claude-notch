@@ -31,7 +31,9 @@ struct NotchView: View {
             let visible = max(180, 70 + CGFloat(q.questions.count) * perQuestion)
             return CGSize(width: 600, height: min(inset + visible, inset + 520))
         case .compose:
-            return CGSize(width: 560, height: inset + 110)
+            return CGSize(width: 580, height: inset + 156)
+        case .responseDetail:
+            return CGSize(width: 640, height: inset + 360)
         }
     }
 
@@ -123,6 +125,9 @@ struct NotchView: View {
         case .compose:
             ComposeCard(state: state)
                 .transition(.scale(scale: 0.94).combined(with: .opacity))
+        case .responseDetail:
+            ResponseDetailCard(state: state)
+                .transition(.scale(scale: 0.96).combined(with: .opacity))
         }
     }
 
@@ -131,15 +136,28 @@ struct NotchView: View {
         switch state.mode {
         case .idle:        return 14
         case .thinking:    return 16
-        case .permission, .completed, .question, .compose: return 22
+        case .permission, .completed, .question, .compose, .responseDetail: return 24
         }
     }
 
     private var borderColor: Color {
         if isCollapsedIdle { return .clear }
-        // Unified subtle hairline — keep the visual cleanly "notch-black",
-        // status is communicated by the icon, not the border.
         return Color.white.opacity(0.07)
+    }
+}
+
+// MARK: - shared spec for IdlePill content
+
+extension NotchView {
+    fileprivate func idleSubtitle() -> String {
+        // Most-recently updated signal wins. If both are recent, prefer
+        // the actual response over the tool call.
+        let r = state.lastClaudeResponseAt ?? .distantPast
+        let a = state.lastActivityAt ?? .distantPast
+        if r >= a && !state.lastClaudeResponse.isEmpty { return state.lastClaudeResponse }
+        if !state.lastActivity.isEmpty { return state.lastActivity }
+        if !state.lastUserPrompt.isEmpty { return state.lastUserPrompt }
+        return "ready"
     }
 }
 
@@ -174,9 +192,11 @@ private struct IdlePill: View {
     @ObservedObject var state: AppState
 
     private var subtitle: String {
-        if !state.lastClaudeResponse.isEmpty { return state.lastClaudeResponse }
-        if !state.lastActivity.isEmpty       { return state.lastActivity }
-        if !state.lastUserPrompt.isEmpty     { return state.lastUserPrompt }
+        let r = state.lastClaudeResponseAt ?? .distantPast
+        let a = state.lastActivityAt ?? .distantPast
+        if r >= a && !state.lastClaudeResponse.isEmpty { return state.lastClaudeResponse }
+        if !state.lastActivity.isEmpty   { return state.lastActivity }
+        if !state.lastUserPrompt.isEmpty { return state.lastUserPrompt }
         return "ready"
     }
 
@@ -185,6 +205,8 @@ private struct IdlePill: View {
         if !state.lastActivity.isEmpty       { return Color.blue }
         return Color.gray
     }
+
+    private var canExpand: Bool { !state.fullClaudeResponse.isEmpty }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -201,6 +223,15 @@ private struct IdlePill: View {
                     .truncationMode(.tail)
             }
             Spacer(minLength: 0)
+            if canExpand {
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.45))
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if canExpand { state.showResponseDetail() }
         }
     }
 }
@@ -211,8 +242,15 @@ private struct ComposeCard: View {
     @ObservedObject var state: AppState
     @FocusState private var focused: Bool
 
+    private var targetLabel: String {
+        guard let bid = state.composeTarget else { return "no terminal found" }
+        if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bid).first,
+           let name = app.localizedName { return name }
+        return bid
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: "paperplane.fill")
                     .foregroundColor(.cyan)
@@ -221,29 +259,33 @@ private struct ComposeCard: View {
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundColor(.cyan.opacity(0.9))
                     .textCase(.uppercase)
-                if !state.currentProject.isEmpty {
-                    Text("·").foregroundColor(.white.opacity(0.3))
-                    Text(state.currentProject)
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.6))
-                        .lineLimit(1)
-                }
+                Text("·").foregroundColor(.white.opacity(0.3))
+                Text("→ \(targetLabel)")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.6))
+                    .lineLimit(1)
                 Spacer()
             }
 
-            TextField("type your message…", text: $state.composeText, onCommit: {
-                state.sendCompose()
-            })
+            TextField("type your message…", text: $state.composeText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .foregroundColor(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
                 .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(Color.white.opacity(0.08))
                 )
                 .focused($focused)
+                .onSubmit { state.sendCompose() }
+
+            if let err = state.composeError {
+                Text(err)
+                    .font(.system(size: 10))
+                    .foregroundColor(.orange.opacity(0.9))
+                    .lineLimit(2)
+            }
 
             HStack {
                 Spacer()
@@ -255,7 +297,62 @@ private struct ComposeCard: View {
                 }
             }
         }
-        .onAppear { focused = true }
+        .onAppear {
+            // Small delay — the panel needs a beat to fully become key before
+            // SwiftUI focus can attach reliably.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                focused = true
+            }
+        }
+    }
+}
+
+// MARK: - Response detail
+
+private struct ResponseDetailCard: View {
+    @ObservedObject var state: AppState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "text.bubble.fill")
+                    .foregroundColor(.green)
+                    .font(.system(size: 13, weight: .semibold))
+                Text("Claude's last reply")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundColor(.green.opacity(0.9))
+                    .textCase(.uppercase)
+                if !state.currentProject.isEmpty {
+                    Text("·").foregroundColor(.white.opacity(0.3))
+                    Text(state.currentProject)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.6))
+                        .lineLimit(1)
+                }
+                Spacer()
+            }
+
+            ScrollView(.vertical, showsIndicators: true) {
+                Text(state.fullClaudeResponse)
+                    .font(.system(size: 12, design: .default))
+                    .foregroundColor(.white.opacity(0.9))
+                    .multilineTextAlignment(.leading)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.white.opacity(0.05))
+            )
+
+            HStack {
+                Spacer()
+                NotchButton(label: "Close", style: .primary, shortcut: "⏎") {
+                    state.closeResponseDetail()
+                }
+            }
+        }
     }
 }
 

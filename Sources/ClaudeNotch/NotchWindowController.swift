@@ -61,7 +61,7 @@ final class NotchWindowController {
                 guard let self else { return }
                 self.relayout(animated: true)
                 switch mode {
-                case .permission, .question, .completed:
+                case .permission, .question, .completed, .compose:
                     self.window.makeKey()
                 default:
                     break

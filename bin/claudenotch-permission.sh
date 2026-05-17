@@ -73,12 +73,14 @@ if [ "$tool" = "AskUserQuestion" ]; then
     exit 0
 fi
 
-# Only show the notch for tools that would otherwise interrupt the user.
-# Everything else (Read/Grep/Glob/LS/TodoWrite/BashOutput/etc) falls through
-# to Claude Code's own permission flow (typically auto-allowed).
+# Inverted filter: route ALL tools through the notch by default. Only
+# known-safe / non-interactive tools fall through to Claude Code's own
+# permission flow (they're typically auto-allowed under default rules).
+# This catches custom MCP tools too.
 case "$tool" in
-    Bash|Write|Edit|MultiEdit|WebFetch|WebSearch|NotebookEdit|Task) ;;
-    *) emit_ask "tool $tool not interactive" ;;
+    Read|Grep|Glob|LS|TodoWrite|BashOutput|KillShell|ExitPlanMode|SlashCommand|UpdatePlan)
+        emit_ask "tool $tool is safe/non-interactive" ;;
+    *) ;;
 esac
 
 nc -z 127.0.0.1 53127 2>/dev/null || emit_ask "notch not running"

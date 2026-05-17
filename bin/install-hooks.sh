@@ -79,5 +79,5 @@ echo "✓ Wired ClaudeNotch hooks into $SETTINGS"
 echo "  (backup: $BACKUP)"
 echo
 echo "  Matcher: .* (all tools — hook script filters which ones show the notch)"
-echo "  Interactive tools shown in notch: Bash, Write, Edit, MultiEdit, WebFetch, WebSearch, NotebookEdit, Task"
-echo "  Everything else (Read, Grep, Glob, TodoWrite…) falls through to Claude Code."
+echo "  Safe tools fall through to Claude Code's defaults: Read, Grep, Glob, LS, TodoWrite, BashOutput, KillShell, ExitPlanMode, SlashCommand"
+echo "  Everything else (Bash, Write, Edit, WebFetch, MCP tools, …) shows the notch."

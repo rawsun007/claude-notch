@@ -8,6 +8,7 @@ enum NotchMode: Equatable {
     case completed(CompletedTask)
     case question(QuestionRequest)
     case compose
+    case responseDetail
 }
 
 struct AskOption: Identifiable, Equatable {
@@ -122,9 +123,15 @@ final class AppState: ObservableObject {
     @Published private(set) var recentProjects: [String] = []      // ordered, deduped cwds (newest first)
     @Published private(set) var lastOriginatorBundleID: String? = nil
     @Published private(set) var lastHookAt: Date? = nil
-    @Published private(set) var lastClaudeResponse: String = ""
+    @Published private(set) var lastClaudeResponse: String = ""        // truncated for hover
+    @Published private(set) var fullClaudeResponse: String = ""        // up to 8000 chars
+    @Published private(set) var lastClaudeResponseAt: Date? = nil
+    @Published private(set) var lastActivityAt: Date? = nil
     @Published var composeText: String = ""
     @Published private(set) var isComposing: Bool = false
+    @Published private(set) var composeTarget: String? = nil
+    @Published private(set) var composeError: String? = nil
+    @Published private(set) var isResponseDetailOpen: Bool = false
 
     // After this many seconds without a hook, drop the activity line.
     private let activityStaleAfter: TimeInterval = 90
@@ -138,19 +145,25 @@ final class AppState: ObservableObject {
     }
 
     func noteSession(cwd: String, originatorBundleID: String? = nil) {
-        guard !cwd.isEmpty else { return }
-        currentCwd = cwd
-        currentProject = (cwd as NSString).lastPathComponent
-        recentProjects.removeAll { $0 == cwd }
-        recentProjects.insert(cwd, at: 0)
+        // Normalize: strip trailing slashes so "/a/b" and "/a/b/" dedupe.
+        var c = cwd
+        while c.count > 1, c.hasSuffix("/") { c.removeLast() }
+        guard !c.isEmpty else { return }
+        currentCwd = c
+        currentProject = (c as NSString).lastPathComponent
+        recentProjects.removeAll { $0 == c }
+        recentProjects.insert(c, at: 0)
         if recentProjects.count > 8 { recentProjects = Array(recentProjects.prefix(8)) }
-        if let bid = originatorBundleID { lastOriginatorBundleID = bid }
+        if let bid = originatorBundleID, bid != Bundle.main.bundleIdentifier {
+            lastOriginatorBundleID = bid
+        }
         lastHookAt = Date()
         ensureStaleTimer()
     }
 
     func noteActivity(_ label: String) {
         lastActivity = label
+        lastActivityAt = Date()
         lastHookAt = Date()
         ensureStaleTimer()
     }
@@ -175,31 +188,89 @@ final class AppState: ObservableObject {
     func noteClaudeResponse(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+        fullClaudeResponse = String(trimmed.prefix(8000))
         lastClaudeResponse = String(trimmed.prefix(240))
+        lastClaudeResponseAt = Date()
         lastHookAt = Date()
+    }
+
+    // Override noteActivity to stamp its own time so the IdlePill can pick
+    // the most-recent signal.
+    func setLastActivityTimestamp() {
+        lastActivityAt = Date()
     }
 
     // MARK: - Compose (send message to Claude)
 
     func beginCompose() {
         composeText = ""
+        composeError = nil
+        // Resolve the target NOW, before we become key — otherwise frontmost
+        // might briefly become ClaudeNotch and we'd lose the terminal.
+        composeTarget = pickComposeTarget()
         isComposing = true
         recompute()
     }
 
     func sendCompose() {
         let text = composeText.trimmingCharacters(in: .whitespacesAndNewlines)
-        defer { cancelCompose() }
-        guard !text.isEmpty else { return }
-        let target = lastOriginatorBundleID
-            ?? NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-        guard let bid = target else { return }
+        guard !text.isEmpty else { cancelCompose(); return }
+
+        let target = composeTarget ?? pickComposeTarget()
+        guard let bid = target else {
+            composeError = "No terminal found to send to. Open a Claude session first."
+            return
+        }
+        if !TerminalAutomator.isAccessibilityTrusted {
+            composeError = "Grant Accessibility (menu bar → Grant Accessibility) so I can type into your terminal."
+            return
+        }
         TerminalAutomator.sendText(text, toBundleID: bid)
+        cancelCompose()
     }
 
     func cancelCompose() {
         composeText = ""
         isComposing = false
+        composeError = nil
+        composeTarget = nil
+        recompute()
+    }
+
+    private func pickComposeTarget() -> String? {
+        // 1. App that was frontmost just before us (NSWorkspace tracker)
+        if let bid = frontmost.lastNonSelf?.bundleIdentifier, !bid.isEmpty {
+            return bid
+        }
+        // 2. Last bundle that fired a hook
+        if let bid = lastOriginatorBundleID { return bid }
+        // 3. Best-guess: any running terminal
+        let candidates = [
+            "com.apple.Terminal",
+            "com.googlecode.iterm2",
+            "com.microsoft.VSCode",
+            "com.anthropic.claudefordesktop",
+            "co.zeit.hyper",
+            "io.alacritty"
+        ]
+        for b in candidates {
+            if !NSRunningApplication.runningApplications(withBundleIdentifier: b).isEmpty {
+                return b
+            }
+        }
+        return nil
+    }
+
+    // MARK: - Response detail
+
+    func showResponseDetail() {
+        guard !fullClaudeResponse.isEmpty else { return }
+        isResponseDetailOpen = true
+        recompute()
+    }
+
+    func closeResponseDetail() {
+        isResponseDetailOpen = false
         recompute()
     }
 
@@ -325,7 +396,9 @@ final class AppState: ObservableObject {
 
     private func recompute() {
         let next: NotchMode
-        if isComposing {
+        if isResponseDetailOpen {
+            next = .responseDetail
+        } else if isComposing {
             next = .compose
         } else if let q = questionQueue.first {
             next = .question(q)
