@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTALL_DIR="$HOME/.claudenotch/bin"
 
 mkdir -p "$INSTALL_DIR"
-for s in claudenotch-permission.sh claudenotch-notify.sh claudenotch-stop.sh; do
+for s in claudenotch-permission.sh claudenotch-notify.sh claudenotch-stop.sh claudenotch-posttool.sh claudenotch-prompt.sh; do
     src="$SCRIPT_DIR/$s"
     [ -f "$src" ] || { echo "Missing source script: $src"; exit 1; }
     cp "$src" "$INSTALL_DIR/$s"
@@ -28,12 +28,16 @@ esac
 PERM="$INSTALL_DIR/claudenotch-permission.sh"
 NOTIFY="$INSTALL_DIR/claudenotch-notify.sh"
 STOP="$INSTALL_DIR/claudenotch-stop.sh"
+POST="$INSTALL_DIR/claudenotch-posttool.sh"
+PROMPT="$INSTALL_DIR/claudenotch-prompt.sh"
 
 # Quote each path for shell safety, just in case ~ contains spaces.
 quote() { printf '%s' "$1" | sed "s/'/'\\\\''/g; s/^/'/; s/\$/'/"; }
 PERM_Q=$(quote "$PERM")
 NOTIFY_Q=$(quote "$NOTIFY")
 STOP_Q=$(quote "$STOP")
+POST_Q=$(quote "$POST")
+PROMPT_Q=$(quote "$PROMPT")
 
 SETTINGS="$HOME/.claude/settings.json"
 mkdir -p "$(dirname "$SETTINGS")"
@@ -47,11 +51,20 @@ jq \
     --arg perm   "$PERM_Q" \
     --arg notify "$NOTIFY_Q" \
     --arg stop   "$STOP_Q" \
+    --arg post   "$POST_Q" \
+    --arg prompt "$PROMPT_Q" \
     '
     .hooks = (.hooks // {}) |
     .hooks.PreToolUse = [
         { "matcher": ".*",
           "hooks":   [{ "type": "command", "command": $perm }] }
+    ] |
+    .hooks.PostToolUse = [
+        { "matcher": ".*",
+          "hooks":   [{ "type": "command", "command": $post }] }
+    ] |
+    .hooks.UserPromptSubmit = [
+        { "hooks": [{ "type": "command", "command": $prompt }] }
     ] |
     .hooks.Notification = [
         { "hooks": [{ "type": "command", "command": $notify }] }

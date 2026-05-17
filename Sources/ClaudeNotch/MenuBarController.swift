@@ -12,6 +12,9 @@ final class MenuBarController: NSObject {
     private var loginItem: NSMenuItem!
     private var accessibilityItem: NSMenuItem!
     private var inputMonitoringItem: NSMenuItem!
+    private var recentProjectsItem: NSMenuItem!
+    private var recentProjectsMenu: NSMenu!
+    private var statusItem: NSMenuItem!
     private var cancellables = Set<AnyCancellable>()
     private var permissionsTimer: Timer?
 
@@ -29,6 +32,29 @@ final class MenuBarController: NSObject {
         let header = NSMenuItem(title: "ClaudeNotch — listening on :53127", action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)
+
+        statusItem = NSMenuItem(title: "No active session", action: nil, keyEquivalent: "")
+        statusItem.isEnabled = false
+        menu.addItem(statusItem)
+
+        menu.addItem(.separator())
+
+        // Start Claude in a folder
+        let startHere = NSMenuItem(title: "Start Claude in folder…", action: #selector(startClaudePicker), keyEquivalent: "o")
+        startHere.target = self
+        menu.addItem(startHere)
+
+        // Recent projects submenu (populated dynamically)
+        recentProjectsMenu = NSMenu()
+        recentProjectsItem = NSMenuItem(title: "Recent projects", action: nil, keyEquivalent: "")
+        recentProjectsItem.submenu = recentProjectsMenu
+        menu.addItem(recentProjectsItem)
+
+        // Send message to current Claude session
+        let sendMsg = NSMenuItem(title: "Send message to Claude…", action: #selector(sendMessagePrompt), keyEquivalent: "m")
+        sendMsg.target = self
+        menu.addItem(sendMsg)
+
         menu.addItem(.separator())
 
         let demoPerm = NSMenuItem(title: "Demo: tool permission (blocking)", action: #selector(triggerDemoPermission), keyEquivalent: "p")
@@ -77,8 +103,20 @@ final class MenuBarController: NSObject {
             .sink { [weak self] set in self?.refreshAllowlist(set) }
             .store(in: &cancellables)
 
+        state.$recentProjects
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.refreshRecentProjects() }
+            .store(in: &cancellables)
+
+        Publishers.CombineLatest3(state.$currentProject, state.$lastActivity, state.$lastUserPrompt)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _, _, _ in self?.refreshStatusLine() }
+            .store(in: &cancellables)
+
         refreshLoginItem()
         refreshPermissions()
+        refreshRecentProjects()
+        refreshStatusLine()
 
         // macOS doesn't fire notifications when permissions toggle, so we poll.
         permissionsTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
@@ -199,6 +237,81 @@ final class MenuBarController: NSObject {
 
     @objc private func clearAllowlist() {
         state.clearAllowlist()
+    }
+
+    private func refreshStatusLine() {
+        let project = state.currentProject
+        let activity = state.lastActivity
+        if project.isEmpty {
+            statusItem.title = "No active session"
+        } else if activity.isEmpty {
+            statusItem.title = "Session: \(project)"
+        } else {
+            statusItem.title = "\(project) — \(activity)"
+        }
+    }
+
+    private func refreshRecentProjects() {
+        recentProjectsMenu.removeAllItems()
+        if state.recentProjects.isEmpty {
+            let empty = NSMenuItem(title: "(no projects yet — start Claude in any folder)", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            recentProjectsMenu.addItem(empty)
+            return
+        }
+        for cwd in state.recentProjects {
+            let basename = (cwd as NSString).lastPathComponent
+            let item = NSMenuItem(title: "↻  \(basename)  —  \(cwd)", action: #selector(launchRecentProject(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = cwd
+            item.toolTip = cwd
+            recentProjectsMenu.addItem(item)
+        }
+    }
+
+    @objc private func startClaudePicker() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Start Claude here"
+        panel.message = "Pick a folder. Terminal.app will open with `cd <folder> && claude`."
+        if panel.runModal() == .OK, let url = panel.url {
+            TerminalAutomator.startClaude(in: url.path)
+        }
+    }
+
+    @objc private func launchRecentProject(_ sender: NSMenuItem) {
+        guard let cwd = sender.representedObject as? String else { return }
+        TerminalAutomator.startClaude(in: cwd)
+    }
+
+    @objc private func sendMessagePrompt() {
+        let alert = NSAlert()
+        alert.messageText = "Send message to Claude"
+        alert.informativeText = state.currentProject.isEmpty
+            ? "Will type into the currently-frontmost terminal."
+            : "Will type into the terminal running session: \(state.currentProject)"
+
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 380, height: 24))
+        input.placeholderString = "type your message…"
+        alert.accessoryView = input
+        alert.addButton(withTitle: "Send")
+        alert.addButton(withTitle: "Cancel")
+
+        // Make sure the alert can take focus.
+        NSApp.activate(ignoringOtherApps: true)
+        DispatchQueue.main.async { input.becomeFirstResponder() }
+
+        let result = alert.runModal()
+        guard result == .alertFirstButtonReturn else { return }
+        let text = input.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+
+        let target = state.lastOriginatorBundleID
+            ?? NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+            ?? "com.apple.Terminal"
+        TerminalAutomator.sendText(text, toBundleID: target)
     }
 
     @objc private func toggleLaunchAtLogin() {

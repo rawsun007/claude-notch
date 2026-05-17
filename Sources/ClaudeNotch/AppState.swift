@@ -113,8 +113,35 @@ final class AppState: ObservableObject {
     @Published private(set) var sessionAllowlist: Set<String> = []
     @Published var isHovering: Bool = false
 
+    // Live session info — populated from every hook payload.
+    @Published private(set) var currentProject: String = ""        // basename of cwd
+    @Published private(set) var currentCwd: String = ""
+    @Published private(set) var lastActivity: String = ""          // "Bash: ls -la" etc.
+    @Published private(set) var lastUserPrompt: String = ""
+    @Published private(set) var recentProjects: [String] = []      // ordered, deduped cwds (newest first)
+    @Published private(set) var lastOriginatorBundleID: String? = nil
+
     func setHovering(_ value: Bool) {
         if isHovering != value { isHovering = value }
+    }
+
+    func noteSession(cwd: String, originatorBundleID: String? = nil) {
+        guard !cwd.isEmpty else { return }
+        currentCwd = cwd
+        currentProject = (cwd as NSString).lastPathComponent
+        // Move-to-front dedup
+        recentProjects.removeAll { $0 == cwd }
+        recentProjects.insert(cwd, at: 0)
+        if recentProjects.count > 8 { recentProjects = Array(recentProjects.prefix(8)) }
+        if let bid = originatorBundleID { lastOriginatorBundleID = bid }
+    }
+
+    func noteActivity(_ label: String) {
+        lastActivity = label
+    }
+
+    func noteUserPrompt(_ prompt: String) {
+        lastUserPrompt = String(prompt.prefix(140))
     }
 
     let frontmost = FrontmostTracker()

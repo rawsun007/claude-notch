@@ -87,6 +87,9 @@ final class EventServer {
         let payload = (try? JSONSerialization.jsonObject(with: req.body) as? [String: Any]) ?? [:]
         let path = (req.path.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? req.path).lowercased()
 
+        // Every hook payload tells us about a project (cwd) — always record it.
+        recordSessionMetadata(payload: payload)
+
         switch path {
         case "/permission":
             handleBlockingPermission(payload: payload, on: conn)
@@ -98,6 +101,12 @@ final class EventServer {
         case "/stop":
             handleStop(payload: payload)
             sendOK(on: conn)
+        case "/activity":
+            handleActivity(payload: payload)
+            sendOK(on: conn)
+        case "/prompt":
+            handlePrompt(payload: payload)
+            sendOK(on: conn)
         case "/pretool", "/posttool", "/thinking":
             handleThinking(payload: payload)
             sendOK(on: conn)
@@ -106,6 +115,34 @@ final class EventServer {
         default:
             NSLog("ClaudeNotch: unknown path \(path)")
             sendOK(on: conn)
+        }
+    }
+
+    private func recordSessionMetadata(payload: [String: Any]) {
+        let cwd = (payload["cwd"] as? String) ?? ""
+        guard !cwd.isEmpty else { return }
+        Task { @MainActor [weak state] in
+            let frontBID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+            state?.noteSession(cwd: cwd, originatorBundleID: frontBID)
+        }
+    }
+
+    private func handleActivity(payload: [String: Any]) {
+        Task { @MainActor [weak state] in
+            guard let state else { return }
+            let tool = (payload["tool_name"] as? String) ?? ""
+            guard !tool.isEmpty else { return }
+            let input = payload["tool_input"] as? [String: Any] ?? [:]
+            let detail = humanDetail(for: tool, input: input)
+            let label = detail.isEmpty ? tool : "\(tool): \(detail)"
+            state.noteActivity(String(label.prefix(80)))
+        }
+    }
+
+    private func handlePrompt(payload: [String: Any]) {
+        Task { @MainActor [weak state] in
+            let prompt = (payload["prompt"] as? String) ?? ""
+            state?.noteUserPrompt(prompt)
         }
     }
 

@@ -83,7 +83,7 @@ struct NotchView: View {
     private var content: some View {
         switch state.mode {
         case .idle:
-            IdlePill()
+            IdlePill(state: state)
                 .transition(.opacity)
         case .thinking(let label):
             ThinkingPill(label: label)
@@ -166,16 +166,27 @@ private struct NotchShape: Shape {
 // MARK: - Idle
 
 private struct IdlePill: View {
+    @ObservedObject var state: AppState
+
     var body: some View {
-        HStack(spacing: 8) {
-            Circle().fill(Color.green).frame(width: 8, height: 8)
-            Text("ClaudeNotch")
-                .font(.system(size: 12, weight: .medium, design: .rounded))
-                .foregroundColor(.white.opacity(0.85))
+        HStack(spacing: 10) {
+            Circle()
+                .fill(state.lastActivity.isEmpty ? Color.green : Color.blue)
+                .frame(width: 8, height: 8)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(state.currentProject.isEmpty ? "ClaudeNotch" : state.currentProject)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                Text(state.lastActivity.isEmpty
+                     ? (state.lastUserPrompt.isEmpty ? "ready" : state.lastUserPrompt)
+                     : state.lastActivity)
+                    .font(.system(size: 10, design: .rounded))
+                    .foregroundColor(.white.opacity(0.55))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
             Spacer(minLength: 0)
-            Text("idle")
-                .font(.system(size: 11, design: .rounded))
-                .foregroundColor(.white.opacity(0.4))
         }
     }
 }
