@@ -33,8 +33,8 @@ final class MenuBarController: NSObject {
         header.isEnabled = false
         menu.addItem(header)
 
-        statusItem = NSMenuItem(title: "No active session", action: nil, keyEquivalent: "")
-        statusItem.isEnabled = false
+        statusItem = NSMenuItem(title: "No active session", action: #selector(clearSession), keyEquivalent: "")
+        statusItem.target = self
         menu.addItem(statusItem)
 
         menu.addItem(.separator())
@@ -244,11 +244,18 @@ final class MenuBarController: NSObject {
         let activity = state.lastActivity
         if project.isEmpty {
             statusItem.title = "No active session"
+            statusItem.isEnabled = false
         } else if activity.isEmpty {
-            statusItem.title = "Session: \(project)"
+            statusItem.title = "\(project)  —  click to clear"
+            statusItem.isEnabled = true
         } else {
-            statusItem.title = "\(project) — \(activity)"
+            statusItem.title = "\(project) — \(activity)  (click to clear)"
+            statusItem.isEnabled = true
         }
+    }
+
+    @objc private func clearSession() {
+        state.clearSession()
     }
 
     private func refreshRecentProjects() {

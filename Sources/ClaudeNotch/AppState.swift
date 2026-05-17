@@ -120,6 +120,14 @@ final class AppState: ObservableObject {
     @Published private(set) var lastUserPrompt: String = ""
     @Published private(set) var recentProjects: [String] = []      // ordered, deduped cwds (newest first)
     @Published private(set) var lastOriginatorBundleID: String? = nil
+    @Published private(set) var lastHookAt: Date? = nil
+
+    // After this many seconds without a hook, drop the activity line.
+    private let activityStaleAfter: TimeInterval = 90
+    // After this many seconds without a hook, also drop the project name
+    // (the terminal is most likely closed).
+    private let projectStaleAfter: TimeInterval = 300
+    private var staleTimer: Timer?
 
     func setHovering(_ value: Bool) {
         if isHovering != value { isHovering = value }
@@ -129,19 +137,60 @@ final class AppState: ObservableObject {
         guard !cwd.isEmpty else { return }
         currentCwd = cwd
         currentProject = (cwd as NSString).lastPathComponent
-        // Move-to-front dedup
         recentProjects.removeAll { $0 == cwd }
         recentProjects.insert(cwd, at: 0)
         if recentProjects.count > 8 { recentProjects = Array(recentProjects.prefix(8)) }
         if let bid = originatorBundleID { lastOriginatorBundleID = bid }
+        lastHookAt = Date()
+        ensureStaleTimer()
     }
 
     func noteActivity(_ label: String) {
         lastActivity = label
+        lastHookAt = Date()
+        ensureStaleTimer()
     }
 
     func noteUserPrompt(_ prompt: String) {
         lastUserPrompt = String(prompt.prefix(140))
+        lastHookAt = Date()
+        ensureStaleTimer()
+    }
+
+    /// Manually wipe the live session info — useful when you closed the
+    /// terminal and want the notch to forget what was running there.
+    func clearSession() {
+        currentProject = ""
+        currentCwd = ""
+        lastActivity = ""
+        lastUserPrompt = ""
+        lastHookAt = nil
+    }
+
+    private func ensureStaleTimer() {
+        guard staleTimer == nil else { return }
+        staleTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.checkStale() }
+        }
+    }
+
+    private func checkStale() {
+        guard let last = lastHookAt else { return }
+        let age = Date().timeIntervalSince(last)
+        if age > projectStaleAfter {
+            // Full clear — terminal is almost certainly closed.
+            currentProject = ""
+            currentCwd = ""
+            lastActivity = ""
+            lastUserPrompt = ""
+            lastHookAt = nil
+            staleTimer?.invalidate()
+            staleTimer = nil
+        } else if age > activityStaleAfter {
+            // Just drop the volatile fields.
+            if !lastActivity.isEmpty { lastActivity = "" }
+            if !lastUserPrompt.isEmpty { lastUserPrompt = "" }
+        }
     }
 
     let frontmost = FrontmostTracker()
