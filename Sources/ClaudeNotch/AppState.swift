@@ -539,10 +539,14 @@ final class AppState: ObservableObject {
     }
 
     func openOriginator(_ bundleID: String?) {
-        if let bid = bundleID,
+        let me = Bundle.main.bundleIdentifier
+        // Discard a captured originator that points back at *us* — happens
+        // whenever the notch panel was key at hook-fire time. Also discard
+        // an originator whose process is no longer running.
+        if let bid = bundleID, bid != me,
            let app = NSRunningApplication.runningApplications(withBundleIdentifier: bid).first,
            !app.isTerminated {
-            app.activate(options: [.activateIgnoringOtherApps])
+            AppActivation.bringToFront(app)
             return
         }
         frontmost.activateLastApp()
@@ -613,7 +617,7 @@ final class FrontmostTracker {
 
     func activateLastApp() {
         if let app = lastNonSelf, !app.isTerminated {
-            app.activate(options: [.activateIgnoringOtherApps])
+            AppActivation.bringToFront(app)
             return
         }
         let bundles = [
@@ -625,9 +629,25 @@ final class FrontmostTracker {
         ]
         for b in bundles {
             if let app = NSRunningApplication.runningApplications(withBundleIdentifier: b).first {
-                app.activate(options: [.activateIgnoringOtherApps])
+                AppActivation.bringToFront(app)
                 return
             }
+        }
+    }
+}
+
+/// Centralised app-activation that works across macOS versions.
+/// `.activateIgnoringOtherApps` is deprecated on macOS 14+ and no longer
+/// reliable; the parameterless `.activate()` replaces it. We also unhide
+/// first — a minimized app otherwise just bounces the Dock icon without
+/// surfacing a window.
+enum AppActivation {
+    static func bringToFront(_ app: NSRunningApplication) {
+        if app.isHidden { app.unhide() }
+        if #available(macOS 14.0, *) {
+            app.activate()
+        } else {
+            app.activate(options: [.activateIgnoringOtherApps])
         }
     }
 }

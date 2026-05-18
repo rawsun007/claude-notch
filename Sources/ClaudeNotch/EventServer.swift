@@ -74,6 +74,21 @@ final class EventServer {
         self.state = state
     }
 
+    /// Best-effort "who did this hook fire for?" — preferred answer is the
+    /// app that was frontmost when the hook landed, but if that's us (the
+    /// notch panel was key at the time), fall back to the last non-self
+    /// app the FrontmostTracker saw. Without this filter, every "Open IDE"
+    /// click after the notch had focus would just no-op (activate ourself).
+    @MainActor
+    fileprivate static func capturedOriginator(state: AppState?) -> String? {
+        let me = Bundle.main.bundleIdentifier
+        if let bid = NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+           bid != me {
+            return bid
+        }
+        return state?.frontmost.lastNonSelf?.bundleIdentifier
+    }
+
     func start() throws {
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
@@ -182,7 +197,7 @@ final class EventServer {
         let cwd = (payload["cwd"] as? String) ?? ""
         guard !cwd.isEmpty else { return }
         Task { @MainActor [weak state] in
-            let frontBID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+            let frontBID = Self.capturedOriginator(state: state)
             state?.noteSession(cwd: cwd, originatorBundleID: frontBID)
         }
     }
@@ -237,7 +252,7 @@ final class EventServer {
                 ?? "Claude needs your attention"
             let detail = (payload["detail"] as? String) ?? detailFromHookPayload(payload)
             let source = (payload["source"] as? String) ?? "Claude Code"
-            let frontBID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+            let frontBID = Self.capturedOriginator(state: state)
             let req = PermissionRequest(
                 kind: .notification,
                 title: msg,
@@ -273,7 +288,7 @@ final class EventServer {
             let title = (payload["title"] as? String) ?? "Claude finished"
             let detail = (payload["detail"] as? String) ?? detailFromHookPayload(payload)
             let source = (payload["source"] as? String) ?? "Claude Code"
-            let frontBID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+            let frontBID = Self.capturedOriginator(state: state)
             state.enqueueCompleted(.init(
                 title: title,
                 detail: detail,
@@ -373,7 +388,7 @@ final class EventServer {
 
         Task { @MainActor [weak state] in
             guard let state else { return }
-            let frontBID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+            let frontBID = Self.capturedOriginator(state: state)
             let req = PermissionRequest(
                 kind: .toolUse,
                 title: title,
@@ -443,7 +458,7 @@ final class EventServer {
 
         Task { @MainActor [weak state] in
             guard let state else { return }
-            let frontBID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+            let frontBID = Self.capturedOriginator(state: state)
             lock.lock(); capturedOriginatorBID = frontBID; lock.unlock()
             let req = QuestionRequest(
                 questions: parsed,
