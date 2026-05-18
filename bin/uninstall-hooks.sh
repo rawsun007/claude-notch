@@ -14,7 +14,8 @@ jq '
 def strip_event(arr):
     (arr // []) | map(
         select(
-            ((.hooks // []) | map(.command // "") | join(" ") | contains("claudenotch") | not)
+            ((.hooks // []) | map(.command // "") | join(" ")
+              | (contains("claudenotch") or contains(".claudenotch")) | not)
         )
     ) ;
 

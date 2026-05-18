@@ -1,8 +1,9 @@
 #!/bin/bash
 # Merge ClaudeNotch hooks into ~/.claude/settings.json (idempotent, backed up).
 #
-# Always copies the hook scripts to ~/.claudenotch/bin/ first, so settings.json
-# points at a no-spaces path (otherwise /bin/sh splits the command on spaces).
+# Single-dispatcher mode: all 5 Claude Code hook events point at the same
+# command (claudenotch-hook.sh). Claude Code's "do you trust this hook?"
+# prompt fires once per command per project, so this is one click total.
 set -euo pipefail
 
 command -v jq >/dev/null 2>&1 || { echo "jq is required (brew install jq)"; exit 1; }
@@ -11,7 +12,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTALL_DIR="$HOME/.claudenotch/bin"
 
 mkdir -p "$INSTALL_DIR"
-for s in claudenotch-permission.sh claudenotch-notify.sh claudenotch-stop.sh claudenotch-posttool.sh claudenotch-prompt.sh uninstall-hooks.sh; do
+for s in claudenotch-hook.sh \
+         claudenotch-permission.sh claudenotch-notify.sh claudenotch-stop.sh \
+         claudenotch-posttool.sh claudenotch-prompt.sh \
+         uninstall-hooks.sh; do
     src="$SCRIPT_DIR/$s"
     [ -f "$src" ] || { echo "Missing source script: $src"; exit 1; }
     cp "$src" "$INSTALL_DIR/$s"
@@ -25,19 +29,9 @@ case "$INSTALL_DIR" in
     *" "*) echo "WARNING: \$HOME contains spaces ($INSTALL_DIR). The wired command will be quoted." ;;
 esac
 
-PERM="$INSTALL_DIR/claudenotch-permission.sh"
-NOTIFY="$INSTALL_DIR/claudenotch-notify.sh"
-STOP="$INSTALL_DIR/claudenotch-stop.sh"
-POST="$INSTALL_DIR/claudenotch-posttool.sh"
-PROMPT="$INSTALL_DIR/claudenotch-prompt.sh"
-
-# Quote each path for shell safety, just in case ~ contains spaces.
+HOOK="$INSTALL_DIR/claudenotch-hook.sh"
 quote() { printf '%s' "$1" | sed "s/'/'\\\\''/g; s/^/'/; s/\$/'/"; }
-PERM_Q=$(quote "$PERM")
-NOTIFY_Q=$(quote "$NOTIFY")
-STOP_Q=$(quote "$STOP")
-POST_Q=$(quote "$POST")
-PROMPT_Q=$(quote "$PROMPT")
+HOOK_Q=$(quote "$HOOK")
 
 SETTINGS="$HOME/.claude/settings.json"
 mkdir -p "$(dirname "$SETTINGS")"
@@ -47,39 +41,30 @@ TS=$(date +%s)
 BACKUP="$SETTINGS.before-claudenotch.$TS"
 cp "$SETTINGS" "$BACKUP"
 
-jq \
-    --arg perm   "$PERM_Q" \
-    --arg notify "$NOTIFY_Q" \
-    --arg stop   "$STOP_Q" \
-    --arg post   "$POST_Q" \
-    --arg prompt "$PROMPT_Q" \
-    '
+jq --arg hook "$HOOK_Q" '
     .hooks = (.hooks // {}) |
     .hooks.PreToolUse = [
-        { "matcher": ".*",
-          "hooks":   [{ "type": "command", "command": $perm }] }
+        { "matcher": ".*", "hooks": [{ "type": "command", "command": $hook }] }
     ] |
     .hooks.PostToolUse = [
-        { "matcher": ".*",
-          "hooks":   [{ "type": "command", "command": $post }] }
+        { "matcher": ".*", "hooks": [{ "type": "command", "command": $hook }] }
     ] |
     .hooks.UserPromptSubmit = [
-        { "hooks": [{ "type": "command", "command": $prompt }] }
+        { "hooks": [{ "type": "command", "command": $hook }] }
     ] |
     .hooks.Notification = [
-        { "hooks": [{ "type": "command", "command": $notify }] }
+        { "hooks": [{ "type": "command", "command": $hook }] }
     ] |
     .hooks.Stop = [
-        { "hooks": [{ "type": "command", "command": $stop }] }
+        { "hooks": [{ "type": "command", "command": $hook }] }
     ]
-    ' "$SETTINGS" > "$SETTINGS.new"
+' "$SETTINGS" > "$SETTINGS.new"
 
 mv "$SETTINGS.new" "$SETTINGS"
-echo "✓ Wired ClaudeNotch hooks into $SETTINGS"
+echo "✓ Wired ClaudeNotch hooks (single-dispatcher) into $SETTINGS"
 echo "  (backup: $BACKUP)"
 echo
-echo "  Matcher: .* (all tools — hook script filters which ones show the notch)"
-echo "  Safe tools fall through to Claude Code's defaults: Read, Grep, Glob, LS, TodoWrite, BashOutput, KillShell"
-echo "  Everything else (Bash, Write, Edit, WebFetch, MCP tools, ExitPlanMode, SlashCommand, …) shows the notch."
+echo "  Trust prompt: Claude Code will ask 'trust this hook?' ONCE per project."
+echo "  Click 'Yes, and don't ask again for ... commands in /path/to/project'."
 echo
-echo "  Uninstall:  ~/.claudenotch/bin/uninstall-hooks.sh"
+echo "  Uninstall: $INSTALL_DIR/uninstall-hooks.sh"
