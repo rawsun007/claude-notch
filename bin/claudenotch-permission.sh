@@ -73,11 +73,12 @@ if [ "$tool" = "AskUserQuestion" ]; then
     exit 0
 fi
 
-# Narrow safe-list — these are the truly non-interactive read tools.
-# Everything else (including custom MCP tools, ExitPlanMode, SlashCommand)
-# routes through the notch so user never has to look at the terminal.
+# Narrow safe-list — tools Claude Code never prompts for anyway
+# (read-only / internal). Read used to be here, but Claude Code DOES
+# prompt for Read in not-yet-trusted directories, so it's now routed
+# through the notch like everything else.
 case "$tool" in
-    Read|Grep|Glob|LS|TodoWrite|BashOutput|KillShell)
+    Grep|Glob|LS|TodoWrite|BashOutput|KillShell)
         emit_ask "tool $tool is safe/non-interactive" ;;
     *) ;;
 esac

@@ -89,6 +89,11 @@ enum ToolPreviewParser {
 
     private static func bashDanger(_ command: String) -> [String] {
         guard !command.isEmpty else { return [] }
+        // Strip quoted strings, heredoc bodies and trailing comments. Without
+        // this, a commit message like `git commit -m "fix the rm -rf bug"`
+        // matches every destructive pattern just because the words appear
+        // in user-controlled text.
+        let scrubbed = stripQuotedAndHeredocs(command)
         var reasons: [String] = []
 
         // Test in (rough) order of severity. Each entry: regex (case-
@@ -131,11 +136,51 @@ enum ToolPreviewParser {
         ]
 
         for (pattern, opts, reason) in patterns {
-            if matches(pattern, in: command, options: opts) {
+            if matches(pattern, in: scrubbed, options: opts) {
                 reasons.append(reason)
             }
         }
         return reasons
+    }
+
+    /// Replace contents of single/double-quoted strings and heredoc bodies
+    /// with placeholder text. The point is that user-supplied free-text
+    /// (commit messages, echo arguments, sed replacements) shouldn't fire
+    /// danger rules — only the actual shell tokens around them should.
+    private static func stripQuotedAndHeredocs(_ command: String) -> String {
+        var s = command
+
+        // Heredocs first — they can contain anything including quotes.
+        // <<TAG, <<-TAG, <<'TAG', <<"TAG" — capture TAG, replace up to a
+        // line that contains just TAG (optionally indented for <<-).
+        s = replaceRegex(in: s,
+                         pattern: #"<<-?\s*['"]?(\w+)['"]?[^\n]*\n[\s\S]*?\n\s*\1\b"#,
+                         options: [],
+                         replacement: "<<HEREDOC>>")
+
+        // $(...) and `...` — command substitutions often hold the heredoc
+        // openers we just collapsed; their *outer* commands should still
+        // be checked, but inner free-text shouldn't trigger.
+        // Single-quoted strings: literal, no expansion.
+        s = replaceRegex(in: s, pattern: #"'[^']*'"#, options: [], replacement: "''")
+        // Double-quoted strings: best-effort (doesn't track \" but that's
+        // fine for our risk-scan use case).
+        s = replaceRegex(in: s, pattern: #""[^"]*""#, options: [], replacement: "\"\"")
+        // Comments after whitespace.
+        s = replaceRegex(in: s, pattern: #"\s+#[^\n]*"#, options: [], replacement: "")
+
+        return s
+    }
+
+    private static func replaceRegex(
+        in input: String,
+        pattern: String,
+        options: NSRegularExpression.Options,
+        replacement: String
+    ) -> String {
+        guard let re = try? NSRegularExpression(pattern: pattern, options: options) else { return input }
+        let range = NSRange(input.startIndex..<input.endIndex, in: input)
+        return re.stringByReplacingMatches(in: input, options: [], range: range, withTemplate: replacement)
     }
 
     private static func pathDanger(_ path: String) -> [String] {
