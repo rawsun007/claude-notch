@@ -15,7 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu = MenuBarController(state: state)
 
-        mouse = MouseTracker(state: state)
+        mouse = MouseTracker(state: state, window: notch.window)
         mouse.start()
 
         keys = KeyboardMonitor(state: state)

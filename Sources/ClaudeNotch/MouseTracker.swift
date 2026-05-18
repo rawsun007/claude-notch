@@ -5,11 +5,17 @@ import AppKit
 @MainActor
 final class MouseTracker {
     private weak var state: AppState?
+    private weak var window: NSWindow?
     private var monitor: Any?
     private var timer: Timer?
 
-    init(state: AppState) {
+    init(state: AppState, window: NSWindow? = nil) {
         self.state = state
+        self.window = window
+    }
+
+    func attach(window: NSWindow) {
+        self.window = window
     }
 
     func start() {
@@ -36,6 +42,9 @@ final class MouseTracker {
     }
 
     /// Small zone right under the menu bar — what *triggers* a hover expand.
+    /// Anchored to the screen the notch window is currently rendering on
+    /// (not the screen the cursor is on) so a cursor wandering to another
+    /// display doesn't drag the trigger zone with it.
     static func triggerZone(on screen: NSScreen) -> NSRect {
         let s = screen.frame
         let width: CGFloat = 340
@@ -43,19 +52,10 @@ final class MouseTracker {
         return NSRect(x: s.midX - width / 2, y: s.maxY - height, width: width, height: height)
     }
 
-    /// Once expanded, we stay expanded as long as cursor is inside this larger
-    /// zone — covers any card size (response detail = 660×392, question card
-    /// = 600×532). Prevents the "click expand arrow → it collapses" bug.
-    static func keepZone(on screen: NSScreen) -> NSRect {
-        let s = screen.frame
-        let width: CGFloat = 720
-        let height: CGFloat = 580
-        return NSRect(x: s.midX - width / 2, y: s.maxY - height, width: width, height: height)
-    }
-
-    private func currentScreen() -> NSScreen {
-        let mouse = NSEvent.mouseLocation
-        return NSScreen.screens.first(where: { NSPointInRect(mouse, $0.frame) })
+    /// The screen the notch is actually rendering on right now. Falls back
+    /// to NSScreen.main if the window hasn't been placed yet.
+    private func notchScreen() -> NSScreen {
+        window?.screen
             ?? NSScreen.main
             ?? NSScreen.screens.first!
     }
@@ -63,13 +63,40 @@ final class MouseTracker {
     private func check() {
         guard let state else { return }
         let mouse = NSEvent.mouseLocation
-        let screen = currentScreen()
+        let screen = notchScreen()
         let inside: Bool
         if state.isHovering {
-            inside = Self.keepZone(on: screen).contains(mouse)
+            // Once expanded, keep it open as long as the cursor is anywhere
+            // near the visible panel. We use the panel's actual frame
+            // (padded) — this is robust to display changes, panel resizes
+            // and cursor flips between screens.
+            inside = keepRegion().contains(mouse)
         } else {
             inside = Self.triggerZone(on: screen).contains(mouse)
         }
         state.setHovering(inside)
+    }
+
+    /// The "stay-expanded" region: the actual notch window frame, generously
+    /// padded so the cursor has slack while moving toward / over the UI.
+    /// Falls back to a fixed top-of-screen rect if we don't have a window yet.
+    private func keepRegion() -> NSRect {
+        guard let frame = window?.frame, frame.width > 0 else {
+            let s = notchScreen().frame
+            return NSRect(x: s.midX - 360, y: s.maxY - 580, width: 720, height: 580)
+        }
+        // Pad: 60pt horizontal slack so the cursor approaching from the side
+        // counts as inside; 40pt below the panel so a small drift down
+        // doesn't immediately collapse; extend UP to the top of the screen
+        // so the cursor going over the physical notch / menu bar is fine.
+        let screenTop = notchScreen().frame.maxY
+        let top = max(frame.maxY, screenTop)
+        let bottom = frame.minY - 40
+        return NSRect(
+            x: frame.minX - 60,
+            y: bottom,
+            width: frame.width + 120,
+            height: top - bottom
+        )
     }
 }
