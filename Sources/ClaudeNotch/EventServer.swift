@@ -364,6 +364,8 @@ final class EventServer {
         let cwd = (payload["cwd"] as? String) ?? ""
         let title = humanTitle(for: toolName)
         let detail = enrichedDetail(for: toolName, input: toolInput)
+        let preview = ToolPreviewParser.preview(for: toolName, input: toolInput)
+        let dangers = ToolPreviewParser.dangerReasons(for: toolName, input: toolInput)
 
         let semaphore = DispatchSemaphore(value: 0)
         let lock = NSLock()
@@ -380,6 +382,8 @@ final class EventServer {
                 source: "Claude Code",
                 cwd: cwd,
                 originatorBundleID: frontBID,
+                preview: preview,
+                dangerReasons: dangers,
                 resolver: { d in
                     lock.lock()
                     decision = d

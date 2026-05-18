@@ -9,6 +9,49 @@ enum NotchMode: Equatable {
     case question(QuestionRequest)
     case compose
     case responseDetail
+    case history
+}
+
+// MARK: - Tool preview & danger flagging
+
+/// A small unified-diff hunk: the lines being replaced and the lines that
+/// replace them. Truncated to ~10 lines each at construction.
+struct DiffHunk: Equatable {
+    let oldLines: [String]
+    let newLines: [String]
+    let truncatedOld: Bool
+    let truncatedNew: Bool
+}
+
+/// Optional structured preview attached to a PermissionRequest. Renders
+/// inside the permission card so the user can see what's about to happen
+/// instead of just the file path.
+enum ToolPreview: Equatable {
+    case diff(DiffHunk)
+    case multiDiff(count: Int, first: DiffHunk)
+    case write(head: String, totalLines: Int)
+}
+
+// MARK: - History
+
+/// One row in the click-to-expand history drawer. Captured at resolve time
+/// so the user can scroll back through what's been happening.
+struct HistoryEntry: Identifiable, Equatable {
+    let id = UUID()
+    let timestamp: Date
+    let kind: Kind
+    let toolName: String
+    let title: String
+    let detail: String
+    let project: String
+    let outcome: Outcome
+
+    enum Kind: String, Equatable {
+        case permission, question, notification, completed
+    }
+    enum Outcome: Equatable {
+        case allowed, denied, dismissed, answered(count: Int), info, dangerous
+    }
 }
 
 struct AskOption: Identifiable, Equatable {
@@ -66,9 +109,11 @@ final class PermissionRequest: Identifiable, Equatable {
     let cwd: String
     let receivedAt = Date()
     let originatorBundleID: String?   // app that was frontmost when request came in
+    let preview: ToolPreview?         // Edit diff / Write head / MultiEdit summary
+    let dangerReasons: [String]       // empty unless command matched a danger pattern
     let resolver: (PermissionDecision) -> Void
 
-    init(kind: Kind, title: String, detail: String, toolName: String, source: String, cwd: String, originatorBundleID: String? = nil, resolver: @escaping (PermissionDecision) -> Void) {
+    init(kind: Kind, title: String, detail: String, toolName: String, source: String, cwd: String, originatorBundleID: String? = nil, preview: ToolPreview? = nil, dangerReasons: [String] = [], resolver: @escaping (PermissionDecision) -> Void) {
         self.kind = kind
         self.title = title
         self.detail = detail
@@ -76,8 +121,12 @@ final class PermissionRequest: Identifiable, Equatable {
         self.source = source
         self.cwd = cwd
         self.originatorBundleID = originatorBundleID
+        self.preview = preview
+        self.dangerReasons = dangerReasons
         self.resolver = resolver
     }
+
+    var isDangerous: Bool { !dangerReasons.isEmpty }
 
     static func == (lhs: PermissionRequest, rhs: PermissionRequest) -> Bool {
         lhs.id == rhs.id
@@ -132,6 +181,11 @@ final class AppState: ObservableObject {
     @Published private(set) var composeTarget: String? = nil
     @Published private(set) var composeError: String? = nil
     @Published private(set) var isResponseDetailOpen: Bool = false
+    @Published private(set) var isHistoryOpen: Bool = false
+
+    // Click-to-expand history drawer (most recent first, ring-buffered).
+    @Published private(set) var history: [HistoryEntry] = []
+    private let historyMax = 50
 
     // After this many seconds without a hook, drop the activity line.
     private let activityStaleAfter: TimeInterval = 90
@@ -275,6 +329,31 @@ final class AppState: ObservableObject {
         recompute()
     }
 
+    // MARK: - History drawer
+
+    func openHistory() {
+        guard !history.isEmpty else { return }
+        isHistoryOpen = true
+        recompute()
+    }
+
+    func closeHistory() {
+        isHistoryOpen = false
+        recompute()
+    }
+
+    func clearHistory() {
+        history.removeAll()
+        if isHistoryOpen { closeHistory() }
+    }
+
+    fileprivate func appendHistory(_ entry: HistoryEntry) {
+        history.insert(entry, at: 0)
+        if history.count > historyMax {
+            history = Array(history.prefix(historyMax))
+        }
+    }
+
     private func ensureStaleTimer() {
         guard staleTimer == nil else { return }
         staleTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
@@ -309,16 +388,48 @@ final class AppState: ObservableObject {
 
     func enqueuePermission(_ req: PermissionRequest) {
         if sessionAllowlist.contains(req.toolName) {
+            // Auto-allowed sessions still get recorded so the user can see
+            // what we allowed silently on their behalf.
+            appendHistory(HistoryEntry(
+                timestamp: Date(),
+                kind: req.kind == .notification ? .notification : .permission,
+                toolName: req.toolName,
+                title: req.title,
+                detail: req.detail,
+                project: (req.cwd as NSString).lastPathComponent,
+                outcome: req.kind == .notification ? .info : .allowed
+            ))
             req.resolver(.allow)
             return
         }
         permissionQueue.append(req)
+        // Record notifications immediately — they don't have an Allow/Deny.
+        if req.kind == .notification {
+            appendHistory(HistoryEntry(
+                timestamp: Date(),
+                kind: .notification,
+                toolName: req.toolName,
+                title: req.title,
+                detail: req.detail,
+                project: (req.cwd as NSString).lastPathComponent,
+                outcome: .info
+            ))
+        }
         playAlert()
         recompute()
     }
 
     func enqueueCompleted(_ task: CompletedTask) {
         completedQueue.append(task)
+        appendHistory(HistoryEntry(
+            timestamp: Date(),
+            kind: .completed,
+            toolName: "Stop",
+            title: task.title,
+            detail: task.detail,
+            project: (task.cwd as NSString).lastPathComponent,
+            outcome: .info
+        ))
         playChime()
         recompute()
     }
@@ -333,6 +444,24 @@ final class AppState: ObservableObject {
         guard !questionQueue.isEmpty else { return }
         let first = questionQueue.removeFirst()
         first.resolver(answers)
+        let title: String
+        let outcome: HistoryEntry.Outcome
+        if let answers, !answers.isEmpty {
+            outcome = .answered(count: answers.flatMap { $0 }.count)
+            title = first.questions.first?.text ?? "Question"
+        } else {
+            outcome = .dismissed
+            title = first.questions.first?.text ?? "Question"
+        }
+        appendHistory(HistoryEntry(
+            timestamp: Date(),
+            kind: .question,
+            toolName: "AskUserQuestion",
+            title: title,
+            detail: first.source,
+            project: (first.cwd as NSString).lastPathComponent,
+            outcome: outcome
+        ))
         if answers != nil {
             NSSound(named: NSSound.Name("Tink"))?.play()
         } else {
@@ -348,6 +477,24 @@ final class AppState: ObservableObject {
             sessionAllowlist.insert(first.toolName)
         }
         first.resolver(decision)
+        // Notifications were already logged at enqueue time.
+        if first.kind != .notification {
+            let outcome: HistoryEntry.Outcome
+            switch decision {
+            case .allow: outcome = first.isDangerous ? .dangerous : .allowed
+            case .deny:  outcome = .denied
+            case .ask:   outcome = .dismissed
+            }
+            appendHistory(HistoryEntry(
+                timestamp: Date(),
+                kind: .permission,
+                toolName: first.toolName,
+                title: first.title,
+                detail: first.detail,
+                project: (first.cwd as NSString).lastPathComponent,
+                outcome: outcome
+            ))
+        }
         playFeedback(for: decision)
         recompute()
     }
@@ -411,7 +558,9 @@ final class AppState: ObservableObject {
 
     private func recompute() {
         let next: NotchMode
-        if isResponseDetailOpen {
+        if isHistoryOpen {
+            next = .history
+        } else if isResponseDetailOpen {
             next = .responseDetail
         } else if isComposing {
             next = .compose

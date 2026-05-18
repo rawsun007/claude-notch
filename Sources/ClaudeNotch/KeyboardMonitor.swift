@@ -35,7 +35,7 @@ final class KeyboardMonitor {
         let isOurKey = (event.keyCode == 36 || event.keyCode == 76 || event.keyCode == 53)
         guard isOurKey else { return false }
         switch state.mode {
-        case .permission, .completed, .question, .compose, .responseDetail: return true
+        case .permission, .completed, .question, .compose, .responseDetail, .history: return true
         default: return false
         }
     }
@@ -53,7 +53,7 @@ final class KeyboardMonitor {
 
         let cardActive: Bool = {
             switch state.mode {
-            case .permission, .completed, .question, .compose, .responseDetail: return true
+            case .permission, .completed, .question, .compose, .responseDetail, .history: return true
             default: return false
             }
         }()
@@ -64,6 +64,9 @@ final class KeyboardMonitor {
             debugLog("  → ENTER with active card → resolving")
             switch state.mode {
             case .permission(let req) where req.kind == .toolUse:
+                // Dangerous commands MUST use hold-to-confirm. Enter is a no-op
+                // (we don't want a single keystroke to trigger an rm -rf).
+                if req.isDangerous { return }
                 state.resolveCurrentPermission(.allow)
             case .permission:
                 state.resolveCurrentPermission(.ask)
@@ -73,6 +76,8 @@ final class KeyboardMonitor {
                 state.sendCompose()
             case .responseDetail:
                 state.closeResponseDetail()
+            case .history:
+                state.closeHistory()
             default:
                 break
             }
@@ -92,6 +97,8 @@ final class KeyboardMonitor {
                 state.cancelCompose()
             case .responseDetail:
                 state.closeResponseDetail()
+            case .history:
+                state.closeHistory()
             default:
                 break
             }

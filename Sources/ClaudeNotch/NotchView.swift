@@ -24,9 +24,31 @@ struct NotchView: View {
         case .thinking:
             return CGSize(width: 340, height: inset + 64)
         case .permission(let req):
-            return req.kind == .toolUse
-                ? CGSize(width: 580, height: inset + 156)
-                : CGSize(width: 500, height: inset + 120)
+            if req.kind != .toolUse {
+                return CGSize(width: 500, height: inset + 120)
+            }
+            // Base: header + title + detail box + button row + padding.
+            var visible: CGFloat = 156
+            if !req.dangerReasons.isEmpty {
+                visible += 32 + CGFloat(req.dangerReasons.count) * 16
+            }
+            if let p = req.preview {
+                switch p {
+                case .diff(let h):
+                    let total = min(ToolPreviewParser.maxDiffLines, h.oldLines.count)
+                              + min(ToolPreviewParser.maxDiffLines, h.newLines.count)
+                              + (h.truncatedOld || h.truncatedNew ? 1 : 0)
+                    visible += 18 + CGFloat(total) * 15
+                case .multiDiff(_, let h):
+                    let total = min(8, h.oldLines.count) + min(8, h.newLines.count) + 1
+                    visible += 18 + CGFloat(total) * 15
+                case .write(_, let total):
+                    visible += 18 + CGFloat(min(ToolPreviewParser.maxWriteLines, total)) * 15
+                }
+            }
+            let screenH = s?.frame.height ?? 900
+            let cap = max(360, screenH * 0.85 - inset)
+            return CGSize(width: 620, height: inset + min(visible, cap))
         case .completed:
             return CGSize(width: 500, height: inset + 116)
         case .question(let q):
@@ -47,6 +69,10 @@ struct NotchView: View {
             return CGSize(width: 580, height: inset + 140)
         case .responseDetail:
             return CGSize(width: 660, height: inset + 360)
+        case .history:
+            // Reasonably tall drawer; cap at 70% of screen on small displays.
+            let screenH = s?.frame.height ?? 900
+            return CGSize(width: 640, height: min(inset + 460, screenH * 0.70))
         }
     }
 
@@ -150,6 +176,9 @@ struct NotchView: View {
         case .responseDetail:
             ResponseDetailCard(state: state)
                 .transition(.scale(scale: 0.96).combined(with: .opacity))
+        case .history:
+            HistoryCard(state: state)
+                .transition(.scale(scale: 0.96).combined(with: .opacity))
         }
     }
 
@@ -160,6 +189,7 @@ struct NotchView: View {
         case .permission, .completed, .compose:  return 38
         case .question:                          return 38
         case .responseDetail:                    return 42
+        case .history:                           return 42
         }
     }
 
@@ -203,6 +233,7 @@ private struct IdlePill: View {
     }
 
     private var canExpand: Bool { !state.fullClaudeResponse.isEmpty }
+    private var canShowHistory: Bool { !state.history.isEmpty }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -218,16 +249,36 @@ private struct IdlePill: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
-            Spacer(minLength: 0)
-            if canExpand {
-                Image(systemName: "arrow.up.left.and.arrow.down.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.45))
+            .contentShape(Rectangle())
+            .onTapGesture {
+                // Body tap → history drawer when we have anything to show.
+                // Falls through to the response detail when only that's available.
+                if canShowHistory { state.openHistory() }
+                else if canExpand { state.showResponseDetail() }
             }
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if canExpand { state.showResponseDetail() }
+            Spacer(minLength: 0)
+            if canShowHistory {
+                Button {
+                    state.openHistory()
+                } label: {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.55))
+                }
+                .buttonStyle(.plain)
+                .help("Show history")
+            }
+            if canExpand {
+                Button {
+                    state.showResponseDetail()
+                } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.55))
+                }
+                .buttonStyle(.plain)
+                .help("Expand response")
+            }
         }
     }
 }
@@ -387,15 +438,18 @@ private struct PermissionCard: View {
     let request: PermissionRequest
     let onResolve: (PermissionDecision, Bool) -> Void
 
+    private var accentColor: Color { request.isDangerous ? .red : .yellow }
+    private var headerIcon: String { request.isDangerous ? "exclamationmark.triangle.fill" : "exclamationmark.bubble.fill" }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.bubble.fill")
-                    .foregroundColor(.yellow)
+                Image(systemName: headerIcon)
+                    .foregroundColor(accentColor)
                     .font(.system(size: 14, weight: .semibold))
                 Text(request.source)
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundColor(.yellow.opacity(0.9))
+                    .foregroundColor(accentColor.opacity(0.9))
                     .textCase(.uppercase)
                 Text("·").foregroundColor(.white.opacity(0.3))
                 Text(request.toolName)
@@ -407,6 +461,10 @@ private struct PermissionCard: View {
                         .font(.system(size: 10, design: .rounded))
                         .foregroundColor(.white.opacity(0.4))
                 }
+            }
+
+            if request.isDangerous {
+                DangerBanner(reasons: request.dangerReasons)
             }
 
             Text(request.title)
@@ -429,20 +487,367 @@ private struct PermissionCard: View {
                     )
             }
 
+            if let preview = request.preview {
+                PreviewBlock(preview: preview)
+            }
+
             Spacer(minLength: 0)
 
             HStack(spacing: 8) {
                 NotchButton(label: "Deny", style: .destructive, shortcut: "⎋") {
                     onResolve(.deny, false)
                 }
-                NotchButton(label: "Always allow \(request.toolName)", style: .secondary) {
-                    onResolve(.allow, true)
+                if !request.isDangerous {
+                    NotchButton(label: "Always allow \(request.toolName)", style: .secondary) {
+                        onResolve(.allow, true)
+                    }
                 }
                 Spacer()
-                NotchButton(label: "Allow", style: .primary, shortcut: "⏎") {
-                    onResolve(.allow, false)
+                if request.isDangerous {
+                    HoldToConfirmButton(label: "Hold to allow", duration: 0.9) {
+                        onResolve(.allow, false)
+                    }
+                } else {
+                    NotchButton(label: "Allow", style: .primary, shortcut: "⏎") {
+                        onResolve(.allow, false)
+                    }
                 }
             }
+        }
+    }
+}
+
+// MARK: - Danger banner
+
+private struct DangerBanner: View {
+    let reasons: [String]
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.red)
+                .font(.system(size: 11, weight: .bold))
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("This command is destructive")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.red.opacity(0.95))
+                ForEach(reasons, id: \.self) { reason in
+                    Text("• " + reason)
+                        .font(.system(size: 10))
+                        .foregroundColor(.red.opacity(0.85))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.red.opacity(0.14))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.red.opacity(0.35), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Tool preview block
+
+private struct PreviewBlock: View {
+    let preview: ToolPreview
+
+    var body: some View {
+        switch preview {
+        case .diff(let hunk):
+            DiffPreviewView(hunk: hunk)
+        case .multiDiff(let count, let hunk):
+            VStack(alignment: .leading, spacing: 4) {
+                Text("First of \(count) edits")
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white.opacity(0.5))
+                    .textCase(.uppercase)
+                DiffPreviewView(hunk: hunk)
+            }
+        case .write(let head, let total):
+            WritePreviewView(head: head, totalLines: total)
+        }
+    }
+}
+
+private struct DiffPreviewView: View {
+    let hunk: DiffHunk
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(hunk.oldLines.enumerated()), id: \.offset) { _, line in
+                lineView("−", line, fg: .red.opacity(0.9), bg: .red.opacity(0.18))
+            }
+            if hunk.truncatedOld {
+                ellipsisLine(fg: .red.opacity(0.6))
+            }
+            ForEach(Array(hunk.newLines.enumerated()), id: \.offset) { _, line in
+                lineView("+", line, fg: .green.opacity(0.95), bg: .green.opacity(0.18))
+            }
+            if hunk.truncatedNew {
+                ellipsisLine(fg: .green.opacity(0.6))
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private func lineView(_ marker: String, _ line: String, fg: Color, bg: Color) -> some View {
+        HStack(spacing: 6) {
+            Text(marker)
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundColor(fg.opacity(0.75))
+                .frame(width: 10, alignment: .center)
+            Text(line.isEmpty ? " " : line)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(fg)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 1)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(bg)
+    }
+
+    private func ellipsisLine(fg: Color) -> some View {
+        HStack {
+            Text("⋯")
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundColor(fg)
+            Spacer()
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 1)
+        .frame(maxWidth: .infinity)
+        .background(fg.opacity(0.08))
+    }
+}
+
+private struct WritePreviewView: View {
+    let head: String
+    let totalLines: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(head)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(.white.opacity(0.85))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.green.opacity(0.12))
+            if totalLines > ToolPreviewParser.maxWriteLines {
+                Text("…and \(totalLines - ToolPreviewParser.maxWriteLines) more line\(totalLines - ToolPreviewParser.maxWriteLines == 1 ? "" : "s")")
+                    .font(.system(size: 10, design: .rounded))
+                    .foregroundColor(.white.opacity(0.45))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white.opacity(0.04))
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+// MARK: - Hold-to-confirm button
+
+private struct HoldToConfirmButton: View {
+    let label: String
+    let duration: Double
+    let onConfirm: () -> Void
+
+    @State private var pressing = false
+    @State private var progress: Double = 0
+
+    var body: some View {
+        Text(pressing ? "Hold…" : label)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundColor(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .frame(minWidth: 110, minHeight: 26)
+            .background(
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule(style: .continuous).fill(Color.red.opacity(0.45))
+                        Capsule(style: .continuous)
+                            .fill(Color.red)
+                            .frame(width: geo.size.width * progress)
+                    }
+                }
+            )
+            .clipShape(Capsule(style: .continuous))
+            .contentShape(Capsule(style: .continuous))
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in startPress() }
+                    .onEnded { _ in endPress() }
+            )
+            .help("Press and hold to confirm — this command was flagged as destructive")
+    }
+
+    private func startPress() {
+        guard !pressing else { return }
+        pressing = true
+        withAnimation(.linear(duration: duration)) { progress = 1 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+            if pressing {
+                pressing = false
+                onConfirm()
+                // Instant reset — onConfirm dismisses the card anyway,
+                // but make sure progress doesn't linger if the card stays.
+                progress = 0
+            }
+        }
+    }
+
+    private func endPress() {
+        guard pressing else { return }
+        pressing = false
+        withAnimation(.easeOut(duration: 0.15)) { progress = 0 }
+    }
+}
+
+// MARK: - History drawer
+
+private struct HistoryCard: View {
+    @ObservedObject var state: AppState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .foregroundColor(.white.opacity(0.85))
+                    .font(.system(size: 13, weight: .semibold))
+                Text("Activity")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white.opacity(0.9))
+                    .textCase(.uppercase)
+                Text("·").foregroundColor(.white.opacity(0.3))
+                Text("\(state.history.count) event\(state.history.count == 1 ? "" : "s")")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.5))
+                Spacer()
+                Button("Clear") { state.clearHistory() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.55))
+            }
+
+            if state.history.isEmpty {
+                Text("Nothing yet — permissions and questions you resolve will show up here.")
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.55))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .multilineTextAlignment(.center)
+            } else {
+                ScrollView {
+                    VStack(spacing: 4) {
+                        ForEach(state.history) { entry in
+                            HistoryRow(entry: entry)
+                        }
+                    }
+                }
+                .frame(maxHeight: .infinity)
+            }
+
+            HStack {
+                Spacer()
+                NotchButton(label: "Close", style: .primary, shortcut: "⏎") {
+                    state.closeHistory()
+                }
+            }
+        }
+    }
+}
+
+private struct HistoryRow: View {
+    let entry: HistoryEntry
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            ZStack {
+                Circle().fill(outcomeColor.opacity(0.20)).frame(width: 22, height: 22)
+                Image(systemName: outcomeIcon)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(outcomeColor)
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 6) {
+                    Text(entry.toolName)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.9))
+                    if !entry.project.isEmpty {
+                        Text(entry.project)
+                            .font(.system(size: 10, design: .rounded))
+                            .foregroundColor(.white.opacity(0.45))
+                    }
+                    Spacer()
+                    Text(timeAgo(entry.timestamp))
+                        .font(.system(size: 10, design: .rounded))
+                        .foregroundColor(.white.opacity(0.4))
+                }
+                if !entry.detail.isEmpty {
+                    Text(entry.detail)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.7))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                } else if !entry.title.isEmpty {
+                    Text(entry.title)
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.7))
+                        .lineLimit(1)
+                }
+                Text(outcomeLabel)
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundColor(outcomeColor.opacity(0.95))
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.white.opacity(0.04))
+        )
+    }
+
+    private var outcomeColor: Color {
+        switch entry.outcome {
+        case .allowed:      return .green
+        case .denied:       return .red
+        case .dismissed:    return .gray
+        case .answered:     return .purple
+        case .info:         return .cyan
+        case .dangerous:    return .orange
+        }
+    }
+    private var outcomeIcon: String {
+        switch entry.outcome {
+        case .allowed:      return "checkmark"
+        case .denied:       return "xmark"
+        case .dismissed:    return "minus"
+        case .answered:     return "arrow.right"
+        case .info:         return "bell"
+        case .dangerous:    return "exclamationmark.triangle.fill"
+        }
+    }
+    private var outcomeLabel: String {
+        switch entry.outcome {
+        case .allowed:                  return "allowed"
+        case .denied:                   return "denied"
+        case .dismissed:                return "dismissed"
+        case .answered(let n):          return "answered (\(n))"
+        case .info:                     return entry.kind == .completed ? "completed" : "notification"
+        case .dangerous:                return "allowed (destructive)"
         }
     }
 }
