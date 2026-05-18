@@ -127,14 +127,13 @@ struct NotchView: View {
     }
 
     private var cornerRadius: CGFloat {
-        if isCollapsedIdle { return 9 }
-        // Pick a radius proportional to how much of the shape is BELOW the
-        // physical notch (visible). The notch eats the top `inset` pt, so the
-        // visible portion is roughly (height - inset). Want corner ≈ half that.
-        let inset = NotchView.notchInset(on: NSScreen.main)
-        let visibleHeight = max(28, NotchView.size(for: state.mode, hovering: state.isHovering, on: NSScreen.main).height - inset)
-        let proportional = min(28, max(16, visibleHeight * 0.55))
-        return proportional
+        if isCollapsedIdle { return 10 }
+        switch state.mode {
+        case .idle, .thinking:              return 20    // hover pill — half its visible height
+        case .permission, .completed, .compose:  return 32    // big, dynamic-island-like
+        case .question:                     return 32
+        case .responseDetail:               return 36
+        }
     }
 
 }

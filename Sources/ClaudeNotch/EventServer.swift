@@ -475,12 +475,23 @@ final class EventServer {
 
 private func humanTitle(for tool: String) -> String {
     switch tool {
-    case "Bash":      return "Run shell command"
-    case "Write":     return "Write file"
-    case "Edit":      return "Edit file"
-    case "MultiEdit": return "Edit file"
-    case "Read":      return "Read file"
-    default:          return "Run \(tool)"
+    case "Bash":         return "Run shell command"
+    case "Write":        return "Write file"
+    case "Edit":         return "Edit file"
+    case "MultiEdit":    return "Edit file"
+    case "Read":         return "Read file"
+    case "NotebookEdit": return "Edit notebook"
+    case "TaskUpdate":   return "Update task"
+    case "TaskCreate":   return "Create task"
+    case "TaskList":     return "List tasks"
+    case "TaskGet":      return "Get task"
+    case "TaskStop":     return "Stop task"
+    case "WebFetch":     return "Fetch URL"
+    case "WebSearch":    return "Search the web"
+    case "Task":         return "Spawn subagent"
+    case "ExitPlanMode": return "Exit plan mode"
+    case "SlashCommand": return "Run slash command"
+    default:             return "Run \(tool)"
     }
 }
 
@@ -488,11 +499,39 @@ private func humanDetail(for tool: String, input: [String: Any]) -> String {
     switch tool {
     case "Bash":
         return (input["command"] as? String) ?? (input["description"] as? String) ?? ""
-    case "Write", "Edit", "MultiEdit", "Read":
+    case "Write", "Edit", "MultiEdit", "Read", "NotebookEdit":
         return (input["file_path"] as? String) ?? ""
+    case "TaskUpdate":
+        let subject = (input["subject"] as? String) ?? ""
+        let status  = (input["status"] as? String) ?? ""
+        let taskId  = (input["taskId"] as? String) ?? ""
+        if !subject.isEmpty && !status.isEmpty { return "\(subject)  →  \(status)" }
+        if !subject.isEmpty                    { return subject }
+        if !status.isEmpty                     { return "task \(taskId) → \(status)" }
+        return taskId
+    case "TaskCreate":
+        let subject = (input["subject"] as? String) ?? ""
+        if !subject.isEmpty { return subject }
+        return (input["description"] as? String) ?? ""
+    case "WebFetch":
+        return (input["url"] as? String) ?? (input["prompt"] as? String) ?? ""
+    case "WebSearch":
+        return (input["query"] as? String) ?? ""
+    case "Task":
+        let type = (input["subagent_type"] as? String) ?? ""
+        let desc = (input["description"] as? String) ?? ""
+        if !type.isEmpty && !desc.isEmpty { return "\(type): \(desc)" }
+        return type.isEmpty ? desc : type
+    case "ExitPlanMode":
+        return (input["plan"] as? String).map { String($0.prefix(120)) } ?? ""
+    case "SlashCommand":
+        return (input["command"] as? String) ?? ""
     default:
-        if let s = input["command"] as? String { return s }
+        if let s = input["command"] as? String  { return s }
         if let s = input["file_path"] as? String { return s }
+        if let s = input["query"] as? String     { return s }
+        if let s = input["url"] as? String       { return s }
+        if let s = input["subject"] as? String   { return s }
         return ""
     }
 }
