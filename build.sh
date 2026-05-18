@@ -11,9 +11,14 @@ BIN=.build/release/ClaudeNotch
 APP="ClaudeNotch.app"
 echo "→ Assembling $APP"
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/hooks"
 cp "$BIN" "$APP/Contents/MacOS/ClaudeNotch"
 chmod +x "$APP/Contents/MacOS/ClaudeNotch"
+
+# Bundle hook scripts so the app's in-process installer can self-wire
+# Claude Code without the user opening a terminal.
+cp bin/*.sh "$APP/Contents/Resources/hooks/"
+chmod +x "$APP/Contents/Resources/hooks/"*.sh
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>

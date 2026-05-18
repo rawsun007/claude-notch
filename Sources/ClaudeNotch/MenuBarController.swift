@@ -19,8 +19,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var permissionsTimer: Timer?
     private var isMenuOpen = false
 
-    init(state: AppState) {
+    private let onboarding: OnboardingWindowController
+
+    init(state: AppState, onboarding: OnboardingWindowController) {
         self.state = state
+        self.onboarding = onboarding
         self.item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -94,6 +97,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(loginItem)
 
         menu.addItem(.separator())
+
+        let setupItem = NSMenuItem(title: "Setup…", action: #selector(showOnboarding), keyEquivalent: ",")
+        setupItem.target = self
+        menu.addItem(setupItem)
 
         let quit = NSMenuItem(title: "Quit ClaudeNotch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
@@ -334,6 +341,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             return df.string(from: date)
         }
         return "?"
+    }
+
+    @objc private func showOnboarding() {
+        onboarding.show()
     }
 
     @objc private func toggleLaunchAtLogin() {

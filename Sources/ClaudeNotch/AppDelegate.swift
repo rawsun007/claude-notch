@@ -8,12 +8,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var server: EventServer!
     var mouse: MouseTracker!
     var keys: KeyboardMonitor!
+    let onboarding = OnboardingWindowController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         notch = NotchWindowController(state: state)
         notch.show()
 
-        menu = MenuBarController(state: state)
+        menu = MenuBarController(state: state, onboarding: onboarding)
 
         mouse = MouseTracker(state: state, window: notch.window)
         mouse.start()
@@ -26,6 +27,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try server.start()
         } catch {
             NSLog("ClaudeNotch: failed to start event server: \(error)")
+        }
+
+        if OnboardingWindowController.shouldAutoShow {
+            // Defer slightly so the menu bar icon appears first — feels less
+            // abrupt than the window jumping up at the exact same moment.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+                self?.onboarding.show()
+            }
         }
     }
 
