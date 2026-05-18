@@ -12,28 +12,31 @@ struct NotchView: View {
 
     static func size(for mode: NotchMode, hovering: Bool = false, on screen: NSScreen? = nil) -> CGSize {
         let s = screen ?? NSScreen.main
-        let inset = notchInset(on: s)   // visible content lives below this
+        let inset = notchInset(on: s)
+        // Rule of thumb: visible-height must be >= 2 * cornerRadius so the bottom
+        // arc has straight side wall above it to flow out of (otherwise the
+        // curve dominates the whole visible area and looks like a wedge).
         switch mode {
         case .idle:
             return hovering
-                ? CGSize(width: 300, height: inset + 36)
+                ? CGSize(width: 320, height: inset + 64)   // was 36 → curve had nowhere to go
                 : collapsedSize(on: s)
         case .thinking:
-            return CGSize(width: 320, height: inset + 36)
+            return CGSize(width: 340, height: inset + 64)
         case .permission(let req):
             return req.kind == .toolUse
-                ? CGSize(width: 560, height: inset + 140)
-                : CGSize(width: 480, height: inset + 110)
+                ? CGSize(width: 580, height: inset + 156)
+                : CGSize(width: 500, height: inset + 120)
         case .completed:
-            return CGSize(width: 480, height: inset + 108)
+            return CGSize(width: 500, height: inset + 116)
         case .question(let q):
             let perQuestion: CGFloat = 26 + 6 + CGFloat(q.questions.first?.options.count ?? 1) * 28
-            let visible = max(160, 56 + CGFloat(q.questions.count) * perQuestion)
-            return CGSize(width: 580, height: min(inset + visible, inset + 500))
+            let visible = max(180, 60 + CGFloat(q.questions.count) * perQuestion)
+            return CGSize(width: 600, height: min(inset + visible, inset + 500))
         case .compose:
-            return CGSize(width: 560, height: inset + 128)
+            return CGSize(width: 580, height: inset + 140)
         case .responseDetail:
-            return CGSize(width: 640, height: inset + 360)
+            return CGSize(width: 660, height: inset + 360)
         }
     }
 

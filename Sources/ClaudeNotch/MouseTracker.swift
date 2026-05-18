@@ -44,12 +44,12 @@ final class MouseTracker {
     }
 
     /// Once expanded, we stay expanded as long as cursor is inside this larger
-    /// zone — covers any card size (response detail = 640×360, question card
-    /// = 600×520). Prevents the "click expand arrow → it collapses" bug.
+    /// zone — covers any card size (response detail = 660×392, question card
+    /// = 600×532). Prevents the "click expand arrow → it collapses" bug.
     static func keepZone(on screen: NSScreen) -> NSRect {
         let s = screen.frame
-        let width: CGFloat = 700
-        let height: CGFloat = 560
+        let width: CGFloat = 720
+        let height: CGFloat = 580
         return NSRect(x: s.midX - width / 2, y: s.maxY - height, width: width, height: height)
     }
 
