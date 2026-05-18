@@ -9,6 +9,66 @@ final class EventServer {
     private let queue = DispatchQueue(label: "com.claudenotch.server")
     private let workQueue = DispatchQueue(label: "com.claudenotch.server.work", attributes: .concurrent)
 
+    // taskId → subject, learned from TaskCreate / TaskUpdate(with subject).
+    // Lets us put a human label on TaskUpdate calls that only carry {taskId, status}.
+    private var taskRegistry: [String: String] = [:]
+    private let taskRegistryLock = NSLock()
+
+    private func recordTask(id: String, subject: String) {
+        guard !id.isEmpty, !subject.isEmpty else { return }
+        taskRegistryLock.lock()
+        taskRegistry[id] = subject
+        taskRegistryLock.unlock()
+    }
+
+    private func taskSubject(for id: String) -> String? {
+        guard !id.isEmpty else { return nil }
+        taskRegistryLock.lock()
+        let s = taskRegistry[id]
+        taskRegistryLock.unlock()
+        return s
+    }
+
+    /// Best-effort: pull a task id out of TaskCreate's response, which Claude
+    /// Code emits as either a dict ({id/taskId/...}) or a free-form string
+    /// ("Created task 5: …"). First integer wins for the string case.
+    private func extractTaskId(from response: Any) -> String? {
+        if let dict = response as? [String: Any] {
+            for key in ["taskId", "task_id", "id"] {
+                if let v = dict[key] as? String, !v.isEmpty { return v }
+                if let i = dict[key] as? Int { return String(i) }
+            }
+            if let task = dict["task"] as? [String: Any] {
+                return extractTaskId(from: task)
+            }
+        }
+        if let s = response as? String,
+           let range = s.range(of: #"\d+"#, options: .regularExpression) {
+            return String(s[range])
+        }
+        if let arr = response as? [Any] {
+            for item in arr {
+                if let id = extractTaskId(from: item) { return id }
+            }
+        }
+        return nil
+    }
+
+    /// Like humanDetail, but consults the task registry when TaskUpdate is
+    /// missing its subject (the common case — most TaskUpdate calls only
+    /// carry {taskId, status}).
+    private func enrichedDetail(for tool: String, input: [String: Any]) -> String {
+        if tool == "TaskUpdate" {
+            let subject = (input["subject"] as? String) ?? ""
+            let taskId  = (input["taskId"] as? String) ?? ""
+            let status  = (input["status"] as? String) ?? ""
+            if subject.isEmpty, !taskId.isEmpty, let known = taskSubject(for: taskId) {
+                return status.isEmpty ? known : "\(known)  →  \(status)"
+            }
+        }
+        return humanDetail(for: tool, input: input)
+    }
+
     init(port: UInt16, state: AppState) {
         self.port = port
         self.state = state
@@ -128,12 +188,28 @@ final class EventServer {
     }
 
     private func handleActivity(payload: [String: Any]) {
+        let tool = (payload["tool_name"] as? String) ?? ""
+        let input = payload["tool_input"] as? [String: Any] ?? [:]
+
+        // Learn taskId → subject so a later TaskUpdate (which only carries
+        // {taskId, status}) can be rendered with a real label.
+        if tool == "TaskCreate" {
+            let subject = (input["subject"] as? String) ?? (input["description"] as? String) ?? ""
+            var taskId  = (input["taskId"] as? String) ?? ""
+            if taskId.isEmpty, let resp = payload["tool_response"], !(resp is NSNull) {
+                taskId = extractTaskId(from: resp) ?? ""
+            }
+            recordTask(id: taskId, subject: subject)
+        } else if tool == "TaskUpdate" {
+            let subject = (input["subject"] as? String) ?? ""
+            let taskId  = (input["taskId"] as? String) ?? ""
+            recordTask(id: taskId, subject: subject)
+        }
+
         Task { @MainActor [weak state] in
             guard let state else { return }
-            let tool = (payload["tool_name"] as? String) ?? ""
             guard !tool.isEmpty else { return }
-            let input = payload["tool_input"] as? [String: Any] ?? [:]
-            let detail = humanDetail(for: tool, input: input)
+            let detail = self.enrichedDetail(for: tool, input: input)
             let label = detail.isEmpty ? tool : "\(tool): \(detail)"
             state.noteActivity(String(label.prefix(80)))
         }
@@ -287,7 +363,7 @@ final class EventServer {
         let toolInput = payload["tool_input"] as? [String: Any] ?? [:]
         let cwd = (payload["cwd"] as? String) ?? ""
         let title = humanTitle(for: toolName)
-        let detail = humanDetail(for: toolName, input: toolInput)
+        let detail = enrichedDetail(for: toolName, input: toolInput)
 
         let semaphore = DispatchSemaphore(value: 0)
         let lock = NSLock()

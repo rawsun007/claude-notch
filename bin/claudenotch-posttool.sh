@@ -10,6 +10,7 @@ command -v jq >/dev/null 2>&1 || exit 0
 printf '%s' "$input" | jq -c '{
     tool_name:       (.tool_name        // ""),
     tool_input:      (.tool_input       // {}),
+    tool_response:   (.tool_response    // null),
     cwd:             (.cwd              // ""),
     session_id:      (.session_id       // ""),
     transcript_path: (.transcript_path  // "")
