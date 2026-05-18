@@ -137,6 +137,11 @@ final class EventServer {
             let label = detail.isEmpty ? tool : "\(tool): \(detail)"
             state.noteActivity(String(label.prefix(80)))
         }
+        // Also catch any assistant text Claude wrote before this tool call.
+        // Cheap and keeps the notch fresh between Stop hooks.
+        if let path = payload["transcript_path"] as? String, !path.isEmpty {
+            readAndPushClaudeResponse(transcriptPath: path)
+        }
     }
 
     private func handlePrompt(payload: [String: Any]) {
@@ -172,11 +177,19 @@ final class EventServer {
     }
 
     private func handleStop(payload: [String: Any]) {
-        // Best-effort: read the transcript JSONL and extract Claude's most
-        // recent assistant message so we can surface it in the notch.
-        var responseText: String? = nil
-        if let path = payload["transcript_path"] as? String, !path.isEmpty {
-            responseText = lastAssistantText(fromTranscriptAt: path)
+        let path = (payload["transcript_path"] as? String) ?? ""
+
+        // Stop fires BEFORE Claude's final assistant message is necessarily
+        // flushed to disk. Read now + at +300/+800ms — whichever finds newer
+        // content wins (noteClaudeResponse is idempotent).
+        if !path.isEmpty {
+            readAndPushClaudeResponse(transcriptPath: path)
+            workQueue.asyncAfter(deadline: .now() + .milliseconds(300)) { [weak self] in
+                self?.readAndPushClaudeResponse(transcriptPath: path)
+            }
+            workQueue.asyncAfter(deadline: .now() + .milliseconds(800)) { [weak self] in
+                self?.readAndPushClaudeResponse(transcriptPath: path)
+            }
         }
 
         Task { @MainActor [weak state] in
@@ -185,7 +198,6 @@ final class EventServer {
             let detail = (payload["detail"] as? String) ?? detailFromHookPayload(payload)
             let source = (payload["source"] as? String) ?? "Claude Code"
             let frontBID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-            if let r = responseText { state.noteClaudeResponse(r) }
             state.enqueueCompleted(.init(
                 title: title,
                 detail: detail,
@@ -193,6 +205,15 @@ final class EventServer {
                 cwd: (payload["cwd"] as? String) ?? "",
                 originatorBundleID: frontBID
             ))
+        }
+    }
+
+    /// Read the transcript and push the latest assistant text into state.
+    /// Safe to call from any queue.
+    private func readAndPushClaudeResponse(transcriptPath path: String) {
+        guard let text = lastAssistantText(fromTranscriptAt: path) else { return }
+        Task { @MainActor [weak state] in
+            state?.noteClaudeResponse(text)
         }
     }
 
