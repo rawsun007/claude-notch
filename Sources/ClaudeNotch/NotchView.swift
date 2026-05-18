@@ -55,34 +55,28 @@ struct NotchView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            UnevenRoundedRectangle(
-                topLeadingRadius: 0,
-                bottomLeadingRadius: cornerRadius,
-                bottomTrailingRadius: cornerRadius,
-                topTrailingRadius: 0,
-                style: .continuous
-            )
+            NotchShape(topRadius: topRadius, bottomRadius: cornerRadius)
                 .fill(Color.black)
                 .overlay(
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: 0,
-                        bottomLeadingRadius: cornerRadius,
-                        bottomTrailingRadius: cornerRadius,
-                        topTrailingRadius: 0,
-                        style: .continuous
-                    )
-                    .stroke(borderColor, lineWidth: 1)
+                    NotchShape(topRadius: topRadius, bottomRadius: cornerRadius)
+                        .stroke(borderColor, lineWidth: 0.5)
                 )
-                .shadow(color: .black.opacity(showShadow ? 0.55 : 0), radius: 20, x: 0, y: 12)
 
             if !isCollapsedIdle {
                 content
-                    .padding(.horizontal, 18)
-                    .padding(.top, NotchView.notchInset(on: NSScreen.main) + 8)
-                    .padding(.bottom, 14)
+                    // Push content past the top-inward curve + notch inset.
+                    .padding(.horizontal, 22)
+                    .padding(.top, NotchView.notchInset(on: NSScreen.main) + 10)
+                    .padding(.bottom, 16)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Small inward curve at the top that makes our overlay blend with the
+    /// physical notch / menu-bar edge. Same default as boring.notch.
+    private var topRadius: CGFloat {
+        isCollapsedIdle ? 4 : 8
     }
 
     private var isCollapsedIdle: Bool {
@@ -90,10 +84,6 @@ struct NotchView: View {
         return false
     }
 
-    private var showShadow: Bool {
-        if case .idle = state.mode { return false }
-        return true
-    }
 
     @ViewBuilder
     private var content: some View {
@@ -157,6 +147,57 @@ struct NotchView: View {
     private var borderColor: Color {
         if isCollapsedIdle { return .clear }
         return Color.white.opacity(0.07)
+    }
+}
+
+// MARK: - NotchShape (boring.notch-style)
+
+/// The iconic dynamic-island / notch shape: small inward curves at the top
+/// (so it visually merges with the physical notch edge), larger rounded
+/// bottom corners. Adapted from boring.notch's NotchShape (MIT).
+private struct NotchShape: Shape {
+    var topRadius: CGFloat
+    var bottomRadius: CGFloat
+
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(topRadius, bottomRadius) }
+        set { topRadius = newValue.first; bottomRadius = newValue.second }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let tr = max(0, topRadius)
+        let br = max(0, bottomRadius)
+        var p = Path()
+
+        p.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        // Top-left inward curve
+        p.addQuadCurve(
+            to: CGPoint(x: rect.minX + tr, y: rect.minY + tr),
+            control: CGPoint(x: rect.minX + tr, y: rect.minY)
+        )
+        // Down left side
+        p.addLine(to: CGPoint(x: rect.minX + tr, y: rect.maxY - br))
+        // Bottom-left outer curve
+        p.addQuadCurve(
+            to: CGPoint(x: rect.minX + tr + br, y: rect.maxY),
+            control: CGPoint(x: rect.minX + tr, y: rect.maxY)
+        )
+        // Across bottom
+        p.addLine(to: CGPoint(x: rect.maxX - tr - br, y: rect.maxY))
+        // Bottom-right outer curve
+        p.addQuadCurve(
+            to: CGPoint(x: rect.maxX - tr, y: rect.maxY - br),
+            control: CGPoint(x: rect.maxX - tr, y: rect.maxY)
+        )
+        // Up right side
+        p.addLine(to: CGPoint(x: rect.maxX - tr, y: rect.minY + tr))
+        // Top-right inward curve
+        p.addQuadCurve(
+            to: CGPoint(x: rect.maxX, y: rect.minY),
+            control: CGPoint(x: rect.maxX - tr, y: rect.minY)
+        )
+        p.closeSubpath()
+        return p
     }
 }
 
