@@ -35,12 +35,21 @@ final class MouseTracker {
         timer = nil
     }
 
-    /// Rect (in global screen coords) where the cursor triggers the notch to
-    /// expand. Wider than the visible idle notch so it's easy to hit.
-    static func hotZone(on screen: NSScreen) -> NSRect {
+    /// Small zone right under the menu bar — what *triggers* a hover expand.
+    static func triggerZone(on screen: NSScreen) -> NSRect {
         let s = screen.frame
-        let width: CGFloat = 320
-        let height: CGFloat = max(44, (screen.safeAreaInsets.top + 12))
+        let width: CGFloat = 340
+        let height: CGFloat = max(44, screen.safeAreaInsets.top + 12)
+        return NSRect(x: s.midX - width / 2, y: s.maxY - height, width: width, height: height)
+    }
+
+    /// Once expanded, we stay expanded as long as cursor is inside this larger
+    /// zone — covers any card size (response detail = 640×360, question card
+    /// = 600×520). Prevents the "click expand arrow → it collapses" bug.
+    static func keepZone(on screen: NSScreen) -> NSRect {
+        let s = screen.frame
+        let width: CGFloat = 700
+        let height: CGFloat = 560
         return NSRect(x: s.midX - width / 2, y: s.maxY - height, width: width, height: height)
     }
 
@@ -53,7 +62,14 @@ final class MouseTracker {
 
     private func check() {
         guard let state else { return }
-        let inside = Self.hotZone(on: currentScreen()).contains(NSEvent.mouseLocation)
+        let mouse = NSEvent.mouseLocation
+        let screen = currentScreen()
+        let inside: Bool
+        if state.isHovering {
+            inside = Self.keepZone(on: screen).contains(mouse)
+        } else {
+            inside = Self.triggerZone(on: screen).contains(mouse)
+        }
         state.setHovering(inside)
     }
 }

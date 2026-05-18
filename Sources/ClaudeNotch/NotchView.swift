@@ -55,11 +55,23 @@ struct NotchView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            NotchShape(cornerRadius: cornerRadius)
+            UnevenRoundedRectangle(
+                topLeadingRadius: 0,
+                bottomLeadingRadius: cornerRadius,
+                bottomTrailingRadius: cornerRadius,
+                topTrailingRadius: 0,
+                style: .continuous
+            )
                 .fill(Color.black)
                 .overlay(
-                    NotchShape(cornerRadius: cornerRadius)
-                        .stroke(borderColor, lineWidth: 1)
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: 0,
+                        bottomLeadingRadius: cornerRadius,
+                        bottomTrailingRadius: cornerRadius,
+                        topTrailingRadius: 0,
+                        style: .continuous
+                    )
+                    .stroke(borderColor, lineWidth: 1)
                 )
                 .shadow(color: .black.opacity(showShadow ? 0.55 : 0), radius: 20, x: 0, y: 12)
 
@@ -163,30 +175,6 @@ extension NotchView {
     }
 }
 
-/// Flat top, rounded bottom — hangs from the top edge of the display like a
-/// notch / dynamic island. SwiftUI's coordinates put minY at the top.
-private struct NotchShape: Shape {
-    let cornerRadius: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        let r = min(cornerRadius, min(rect.width, rect.height) / 2)
-        var p = Path()
-        p.move(to: CGPoint(x: rect.minX, y: rect.minY))
-        p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - r))
-        p.addQuadCurve(
-            to: CGPoint(x: rect.maxX - r, y: rect.maxY),
-            control: CGPoint(x: rect.maxX, y: rect.maxY)
-        )
-        p.addLine(to: CGPoint(x: rect.minX + r, y: rect.maxY))
-        p.addQuadCurve(
-            to: CGPoint(x: rect.minX, y: rect.maxY - r),
-            control: CGPoint(x: rect.minX, y: rect.maxY)
-        )
-        p.closeSubpath()
-        return p
-    }
-}
 
 // MARK: - Idle
 
@@ -335,13 +323,33 @@ private struct ResponseDetailCard: View {
             }
 
             ScrollView(.vertical, showsIndicators: true) {
-                Text(state.fullClaudeResponse)
-                    .font(.system(size: 12, design: .default))
-                    .foregroundColor(.white.opacity(0.9))
-                    .multilineTextAlignment(.leading)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(12)
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(state.fullClaudeResponse.split(separator: "\n", omittingEmptySubsequences: false).enumerated()), id: \.offset) { _, raw in
+                        let line = String(raw)
+                        if line.isEmpty {
+                            // Preserve paragraph breaks.
+                            Spacer().frame(height: 4)
+                        } else if let attr = try? AttributedString(
+                            markdown: line,
+                            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+                        ) {
+                            Text(attr)
+                                .font(.system(size: 12))
+                                .foregroundColor(.white.opacity(0.9))
+                                .multilineTextAlignment(.leading)
+                                .textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
+                            Text(line)
+                                .font(.system(size: 12))
+                                .foregroundColor(.white.opacity(0.9))
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+                .padding(12)
             }
             .background(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)

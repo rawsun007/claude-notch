@@ -226,6 +226,7 @@ final class AppState: ObservableObject {
             return
         }
         TerminalAutomator.sendText(text, toBundleID: bid)
+        NSSound(named: NSSound.Name("Tink"))?.play()
         cancelCompose()
     }
 
@@ -332,6 +333,11 @@ final class AppState: ObservableObject {
         guard !questionQueue.isEmpty else { return }
         let first = questionQueue.removeFirst()
         first.resolver(answers)
+        if answers != nil {
+            NSSound(named: NSSound.Name("Tink"))?.play()
+        } else {
+            NSSound(named: NSSound.Name("Pop"))?.play()
+        }
         recompute()
     }
 
@@ -342,7 +348,16 @@ final class AppState: ObservableObject {
             sessionAllowlist.insert(first.toolName)
         }
         first.resolver(decision)
+        playFeedback(for: decision)
         recompute()
+    }
+
+    private func playFeedback(for decision: PermissionDecision) {
+        switch decision {
+        case .allow: NSSound(named: NSSound.Name("Tink"))?.play()    // small success "tick"
+        case .deny:  NSSound(named: NSSound.Name("Pop"))?.play()     // soft dismiss
+        case .ask:   break
+        }
     }
 
     func dismissCurrentCompleted() {

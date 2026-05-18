@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTALL_DIR="$HOME/.claudenotch/bin"
 
 mkdir -p "$INSTALL_DIR"
-for s in claudenotch-permission.sh claudenotch-notify.sh claudenotch-stop.sh claudenotch-posttool.sh claudenotch-prompt.sh; do
+for s in claudenotch-permission.sh claudenotch-notify.sh claudenotch-stop.sh claudenotch-posttool.sh claudenotch-prompt.sh uninstall-hooks.sh; do
     src="$SCRIPT_DIR/$s"
     [ -f "$src" ] || { echo "Missing source script: $src"; exit 1; }
     cp "$src" "$INSTALL_DIR/$s"
@@ -79,5 +79,7 @@ echo "✓ Wired ClaudeNotch hooks into $SETTINGS"
 echo "  (backup: $BACKUP)"
 echo
 echo "  Matcher: .* (all tools — hook script filters which ones show the notch)"
-echo "  Safe tools fall through to Claude Code's defaults: Read, Grep, Glob, LS, TodoWrite, BashOutput, KillShell, ExitPlanMode, SlashCommand"
-echo "  Everything else (Bash, Write, Edit, WebFetch, MCP tools, …) shows the notch."
+echo "  Safe tools fall through to Claude Code's defaults: Read, Grep, Glob, LS, TodoWrite, BashOutput, KillShell"
+echo "  Everything else (Bash, Write, Edit, WebFetch, MCP tools, ExitPlanMode, SlashCommand, …) shows the notch."
+echo
+echo "  Uninstall:  ~/.claudenotch/bin/uninstall-hooks.sh"

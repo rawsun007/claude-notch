@@ -73,12 +73,11 @@ if [ "$tool" = "AskUserQuestion" ]; then
     exit 0
 fi
 
-# Inverted filter: route ALL tools through the notch by default. Only
-# known-safe / non-interactive tools fall through to Claude Code's own
-# permission flow (they're typically auto-allowed under default rules).
-# This catches custom MCP tools too.
+# Narrow safe-list — these are the truly non-interactive read tools.
+# Everything else (including custom MCP tools, ExitPlanMode, SlashCommand)
+# routes through the notch so user never has to look at the terminal.
 case "$tool" in
-    Read|Grep|Glob|LS|TodoWrite|BashOutput|KillShell|ExitPlanMode|SlashCommand|UpdatePlan)
+    Read|Grep|Glob|LS|TodoWrite|BashOutput|KillShell)
         emit_ask "tool $tool is safe/non-interactive" ;;
     *) ;;
 esac
