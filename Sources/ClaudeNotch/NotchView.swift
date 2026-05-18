@@ -22,16 +22,16 @@ struct NotchView: View {
             return CGSize(width: 320, height: inset + 36)
         case .permission(let req):
             return req.kind == .toolUse
-                ? CGSize(width: 580, height: inset + 180)
-                : CGSize(width: 500, height: inset + 130)
+                ? CGSize(width: 560, height: inset + 140)
+                : CGSize(width: 480, height: inset + 110)
         case .completed:
-            return CGSize(width: 500, height: inset + 124)
+            return CGSize(width: 480, height: inset + 108)
         case .question(let q):
-            let perQuestion: CGFloat = 28 + 12 + CGFloat(q.questions.first?.options.count ?? 1) * 30
-            let visible = max(180, 70 + CGFloat(q.questions.count) * perQuestion)
-            return CGSize(width: 600, height: min(inset + visible, inset + 520))
+            let perQuestion: CGFloat = 26 + 6 + CGFloat(q.questions.first?.options.count ?? 1) * 28
+            let visible = max(160, 56 + CGFloat(q.questions.count) * perQuestion)
+            return CGSize(width: 580, height: min(inset + visible, inset + 500))
         case .compose:
-            return CGSize(width: 580, height: inset + 156)
+            return CGSize(width: 560, height: inset + 128)
         case .responseDetail:
             return CGSize(width: 640, height: inset + 360)
         }
@@ -55,28 +55,21 @@ struct NotchView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            NotchShape(topRadius: topRadius, bottomRadius: cornerRadius)
+            BottomRoundedRectangle(radius: cornerRadius)
                 .fill(Color.black)
                 .overlay(
-                    NotchShape(topRadius: topRadius, bottomRadius: cornerRadius)
-                        .stroke(borderColor, lineWidth: 0.5)
+                    BottomRoundedRectangle(radius: cornerRadius)
+                        .stroke(Color.white.opacity(isCollapsedIdle ? 0 : 0.05), lineWidth: 0.5)
                 )
 
             if !isCollapsedIdle {
                 content
-                    // Push content past the top-inward curve + notch inset.
-                    .padding(.horizontal, 22)
-                    .padding(.top, NotchView.notchInset(on: NSScreen.main) + 10)
-                    .padding(.bottom, 16)
+                    .padding(.horizontal, 16)
+                    .padding(.top, NotchView.notchInset(on: NSScreen.main) + 6)
+                    .padding(.bottom, 12)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    /// Small inward curve at the top that makes our overlay blend with the
-    /// physical notch / menu-bar edge. Same default as boring.notch.
-    private var topRadius: CGFloat {
-        isCollapsedIdle ? 4 : 8
     }
 
     private var isCollapsedIdle: Bool {
@@ -144,57 +137,42 @@ struct NotchView: View {
         return proportional
     }
 
-    private var borderColor: Color {
-        if isCollapsedIdle { return .clear }
-        return Color.white.opacity(0.07)
-    }
 }
 
-// MARK: - NotchShape (boring.notch-style)
+// MARK: - BottomRoundedRectangle (boring.notch)
 
-/// The iconic dynamic-island / notch shape: small inward curves at the top
-/// (so it visually merges with the physical notch edge), larger rounded
-/// bottom corners. Adapted from boring.notch's NotchShape (MIT).
-private struct NotchShape: Shape {
-    var topRadius: CGFloat
-    var bottomRadius: CGFloat
+/// Flat top + bottom corners rounded with true circular arcs. Hangs from the
+/// top edge of the display like the iOS Dynamic Island. Adapted verbatim
+/// from boring.notch's MIT-licensed component for shape fidelity.
+private struct BottomRoundedRectangle: Shape {
+    var radius: CGFloat
 
-    var animatableData: AnimatablePair<CGFloat, CGFloat> {
-        get { AnimatablePair(topRadius, bottomRadius) }
-        set { topRadius = newValue.first; bottomRadius = newValue.second }
+    var animatableData: CGFloat {
+        get { radius }
+        set { radius = newValue }
     }
 
     func path(in rect: CGRect) -> Path {
-        let tr = max(0, topRadius)
-        let br = max(0, bottomRadius)
+        let r = min(max(0, radius), min(rect.width, rect.height) / 2)
         var p = Path()
 
         p.move(to: CGPoint(x: rect.minX, y: rect.minY))
-        // Top-left inward curve
-        p.addQuadCurve(
-            to: CGPoint(x: rect.minX + tr, y: rect.minY + tr),
-            control: CGPoint(x: rect.minX + tr, y: rect.minY)
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - r))
+        p.addArc(
+            center: CGPoint(x: rect.maxX - r, y: rect.maxY - r),
+            radius: r,
+            startAngle: .degrees(0),
+            endAngle:   .degrees(90),
+            clockwise: false
         )
-        // Down left side
-        p.addLine(to: CGPoint(x: rect.minX + tr, y: rect.maxY - br))
-        // Bottom-left outer curve
-        p.addQuadCurve(
-            to: CGPoint(x: rect.minX + tr + br, y: rect.maxY),
-            control: CGPoint(x: rect.minX + tr, y: rect.maxY)
-        )
-        // Across bottom
-        p.addLine(to: CGPoint(x: rect.maxX - tr - br, y: rect.maxY))
-        // Bottom-right outer curve
-        p.addQuadCurve(
-            to: CGPoint(x: rect.maxX - tr, y: rect.maxY - br),
-            control: CGPoint(x: rect.maxX - tr, y: rect.maxY)
-        )
-        // Up right side
-        p.addLine(to: CGPoint(x: rect.maxX - tr, y: rect.minY + tr))
-        // Top-right inward curve
-        p.addQuadCurve(
-            to: CGPoint(x: rect.maxX, y: rect.minY),
-            control: CGPoint(x: rect.maxX - tr, y: rect.minY)
+        p.addLine(to: CGPoint(x: rect.minX + r, y: rect.maxY))
+        p.addArc(
+            center: CGPoint(x: rect.minX + r, y: rect.maxY - r),
+            radius: r,
+            startAngle: .degrees(90),
+            endAngle:   .degrees(180),
+            clockwise: false
         )
         p.closeSubpath()
         return p
@@ -317,6 +295,8 @@ private struct ComposeCard: View {
                     .foregroundColor(.orange.opacity(0.9))
                     .lineLimit(2)
             }
+
+            Spacer(minLength: 0)
 
             HStack {
                 Spacer()
@@ -462,6 +442,8 @@ private struct PermissionCard: View {
                     )
             }
 
+            Spacer(minLength: 0)
+
             HStack(spacing: 8) {
                 NotchButton(label: "Deny", style: .destructive, shortcut: "⎋") {
                     onResolve(.deny, false)
@@ -514,6 +496,8 @@ private struct NotificationCard: View {
                     .truncationMode(.middle)
             }
 
+            Spacer(minLength: 0)
+
             HStack {
                 Spacer()
                 NotchButton(label: "Dismiss", style: .secondary, action: onDismiss)
@@ -557,6 +541,8 @@ private struct CompletedCard: View {
                     .foregroundColor(.white.opacity(0.6))
                     .lineLimit(2)
             }
+
+            Spacer(minLength: 0)
 
             HStack {
                 Spacer()
