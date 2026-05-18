@@ -30,7 +30,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
 
         let menu = NSMenu()
-        let header = NSMenuItem(title: "ClaudeNotch — listening on :53127", action: nil, keyEquivalent: "")
+        let buildStamp = MenuBarController.buildTimestamp()
+        let header = NSMenuItem(title: "ClaudeNotch — :53127 — build \(buildStamp)", action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)
 
@@ -320,6 +321,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         // Open the compose card in the notch itself — feels native and
         // doesn't rely on NSAlert (which is unreliable for accessory apps).
         state.beginCompose()
+    }
+
+    /// Modification time of the running binary — gives us a "build XYZ" stamp
+    /// so we can see at a glance whether the user is on the latest build.
+    private static func buildTimestamp() -> String {
+        let path = Bundle.main.executablePath ?? ""
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: path),
+           let date = attrs[.modificationDate] as? Date {
+            let df = DateFormatter()
+            df.dateFormat = "MMM d HH:mm"
+            return df.string(from: date)
+        }
+        return "?"
     }
 
     @objc private func toggleLaunchAtLogin() {

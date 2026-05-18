@@ -55,12 +55,26 @@ struct NotchView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            BottomRoundedRectangle(radius: cornerRadius)
-                .fill(Color.black)
-                .overlay(
-                    BottomRoundedRectangle(radius: cornerRadius)
-                        .stroke(Color.white.opacity(isCollapsedIdle ? 0 : 0.05), lineWidth: 0.5)
+            // Apple's continuous-corner squircle (same algorithm as Dynamic
+            // Island). Flat top, rounded bottom only.
+            UnevenRoundedRectangle(
+                topLeadingRadius: 0,
+                bottomLeadingRadius: cornerRadius,
+                bottomTrailingRadius: cornerRadius,
+                topTrailingRadius: 0,
+                style: .continuous
+            )
+            .fill(Color.black)
+            .overlay(
+                UnevenRoundedRectangle(
+                    topLeadingRadius: 0,
+                    bottomLeadingRadius: cornerRadius,
+                    bottomTrailingRadius: cornerRadius,
+                    topTrailingRadius: 0,
+                    style: .continuous
                 )
+                .stroke(Color.white.opacity(isCollapsedIdle ? 0 : 0.05), lineWidth: 0.5)
+            )
 
             if !isCollapsedIdle {
                 content
@@ -127,56 +141,17 @@ struct NotchView: View {
     }
 
     private var cornerRadius: CGFloat {
-        if isCollapsedIdle { return 10 }
+        if isCollapsedIdle { return 12 }
         switch state.mode {
-        case .idle, .thinking:              return 20    // hover pill — half its visible height
-        case .permission, .completed, .compose:  return 32    // big, dynamic-island-like
-        case .question:                     return 32
-        case .responseDetail:               return 36
+        case .idle, .thinking:                   return 28
+        case .permission, .completed, .compose:  return 38
+        case .question:                          return 38
+        case .responseDetail:                    return 42
         }
     }
 
 }
 
-// MARK: - BottomRoundedRectangle (boring.notch)
-
-/// Flat top + bottom corners rounded with true circular arcs. Hangs from the
-/// top edge of the display like the iOS Dynamic Island. Adapted verbatim
-/// from boring.notch's MIT-licensed component for shape fidelity.
-private struct BottomRoundedRectangle: Shape {
-    var radius: CGFloat
-
-    var animatableData: CGFloat {
-        get { radius }
-        set { radius = newValue }
-    }
-
-    func path(in rect: CGRect) -> Path {
-        let r = min(max(0, radius), min(rect.width, rect.height) / 2)
-        var p = Path()
-
-        p.move(to: CGPoint(x: rect.minX, y: rect.minY))
-        p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - r))
-        p.addArc(
-            center: CGPoint(x: rect.maxX - r, y: rect.maxY - r),
-            radius: r,
-            startAngle: .degrees(0),
-            endAngle:   .degrees(90),
-            clockwise: false
-        )
-        p.addLine(to: CGPoint(x: rect.minX + r, y: rect.maxY))
-        p.addArc(
-            center: CGPoint(x: rect.minX + r, y: rect.maxY - r),
-            radius: r,
-            startAngle: .degrees(90),
-            endAngle:   .degrees(180),
-            clockwise: false
-        )
-        p.closeSubpath()
-        return p
-    }
-}
 
 // MARK: - shared spec for IdlePill content
 
