@@ -30,9 +30,19 @@ struct NotchView: View {
         case .completed:
             return CGSize(width: 500, height: inset + 116)
         case .question(let q):
-            let perQuestion: CGFloat = 26 + 6 + CGFloat(q.questions.first?.options.count ?? 1) * 28
-            let visible = max(180, 60 + CGFloat(q.questions.count) * perQuestion)
-            return CGSize(width: 600, height: min(inset + visible, inset + 500))
+            // Header strip ≈ 30, button row ≈ 44, outer padding/spacing ≈ 30.
+            // Each question heading ≈ 26 + 6 spacing; each option row ≈ 48
+            // (icon + 12pt label + 10pt description + 5pt vertical padding ×2).
+            let perOption: CGFloat = 48
+            let perQuestion: CGFloat = 26 + 6 + CGFloat(q.questions.first?.options.count ?? 1) * perOption
+            let want = 104 + CGFloat(q.questions.count) * perQuestion
+            // Don't blow past the screen — leave at least 15% headroom so the
+            // card stays usable on small displays. Only at that cap will the
+            // inner scroll kick in.
+            let screenH = s?.frame.height ?? 900
+            let cap = max(360, screenH * 0.85 - inset)
+            let visible = min(want, cap)
+            return CGSize(width: 600, height: inset + visible)
         case .compose:
             return CGSize(width: 580, height: inset + 140)
         case .responseDetail:
@@ -611,6 +621,10 @@ private struct QuestionCard: View {
                 Spacer()
             }
 
+            // Let the option list fill whatever vertical space the window
+            // gives us — the panel size in NotchView.size() already accounts
+            // for every option, so a ScrollView only kicks in on extreme
+            // counts that exceed the screen-height cap.
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     ForEach(Array(request.questions.enumerated()), id: \.element.id) { (idx, q) in
@@ -639,7 +653,7 @@ private struct QuestionCard: View {
                     }
                 }
             }
-            .frame(maxHeight: 360)
+            .frame(maxHeight: .infinity)
 
             HStack {
                 Spacer()
