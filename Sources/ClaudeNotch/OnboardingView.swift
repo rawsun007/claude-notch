@@ -16,14 +16,18 @@ struct OnboardingView: View {
                         description: "Lets ClaudeNotch type your answers and messages into the terminal — needed for AskUserQuestion replies and the Send-to-Claude composer.",
                         done: state.accessibility,
                         actionLabel: state.accessibility ? "Granted" : "Open Settings",
-                        action: state.requestAccessibility
+                        action: state.requestAccessibility,
+                        needsRelaunch: state.accessibilityNeedsRelaunch,
+                        relaunch: state.relaunch
                     )
                     StepRow(
                         title: "Input Monitoring",
                         description: "Lets the notch receive global Enter / Escape shortcuts so you can resolve prompts without raising the app.",
                         done: state.inputMonitoring,
                         actionLabel: state.inputMonitoring ? "Granted" : "Open Settings",
-                        action: state.requestInputMonitoring
+                        action: state.requestInputMonitoring,
+                        needsRelaunch: state.inputMonitoringNeedsRelaunch,
+                        relaunch: state.relaunch
                     )
                     StepRow(
                         title: "Claude Code hooks",
@@ -98,6 +102,8 @@ private struct StepRow: View {
     var busy: Bool = false
     var optional: Bool = false
     var errorText: String? = nil
+    var needsRelaunch: Bool = false
+    var relaunch: (() -> Void)? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
@@ -117,6 +123,20 @@ private struct StepRow: View {
                     .font(.system(size: 12))
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                if needsRelaunch, let relaunch {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.clockwise.circle.fill")
+                            .foregroundColor(.orange)
+                            .font(.system(size: 12))
+                        Text("Granted in Settings but not picked up yet — macOS sometimes needs a relaunch.")
+                            .font(.system(size: 11))
+                            .foregroundColor(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button("Quit & relaunch", action: relaunch)
+                            .controlSize(.small)
+                    }
+                    .padding(.top, 4)
+                }
                 if let err = errorText {
                     Text(err)
                         .font(.system(size: 11))
