@@ -22,11 +22,19 @@ enum TerminalAutomator {
     /// Used by "Send message to Claude" — types whatever you wrote into the
     /// terminal where Claude Code is running.
     static func sendText(_ text: String, toBundleID bundleID: String, prePromptDelay: Double = 0.25) {
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty else {
+            debugLog("sendText: refused — empty text")
+            return
+        }
+        debugLog("sendText start: bid=\(bundleID) len=\(text.count) accessibility=\(isAccessibilityTrusted)")
+
         if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first {
             app.activate(options: [.activateIgnoringOtherApps])
+            debugLog("sendText: activated \(app.localizedName ?? bundleID)")
+        } else {
+            debugLog("sendText: WARNING — no running app with bid=\(bundleID)")
         }
-        // Escape backslashes and double-quotes for the AppleScript string literal.
+
         let escaped = text
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
@@ -42,10 +50,29 @@ enum TerminalAutomator {
         """
 
         DispatchQueue.global(qos: .userInitiated).async {
-            guard let script = NSAppleScript(source: source) else { return }
+            guard let script = NSAppleScript(source: source) else {
+                debugLog("sendText: AppleScript failed to compile")
+                return
+            }
             var err: NSDictionary?
             script.executeAndReturnError(&err)
-            if let err { NSLog("ClaudeNotch sendText AppleScript error: \(err)") }
+            if let err {
+                debugLog("sendText: AppleScript error \(err)")
+            } else {
+                debugLog("sendText: AppleScript completed OK")
+            }
+        }
+    }
+
+    private static func debugLog(_ msg: String) {
+        let url = URL(fileURLWithPath: "/tmp/claudenotch-debug.log")
+        let line = "[\(Date())] automator: \(msg)\n"
+        guard let data = line.data(using: .utf8) else { return }
+        if FileManager.default.fileExists(atPath: url.path),
+           let h = try? FileHandle(forWritingTo: url) {
+            h.seekToEndOfFile(); h.write(data); try? h.close()
+        } else {
+            try? data.write(to: url)
         }
     }
 

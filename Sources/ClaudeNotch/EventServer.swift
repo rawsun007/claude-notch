@@ -199,21 +199,28 @@ final class EventServer {
     /// Tail the JSONL transcript and pull the most recent assistant text
     /// content. Tolerant of multiple message shapes Claude Code emits.
     private func lastAssistantText(fromTranscriptAt path: String) -> String? {
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)) else { return nil }
-        guard let body = String(data: data, encoding: .utf8) else { return nil }
+        debugLog("transcript read: \(path)")
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)) else {
+            debugLog("transcript read: FAILED to load file")
+            return nil
+        }
+        guard let body = String(data: data, encoding: .utf8) else {
+            debugLog("transcript read: invalid UTF-8")
+            return nil
+        }
         let lines = body.split(separator: "\n", omittingEmptySubsequences: true)
+        debugLog("transcript read: \(lines.count) lines")
         for raw in lines.reversed() {
             guard let lineData = raw.data(using: .utf8),
                   let obj = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any] else {
                 continue
             }
-            // Shape A: top-level "role" + "content"
-            // Shape B: { "type":"assistant", "message": { "role":"assistant", "content": [...] } }
             let inner = (obj["message"] as? [String: Any]) ?? obj
             let role = (inner["role"] as? String) ?? (obj["type"] as? String) ?? ""
             guard role == "assistant" else { continue }
 
             if let text = (inner["content"] as? String), !text.isEmpty {
+                debugLog("transcript read: found text shape A (\(text.count) chars)")
                 return text
             }
             if let blocks = inner["content"] as? [[String: Any]] {
@@ -222,11 +229,26 @@ final class EventServer {
                     return nil
                 }
                 if !texts.isEmpty {
-                    return texts.joined(separator: " ")
+                    let joined = texts.joined(separator: "\n\n")
+                    debugLog("transcript read: found text shape B (\(joined.count) chars)")
+                    return joined
                 }
             }
         }
+        debugLog("transcript read: no assistant text found in \(lines.count) lines")
         return nil
+    }
+
+    private func debugLog(_ msg: String) {
+        let url = URL(fileURLWithPath: "/tmp/claudenotch-debug.log")
+        let line = "[\(Date())] server: \(msg)\n"
+        guard let data = line.data(using: .utf8) else { return }
+        if FileManager.default.fileExists(atPath: url.path),
+           let h = try? FileHandle(forWritingTo: url) {
+            h.seekToEndOfFile(); h.write(data); try? h.close()
+        } else {
+            try? data.write(to: url)
+        }
     }
 
     private func handleThinking(payload: [String: Any]) {
