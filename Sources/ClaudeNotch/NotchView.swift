@@ -25,12 +25,23 @@ struct NotchView: View {
             return CGSize(width: 340, height: inset + 64)
         case .permission(let req):
             if req.kind != .toolUse {
-                return CGSize(width: 500, height: inset + 120)
+                return CGSize(width: 500, height: inset + 110)
             }
-            // Base: header + title + detail box + button row + padding.
-            var visible: CGFloat = 156
+            // Tight content-fits sizing. Numbers calibrated against the
+            // actual rendered rows (font + padding) — there is no Spacer in
+            // the card any more, so the window IS the content size + padding.
+            //   header row ........... 24
+            //   title row ............ 22
+            //   detail box (2 lines) . 42
+            //   buttons row .......... 32
+            //   four 8pt gaps ........ 32
+            //   bottom card padding .. 12
+            //                          ────
+            //                          164
+            var visible: CGFloat = 152
             if !req.dangerReasons.isEmpty {
-                visible += 32 + CGFloat(req.dangerReasons.count) * 16
+                // Banner: 14pt of v-padding + 14pt header + 13pt per reason.
+                visible += 28 + CGFloat(req.dangerReasons.count) * 14 + 8 // +8 gap
             }
             if let p = req.preview {
                 switch p {
@@ -38,16 +49,16 @@ struct NotchView: View {
                     let total = min(ToolPreviewParser.maxDiffLines, h.oldLines.count)
                               + min(ToolPreviewParser.maxDiffLines, h.newLines.count)
                               + (h.truncatedOld || h.truncatedNew ? 1 : 0)
-                    visible += 18 + CGFloat(total) * 15
+                    visible += CGFloat(total) * 14 + 16
                 case .multiDiff(_, let h):
                     let total = min(8, h.oldLines.count) + min(8, h.newLines.count) + 1
-                    visible += 18 + CGFloat(total) * 15
+                    visible += CGFloat(total) * 14 + 28
                 case .write(_, let total):
-                    visible += 18 + CGFloat(min(ToolPreviewParser.maxWriteLines, total)) * 15
+                    visible += CGFloat(min(ToolPreviewParser.maxWriteLines, total)) * 14 + 16
                 }
             }
             let screenH = s?.frame.height ?? 900
-            let cap = max(360, screenH * 0.85 - inset)
+            let cap = max(180, screenH * 0.85 - inset)
             return CGSize(width: 620, height: inset + min(visible, cap))
         case .completed:
             return CGSize(width: 500, height: inset + 116)
@@ -501,8 +512,9 @@ private struct PermissionCard: View {
                 PreviewBlock(preview: preview)
             }
 
-            Spacer(minLength: 0)
-
+            // No Spacer here — let the buttons sit directly under the
+            // content. The window sizing in size(for:) is calibrated to
+            // match content height, so we don't need to push them down.
             HStack(spacing: 8) {
                 NotchButton(label: "Deny", style: .destructive, shortcut: "⎋") {
                     onResolve(.deny, .none)

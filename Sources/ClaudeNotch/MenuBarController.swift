@@ -66,6 +66,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         demoPerm.target = self
         menu.addItem(demoPerm)
 
+        let demoDanger = NSMenuItem(title: "Demo: destructive command (hold to allow)", action: #selector(triggerDemoDangerous), keyEquivalent: "d")
+        demoDanger.target = self
+        menu.addItem(demoDanger)
+
+        let demoDiff = NSMenuItem(title: "Demo: edit with diff preview", action: #selector(triggerDemoDiff), keyEquivalent: "e")
+        demoDiff.target = self
+        menu.addItem(demoDiff)
+
         let demoNotif = NSMenuItem(title: "Demo: notification", action: #selector(triggerDemoNotification), keyEquivalent: "n")
         demoNotif.target = self
         menu.addItem(demoNotif)
@@ -226,21 +234,66 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func triggerDemoPermission() {
-        let semaphore = DispatchSemaphore(value: 0)
+        let cmd = "npm install"
         let req = PermissionRequest(
             kind: .toolUse,
             title: "Run shell command",
-            detail: "rm -rf node_modules && npm install",
+            detail: cmd,
             toolName: "Bash",
             source: "Demo",
             cwd: NSHomeDirectory(),
+            dangerReasons: [],
             resolver: { decision in
                 NSLog("Demo permission resolved: \(decision.rawValue)")
-                semaphore.signal()
             }
         )
         state.enqueuePermission(req)
-        DispatchQueue.global().async { _ = semaphore.wait(timeout: .now() + 60) }
+    }
+
+    /// Destructive command demo — exercises the red banner + hold-to-allow
+    /// flow without waiting for Claude Code to actually issue an rm -rf.
+    @objc private func triggerDemoDangerous() {
+        let cmd = "rm -rf /tmp/cache && sudo chmod -R 777 /Library/LaunchAgents"
+        let toolInput: [String: Any] = ["command": cmd]
+        let reasons = ToolPreviewParser.dangerReasons(for: "Bash", input: toolInput)
+        let req = PermissionRequest(
+            kind: .toolUse,
+            title: "Run shell command",
+            detail: cmd,
+            toolName: "Bash",
+            source: "Demo",
+            cwd: NSHomeDirectory(),
+            dangerReasons: reasons,
+            resolver: { decision in
+                NSLog("Demo dangerous resolved: \(decision.rawValue)")
+            }
+        )
+        state.enqueuePermission(req)
+    }
+
+    /// Edit demo — exercises the diff-preview block (red old / green new).
+    @objc private func triggerDemoDiff() {
+        let oldText = "let x = 42\nprint(\"hello\")\nreturn x"
+        let newText = "let x = 100\nprint(\"hello, world\")\nreturn x * 2"
+        let toolInput: [String: Any] = [
+            "file_path": "/Users/example/main.swift",
+            "old_string": oldText,
+            "new_string": newText
+        ]
+        let preview = ToolPreviewParser.preview(for: "Edit", input: toolInput)
+        let req = PermissionRequest(
+            kind: .toolUse,
+            title: "Edit file",
+            detail: "/Users/example/main.swift",
+            toolName: "Edit",
+            source: "Demo",
+            cwd: "/Users/example",
+            preview: preview,
+            resolver: { decision in
+                NSLog("Demo diff resolved: \(decision.rawValue)")
+            }
+        )
+        state.enqueuePermission(req)
     }
 
     @objc private func triggerDemoNotification() {
