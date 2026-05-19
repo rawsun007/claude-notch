@@ -104,9 +104,13 @@ struct NotchView: View {
     }
 
     var body: some View {
+        // Width is decided per-mode (predictable), but height is NOT
+        // constrained — the ZStack sizes to its content so NSHostingView's
+        // fittingSize matches what's actually drawn. The window controller
+        // then resizes the panel to that fitting size, so the black card
+        // shape never extends past what's needed.
+        let s = NotchView.size(for: state.mode, hovering: state.isHovering, on: NSScreen.main)
         ZStack(alignment: .top) {
-            // Apple's continuous-corner squircle (same algorithm as Dynamic
-            // Island). Flat top, rounded bottom only.
             UnevenRoundedRectangle(
                 topLeadingRadius: 0,
                 bottomLeadingRadius: cornerRadius,
@@ -133,7 +137,7 @@ struct NotchView: View {
                     .padding(.bottom, 12)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .modifier(NotchSizing(width: s.width, fixedHeight: isCollapsedIdle ? s.height : nil))
     }
 
     private var isCollapsedIdle: Bool {
@@ -204,6 +208,27 @@ struct NotchView: View {
         }
     }
 
+}
+
+/// Sizing rule for the notch panel:
+///   • collapsed-idle: lock to a fixed height (the empty rounded shape
+///     has no intrinsic content so SwiftUI would otherwise collapse it
+///     to ~0pt).
+///   • everything else: lock the width, let SwiftUI compute height from
+///     content so the panel shrink-wraps every card.
+private struct NotchSizing: ViewModifier {
+    let width: CGFloat
+    let fixedHeight: CGFloat?
+
+    func body(content: Content) -> some View {
+        if let h = fixedHeight {
+            content.frame(width: width, height: h)
+        } else {
+            content
+                .frame(width: width)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
 }
 
 

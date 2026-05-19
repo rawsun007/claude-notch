@@ -48,6 +48,13 @@ final class NotchWindowController {
         let host = NSHostingView(rootView: NotchView(state: state))
         host.frame = NSRect(origin: .zero, size: size)
         host.autoresizingMask = [.width, .height]
+        // Macos 13.3+: report the SwiftUI content's intrinsic size so
+        // host.fittingSize is the *real* height our content needs. We use
+        // that to size the panel in relayout(), avoiding any drift between
+        // the formula in NotchView.size() and what SwiftUI actually draws.
+        if #available(macOS 13.3, *) {
+            host.sizingOptions = [.intrinsicContentSize]
+        }
         panel.contentView = host
 
         self.window = panel
@@ -59,7 +66,12 @@ final class NotchWindowController {
             .receive(on: RunLoop.main)
             .sink { [weak self] mode, _ in
                 guard let self else { return }
+                // First pass: formula-based size so the panel is visible
+                // immediately. Second pass (next runloop tick): SwiftUI has
+                // now rendered the new mode, so host.fittingSize is the
+                // true content height — re-snap the window to that.
                 self.relayout(animated: true)
+                DispatchQueue.main.async { self.relayout(animated: true) }
                 switch mode {
                 case .permission, .question, .completed, .compose, .history, .responseDetail:
                     self.window.makeKey()
@@ -115,10 +127,27 @@ final class NotchWindowController {
 
     private func relayout(animated: Bool) {
         let screen = currentScreen()
-        let size = NotchView.size(for: state.mode, hovering: state.isHovering, on: screen)
+        let formula = NotchView.size(for: state.mode, hovering: state.isHovering, on: screen)
+        // Ask SwiftUI what it actually wants. fittingSize returns the size
+        // the hosting view would adopt to fit its intrinsic content (the
+        // .frame(width:).fixedSize(vertical:) on NotchView's root). This
+        // is the *true* card height — it can differ from the formula by
+        // a few points either way, and trusting it eliminates dead space.
+        var size = formula
+        if let host = window.contentView {
+            let fit = host.fittingSize
+            // Only trust the measured height if SwiftUI has already rendered
+            // the new mode — we detect that by checking the width matches.
+            // On the first relayout after a mode switch, fit.width is still
+            // the previous mode's width; we fall back to the formula then,
+            // and the deferred second relayout picks up the correct size.
+            let widthMatches = abs(fit.width - formula.width) < 1
+            if widthMatches, fit.height > 0 {
+                let screenCap = screen.frame.height * 0.92
+                size = CGSize(width: formula.width, height: min(fit.height, screenCap))
+            }
+        }
         let s = screen.frame
-        // Center horizontally on the physical notch if we know where it is,
-        // otherwise on screen center.
         let centerX: CGFloat = {
             if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
                 return (left.maxX + right.minX) / 2
@@ -131,7 +160,7 @@ final class NotchWindowController {
             width: size.width,
             height: size.height
         )
-        debugAppend("relayout: mode=\(state.mode) hover=\(state.isHovering) size=\(size) frame=\(frame) screen.maxY=\(s.maxY)\n")
+        debugAppend("relayout: mode=\(state.mode) hover=\(state.isHovering) formula=\(formula) measured=\(window.contentView?.fittingSize ?? .zero) → size=\(size) frame=\(frame) screen.maxY=\(s.maxY)\n")
 
         if animated {
             NSAnimationContext.runAnimationGroup { ctx in
