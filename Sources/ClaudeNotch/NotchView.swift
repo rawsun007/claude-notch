@@ -66,7 +66,7 @@ struct NotchView: View {
             let visible = min(want, cap)
             return CGSize(width: 600, height: inset + visible)
         case .compose:
-            return CGSize(width: 580, height: inset + 140)
+            return CGSize(width: 580, height: inset + 200)
         case .responseDetail:
             return CGSize(width: 660, height: inset + 360)
         case .history:
@@ -142,8 +142,8 @@ struct NotchView: View {
                 .transition(.opacity)
         case .permission(let req):
             if req.kind == .toolUse {
-                PermissionCard(request: req) { decision, alwaysAllow in
-                    state.resolveCurrentPermission(decision, alwaysAllow: alwaysAllow)
+                PermissionCard(request: req) { decision, scope in
+                    state.resolveCurrentPermission(decision, alwaysAllow: scope)
                 }
                 .transition(.scale(scale: 0.94).combined(with: .opacity))
             } else {
@@ -314,18 +314,28 @@ private struct ComposeCard: View {
                 Spacer()
             }
 
-            TextField("type your message…", text: $state.composeText)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
-                .foregroundColor(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.white.opacity(0.08))
-                )
-                .focused($focused)
-                .onSubmit { state.sendCompose() }
+            ZStack(alignment: .topLeading) {
+                if state.composeText.isEmpty {
+                    Text("type your message — ⌘↩ to send, ↩ for newline, ⎋ to cancel")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.35))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .allowsHitTesting(false)
+                }
+                TextEditor(text: $state.composeText)
+                    .font(.system(size: 13))
+                    .foregroundColor(.white)
+                    .scrollContentBackground(.hidden)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 6)
+                    .focused($focused)
+            }
+            .frame(minHeight: 80)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.white.opacity(0.08))
+            )
 
             if let err = state.composeError {
                 Text(err)
@@ -341,7 +351,7 @@ private struct ComposeCard: View {
                 NotchButton(label: "Cancel", style: .secondary, shortcut: "⎋") {
                     state.cancelCompose()
                 }
-                NotchButton(label: "Send", style: .primary, shortcut: "⏎") {
+                NotchButton(label: "Send", style: .primary, shortcut: "⌘↩") {
                     state.sendCompose()
                 }
             }
@@ -436,7 +446,7 @@ private struct ThinkingPill: View {
 
 private struct PermissionCard: View {
     let request: PermissionRequest
-    let onResolve: (PermissionDecision, Bool) -> Void
+    let onResolve: (PermissionDecision, AllowScope) -> Void
 
     private var accentColor: Color { request.isDangerous ? .red : .yellow }
     private var headerIcon: String { request.isDangerous ? "exclamationmark.triangle.fill" : "exclamationmark.bubble.fill" }
@@ -495,21 +505,44 @@ private struct PermissionCard: View {
 
             HStack(spacing: 8) {
                 NotchButton(label: "Deny", style: .destructive, shortcut: "⎋") {
-                    onResolve(.deny, false)
+                    onResolve(.deny, .none)
                 }
                 if !request.isDangerous {
-                    NotchButton(label: "Always allow \(request.toolName)", style: .secondary) {
-                        onResolve(.allow, true)
+                    Menu {
+                        Button("Always allow this exact command") {
+                            onResolve(.allow, .exactCommand)
+                        }
+                        Button("Always allow all \(request.toolName)") {
+                            onResolve(.allow, .tool)
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text("Always allow…")
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 9, weight: .bold))
+                                .opacity(0.7)
+                        }
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color.white.opacity(0.14))
+                        )
                     }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
                 }
                 Spacer()
                 if request.isDangerous {
                     HoldToConfirmButton(label: "Hold to allow", duration: 0.9) {
-                        onResolve(.allow, false)
+                        onResolve(.allow, .none)
                     }
                 } else {
                     NotchButton(label: "Allow", style: .primary, shortcut: "⏎") {
-                        onResolve(.allow, false)
+                        onResolve(.allow, .none)
                     }
                 }
             }

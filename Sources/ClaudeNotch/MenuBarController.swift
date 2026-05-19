@@ -108,7 +108,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.delegate = self
         item.menu = menu
 
-        state.$sessionAllowlist
+        state.$allowRules
             .receive(on: RunLoop.main)
             .sink { [weak self] set in self?.refreshAllowlist(set) }
             .store(in: &cancellables)
@@ -197,13 +197,15 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshPermissions()
     }
 
-    private func refreshAllowlist(_ set: Set<String>) {
-        if set.isEmpty {
-            allowlistItem.title = "Always-allowed (this session): —"
+    private func refreshAllowlist(_ rules: Set<AllowRule>) {
+        if rules.isEmpty {
+            allowlistItem.title = "Always-allow rules: —"
             allowlistItem.isEnabled = false
         } else {
-            let list = set.sorted().joined(separator: ", ")
-            allowlistItem.title = "Always-allowed: \(list)  —  click to clear"
+            let labels = rules.map(\.displayLabel).sorted()
+            let preview = labels.prefix(3).joined(separator: ", ")
+            let more = labels.count > 3 ? " +\(labels.count - 3) more" : ""
+            allowlistItem.title = "Always-allow: \(preview)\(more)  —  click to clear all"
             allowlistItem.isEnabled = true
         }
     }

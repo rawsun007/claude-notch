@@ -35,8 +35,18 @@ final class KeyboardMonitor {
         let isOurKey = (event.keyCode == 36 || event.keyCode == 76 || event.keyCode == 53)
         guard isOurKey else { return false }
         switch state.mode {
-        case .permission, .completed, .question, .compose, .responseDetail, .history: return true
-        default: return false
+        case .compose:
+            // Plain Enter must reach the TextEditor so the user can break
+            // lines. We only steal Esc (cancel) and ⌘↩ (send).
+            if event.keyCode == 53 { return true }
+            if (event.keyCode == 36 || event.keyCode == 76) && event.modifierFlags.contains(.command) {
+                return true
+            }
+            return false
+        case .permission, .completed, .question, .responseDetail, .history:
+            return true
+        default:
+            return false
         }
     }
 

@@ -36,8 +36,8 @@ enum ToolPreview: Equatable {
 
 /// One row in the click-to-expand history drawer. Captured at resolve time
 /// so the user can scroll back through what's been happening.
-struct HistoryEntry: Identifiable, Equatable {
-    let id = UUID()
+struct HistoryEntry: Identifiable, Equatable, Codable {
+    var id: UUID = UUID()
     let timestamp: Date
     let kind: Kind
     let toolName: String
@@ -46,11 +46,48 @@ struct HistoryEntry: Identifiable, Equatable {
     let project: String
     let outcome: Outcome
 
-    enum Kind: String, Equatable {
+    enum Kind: String, Equatable, Codable {
         case permission, question, notification, completed
     }
-    enum Outcome: Equatable {
+    enum Outcome: Equatable, Codable {
         case allowed, denied, dismissed, answered(count: Int), info, dangerous
+    }
+}
+
+/// One auto-approval rule. The `commandRegex` is optional: nil means
+/// "match any input for this tool" (the old tool-wide always-allow),
+/// non-nil means "this tool AND the command matches this regex".
+/// Persisted across launches.
+struct AllowRule: Hashable, Codable, Identifiable {
+    let tool: String
+    let commandRegex: String?
+
+    var id: String { "\(tool)\u{0001}\(commandRegex ?? "")" }
+
+    func matches(_ req: PermissionRequest) -> Bool {
+        guard tool == req.toolName else { return false }
+        guard let pattern = commandRegex, !pattern.isEmpty else { return true }
+        guard let re = try? NSRegularExpression(pattern: pattern) else { return false }
+        let range = NSRange(req.detail.startIndex..<req.detail.endIndex, in: req.detail)
+        return re.firstMatch(in: req.detail, range: range) != nil
+    }
+
+    /// Human-readable label for menus / status lines.
+    var displayLabel: String {
+        guard let pattern = commandRegex, !pattern.isEmpty else { return tool }
+        // Short, friendly form for the common "exact command" case (where
+        // pattern is an anchored regex-escape of a literal).
+        if pattern.hasPrefix("^") && pattern.hasSuffix("$") {
+            let unescaped = pattern
+                .replacingOccurrences(of: #"\Q"#, with: "")
+                .replacingOccurrences(of: #"\E"#, with: "")
+                .dropFirst().dropLast()
+            let inner = String(unescaped)
+            if inner.count <= 60 {
+                return "\(tool): `\(inner)`"
+            }
+        }
+        return "\(tool) matching /\(pattern)/"
     }
 }
 
@@ -92,6 +129,13 @@ final class QuestionRequest: Identifiable, Equatable {
 
 enum PermissionDecision: String {
     case allow, deny, ask
+}
+
+/// What kind of "always allow" rule to install when the user picks Allow.
+/// `.none` = one-shot; `.tool` = the old tool-wide rule; `.exactCommand`
+/// = the same tool + literal command string.
+enum AllowScope {
+    case none, tool, exactCommand
 }
 
 final class PermissionRequest: Identifiable, Equatable {
@@ -161,7 +205,7 @@ final class AppState: ObservableObject {
     @Published private(set) var permissionQueue: [PermissionRequest] = []
     @Published private(set) var completedQueue: [CompletedTask] = []
     @Published private(set) var questionQueue: [QuestionRequest] = []
-    @Published private(set) var sessionAllowlist: Set<String> = []
+    @Published private(set) var allowRules: Set<AllowRule> = []
     @Published var isHovering: Bool = false
 
     // Live session info — populated from every hook payload.
@@ -194,6 +238,33 @@ final class AppState: ObservableObject {
     private let projectStaleAfter: TimeInterval = 300
     private var staleTimer: Timer?
 
+    // Debounced write to ~/.claudenotch/state.json — coalesces bursts of
+    // mutations (e.g. many history appends in a row) into one disk write.
+    private var persistTimer: Timer?
+
+    init() {
+        if let snapshot = Persistence.load() {
+            self.history = snapshot.history
+            self.allowRules = snapshot.allowRules
+            self.recentProjects = snapshot.recentProjects
+        }
+    }
+
+    fileprivate func schedulePersist() {
+        persistTimer?.invalidate()
+        persistTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
+            Task { @MainActor in self?.persistNow() }
+        }
+    }
+
+    private func persistNow() {
+        Persistence.save(.init(
+            history: history,
+            allowRules: allowRules,
+            recentProjects: recentProjects
+        ))
+    }
+
     func setHovering(_ value: Bool) {
         if isHovering != value { isHovering = value }
     }
@@ -205,9 +276,11 @@ final class AppState: ObservableObject {
         guard !c.isEmpty else { return }
         currentCwd = c
         currentProject = (c as NSString).lastPathComponent
+        let beforeRecent = recentProjects
         recentProjects.removeAll { $0 == c }
         recentProjects.insert(c, at: 0)
         if recentProjects.count > 8 { recentProjects = Array(recentProjects.prefix(8)) }
+        if recentProjects != beforeRecent { schedulePersist() }
         if let bid = originatorBundleID, bid != Bundle.main.bundleIdentifier {
             lastOriginatorBundleID = bid
         }
@@ -255,6 +328,19 @@ final class AppState: ObservableObject {
     }
 
     // MARK: - Compose (send message to Claude)
+
+    /// Hotkey entry point. Doesn't barge in on an active permission /
+    /// question prompt — those are time-sensitive and dismissing them
+    /// would be worse than the hotkey appearing to do nothing.
+    func summonCompose() {
+        switch mode {
+        case .permission, .question:
+            NSSound(named: NSSound.Name("Funk"))?.play()
+            return
+        default:
+            beginCompose()
+        }
+    }
 
     func beginCompose() {
         composeText = ""
@@ -344,6 +430,7 @@ final class AppState: ObservableObject {
 
     func clearHistory() {
         history.removeAll()
+        schedulePersist()
         if isHistoryOpen { closeHistory() }
     }
 
@@ -352,6 +439,7 @@ final class AppState: ObservableObject {
         if history.count > historyMax {
             history = Array(history.prefix(historyMax))
         }
+        schedulePersist()
     }
 
     private func ensureStaleTimer() {
@@ -387,15 +475,15 @@ final class AppState: ObservableObject {
     private var thinkingTask: Task<Void, Never>?
 
     func enqueuePermission(_ req: PermissionRequest) {
-        if sessionAllowlist.contains(req.toolName) {
-            // Auto-allowed sessions still get recorded so the user can see
-            // what we allowed silently on their behalf.
+        if let matched = allowRules.first(where: { $0.matches(req) }) {
+            // Auto-allowed by a rule the user installed earlier. Still
+            // log it to history so they can see what we approved silently.
             appendHistory(HistoryEntry(
                 timestamp: Date(),
                 kind: req.kind == .notification ? .notification : .permission,
                 toolName: req.toolName,
                 title: req.title,
-                detail: req.detail,
+                detail: req.detail + "  (auto-allowed by rule: \(matched.displayLabel))",
                 project: (req.cwd as NSString).lastPathComponent,
                 outcome: req.kind == .notification ? .info : .allowed
             ))
@@ -470,11 +558,21 @@ final class AppState: ObservableObject {
         recompute()
     }
 
-    func resolveCurrentPermission(_ decision: PermissionDecision, alwaysAllow: Bool = false) {
+    func resolveCurrentPermission(_ decision: PermissionDecision, alwaysAllow: AllowScope = .none) {
         guard !permissionQueue.isEmpty else { return }
         let first = permissionQueue.removeFirst()
-        if alwaysAllow && decision == .allow {
-            sessionAllowlist.insert(first.toolName)
+        if decision == .allow {
+            switch alwaysAllow {
+            case .none:
+                break
+            case .tool:
+                allowRules.insert(AllowRule(tool: first.toolName, commandRegex: nil))
+                schedulePersist()
+            case .exactCommand:
+                let escaped = NSRegularExpression.escapedPattern(for: first.detail)
+                allowRules.insert(AllowRule(tool: first.toolName, commandRegex: "^\(escaped)$"))
+                schedulePersist()
+            }
         }
         first.resolver(decision)
         // Notifications were already logged at enqueue time.
@@ -514,7 +612,13 @@ final class AppState: ObservableObject {
     }
 
     func clearAllowlist() {
-        sessionAllowlist.removeAll()
+        allowRules.removeAll()
+        schedulePersist()
+    }
+
+    func removeAllowRule(_ rule: AllowRule) {
+        allowRules.remove(rule)
+        schedulePersist()
     }
 
     func pingThinking(label: String) {

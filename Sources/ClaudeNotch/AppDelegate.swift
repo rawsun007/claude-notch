@@ -36,6 +36,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.onboarding.show()
             }
         }
+
+        // ⌥⌘N anywhere → focus the notch into compose mode.
+        GlobalHotkey.shared.onFire = { [weak self] in
+            self?.state.summonCompose()
+            self?.notch.window.makeKey()
+        }
+        GlobalHotkey.shared.registerDefault()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
