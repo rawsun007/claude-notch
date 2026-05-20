@@ -8,6 +8,10 @@ DerivedData/
 # Built .app bundle (regenerate via ./build.sh)
 ClaudeNotch.app/
 
+# Distributable artifacts (regenerate via tools/build-dmg.sh)
+dist/
+assets/AppIcon.iconset/
+
 # macOS junk
 .DS_Store
 

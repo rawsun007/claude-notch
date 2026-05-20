@@ -20,6 +20,15 @@ chmod +x "$APP/Contents/MacOS/ClaudeNotch"
 cp bin/*.sh "$APP/Contents/Resources/hooks/"
 chmod +x "$APP/Contents/Resources/hooks/"*.sh
 
+# App icon (Finder / Dock / About). Built by tools/make-icns.sh.
+if [ -f assets/AppIcon.icns ]; then
+    cp assets/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+fi
+# Menu-bar template glyph.
+if [ -f assets/menubar.png ]; then
+    cp assets/menubar.png "$APP/Contents/Resources/menubar.png"
+fi
+
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -29,6 +38,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundleName</key><string>ClaudeNotch</string>
     <key>CFBundleDisplayName</key><string>ClaudeNotch</string>
     <key>CFBundleExecutable</key><string>ClaudeNotch</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundleShortVersionString</key><string>0.1.0</string>
     <key>CFBundleVersion</key><string>1</string>
     <key>CFBundlePackageType</key><string>APPL</string>

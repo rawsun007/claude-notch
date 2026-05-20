@@ -28,7 +28,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         super.init()
 
         if let button = item.button {
-            button.image = NSImage(systemSymbolName: "bell.badge.fill", accessibilityDescription: "ClaudeNotch")
+            button.image = MenuBarController.statusIcon()
             button.image?.isTemplate = true
         }
 
@@ -400,6 +400,18 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func showOnboarding() {
         onboarding.show()
+    }
+
+    /// Our bundled notch+spark glyph, falling back to an SF Symbol if the
+    /// asset is missing (e.g. running the raw binary, not the .app).
+    private static func statusIcon() -> NSImage? {
+        if let url = Bundle.main.url(forResource: "menubar", withExtension: "png"),
+           let img = NSImage(contentsOf: url) {
+            img.size = NSSize(width: 18, height: 18)
+            img.isTemplate = true
+            return img
+        }
+        return NSImage(systemSymbolName: "bell.badge.fill", accessibilityDescription: "ClaudeNotch")
     }
 
     @objc private func toggleLaunchAtLogin() {
