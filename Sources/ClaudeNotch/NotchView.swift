@@ -168,8 +168,15 @@ struct NotchView: View {
         .onPreferenceChange(ContentHeightKey.self) { h in
             compactHeight = h
         }
-        .animation(collapsed ? Self.closeSpring : Self.openSpring, value: state.mode)
-        .animation(Self.openSpring, value: compactHeight)
+        // Reset the measured height the instant the mode changes so the card
+        // doesn't briefly inherit the PREVIOUS card's height (which made the
+        // open jump instead of animate). It falls back to the formula height
+        // for one frame, then the GeometryReader refines to the exact height.
+        .onChange(of: state.mode) { _ in compactHeight = 0 }
+        // Animate on the geometry itself, so BOTH open and close spring
+        // symmetrically no matter what changed the size (mode OR measurement).
+        .animation(Self.openSpring, value: displayHeight)
+        .animation(Self.openSpring, value: card.width)
         .animation(Self.hoverSpring, value: state.isHovering)
     }
 
