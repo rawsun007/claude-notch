@@ -146,7 +146,9 @@ struct NotchView: View {
                         .frame(maxWidth: .infinity, maxHeight: isScrollableMode ? .infinity : nil, alignment: .top)
                         .padding(.horizontal, 22)
                         .padding(.top, state.notchTopInset + 10)
-                        .padding(.bottom, 18)
+                        // Bottom padding must clear the notch shape's bottom
+                        // corner curve, or buttons get clipped at the corners.
+                        .padding(.bottom, 24)
                         .background(
                             GeometryReader { g in
                                 Color.clear.preference(
@@ -253,13 +255,14 @@ struct NotchView: View {
         isCollapsedIdle ? 9 : 12
     }
 
-    /// Convex bottom-corner radius — grows with the card so big cards have a
-    /// softer hang.
+    /// Convex bottom-corner radius. Kept modest so the bottom button row
+    /// (which sits ~24pt above the bottom edge) never collides with the
+    /// corner curve and gets clipped.
     private var notchBottomRadius: CGFloat {
-        if isCollapsedIdle { return 11 }
+        if isCollapsedIdle { return 10 }
         switch state.mode {
-        case .responseDetail, .history: return 30
-        default:                        return 26
+        case .responseDetail, .history: return 22
+        default:                        return 18
         }
     }
 
