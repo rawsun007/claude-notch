@@ -1,8 +1,20 @@
 import SwiftUI
 import AppKit
 
+/// Carries the measured natural height of a compact card's content up to the
+/// body so the card frame can be an EXPLICIT (animatable) height that exactly
+/// matches the content — explicit so the spring interpolates it (grow-out-of-
+/// notch), measured so it never clips or leaves dead space.
+private struct ContentHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 struct NotchView: View {
     @ObservedObject var state: AppState
+    @State private var compactHeight: CGFloat = 0
 
     /// How much vertical space is hidden by the physical notch (or 0 if none).
     static func notchInset(on screen: NSScreen?) -> CGFloat {
@@ -117,18 +129,17 @@ struct NotchView: View {
         // "pops twice" double-relayout entirely.
         let card = NotchView.size(for: state.mode, hovering: state.isHovering, on: NSScreen.main)
         let collapsed = isCollapsedIdle
-        // The hanging-notch shape: concave top corners that blend into the
-        // menu bar, convex bottom. Radii animate with the open/close so the
-        // card morphs out of the notch instead of just fading in.
         let shape = NotchShape(topCornerRadius: notchTopRadius,
                                bottomCornerRadius: notchBottomRadius)
+        // The card height is an EXPLICIT value so the spring can interpolate
+        // it (grow-out-of-notch). For compact cards it's the MEASURED content
+        // height (never clips, no dead space); collapsed and scrollable modes
+        // use the formula height.
+        let displayHeight: CGFloat = {
+            if collapsed || isScrollableMode { return card.height }
+            return compactHeight > 1 ? compactHeight : card.height
+        }()
         return ZStack(alignment: .top) {
-            // Content sits on a black fill clipped to the notch shape. CRUCIAL
-            // ORDER: CardFrame sizes the card FIRST, then the black background
-            // + clip apply at that (animating) size. So as the frame springs
-            // from the collapsed notch size out to the card size, the black
-            // shape and its clip grow with it — the card emerges from the
-            // notch instead of fading in at full size.
             ZStack(alignment: .top) {
                 if !collapsed {
                     content
@@ -136,18 +147,29 @@ struct NotchView: View {
                         .padding(.horizontal, 22)
                         .padding(.top, state.notchTopInset + 10)
                         .padding(.bottom, 18)
-                        .opacity(collapsed ? 0 : 1)
+                        .background(
+                            GeometryReader { g in
+                                Color.clear.preference(
+                                    key: ContentHeightKey.self,
+                                    value: isScrollableMode ? 0 : g.size.height
+                                )
+                            }
+                        )
                 }
             }
-            .modifier(CardFrame(width: card.width,
-                                height: card.height,
-                                fixedHeight: collapsed || isScrollableMode))
+            // Black fill + clip apply AT the (animating) explicit frame size,
+            // so the shape grows from the notch out to the card.
+            .frame(width: card.width, height: displayHeight, alignment: .top)
             .background(Color.black)
             .clipShape(shape)
             .overlay(shape.stroke(Color.white.opacity(collapsed ? 0 : 0.05), lineWidth: 0.5))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onPreferenceChange(ContentHeightKey.self) { h in
+            compactHeight = h
+        }
         .animation(collapsed ? Self.closeSpring : Self.openSpring, value: state.mode)
+        .animation(Self.openSpring, value: compactHeight)
         .animation(Self.hoverSpring, value: state.isHovering)
     }
 
@@ -235,30 +257,6 @@ struct NotchView: View {
     }
 
 }
-
-/// Sizes the notch card inside the fixed-size panel.
-///   • fixedHeight (collapsed-idle, scrollable drawers): explicit width AND
-///     height — the empty shape has no intrinsic height, and the ScrollView
-///     drawers need a bounded region.
-///   • compact cards: explicit WIDTH (so the widening animates out of the
-///     notch), but content-fit HEIGHT so the card always wraps its content
-///     exactly — no clipping of buttons, correct bottom padding.
-private struct CardFrame: ViewModifier {
-    let width: CGFloat
-    let height: CGFloat
-    let fixedHeight: Bool
-
-    func body(content: Content) -> some View {
-        if fixedHeight {
-            content.frame(width: width, height: height, alignment: .top)
-        } else {
-            content
-                .frame(width: width, alignment: .top)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-}
-
 
 // MARK: - shared spec for IdlePill content
 
