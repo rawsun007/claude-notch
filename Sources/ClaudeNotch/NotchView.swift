@@ -117,13 +117,11 @@ struct NotchView: View {
         // "pops twice" double-relayout entirely.
         let card = NotchView.size(for: state.mode, hovering: state.isHovering, on: NSScreen.main)
         let collapsed = isCollapsedIdle
-        let shape = UnevenRoundedRectangle(
-            topLeadingRadius: 0,
-            bottomLeadingRadius: cornerRadius,
-            bottomTrailingRadius: cornerRadius,
-            topTrailingRadius: 0,
-            style: .continuous
-        )
+        // The hanging-notch shape: concave top corners that blend into the
+        // menu bar, convex bottom. Radii animate with the open/close so the
+        // card morphs out of the notch instead of just fading in.
+        let shape = NotchShape(topCornerRadius: notchTopRadius,
+                               bottomCornerRadius: notchBottomRadius)
         return ZStack(alignment: .top) {
             // Content sits on a black fill and is CLIPPED to the notch shape.
             // The shape's frame animates from the collapsed notch size out to
@@ -220,14 +218,20 @@ struct NotchView: View {
         }
     }
 
-    private var cornerRadius: CGFloat {
-        if isCollapsedIdle { return 12 }
+    /// Concave top-corner radius — the "ears" that blend the card into the
+    /// menu bar / physical notch. Small when closed (≈ the real notch), a
+    /// touch larger when open.
+    private var notchTopRadius: CGFloat {
+        isCollapsedIdle ? 9 : 12
+    }
+
+    /// Convex bottom-corner radius — grows with the card so big cards have a
+    /// softer hang.
+    private var notchBottomRadius: CGFloat {
+        if isCollapsedIdle { return 11 }
         switch state.mode {
-        case .idle, .thinking:                   return 28
-        case .permission, .completed, .compose:  return 38
-        case .question:                          return 38
-        case .responseDetail:                    return 42
-        case .history:                           return 42
+        case .responseDetail, .history: return 30
+        default:                        return 26
         }
     }
 
