@@ -21,23 +21,18 @@ func render(_ px: CGFloat) -> Data? {
     ctx.setFillColor(black)
     ctx.fillPath()
 
-    // Spark below it.
-    let c = CGPoint(x: px/2, y: px*0.40)
-    let r = px*0.34, waist = r*0.30
-    let tips = [CGPoint(x: c.x, y: c.y+r), CGPoint(x: c.x+r, y: c.y),
-                CGPoint(x: c.x, y: c.y-r), CGPoint(x: c.x-r, y: c.y)]
-    let inner = [CGPoint(x: c.x+waist, y: c.y+waist), CGPoint(x: c.x+waist, y: c.y-waist),
-                 CGPoint(x: c.x-waist, y: c.y-waist), CGPoint(x: c.x-waist, y: c.y+waist)]
-    let p = CGMutablePath()
-    p.move(to: tips[0])
-    for i in 0..<4 {
-        p.addQuadCurve(to: inner[i], control: tips[i])
-        p.addQuadCurve(to: tips[(i+1)%4], control: inner[i])
+    // Claude logo below it (monochrome — drawn black so the status bar can
+    // tint it as a template image).
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
+    if let logo = NSImage(contentsOfFile: "assets/claude.svg")
+        ?? NSImage(contentsOfFile: "/Users/roshanramani/Downloads/claude.svg") {
+        let s = px * 0.66
+        let rect = CGRect(x: (px - s)/2, y: px*0.40 - s/2, width: s, height: s)
+        logo.size = NSSize(width: s, height: s)
+        logo.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1.0)
     }
-    p.closeSubpath()
-    ctx.addPath(p)
-    ctx.setFillColor(black)
-    ctx.fillPath()
+    NSGraphicsContext.restoreGraphicsState()
 
     return rep.representation(using: .png, properties: [:])
 }

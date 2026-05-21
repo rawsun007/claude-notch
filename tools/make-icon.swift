@@ -61,11 +61,19 @@ func render(size: CGFloat) -> NSImage {
     ctx.fillPath()
     ctx.restoreGState()
 
-    // --- Claude coral spark, centred a little below middle ---
-    let sparkCenter = CGPoint(x: bgRect.midX, y: bgRect.midY - size * 0.03)
-    let sparkR = bgRect.width * 0.27
-    drawSpark(ctx, center: sparkCenter, radius: sparkR,
-              color: CGColor(red: 0.85, green: 0.47, blue: 0.34, alpha: 1.0))
+    // --- Claude logo (coral), centred a little below middle ---
+    if let logo = NSImage(contentsOfFile: "assets/claude-color.svg")
+        ?? NSImage(contentsOfFile: "/Users/roshanramani/Downloads/claude-color.svg") {
+        let logoSize = bgRect.width * 0.50
+        let logoRect = CGRect(
+            x: bgRect.midX - logoSize / 2,
+            y: bgRect.midY - logoSize / 2 - size * 0.02,
+            width: logoSize,
+            height: logoSize
+        )
+        logo.size = NSSize(width: logoSize, height: logoSize)
+        logo.draw(in: logoRect, from: .zero, operation: .sourceOver, fraction: 1.0)
+    }
 
     image.unlockFocus()
     return image

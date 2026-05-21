@@ -133,9 +133,9 @@ struct NotchView: View {
                 if !collapsed {
                     content
                         .frame(maxWidth: .infinity, maxHeight: isScrollableMode ? .infinity : nil, alignment: .top)
-                        .padding(.horizontal, 16)
-                        .padding(.top, state.notchTopInset + 6)
-                        .padding(.bottom, 12)
+                        .padding(.horizontal, 22)
+                        .padding(.top, state.notchTopInset + 10)
+                        .padding(.bottom, 18)
                         .opacity(collapsed ? 0 : 1)
                 }
             }
@@ -236,18 +236,26 @@ struct NotchView: View {
 
 }
 
-/// Sizes the notch card inside the fixed-size panel. ALWAYS uses an explicit
-/// width AND height (from the per-mode formula) so SwiftUI can interpolate
-/// the size with a spring — that's what produces the grow-out-of-the-notch
-/// motion. (fixedSize/intrinsic heights don't animate reliably, which made
-/// the card just fade in.)
+/// Sizes the notch card inside the fixed-size panel.
+///   • fixedHeight (collapsed-idle, scrollable drawers): explicit width AND
+///     height — the empty shape has no intrinsic height, and the ScrollView
+///     drawers need a bounded region.
+///   • compact cards: explicit WIDTH (so the widening animates out of the
+///     notch), but content-fit HEIGHT so the card always wraps its content
+///     exactly — no clipping of buttons, correct bottom padding.
 private struct CardFrame: ViewModifier {
     let width: CGFloat
     let height: CGFloat
-    let fixedHeight: Bool  // retained for call-site clarity; both branches fix height now
+    let fixedHeight: Bool
 
     func body(content: Content) -> some View {
-        content.frame(width: width, height: height, alignment: .top)
+        if fixedHeight {
+            content.frame(width: width, height: height, alignment: .top)
+        } else {
+            content
+                .frame(width: width, alignment: .top)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 
