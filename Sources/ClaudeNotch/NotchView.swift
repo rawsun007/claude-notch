@@ -123,10 +123,12 @@ struct NotchView: View {
         let shape = NotchShape(topCornerRadius: notchTopRadius,
                                bottomCornerRadius: notchBottomRadius)
         return ZStack(alignment: .top) {
-            // Content sits on a black fill and is CLIPPED to the notch shape.
-            // The shape's frame animates from the collapsed notch size out to
-            // the card size, so the content is *revealed* growing out of the
-            // notch (Dynamic-Island style) rather than just fading in.
+            // Content sits on a black fill clipped to the notch shape. CRUCIAL
+            // ORDER: CardFrame sizes the card FIRST, then the black background
+            // + clip apply at that (animating) size. So as the frame springs
+            // from the collapsed notch size out to the card size, the black
+            // shape and its clip grow with it — the card emerges from the
+            // notch instead of fading in at full size.
             ZStack(alignment: .top) {
                 if !collapsed {
                     content
@@ -134,18 +136,15 @@ struct NotchView: View {
                         .padding(.horizontal, 16)
                         .padding(.top, state.notchTopInset + 6)
                         .padding(.bottom, 12)
-                        // Fade content in toward the end of the expand so it
-                        // appears as the shape finishes growing, not before.
                         .opacity(collapsed ? 0 : 1)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background(Color.black)
-            .clipShape(shape)
-            .overlay(shape.stroke(Color.white.opacity(collapsed ? 0 : 0.05), lineWidth: 0.5))
             .modifier(CardFrame(width: card.width,
                                 height: card.height,
                                 fixedHeight: collapsed || isScrollableMode))
+            .background(Color.black)
+            .clipShape(shape)
+            .overlay(shape.stroke(Color.white.opacity(collapsed ? 0 : 0.05), lineWidth: 0.5))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(collapsed ? Self.closeSpring : Self.openSpring, value: state.mode)
@@ -237,25 +236,18 @@ struct NotchView: View {
 
 }
 
-/// Sizes the notch card inside the fixed-size panel.
-///   • fixedHeight (collapsed-idle, scrollable drawers): lock width AND
-///     height — the empty rounded shape has no intrinsic height, and the
-///     ScrollView drawers need a bounded region.
-///   • otherwise: lock width, let height fit content exactly (no dead
-///     space), and SwiftUI springs animate the height change.
+/// Sizes the notch card inside the fixed-size panel. ALWAYS uses an explicit
+/// width AND height (from the per-mode formula) so SwiftUI can interpolate
+/// the size with a spring — that's what produces the grow-out-of-the-notch
+/// motion. (fixedSize/intrinsic heights don't animate reliably, which made
+/// the card just fade in.)
 private struct CardFrame: ViewModifier {
     let width: CGFloat
     let height: CGFloat
-    let fixedHeight: Bool
+    let fixedHeight: Bool  // retained for call-site clarity; both branches fix height now
 
     func body(content: Content) -> some View {
-        if fixedHeight {
-            content.frame(width: width, height: height, alignment: .top)
-        } else {
-            content
-                .frame(width: width, alignment: .top)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+        content.frame(width: width, height: height, alignment: .top)
     }
 }
 
