@@ -377,11 +377,13 @@ final class AppState: ObservableObject {
     }
 
     func cancelCompose() {
+        let target = composeTarget
         composeText = ""
         isComposing = false
         composeError = nil
         composeTarget = nil
         recompute()
+        returnKeyboardToTerminal(preferred: target)
     }
 
     private func pickComposeTarget() -> String? {
@@ -419,6 +421,7 @@ final class AppState: ObservableObject {
     func closeResponseDetail() {
         isResponseDetailOpen = false
         recompute()
+        returnKeyboardToTerminal()
     }
 
     // MARK: - History drawer
@@ -432,6 +435,7 @@ final class AppState: ObservableObject {
     func closeHistory() {
         isHistoryOpen = false
         recompute()
+        returnKeyboardToTerminal()
     }
 
     func clearHistory() {
@@ -562,6 +566,7 @@ final class AppState: ObservableObject {
             NSSound(named: NSSound.Name("Pop"))?.play()
         }
         recompute()
+        returnKeyboardToTerminal(preferred: first.originatorBundleID)
     }
 
     func resolveCurrentPermission(_ decision: PermissionDecision, alwaysAllow: AllowScope = .none) {
@@ -601,6 +606,7 @@ final class AppState: ObservableObject {
         }
         playFeedback(for: decision)
         recompute()
+        returnKeyboardToTerminal(preferred: first.originatorBundleID)
     }
 
     private func playFeedback(for decision: PermissionDecision) {
@@ -613,8 +619,9 @@ final class AppState: ObservableObject {
 
     func dismissCurrentCompleted() {
         guard !completedQueue.isEmpty else { return }
-        completedQueue.removeFirst()
+        let first = completedQueue.removeFirst()
         recompute()
+        returnKeyboardToTerminal(preferred: first.originatorBundleID)
     }
 
     func clearAllowlist() {
@@ -660,6 +667,22 @@ final class AppState: ObservableObject {
             return
         }
         frontmost.activateLastApp()
+    }
+
+    /// After an interactive card resolves, hand keyboard focus back to the
+    /// terminal so the user can keep typing without clicking. The notch panel
+    /// grabbed key status to receive Enter/Esc; activating the terminal makes
+    /// it key again and our panel resigns automatically. No-op while another
+    /// interactive card is still queued.
+    func returnKeyboardToTerminal(preferred: String? = nil) {
+        switch mode {
+        case .permission, .question, .compose, .completed, .responseDetail, .history:
+            return   // still interactive — keep keyboard on the notch
+        default:
+            break
+        }
+        let bid = preferred ?? lastOriginatorBundleID
+        openOriginator(bid)
     }
 
     private func playAlert() {
@@ -754,10 +777,15 @@ final class FrontmostTracker {
 enum AppActivation {
     static func bringToFront(_ app: NSRunningApplication) {
         if app.isHidden { app.unhide() }
-        if #available(macOS 14.0, *) {
-            app.activate()
-        } else {
-            app.activate(options: [.activateIgnoringOtherApps])
+        // `.activateIgnoringOtherApps` is deprecated on macOS 14+, but the
+        // parameterless replacement is unreliable when called from an
+        // accessory app whose panel is currently key — it frequently no-ops,
+        // which is why "Open IDE" only worked sometimes. The deprecated form
+        // still works on every version, so we use it and also do a second
+        // pass on the next runloop tick to win any activation race.
+        app.activate(options: [.activateIgnoringOtherApps])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            if !app.isActive { app.activate(options: [.activateIgnoringOtherApps]) }
         }
     }
 }

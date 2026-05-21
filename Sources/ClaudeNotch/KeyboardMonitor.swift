@@ -32,8 +32,6 @@ final class KeyboardMonitor {
 
     private func shouldConsume(_ event: NSEvent) -> Bool {
         guard let state else { return false }
-        let isOurKey = (event.keyCode == 36 || event.keyCode == 76 || event.keyCode == 53)
-        guard isOurKey else { return false }
         switch state.mode {
         case .compose:
             // Plain Enter must reach the TextEditor so the user can break
@@ -44,7 +42,11 @@ final class KeyboardMonitor {
             }
             return false
         case .permission, .completed, .question, .responseDetail, .history:
-            return true
+            // While a non-text card is showing, the panel is key. Swallow
+            // plain keystrokes so stray keys don't trigger the system error
+            // beep — but let modifier combos (⌘Q, ⌘Tab, etc.) pass through.
+            let mods = event.modifierFlags.intersection([.command, .control, .option])
+            return mods.isEmpty
         default:
             return false
         }
