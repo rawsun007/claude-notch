@@ -9,55 +9,55 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider().opacity(0.4)
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 10) {
-                    StepRow(
-                        title: "Accessibility",
-                        description: "Lets ClaudeNotch type your answers and messages into the terminal — needed for AskUserQuestion replies and the Send-to-Claude composer.",
-                        done: state.accessibility,
-                        actionLabel: state.accessibility ? "Granted" : "Open Settings",
-                        action: state.requestAccessibility,
-                        needsRelaunch: state.accessibilityNeedsRelaunch,
-                        relaunch: state.relaunch
-                    )
-                    StepRow(
-                        title: "Input Monitoring",
-                        description: "Lets the notch receive global Enter / Escape shortcuts so you can resolve prompts without raising the app.",
-                        done: state.inputMonitoring,
-                        actionLabel: state.inputMonitoring ? "Granted" : "Open Settings",
-                        action: state.requestInputMonitoring,
-                        needsRelaunch: state.inputMonitoringNeedsRelaunch,
-                        relaunch: state.relaunch
-                    )
-                    StepRow(
-                        title: "Claude Code hooks",
-                        description: "Wires permission prompts, notifications, and questions through the notch. Backs up your existing ~/.claude/settings.json first.",
-                        done: state.hooksInstalled,
-                        actionLabel: state.isInstallingHooks
-                            ? "Installing…"
-                            : (state.hooksInstalled ? "Installed" : "Install"),
-                        action: state.installHooks,
-                        busy: state.isInstallingHooks,
-                        errorText: state.hookInstallError
-                    )
-                    if !state.hasJq {
-                        JqWarningRow(action: state.copyBrewInstallCommand)
-                    }
-                    StepRow(
-                        title: "Launch at login",
-                        description: "Optional. Start ClaudeNotch automatically when you log in so it's always ready.",
-                        done: state.launchAtLogin,
-                        actionLabel: state.launchAtLogin ? "Enabled" : "Enable",
-                        action: state.toggleLaunchAtLogin,
-                        optional: true
-                    )
+            VStack(spacing: 10) {
+                StepRow(
+                    title: "Accessibility",
+                    description: "Lets ClaudeNotch type your answers and messages into the terminal — needed for AskUserQuestion replies and the Send-to-Claude composer.",
+                    done: state.accessibility,
+                    actionLabel: state.accessibility ? "Granted" : "Open Settings",
+                    action: state.requestAccessibility,
+                    needsRelaunch: state.accessibilityNeedsRelaunch,
+                    relaunch: state.relaunch
+                )
+                StepRow(
+                    title: "Input Monitoring",
+                    description: "Lets the notch receive global Enter / Escape shortcuts so you can resolve prompts without raising the app.",
+                    done: state.inputMonitoring,
+                    actionLabel: state.inputMonitoring ? "Granted" : "Open Settings",
+                    action: state.requestInputMonitoring,
+                    needsRelaunch: state.inputMonitoringNeedsRelaunch,
+                    relaunch: state.relaunch
+                )
+                StepRow(
+                    title: "Claude Code hooks",
+                    description: "Wires permission prompts, notifications, and questions through the notch. Backs up your existing ~/.claude/settings.json first.",
+                    done: state.hooksInstalled,
+                    actionLabel: state.isInstallingHooks
+                        ? "Installing…"
+                        : (state.hooksInstalled ? "Installed" : "Install"),
+                    action: state.installHooks,
+                    busy: state.isInstallingHooks,
+                    errorText: state.hookInstallError
+                )
+                if !state.hasJq {
+                    JqWarningRow(action: state.copyBrewInstallCommand)
                 }
-                .padding(.horizontal, 28)
-                .padding(.vertical, 18)
+                StepRow(
+                    title: "Launch at login",
+                    description: "Optional. Start ClaudeNotch automatically when you log in so it's always ready.",
+                    done: state.launchAtLogin,
+                    actionLabel: state.launchAtLogin ? "Enabled" : "Enable",
+                    action: state.toggleLaunchAtLogin,
+                    optional: true
+                )
             }
+            .padding(.horizontal, 28)
+            .padding(.vertical, 18)
             Divider().opacity(0.4)
             footer
         }
+        .frame(width: 580)
+        .fixedSize(horizontal: false, vertical: true)
         .background(WindowBackground())
     }
 

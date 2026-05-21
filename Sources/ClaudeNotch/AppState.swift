@@ -208,6 +208,12 @@ final class AppState: ObservableObject {
     @Published private(set) var allowRules: Set<AllowRule> = []
     @Published var isHovering: Bool = false
 
+    // Top inset of the screen the notch is rendering on. The window controller
+    // updates this so the card's top padding matches the current display
+    // (built-in notch ≈ 37pt; external display 0). Prevents a black gap at
+    // the top of the card on external monitors.
+    @Published var notchTopInset: CGFloat = NotchView.notchInset(on: NSScreen.main)
+
     // Live session info — populated from every hook payload.
     @Published private(set) var currentProject: String = ""        // basename of cwd
     @Published private(set) var currentCwd: String = ""

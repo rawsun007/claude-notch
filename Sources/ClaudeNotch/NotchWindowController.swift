@@ -2,12 +2,8 @@ import AppKit
 import SwiftUI
 import Combine
 
-/// NSPanel that:
-///   - refuses to be auto-constrained to the visible area (so we can overlap
-///     the physical notch / menu-bar region),
-///   - can become key when asked, so our local NSEvent monitor receives
-///     keystrokes (no permission needed when the panel is key),
-///   - never becomes main (we don't want a dock entry).
+/// NSPanel that overlaps the physical notch / menu-bar region and can become
+/// key on demand (so our local NSEvent monitor receives Enter / Escape).
 final class NotchPanel: NSPanel {
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
         return frameRect
@@ -16,18 +12,45 @@ final class NotchPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
+/// Hosting view that passes mouse events THROUGH everywhere except the
+/// currently-visible notch card. The panel is a big fixed-size window, so
+/// without this, clicks anywhere in that large transparent area would be
+/// swallowed instead of reaching the app underneath.
+final class PassThroughHostingView: NSHostingView<NotchView> {
+    weak var appState: AppState?
+    var screenProvider: () -> NSScreen = { NSScreen.main ?? NSScreen.screens.first! }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard let state = appState else { return super.hitTest(point) }
+        let card = NotchView.size(for: state.mode, hovering: state.isHovering, on: screenProvider())
+        // The card is pinned to the top-centre of our bounds. Add slack so
+        // the card's actual (content-fit) height — which can exceed the
+        // formula a touch — is always clickable.
+        let slack: CGFloat = 18
+        let w = card.width + slack * 2
+        let h = card.height + slack * 2
+        let x = bounds.midX - w / 2
+        let y = isFlipped ? 0 : (bounds.height - h)
+        let cardRect = NSRect(x: x, y: y, width: w, height: h)
+        let local = convert(point, from: superview)
+        return cardRect.contains(local) ? super.hitTest(point) : nil
+    }
+}
+
 @MainActor
 final class NotchWindowController {
     let state: AppState
     let window: NotchPanel
+    private let host: PassThroughHostingView
     private var cancellable: AnyCancellable?
 
     init(state: AppState) {
         self.state = state
 
-        let size = NotchView.collapsedSize(on: NSScreen.main)
+        let screen = NSScreen.main ?? NSScreen.screens.first ?? NSScreen()
+        let winSize = NotchWindowController.windowSize(for: screen)
         let panel = NotchPanel(
-            contentRect: NSRect(origin: .zero, size: size),
+            contentRect: NSRect(origin: .zero, size: winSize),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -39,39 +62,30 @@ final class NotchWindowController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         panel.isMovable = false
         panel.isFloatingPanel = true
-        // false → panel can become key on demand (not just when a key view
-        // requires it). We use this to grab keystrokes for Enter/Escape.
         panel.becomesKeyOnlyIfNeeded = false
         panel.hidesOnDeactivate = false
         panel.worksWhenModal = true
 
-        let host = NSHostingView(rootView: NotchView(state: state))
-        host.frame = NSRect(origin: .zero, size: size)
+        let host = PassThroughHostingView(rootView: NotchView(state: state))
+        host.appState = state
+        host.frame = NSRect(origin: .zero, size: winSize)
         host.autoresizingMask = [.width, .height]
-        // Macos 13.3+: report the SwiftUI content's intrinsic size so
-        // host.fittingSize is the *real* height our content needs. We use
-        // that to size the panel in relayout(), avoiding any drift between
-        // the formula in NotchView.size() and what SwiftUI actually draws.
-        if #available(macOS 13.3, *) {
-            host.sizingOptions = [.intrinsicContentSize]
-        }
         panel.contentView = host
 
         self.window = panel
+        self.host = host
+        host.screenProvider = { [weak self] in self?.currentScreen() ?? NSScreen.main ?? NSScreen.screens.first! }
 
-        // Re-layout whenever the mode OR the hover state changes. Also grab
-        // key focus when an interactive card appears so the local key monitor
-        // can receive Enter / Escape.
+        position(on: screen)
+
+        // The window NEVER resizes per mode — the SwiftUI card animates inside
+        // it. On a mode/hover change we only (a) re-position if the active
+        // screen changed and (b) grab key focus for interactive cards.
         cancellable = Publishers.CombineLatest(state.$mode, state.$isHovering)
             .receive(on: RunLoop.main)
             .sink { [weak self] mode, _ in
                 guard let self else { return }
-                // First pass: formula-based size so the panel is visible
-                // immediately. Second pass (next runloop tick): SwiftUI has
-                // now rendered the new mode, so host.fittingSize is the
-                // true content height — re-snap the window to that.
-                self.relayout(animated: true)
-                DispatchQueue.main.async { self.relayout(animated: true) }
+                self.position(on: self.currentScreen())
                 switch mode {
                 case .permission, .question, .completed, .compose, .history, .responseDetail:
                     self.window.makeKey()
@@ -81,24 +95,55 @@ final class NotchWindowController {
             }
     }
 
+    /// Fixed window: wide enough for the biggest card, tall enough for the
+    /// tallest drawer, capped to the screen.
+    static func windowSize(for screen: NSScreen) -> CGSize {
+        let h = min(760, screen.frame.height * 0.85)
+        return CGSize(width: 780, height: h)
+    }
+
     func show() {
         logScreenGeometry()
-        relayout(animated: false)
+        position(on: currentScreen())
         window.orderFrontRegardless()
+    }
+
+    private func currentScreen() -> NSScreen {
+        let mouse = NSEvent.mouseLocation
+        if let screen = NSScreen.screens.first(where: { NSPointInRect(mouse, $0.frame) }) {
+            return screen
+        }
+        return NSScreen.main ?? NSScreen.screens.first ?? NSScreen()
+    }
+
+    /// Pin the (fixed-size) window to the top, centred on the physical notch.
+    /// Only resizes if the screen actually changed dimensions.
+    private func position(on screen: NSScreen) {
+        let s = screen.frame
+        let centerX: CGFloat = {
+            if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
+                return (left.maxX + right.minX) / 2
+            }
+            return s.midX
+        }()
+        let target = NotchWindowController.windowSize(for: screen)
+        let origin = NSPoint(x: centerX - target.width / 2, y: s.maxY - target.height)
+
+        if abs(window.frame.width - target.width) > 1 || abs(window.frame.height - target.height) > 1 {
+            window.setFrame(NSRect(origin: origin, size: target), display: false)
+        } else if window.frame.origin != origin {
+            window.setFrameOrigin(origin)
+        }
+
+        let inset = NotchView.notchInset(on: screen)
+        if abs(state.notchTopInset - inset) > 0.5 { state.notchTopInset = inset }
     }
 
     private func logScreenGeometry() {
         var lines: [String] = ["--- ClaudeNotch geometry @ \(Date()) ---"]
         for (i, screen) in NSScreen.screens.enumerated() {
             let main = screen == NSScreen.main ? " (main)" : ""
-            lines.append("screen[\(i)]\(main):")
-            lines.append("  frame=\(screen.frame)")
-            lines.append("  visibleFrame=\(screen.visibleFrame)")
-            lines.append("  safeAreaInsets.top=\(screen.safeAreaInsets.top)")
-            lines.append("  auxiliaryTopLeftArea=\(String(describing: screen.auxiliaryTopLeftArea))")
-            lines.append("  auxiliaryTopRightArea=\(String(describing: screen.auxiliaryTopRightArea))")
-            let collapsed = NotchView.collapsedSize(on: screen)
-            lines.append("  collapsedSize=\(collapsed)")
+            lines.append("screen[\(i)]\(main): frame=\(screen.frame) safeAreaTop=\(screen.safeAreaInsets.top) window=\(NotchWindowController.windowSize(for: screen))")
         }
         debugAppend(lines.joined(separator: "\n") + "\n")
     }
@@ -114,64 +159,6 @@ final class NotchWindowController {
             } else {
                 try? data.write(to: url)
             }
-        }
-    }
-
-    private func currentScreen() -> NSScreen {
-        let mouse = NSEvent.mouseLocation
-        if let screen = NSScreen.screens.first(where: { NSPointInRect(mouse, $0.frame) }) {
-            return screen
-        }
-        return NSScreen.main ?? NSScreen.screens.first ?? NSScreen()
-    }
-
-    private func relayout(animated: Bool) {
-        let screen = currentScreen()
-        let formula = NotchView.size(for: state.mode, hovering: state.isHovering, on: screen)
-        // Ask SwiftUI what it actually wants. fittingSize returns the size
-        // the hosting view would adopt to fit its intrinsic content (the
-        // .frame(width:).fixedSize(vertical:) on NotchView's root). This
-        // is the *true* card height — it can differ from the formula by
-        // a few points either way, and trusting it eliminates dead space.
-        var size = formula
-        if let host = window.contentView {
-            let fit = host.fittingSize
-            // Only trust the measured height if SwiftUI has already rendered
-            // the new mode — we detect that by checking the width matches.
-            // On the first relayout after a mode switch, fit.width is still
-            // the previous mode's width; we fall back to the formula then,
-            // and the deferred second relayout picks up the correct size.
-            let widthMatches = abs(fit.width - formula.width) < 1
-            if widthMatches, fit.height > 0 {
-                let screenCap = screen.frame.height * 0.92
-                size = CGSize(width: formula.width, height: min(fit.height, screenCap))
-            }
-        }
-        let s = screen.frame
-        let centerX: CGFloat = {
-            if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
-                return (left.maxX + right.minX) / 2
-            }
-            return s.midX
-        }()
-        let frame = NSRect(
-            x: centerX - size.width / 2,
-            y: s.maxY - size.height,
-            width: size.width,
-            height: size.height
-        )
-        debugAppend("relayout: mode=\(state.mode) hover=\(state.isHovering) formula=\(formula) measured=\(window.contentView?.fittingSize ?? .zero) → size=\(size) frame=\(frame) screen.maxY=\(s.maxY)\n")
-
-        if animated {
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.26
-                // Snappy at start, gentle settle — close to iOS Dynamic Island.
-                ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.33, 1.0, 0.5, 1.0)
-                ctx.allowsImplicitAnimation = true
-                window.animator().setFrame(frame, display: true)
-            }
-        } else {
-            window.setFrame(frame, display: true)
         }
     }
 }

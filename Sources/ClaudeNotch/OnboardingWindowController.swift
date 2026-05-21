@@ -36,6 +36,12 @@ final class OnboardingWindowController {
         let host = NSHostingController(rootView: OnboardingView(state: state) { [weak self] in
             self?.close()
         })
+        // Track the SwiftUI content's size so the window has no dead space
+        // below the steps (the step list grows/shrinks with the jq row and
+        // relaunch hints).
+        if #available(macOS 13.0, *) {
+            host.sizingOptions = [.preferredContentSize]
+        }
         let w = NSWindow(contentViewController: host)
         w.title = "ClaudeNotch Setup"
         w.styleMask = [.titled, .closable, .fullSizeContentView]
@@ -45,7 +51,6 @@ final class OnboardingWindowController {
         w.standardWindowButton(.miniaturizeButton)?.isHidden = true
         w.standardWindowButton(.zoomButton)?.isHidden = true
         w.isReleasedWhenClosed = false
-        w.setContentSize(NSSize(width: 580, height: 540))
         w.center()
         w.delegate = WindowCloser.shared
         WindowCloser.shared.onClose = { [weak self] in self?.handleUserClose() }

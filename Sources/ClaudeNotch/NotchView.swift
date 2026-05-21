@@ -103,23 +103,22 @@ struct NotchView: View {
         return CGSize(width: 200, height: 30)
     }
 
+    // boring.notch-style springs: gentle, slightly-bouncy open; fully
+    // damped (no bounce) close so it never snaps shut.
+    static let openSpring  = Animation.spring(response: 0.42, dampingFraction: 0.82)
+    static let closeSpring = Animation.spring(response: 0.40, dampingFraction: 1.0)
+    static let hoverSpring = Animation.spring(response: 0.34, dampingFraction: 0.86)
+
     var body: some View {
-        // Width is decided per-mode (predictable), but height is NOT
-        // constrained — the ZStack sizes to its content so NSHostingView's
-        // fittingSize matches what's actually drawn. The window controller
-        // then resizes the panel to that fitting size, so the black card
-        // shape never extends past what's needed.
-        let s = NotchView.size(for: state.mode, hovering: state.isHovering, on: NSScreen.main)
-        ZStack(alignment: .top) {
-            UnevenRoundedRectangle(
-                topLeadingRadius: 0,
-                bottomLeadingRadius: cornerRadius,
-                bottomTrailingRadius: cornerRadius,
-                topTrailingRadius: 0,
-                style: .continuous
-            )
-            .fill(Color.black)
-            .overlay(
+        // The PANEL is a fixed large window. We draw the notch card pinned to
+        // its top and animate the card's SIZE with SwiftUI springs — the
+        // window itself never resizes, which is what makes the motion smooth
+        // (no AppKit frame animation fighting SwiftUI) and kills the
+        // "pops twice" double-relayout entirely.
+        let card = NotchView.size(for: state.mode, hovering: state.isHovering, on: NSScreen.main)
+        let collapsed = isCollapsedIdle
+        return ZStack(alignment: .top) {
+            ZStack(alignment: .top) {
                 UnevenRoundedRectangle(
                     topLeadingRadius: 0,
                     bottomLeadingRadius: cornerRadius,
@@ -127,22 +126,47 @@ struct NotchView: View {
                     topTrailingRadius: 0,
                     style: .continuous
                 )
-                .stroke(Color.white.opacity(isCollapsedIdle ? 0 : 0.05), lineWidth: 0.5)
-            )
+                .fill(Color.black)
+                .overlay(
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: 0,
+                        bottomLeadingRadius: cornerRadius,
+                        bottomTrailingRadius: cornerRadius,
+                        topTrailingRadius: 0,
+                        style: .continuous
+                    )
+                    .stroke(Color.white.opacity(collapsed ? 0 : 0.05), lineWidth: 0.5)
+                )
 
-            if !isCollapsedIdle {
-                content
-                    .padding(.horizontal, 16)
-                    .padding(.top, NotchView.notchInset(on: NSScreen.main) + 6)
-                    .padding(.bottom, 12)
+                if !collapsed {
+                    content
+                        .frame(maxWidth: .infinity, maxHeight: isScrollableMode ? .infinity : nil, alignment: .top)
+                        .padding(.horizontal, 16)
+                        .padding(.top, state.notchTopInset + 6)
+                        .padding(.bottom, 12)
+                }
             }
+            .modifier(CardFrame(width: card.width,
+                                height: card.height,
+                                fixedHeight: collapsed || isScrollableMode))
         }
-        .modifier(NotchSizing(width: s.width, fixedHeight: isCollapsedIdle ? s.height : nil))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .animation(collapsed ? Self.closeSpring : Self.openSpring, value: state.mode)
+        .animation(Self.hoverSpring, value: state.isHovering)
     }
 
     private var isCollapsedIdle: Bool {
         if case .idle = state.mode, !state.isHovering { return true }
         return false
+    }
+
+    /// Modes that wrap a ScrollView and need a bounded (fixed) height so the
+    /// scroll region doesn't run unbounded behind the notch.
+    private var isScrollableMode: Bool {
+        switch state.mode {
+        case .history, .responseDetail: return true
+        default: return false
+        }
     }
 
 
@@ -210,22 +234,23 @@ struct NotchView: View {
 
 }
 
-/// Sizing rule for the notch panel:
-///   • collapsed-idle: lock to a fixed height (the empty rounded shape
-///     has no intrinsic content so SwiftUI would otherwise collapse it
-///     to ~0pt).
-///   • everything else: lock the width, let SwiftUI compute height from
-///     content so the panel shrink-wraps every card.
-private struct NotchSizing: ViewModifier {
+/// Sizes the notch card inside the fixed-size panel.
+///   • fixedHeight (collapsed-idle, scrollable drawers): lock width AND
+///     height — the empty rounded shape has no intrinsic height, and the
+///     ScrollView drawers need a bounded region.
+///   • otherwise: lock width, let height fit content exactly (no dead
+///     space), and SwiftUI springs animate the height change.
+private struct CardFrame: ViewModifier {
     let width: CGFloat
-    let fixedHeight: CGFloat?
+    let height: CGFloat
+    let fixedHeight: Bool
 
     func body(content: Content) -> some View {
-        if let h = fixedHeight {
-            content.frame(width: width, height: h)
+        if fixedHeight {
+            content.frame(width: width, height: height, alignment: .top)
         } else {
             content
-                .frame(width: width)
+                .frame(width: width, alignment: .top)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

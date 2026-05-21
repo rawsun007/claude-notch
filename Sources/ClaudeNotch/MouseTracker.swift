@@ -66,37 +66,30 @@ final class MouseTracker {
         let screen = notchScreen()
         let inside: Bool
         if state.isHovering {
-            // Once expanded, keep it open as long as the cursor is anywhere
-            // near the visible panel. We use the panel's actual frame
-            // (padded) — this is robust to display changes, panel resizes
-            // and cursor flips between screens.
-            inside = keepRegion().contains(mouse)
+            inside = keepRegion(for: state).contains(mouse)
         } else {
             inside = Self.triggerZone(on: screen).contains(mouse)
         }
         state.setHovering(inside)
     }
 
-    /// The "stay-expanded" region: the actual notch window frame, generously
-    /// padded so the cursor has slack while moving toward / over the UI.
-    /// Falls back to a fixed top-of-screen rect if we don't have a window yet.
-    private func keepRegion() -> NSRect {
-        guard let frame = window?.frame, frame.width > 0 else {
-            let s = notchScreen().frame
-            return NSRect(x: s.midX - 360, y: s.maxY - 580, width: 720, height: 580)
-        }
-        // Pad: 60pt horizontal slack so the cursor approaching from the side
-        // counts as inside; 40pt below the panel so a small drift down
-        // doesn't immediately collapse; extend UP to the top of the screen
-        // so the cursor going over the physical notch / menu bar is fine.
-        let screenTop = notchScreen().frame.maxY
-        let top = max(frame.maxY, screenTop)
-        let bottom = frame.minY - 40
-        return NSRect(
-            x: frame.minX - 60,
-            y: bottom,
-            width: frame.width + 120,
-            height: top - bottom
-        )
+    /// The "stay-expanded" region. Derived from the TARGET size for the
+    /// current mode — NOT the window frame (which is now a big fixed panel,
+    /// so frame-based would never collapse). Centred on the physical notch,
+    /// generously padded so small cursor drift never collapses the card.
+    private func keepRegion(for state: AppState) -> NSRect {
+        let screen = notchScreen()
+        let s = screen.frame
+        let target = NotchView.size(for: state.mode, hovering: true, on: screen)
+        let centerX: CGFloat = {
+            if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
+                return (left.maxX + right.minX) / 2
+            }
+            return s.midX
+        }()
+        let width = max(target.width + 140, 460)
+        let height = max(target.height + 90, 160)
+        let top = s.maxY
+        return NSRect(x: centerX - width / 2, y: top - height, width: width, height: height)
     }
 }
