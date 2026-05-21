@@ -9,8 +9,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var mouse: MouseTracker!
     var keys: KeyboardMonitor!
     let onboarding = OnboardingWindowController()
+    private var activityToken: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Prevent App Nap. Without this, when ANOTHER app is active macOS
+        // throttles our background process and the notch's SwiftUI spring
+        // animation gets skipped — the card pops in instantly. Holding a
+        // user-initiated activity keeps us animating at full rate always.
+        activityToken = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiated],
+            reason: "Notch overlay animations"
+        )
+
         notch = NotchWindowController(state: state)
         notch.show()
 

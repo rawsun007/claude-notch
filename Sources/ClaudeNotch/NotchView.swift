@@ -37,7 +37,9 @@ struct NotchView: View {
             return CGSize(width: 340, height: inset + 64)
         case .permission(let req):
             if req.kind != .toolUse {
-                return CGSize(width: 500, height: inset + 110)
+                // Notification card — generous fallback so it never clips
+                // before the exact height is measured.
+                return CGSize(width: 500, height: inset + 150)
             }
             // Tight content-fits sizing. Numbers calibrated against the
             // actual rendered rows (font + padding) — there is no Spacer in
@@ -73,7 +75,7 @@ struct NotchView: View {
             let cap = max(180, screenH * 0.85 - inset)
             return CGSize(width: 620, height: inset + min(visible, cap))
         case .completed:
-            return CGSize(width: 500, height: inset + 116)
+            return CGSize(width: 500, height: inset + 150)
         case .question(let q):
             // Header strip ≈ 30, button row ≈ 44, outer padding/spacing ≈ 30.
             // Each question heading ≈ 26 + 6 spacing; each option row ≈ 48
@@ -168,13 +170,11 @@ struct NotchView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onPreferenceChange(ContentHeightKey.self) { h in
-            compactHeight = h
+            // Only accept real measurements. Never reset to 0 elsewhere —
+            // an earlier onChange-reset raced this and sometimes won, leaving
+            // the card at the too-small formula height (clipped buttons).
+            if h > 1 { compactHeight = h }
         }
-        // Reset the measured height the instant the mode changes so the card
-        // doesn't briefly inherit the PREVIOUS card's height (which made the
-        // open jump instead of animate). It falls back to the formula height
-        // for one frame, then the GeometryReader refines to the exact height.
-        .onChange(of: state.mode) { _ in compactHeight = 0 }
         // Animate on the geometry itself, so BOTH open and close spring
         // symmetrically no matter what changed the size (mode OR measurement).
         .animation(Self.openSpring, value: displayHeight)
