@@ -117,35 +117,34 @@ struct NotchView: View {
         // "pops twice" double-relayout entirely.
         let card = NotchView.size(for: state.mode, hovering: state.isHovering, on: NSScreen.main)
         let collapsed = isCollapsedIdle
+        let shape = UnevenRoundedRectangle(
+            topLeadingRadius: 0,
+            bottomLeadingRadius: cornerRadius,
+            bottomTrailingRadius: cornerRadius,
+            topTrailingRadius: 0,
+            style: .continuous
+        )
         return ZStack(alignment: .top) {
+            // Content sits on a black fill and is CLIPPED to the notch shape.
+            // The shape's frame animates from the collapsed notch size out to
+            // the card size, so the content is *revealed* growing out of the
+            // notch (Dynamic-Island style) rather than just fading in.
             ZStack(alignment: .top) {
-                UnevenRoundedRectangle(
-                    topLeadingRadius: 0,
-                    bottomLeadingRadius: cornerRadius,
-                    bottomTrailingRadius: cornerRadius,
-                    topTrailingRadius: 0,
-                    style: .continuous
-                )
-                .fill(Color.black)
-                .overlay(
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: 0,
-                        bottomLeadingRadius: cornerRadius,
-                        bottomTrailingRadius: cornerRadius,
-                        topTrailingRadius: 0,
-                        style: .continuous
-                    )
-                    .stroke(Color.white.opacity(collapsed ? 0 : 0.05), lineWidth: 0.5)
-                )
-
                 if !collapsed {
                     content
                         .frame(maxWidth: .infinity, maxHeight: isScrollableMode ? .infinity : nil, alignment: .top)
                         .padding(.horizontal, 16)
                         .padding(.top, state.notchTopInset + 6)
                         .padding(.bottom, 12)
+                        // Fade content in toward the end of the expand so it
+                        // appears as the shape finishes growing, not before.
+                        .opacity(collapsed ? 0 : 1)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(Color.black)
+            .clipShape(shape)
+            .overlay(shape.stroke(Color.white.opacity(collapsed ? 0 : 0.05), lineWidth: 0.5))
             .modifier(CardFrame(width: card.width,
                                 height: card.height,
                                 fixedHeight: collapsed || isScrollableMode))
@@ -184,7 +183,7 @@ struct NotchView: View {
                 PermissionCard(request: req) { decision, scope in
                     state.resolveCurrentPermission(decision, alwaysAllow: scope)
                 }
-                .transition(.scale(scale: 0.94).combined(with: .opacity))
+                .transition(.opacity)
             } else {
                 NotificationCard(request: req, onOpen: {
                     state.openOriginator(req.originatorBundleID)
@@ -192,7 +191,7 @@ struct NotchView: View {
                 }, onDismiss: {
                     state.resolveCurrentPermission(.ask)
                 })
-                .transition(.scale(scale: 0.94).combined(with: .opacity))
+                .transition(.opacity)
             }
         case .completed(let task):
             CompletedCard(task: task, onOpen: {
@@ -201,23 +200,23 @@ struct NotchView: View {
             }, onDismiss: {
                 state.dismissCurrentCompleted()
             })
-            .transition(.scale(scale: 0.94).combined(with: .opacity))
+            .transition(.opacity)
         case .question(let req):
             QuestionCard(request: req, onSubmit: { answers in
                 state.resolveCurrentQuestion(answers)
             }, onCancel: {
                 state.resolveCurrentQuestion(nil)
             })
-            .transition(.scale(scale: 0.94).combined(with: .opacity))
+            .transition(.opacity)
         case .compose:
             ComposeCard(state: state)
-                .transition(.scale(scale: 0.94).combined(with: .opacity))
+                .transition(.opacity)
         case .responseDetail:
             ResponseDetailCard(state: state)
-                .transition(.scale(scale: 0.96).combined(with: .opacity))
+                .transition(.opacity)
         case .history:
             HistoryCard(state: state)
-                .transition(.scale(scale: 0.96).combined(with: .opacity))
+                .transition(.opacity)
         }
     }
 
