@@ -34,81 +34,82 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         let menu = NSMenu()
         let buildStamp = MenuBarController.buildTimestamp()
-        let header = NSMenuItem(title: "ClaudeNotch — :53127 — build \(buildStamp)", action: nil, keyEquivalent: "")
+        let header = NSMenuItem(title: "ClaudeNotch  ·  build \(buildStamp)", action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)
 
-        statusItem = NSMenuItem(title: "No active session", action: #selector(clearSession), keyEquivalent: "")
+        statusItem = NSMenuItem(title: "No Active Session", action: #selector(clearSession), keyEquivalent: "")
         statusItem.target = self
         menu.addItem(statusItem)
 
         menu.addItem(.separator())
 
         // Start Claude in a folder
-        let startHere = NSMenuItem(title: "Start Claude in folder…", action: #selector(startClaudePicker), keyEquivalent: "o")
+        let startHere = NSMenuItem(title: "Start Claude in Folder…", action: #selector(startClaudePicker), keyEquivalent: "o")
         startHere.target = self
         menu.addItem(startHere)
 
         // Recent projects submenu (populated dynamically)
         recentProjectsMenu = NSMenu()
-        recentProjectsItem = NSMenuItem(title: "Recent projects", action: nil, keyEquivalent: "")
+        recentProjectsItem = NSMenuItem(title: "Recent Projects", action: nil, keyEquivalent: "")
         recentProjectsItem.submenu = recentProjectsMenu
         menu.addItem(recentProjectsItem)
 
         // Send message to current Claude session
-        let sendMsg = NSMenuItem(title: "Send message to Claude…", action: #selector(sendMessagePrompt), keyEquivalent: "m")
+        let sendMsg = NSMenuItem(title: "Send Message to Claude…", action: #selector(sendMessagePrompt), keyEquivalent: "m")
         sendMsg.target = self
         menu.addItem(sendMsg)
 
         menu.addItem(.separator())
 
-        let demoPerm = NSMenuItem(title: "Demo: tool permission (blocking)", action: #selector(triggerDemoPermission), keyEquivalent: "p")
-        demoPerm.target = self
-        menu.addItem(demoPerm)
+        // Demos — grouped into a single submenu instead of cluttering the
+        // top level.
+        let demosMenu = NSMenu()
+        func addDemo(_ title: String, _ sel: Selector, _ key: String) {
+            let mi = NSMenuItem(title: title, action: sel, keyEquivalent: key)
+            mi.target = self
+            demosMenu.addItem(mi)
+        }
+        addDemo("Tool Permission",      #selector(triggerDemoPermission), "p")
+        addDemo("Destructive Command",  #selector(triggerDemoDangerous),  "d")
+        addDemo("Edit with Diff Preview", #selector(triggerDemoDiff),     "e")
+        addDemo("Notification",         #selector(triggerDemoNotification), "n")
+        addDemo("Task Complete",        #selector(triggerDemoCompleted),  "c")
+        addDemo("Thinking Pulse",       #selector(triggerDemoThinking),   "t")
+        let demosItem = NSMenuItem(title: "Demos", action: nil, keyEquivalent: "")
+        demosItem.submenu = demosMenu
+        menu.addItem(demosItem)
 
-        let demoDanger = NSMenuItem(title: "Demo: destructive command (hold to allow)", action: #selector(triggerDemoDangerous), keyEquivalent: "d")
-        demoDanger.target = self
-        menu.addItem(demoDanger)
+        // Permissions & setup — grouped into a submenu.
+        let permsMenu = NSMenu()
 
-        let demoDiff = NSMenuItem(title: "Demo: edit with diff preview", action: #selector(triggerDemoDiff), keyEquivalent: "e")
-        demoDiff.target = self
-        menu.addItem(demoDiff)
-
-        let demoNotif = NSMenuItem(title: "Demo: notification", action: #selector(triggerDemoNotification), keyEquivalent: "n")
-        demoNotif.target = self
-        menu.addItem(demoNotif)
-
-        let demoDone = NSMenuItem(title: "Demo: task complete", action: #selector(triggerDemoCompleted), keyEquivalent: "c")
-        demoDone.target = self
-        menu.addItem(demoDone)
-
-        let demoThink = NSMenuItem(title: "Demo: thinking pulse", action: #selector(triggerDemoThinking), keyEquivalent: "t")
-        demoThink.target = self
-        menu.addItem(demoThink)
-
-        menu.addItem(.separator())
-
-        allowlistItem = NSMenuItem(title: "Always-allowed (this session): —", action: #selector(clearAllowlist), keyEquivalent: "")
-        allowlistItem.target = self
-        menu.addItem(allowlistItem)
-
-        accessibilityItem = NSMenuItem(title: "Accessibility: checking…", action: #selector(promptAccessibility), keyEquivalent: "")
+        accessibilityItem = NSMenuItem(title: "Accessibility: Checking…", action: #selector(promptAccessibility), keyEquivalent: "")
         accessibilityItem.target = self
-        menu.addItem(accessibilityItem)
+        permsMenu.addItem(accessibilityItem)
 
-        inputMonitoringItem = NSMenuItem(title: "Input Monitoring: checking…", action: #selector(promptInputMonitoring), keyEquivalent: "")
+        inputMonitoringItem = NSMenuItem(title: "Input Monitoring: Checking…", action: #selector(promptInputMonitoring), keyEquivalent: "")
         inputMonitoringItem.target = self
-        menu.addItem(inputMonitoringItem)
+        permsMenu.addItem(inputMonitoringItem)
 
-        loginItem = NSMenuItem(title: "Launch at login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        permsMenu.addItem(.separator())
+
+        allowlistItem = NSMenuItem(title: "Always-Allow Rules: —", action: #selector(clearAllowlist), keyEquivalent: "")
+        allowlistItem.target = self
+        permsMenu.addItem(allowlistItem)
+
+        let permsItem = NSMenuItem(title: "Permissions", action: nil, keyEquivalent: "")
+        permsItem.submenu = permsMenu
+        menu.addItem(permsItem)
+
+        loginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
         loginItem.target = self
         menu.addItem(loginItem)
-
-        menu.addItem(.separator())
 
         let setupItem = NSMenuItem(title: "Setup…", action: #selector(showOnboarding), keyEquivalent: ",")
         setupItem.target = self
         menu.addItem(setupItem)
+
+        menu.addItem(.separator())
 
         let quit = NSMenuItem(title: "Quit ClaudeNotch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
@@ -167,11 +168,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         // Accessibility (for keystroke injection into terminal)
         if TerminalAutomator.isAccessibilityTrusted {
             accessibilityItem.state = .on
-            accessibilityItem.title = "Accessibility: granted ✓  (clean question answers)"
+            accessibilityItem.title = "Accessibility: Granted"
             accessibilityItem.isEnabled = false
         } else {
             accessibilityItem.state = .off
-            accessibilityItem.title = "Grant Accessibility (clean question answers)"
+            accessibilityItem.title = "Grant Accessibility…"
             accessibilityItem.isEnabled = true
         }
 
@@ -179,11 +180,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let im = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
         if im == kIOHIDAccessTypeGranted {
             inputMonitoringItem.state = .on
-            inputMonitoringItem.title = "Input Monitoring: granted ✓  (Enter / Esc shortcuts)"
+            inputMonitoringItem.title = "Input Monitoring: Granted"
             inputMonitoringItem.isEnabled = false
         } else {
             inputMonitoringItem.state = .off
-            inputMonitoringItem.title = "Grant Input Monitoring (Enter / Esc shortcuts)"
+            inputMonitoringItem.title = "Grant Input Monitoring…"
             inputMonitoringItem.isEnabled = true
         }
     }
@@ -207,26 +208,28 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private func refreshAllowlist(_ rules: Set<AllowRule>) {
         if rules.isEmpty {
-            allowlistItem.title = "Always-allow rules: —"
+            allowlistItem.title = "Always-Allow Rules: —"
             allowlistItem.isEnabled = false
         } else {
             let labels = rules.map(\.displayLabel).sorted()
             let preview = labels.prefix(3).joined(separator: ", ")
             let more = labels.count > 3 ? " +\(labels.count - 3) more" : ""
-            allowlistItem.title = "Always-allow: \(preview)\(more)  —  click to clear all"
+            allowlistItem.title = "Always-Allow: \(preview)\(more)  —  Click to Clear All"
             allowlistItem.isEnabled = true
         }
     }
 
     private func refreshLoginItem() {
         if #available(macOS 13.0, *) {
-            let enabled = SMAppService.mainApp.status == .enabled
-            loginItem.state = enabled ? .on : .off
+            let status = SMAppService.mainApp.status
+            loginItem.state = (status == .enabled) ? .on : .off
             loginItem.isEnabled = (Bundle.main.bundlePath.hasSuffix(".app"))
             if !loginItem.isEnabled {
-                loginItem.title = "Launch at login (build & open .app to enable)"
+                loginItem.title = "Launch at Login (install to /Applications first)"
+            } else if status == .requiresApproval {
+                loginItem.title = "Launch at Login — Approve in System Settings…"
             } else {
-                loginItem.title = "Launch at login"
+                loginItem.title = "Launch at Login"
             }
         } else {
             loginItem.isEnabled = false
@@ -425,7 +428,23 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             }
         } catch {
             NSLog("ClaudeNotch: login item toggle failed — \(error)")
+            presentLoginError(error)
         }
         refreshLoginItem()
+
+        // If macOS now needs the user to approve the login item (common for
+        // ad-hoc-signed apps), take them straight to the Login Items pane.
+        if svc.status == .requiresApproval {
+            SMAppService.openSystemSettingsLoginItems()
+        }
+    }
+
+    private func presentLoginError(_ error: Error) {
+        let alert = NSAlert()
+        alert.messageText = "Couldn't change Launch at Login"
+        alert.informativeText = "\(error.localizedDescription)\n\nMake sure ClaudeNotch is in /Applications, then try again."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 }

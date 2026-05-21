@@ -572,15 +572,15 @@ private struct PermissionCard: View {
                 }
                 if !request.isDangerous {
                     Menu {
-                        Button("Always allow this exact command") {
+                        Button("Always Allow This Exact Command") {
                             onResolve(.allow, .exactCommand)
                         }
-                        Button("Always allow all \(request.toolName)") {
+                        Button("Always Allow All \(request.toolName)") {
                             onResolve(.allow, .tool)
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Text("Always allow…")
+                            Text("Always Allow…")
                             Image(systemName: "chevron.down")
                                 .font(.system(size: 9, weight: .bold))
                                 .opacity(0.7)
@@ -600,7 +600,7 @@ private struct PermissionCard: View {
                 }
                 Spacer()
                 if request.isDangerous {
-                    HoldToConfirmButton(label: "Hold to allow", duration: 0.9) {
+                    HoldToConfirmButton(label: "Hold to Allow", duration: 0.9) {
                         onResolve(.allow, .none)
                     }
                 } else {

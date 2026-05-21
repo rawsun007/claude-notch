@@ -77,25 +77,55 @@ enum TerminalAutomator {
     }
 
     /// Open a new Terminal.app window in the given directory and run `claude`.
-    static func startClaude(in directory: String) {
-        // Use AppleScript to open a fresh Terminal window and run the command.
-        let escapedDir = directory
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-
-        let source = """
-        tell application "Terminal"
-            activate
-            do script "cd \\"\(escapedDir)\\" && claude"
-        end tell
-        """
-
-        DispatchQueue.global(qos: .userInitiated).async {
-            guard let script = NSAppleScript(source: source) else { return }
-            var err: NSDictionary?
-            script.executeAndReturnError(&err)
-            if let err { NSLog("ClaudeNotch startClaude AppleScript error: \(err)") }
+    /// Resolve the absolute path to the `claude` CLI by asking an interactive
+    /// login shell (so PATH additions from .zshrc/.zprofile are honoured —
+    /// e.g. ~/.local/bin). Returns nil if it can't be found.
+    static func resolveClaudePath() -> String? {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        task.arguments = ["-ilc", "command -v claude"]
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+        do { try task.run() } catch { return nil }
+        task.waitUntilExit()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let out = String(data: data, encoding: .utf8) ?? ""
+        // The interactive shell may print session noise; take the last line
+        // that looks like an absolute path to a `claude` binary.
+        for line in out.split(separator: "\n").reversed() {
+            let t = line.trimmingCharacters(in: .whitespaces)
+            if t.hasPrefix("/"), t.hasSuffix("claude") { return t }
         }
+        return nil
+    }
+
+    /// Open a new terminal window, cd into the folder, and launch the Claude
+    /// CLI. Uses a temp `.command` file (run by the user's default terminal)
+    /// rather than AppleScript — so it needs NO Automation permission and the
+    /// full claude path means it works regardless of the shell's PATH.
+    static func startClaude(in directory: String) {
+        let claude = resolveClaudePath() ?? "claude"
+        let body = """
+        #!/bin/zsh
+        cd \(shellQuote(directory)) || exit 1
+        clear
+        exec \(shellQuote(claude))
+        """
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ClaudeNotch-start-\(UUID().uuidString).command")
+        do {
+            try body.write(to: url, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+            NSWorkspace.shared.open(url)
+            debugLog("startClaude: opened \(url.lastPathComponent) → cd \(directory) && \(claude)")
+        } catch {
+            debugLog("startClaude: failed to write/open .command — \(error)")
+        }
+    }
+
+    private static func shellQuote(_ s: String) -> String {
+        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     /// Activates the target app and sends 1-based option indexes as
