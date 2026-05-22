@@ -86,42 +86,15 @@ final class NotchWindowController {
             .sink { [weak self] mode, _ in
                 guard let self else { return }
                 self.position(on: self.currentScreen())
-                switch mode {
-                case .permission, .question, .completed, .compose, .history, .responseDetail:
-                    // DEFER grabbing key focus until AFTER the open animation.
-                    // Making a background panel key forces an instant,
-                    // un-animated display — which is why the card "popped in"
-                    // with no animation when another app was frontmost. Let
-                    // it spring open first (like boring.notch, which never
-                    // keys), then take keyboard for Enter/Esc.
-                    self.scheduleMakeKey()
-                default:
-                    self.cancelMakeKey()
+                // ONLY compose needs key focus (the TextEditor must receive
+                // typing). All other cards' Enter/Esc are handled by the
+                // global CGEventTap in KeyboardMonitor WITHOUT stealing focus
+                // — so we never hijack the user's keyboard or beep, and the
+                // open animation isn't interrupted by a makeKey.
+                if case .compose = mode {
+                    self.window.makeKey()
                 }
             }
-    }
-
-    private var makeKeyWork: DispatchWorkItem?
-
-    private func scheduleMakeKey() {
-        makeKeyWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            // Only grab key if an interactive card is still showing.
-            switch self.state.mode {
-            case .permission, .question, .completed, .compose, .history, .responseDetail:
-                self.window.makeKey()
-            default:
-                break
-            }
-        }
-        makeKeyWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
-    }
-
-    private func cancelMakeKey() {
-        makeKeyWork?.cancel()
-        makeKeyWork = nil
     }
 
     /// Fixed window: wide enough for the biggest card, tall enough for the
