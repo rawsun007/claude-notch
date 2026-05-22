@@ -217,6 +217,7 @@ final class AppState: ObservableObject {
     /// shows WHAT changed, no buttons, auto-dismisses.
     @Published private(set) var autoInfo: PermissionRequest? = nil
     private var autoInfoTimer: Timer?
+    private var lastAutoSoundAt: Date = .distantPast
 
     // Top inset of the screen the notch is rendering on. The window controller
     // updates this so the card's top padding matches the current display
@@ -580,7 +581,12 @@ final class AppState: ObservableObject {
     /// one replaces the current (live-activity style); clears after a few
     /// seconds, or immediately when the user presses Esc.
     private func showAutoInfo(_ req: PermissionRequest) {
-        playSound("Tink")
+        // Soft, distinct "Pop" — and debounced, so a burst of auto-approved
+        // edits doesn't machine-gun the sound (which read as an error).
+        if Date().timeIntervalSince(lastAutoSoundAt) > 0.8 {
+            playSound("Pop")
+            lastAutoSoundAt = Date()
+        }
         autoInfo = req
         recompute()
         autoInfoTimer?.invalidate()
