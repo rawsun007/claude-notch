@@ -63,6 +63,13 @@ final class KeyboardMonitor {
         guard let state else { return }
         debugLog("key keyCode=\(event.keyCode) hover=\(state.isHovering) mode=\(state.mode)")
 
+        // Esc dismisses the transient auto-approved info card. Handled via the
+        // global monitor so we don't need to steal key focus for it.
+        if event.keyCode == 53, case .autoInfo = state.mode {
+            state.dismissAutoInfo()
+            return
+        }
+
         let cardActive: Bool = {
             switch state.mode {
             case .permission, .completed, .question, .compose, .responseDetail, .history: return true

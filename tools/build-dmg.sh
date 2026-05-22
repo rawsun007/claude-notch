@@ -45,14 +45,41 @@ questions, and notifications show up in the notch instead of the terminal.
 Tip: press  ⌥⌘N  anywhere to type a message straight to Claude.
 TXT
 
-# 3. Build the DMG.
+# Brand the disk image with our icon (instead of the generic .dmg icon).
+if [ -f assets/AppIcon.icns ]; then
+    cp assets/AppIcon.icns "$STAGE/.VolumeIcon.icns"
+fi
+
+# 3. Build the DMG. Use a read/write image first so we can flag the custom
+#    volume icon, then convert to a compressed read-only image.
 mkdir -p dist
 DMG="dist/ClaudeNotch.dmg"
+RW="$(mktemp -d)/rw.dmg"
 rm -f "$DMG"
-hdiutil create -volname "$VOL" \
-    -srcfolder "$STAGE" \
-    -ov -format UDZO \
-    "$DMG" >/dev/null
+hdiutil create -volname "$VOL" -srcfolder "$STAGE" -ov -format UDRW "$RW" >/dev/null
+
+# Mount, set the custom-icon flag on the volume root, unmount.
+MNT="$(mktemp -d)"
+hdiutil attach "$RW" -nobrowse -mountpoint "$MNT" >/dev/null
+if command -v SetFile >/dev/null 2>&1; then
+    SetFile -a C "$MNT" 2>/dev/null || true
+fi
+hdiutil detach "$MNT" >/dev/null 2>&1 || true
+rmdir "$MNT" 2>/dev/null || true
+
+hdiutil convert "$RW" -format UDZO -o "$DMG" >/dev/null
+rm -f "$RW"; rmdir "$(dirname "$RW")" 2>/dev/null || true
+
+# Set the .dmg FILE's Finder icon (what you see in Downloads) to our logo.
+if [ -f assets/icon-1024.png ]; then
+    /usr/bin/swift - "$DMG" assets/icon-1024.png <<'SWIFT' 2>/dev/null || true
+import AppKit
+let a = CommandLine.arguments
+if a.count >= 3, let img = NSImage(contentsOfFile: a[2]) {
+    NSWorkspace.shared.setIcon(img, forFile: a[1], options: [])
+}
+SWIFT
+fi
 
 rm -rf "$(dirname "$STAGE")"
 SIZE=$(du -h "$DMG" | cut -f1)

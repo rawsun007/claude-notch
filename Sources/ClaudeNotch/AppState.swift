@@ -577,19 +577,28 @@ final class AppState: ObservableObject {
     }
 
     /// Show a transient, button-less card of an auto-approved action. A new
-    /// one replaces the current (live-activity style); clears after 1.6s.
+    /// one replaces the current (live-activity style); clears after a few
+    /// seconds, or immediately when the user presses Esc.
     private func showAutoInfo(_ req: PermissionRequest) {
         playSound("Tink")
         autoInfo = req
         recompute()
         autoInfoTimer?.invalidate()
-        autoInfoTimer = Timer.scheduledTimer(withTimeInterval: 1.6, repeats: false) { [weak self] _ in
+        autoInfoTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
                 self.autoInfo = nil
                 self.recompute()
             }
         }
+    }
+
+    func dismissAutoInfo() {
+        guard autoInfo != nil else { return }
+        autoInfoTimer?.invalidate()
+        autoInfoTimer = nil
+        autoInfo = nil
+        recompute()
     }
 
     func enqueueCompleted(_ task: CompletedTask) {

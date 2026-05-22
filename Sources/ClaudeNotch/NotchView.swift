@@ -513,18 +513,19 @@ private struct ComposeCard: View {
             ZStack(alignment: .topLeading) {
                 if state.composeText.isEmpty {
                     Text("type your message — ⌘↩ to send, ↩ for newline, ⎋ to cancel")
-                        .font(.system(size: 12))
+                        .font(.system(size: 13))
                         .foregroundColor(.white.opacity(0.35))
                         .padding(.horizontal, 14)
-                        .padding(.vertical, 12)
+                        .padding(.top, 12)
                         .allowsHitTesting(false)
                 }
                 TextEditor(text: $state.composeText)
                     .font(.system(size: 13))
                     .foregroundColor(.white)
                     .scrollContentBackground(.hidden)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, 9)   // +5 lineFragment ≈ placeholder's 14
+                    .padding(.top, 6)          // aligns the caret with the placeholder baseline
+                    .padding(.bottom, 6)
                     .focused($focused)
             }
             .frame(minHeight: 80)
