@@ -268,10 +268,11 @@ struct NotchView: View {
     }
 
     /// Modes that wrap a ScrollView and need a bounded (fixed) height so the
-    /// scroll region doesn't run unbounded behind the notch.
+    /// scroll region doesn't collapse to zero (which blanked the question
+    /// card) or run unbounded behind the notch.
     private var isScrollableMode: Bool {
         switch state.mode {
-        case .history, .responseDetail: return true
+        case .history, .responseDetail, .question: return true
         default: return false
         }
     }
