@@ -230,6 +230,9 @@ final class AppState: ObservableObject {
     @Published private(set) var isComposing: Bool = false
     @Published private(set) var composeTarget: String? = nil
     @Published private(set) var composeError: String? = nil
+    // When set, "send" opens a NEW terminal in this project's folder running
+    // `claude "<message>"`, instead of typing into the active terminal.
+    @Published var composeProjectCwd: String? = nil
     @Published private(set) var isResponseDetailOpen: Bool = false
     @Published private(set) var isHistoryOpen: Bool = false
 
@@ -348,27 +351,46 @@ final class AppState: ObservableObject {
         }
     }
 
-    func beginCompose() {
+    /// Open the composer. `project` (a cwd) means "send by opening a new
+    /// terminal in that folder running claude"; nil means "type into the
+    /// currently active terminal".
+    func beginCompose(project: String? = nil) {
         composeText = ""
         composeError = nil
-        // Resolve the target NOW, before we become key — otherwise frontmost
-        // might briefly become ClaudeNotch and we'd lose the terminal.
+        composeProjectCwd = project
+        // Resolve the active-terminal target NOW, before we become key —
+        // otherwise frontmost might briefly become ClaudeNotch.
         composeTarget = pickComposeTarget()
         isComposing = true
         recompute()
+    }
+
+    func setComposeProject(_ cwd: String?) {
+        composeProjectCwd = cwd
+        composeError = nil
     }
 
     func sendCompose() {
         let text = composeText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { cancelCompose(); return }
 
+        // Project mode: open a fresh terminal in that folder with the message
+        // as Claude's first prompt. No Accessibility needed.
+        if let cwd = composeProjectCwd, !cwd.isEmpty {
+            TerminalAutomator.startClaude(in: cwd, message: text)
+            NSSound(named: NSSound.Name("Tink"))?.play()
+            cancelCompose()
+            return
+        }
+
+        // Active-terminal mode: type into the running session via keystrokes.
         let target = composeTarget ?? pickComposeTarget()
         guard let bid = target else {
-            composeError = "No terminal found to send to. Open a Claude session first."
+            composeError = "No terminal found. Pick a project below, or open a Claude session first."
             return
         }
         if !TerminalAutomator.isAccessibilityTrusted {
-            composeError = "Grant Accessibility (menu bar → Grant Accessibility) so I can type into your terminal."
+            composeError = "Grant Accessibility (menu bar → Permissions) so I can type into your terminal."
             return
         }
         TerminalAutomator.sendText(text, toBundleID: bid)
@@ -382,6 +404,7 @@ final class AppState: ObservableObject {
         isComposing = false
         composeError = nil
         composeTarget = nil
+        composeProjectCwd = nil
         recompute()
         returnKeyboardToTerminal(preferred: target)
     }

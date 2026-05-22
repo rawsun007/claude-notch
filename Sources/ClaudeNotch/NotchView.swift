@@ -438,11 +438,18 @@ private struct ComposeCard: View {
     @ObservedObject var state: AppState
     @FocusState private var focused: Bool
 
-    private var targetLabel: String {
-        guard let bid = state.composeTarget else { return "no terminal found" }
+    private var activeTerminalName: String {
+        guard let bid = state.composeTarget else { return "no terminal" }
         if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bid).first,
            let name = app.localizedName { return name }
         return bid
+    }
+
+    private var targetLabel: String {
+        if let cwd = state.composeProjectCwd, !cwd.isEmpty {
+            return (cwd as NSString).lastPathComponent
+        }
+        return activeTerminalName
     }
 
     var body: some View {
@@ -455,12 +462,38 @@ private struct ComposeCard: View {
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundColor(.cyan.opacity(0.9))
                     .textCase(.uppercase)
-                Text("·").foregroundColor(.white.opacity(0.3))
-                Text("→ \(targetLabel)")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundColor(.white.opacity(0.6))
-                    .lineLimit(1)
                 Spacer()
+                // Target picker: active terminal, or open a fresh terminal in
+                // a recent project.
+                Menu {
+                    Button("Active terminal (\(activeTerminalName))") {
+                        state.setComposeProject(nil)
+                    }
+                    if !state.recentProjects.isEmpty {
+                        Divider()
+                        Text("Open in project")
+                        ForEach(state.recentProjects, id: \.self) { cwd in
+                            Button((cwd as NSString).lastPathComponent) {
+                                state.setComposeProject(cwd)
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: state.composeProjectCwd != nil ? "folder.fill" : "terminal.fill")
+                            .font(.system(size: 9))
+                        Text("→ \(targetLabel)")
+                            .lineLimit(1)
+                        Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).opacity(0.6)
+                    }
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.75))
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(Capsule().fill(Color.white.opacity(0.1)))
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
             }
 
             ZStack(alignment: .topLeading) {

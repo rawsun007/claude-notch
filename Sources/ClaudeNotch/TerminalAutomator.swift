@@ -101,16 +101,21 @@ enum TerminalAutomator {
     }
 
     /// Open a new terminal window, cd into the folder, and launch the Claude
-    /// CLI. Uses a temp `.command` file (run by the user's default terminal)
-    /// rather than AppleScript — so it needs NO Automation permission and the
-    /// full claude path means it works regardless of the shell's PATH.
-    static func startClaude(in directory: String) {
+    /// CLI — optionally with an initial `message` passed as the first prompt
+    /// (`claude "message"`). Uses a temp `.command` file (run by the user's
+    /// default terminal) rather than AppleScript — so it needs NO Automation
+    /// permission and the full claude path works regardless of shell PATH.
+    static func startClaude(in directory: String, message: String? = nil) {
         let claude = resolveClaudePath() ?? "claude"
+        let trimmed = message?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let launch = trimmed.isEmpty
+            ? "exec \(shellQuote(claude))"
+            : "exec \(shellQuote(claude)) \(shellQuote(trimmed))"
         let body = """
         #!/bin/zsh
         cd \(shellQuote(directory)) || exit 1
         clear
-        exec \(shellQuote(claude))
+        \(launch)
         """
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("ClaudeNotch-start-\(UUID().uuidString).command")
@@ -118,7 +123,7 @@ enum TerminalAutomator {
             try body.write(to: url, atomically: true, encoding: .utf8)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
             NSWorkspace.shared.open(url)
-            debugLog("startClaude: opened \(url.lastPathComponent) → cd \(directory) && \(claude)")
+            debugLog("startClaude: opened \(url.lastPathComponent) → cd \(directory) && claude \(trimmed.isEmpty ? "" : "<msg>")")
         } catch {
             debugLog("startClaude: failed to write/open .command — \(error)")
         }
