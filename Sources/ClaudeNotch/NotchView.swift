@@ -12,9 +12,76 @@ private struct ContentHeightKey: PreferenceKey {
     }
 }
 
+/// Drives the card's width/height with a plain Timer instead of SwiftUI's
+/// `.animation`. SwiftUI's spring is display-link-driven and gets paused when
+/// our app isn't frontmost (another app active / fullscreen) — so the card
+/// "popped in" with no animation. A Timer keeps ticking as long as we hold a
+/// ProcessInfo activity (App Nap disabled), so the size interpolates every
+/// frame regardless of which app is active.
+@MainActor
+final class CardSizeAnimator: ObservableObject {
+    @Published private(set) var width: CGFloat = 0
+    @Published private(set) var height: CGFloat = 0
+
+    private var timer: Timer?
+    private var fromW: CGFloat = 0, fromH: CGFloat = 0
+    private var toW: CGFloat = 0, toH: CGFloat = 0
+    private var start: CFTimeInterval = 0
+    private var duration: CFTimeInterval = 0.42
+    private var overshoot = true
+
+    /// Jump immediately (no animation) — used for the very first layout.
+    func set(_ size: CGSize) {
+        timer?.invalidate(); timer = nil
+        width = size.width; height = size.height
+        toW = size.width; toH = size.height
+    }
+
+    /// Animate toward a new size. `expanding` adds a slight overshoot for the
+    /// grow-out-of-notch feel; collapsing eases in cleanly.
+    func animate(to size: CGSize, expanding: Bool) {
+        // Already there (and not mid-flight) → nothing to do.
+        if abs(toW - size.width) < 0.5, abs(toH - size.height) < 0.5, timer == nil { return }
+        fromW = width; fromH = height
+        toW = size.width; toH = size.height
+        overshoot = expanding
+        duration = expanding ? 0.42 : 0.34
+        start = CACurrentMediaTime()
+        if timer == nil {
+            let t = Timer(timeInterval: 1.0 / 120.0, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.tick() }
+            }
+            RunLoop.main.add(t, forMode: .common)
+            timer = t
+        }
+    }
+
+    private func tick() {
+        let raw = min(1, max(0, (CACurrentMediaTime() - start) / duration))
+        let e = overshoot ? Self.easeOutBack(raw) : Self.easeOutCubic(raw)
+        width  = fromW + (toW - fromW) * e
+        height = fromH + (toH - fromH) * e
+        if raw >= 1 {
+            width = toW; height = toH
+            timer?.invalidate(); timer = nil
+        }
+    }
+
+    private static func easeOutCubic(_ t: Double) -> Double {
+        let p = 1 - t
+        return 1 - p * p * p
+    }
+    private static func easeOutBack(_ t: Double) -> Double {
+        let c1 = 1.70158, c3 = 1.70158 + 1
+        let p = t - 1
+        return 1 + c3 * p * p * p + c1 * p * p
+    }
+}
+
 struct NotchView: View {
     @ObservedObject var state: AppState
     @State private var compactHeight: CGFloat = 0
+    @StateObject private var sizer = CardSizeAnimator()
 
     /// How much vertical space is hidden by the physical notch (or 0 if none).
     static func notchInset(on screen: NSScreen?) -> CGFloat {
@@ -117,12 +184,6 @@ struct NotchView: View {
         return CGSize(width: 200, height: 30)
     }
 
-    // boring.notch-style springs: gentle, slightly-bouncy open; fully
-    // damped (no bounce) close so it never snaps shut.
-    static let openSpring  = Animation.spring(response: 0.42, dampingFraction: 0.82)
-    static let closeSpring = Animation.spring(response: 0.40, dampingFraction: 1.0)
-    static let hoverSpring = Animation.spring(response: 0.34, dampingFraction: 0.86)
-
     var body: some View {
         // The PANEL is a fixed large window. We draw the notch card pinned to
         // its top and animate the card's SIZE with SwiftUI springs — the
@@ -141,16 +202,32 @@ struct NotchView: View {
             if collapsed || isScrollableMode { return card.height }
             return compactHeight > 1 ? compactHeight : card.height
         }()
+        // The size we want the card to be. The Timer-driven `sizer`
+        // interpolates toward it every frame (works in the background, unlike
+        // SwiftUI's display-link animation). Use the sizer's current value for
+        // the actual frame, falling back to the target before it's seeded.
+        let target = CGSize(width: card.width, height: displayHeight)
+        let w = sizer.width > 0 ? sizer.width : target.width
+        let h = sizer.height > 0 ? sizer.height : target.height
         return ZStack(alignment: .top) {
             ZStack(alignment: .top) {
                 if !collapsed {
+                    // Lay the content out at its FINAL width/height (not the
+                    // animating w/h) so it doesn't reflow as the card grows —
+                    // the outer clip frame reveals it. Keeps the measured
+                    // height stable (no animate↔measure feedback loop).
                     content
-                        .frame(maxWidth: .infinity, maxHeight: isScrollableMode ? .infinity : nil, alignment: .top)
+                        .frame(maxWidth: .infinity,
+                               maxHeight: isScrollableMode ? .infinity : nil,
+                               alignment: .top)
                         .padding(.horizontal, 22)
                         .padding(.top, state.notchTopInset + 10)
-                        // Bottom padding must clear the notch shape's bottom
-                        // corner curve, or buttons get clipped at the corners.
+                        // Bottom padding clears the notch shape's bottom corner
+                        // curve so buttons aren't clipped.
                         .padding(.bottom, 24)
+                        .frame(width: card.width,
+                               height: isScrollableMode ? card.height : nil,
+                               alignment: .top)
                         .background(
                             GeometryReader { g in
                                 Color.clear.preference(
@@ -161,25 +238,25 @@ struct NotchView: View {
                         )
                 }
             }
-            // Black fill + clip apply AT the (animating) explicit frame size,
-            // so the shape grows from the notch out to the card.
-            .frame(width: card.width, height: displayHeight, alignment: .top)
+            // Black fill + clip apply AT the animating frame size, so the
+            // shape grows from the notch out to the card while the content
+            // stays at full size underneath (revealed by the growing clip).
+            .frame(width: w, height: h, alignment: .top)
             .background(Color.black)
             .clipShape(shape)
             .overlay(shape.stroke(Color.white.opacity(collapsed ? 0 : 0.05), lineWidth: 0.5))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .onAppear { sizer.set(target) }
         .onPreferenceChange(ContentHeightKey.self) { h in
-            // Only accept real measurements. Never reset to 0 elsewhere —
-            // an earlier onChange-reset raced this and sometimes won, leaving
-            // the card at the too-small formula height (clipped buttons).
             if h > 1 { compactHeight = h }
         }
-        // Animate on the geometry itself, so BOTH open and close spring
-        // symmetrically no matter what changed the size (mode OR measurement).
-        .animation(Self.openSpring, value: displayHeight)
-        .animation(Self.openSpring, value: card.width)
-        .animation(Self.hoverSpring, value: state.isHovering)
+        .onChange(of: target) { newTarget in
+            // expanding = growing toward a bigger card (overshoot for the
+            // pop-out feel); collapsing eases in cleanly.
+            let expanding = newTarget.width * newTarget.height >= (sizer.width * sizer.height)
+            sizer.animate(to: newTarget, expanding: expanding)
+        }
     }
 
     private var isCollapsedIdle: Bool {
