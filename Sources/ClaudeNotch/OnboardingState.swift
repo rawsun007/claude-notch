@@ -28,6 +28,14 @@ final class OnboardingState: ObservableObject {
     @Published var hookInstallError: String? = nil
     @Published var isInstallingHooks: Bool = false
 
+    // Bridge to the live app state for the auto-approve toggle.
+    weak var appState: AppState?
+    var autoApprove: Bool { appState?.autoApprove ?? false }
+    func toggleAutoApprove() {
+        appState?.setAutoApprove(!(appState?.autoApprove ?? false))
+        objectWillChange.send()
+    }
+
     /// Set when the user clicks "Open Settings" for a given permission.
     /// Drives the "stuck? quit & relaunch" hint after a grace period.
     @Published var accessibilityGrantClickedAt: Date? = nil

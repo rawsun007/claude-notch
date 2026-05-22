@@ -10,6 +10,7 @@ enum NotchMode: Equatable {
     case compose
     case responseDetail
     case history
+    case autoInfo(PermissionRequest)   // auto-approved: show what changed, no buttons
 }
 
 // MARK: - Tool preview & danger flagging
@@ -208,6 +209,15 @@ final class AppState: ObservableObject {
     @Published private(set) var allowRules: Set<AllowRule> = []
     @Published var isHovering: Bool = false
 
+    // User preferences (persisted).
+    @Published var autoApprove: Bool = false   // auto-allow every permission
+    @Published var soundMuted: Bool = false     // silence all notch sounds
+
+    /// Transient "live activity" card shown after an auto-approved action —
+    /// shows WHAT changed, no buttons, auto-dismisses.
+    @Published private(set) var autoInfo: PermissionRequest? = nil
+    private var autoInfoTimer: Timer?
+
     // Top inset of the screen the notch is rendering on. The window controller
     // updates this so the card's top padding matches the current display
     // (built-in notch ≈ 37pt; external display 0). Prevents a black gap at
@@ -256,8 +266,13 @@ final class AppState: ObservableObject {
             self.history = snapshot.history
             self.allowRules = snapshot.allowRules
             self.recentProjects = snapshot.recentProjects
+            self.autoApprove = snapshot.autoApprove ?? false
+            self.soundMuted = snapshot.soundMuted ?? false
         }
     }
+
+    func setAutoApprove(_ on: Bool) { autoApprove = on; schedulePersist() }
+    func setSoundMuted(_ on: Bool) { soundMuted = on; schedulePersist() }
 
     fileprivate func schedulePersist() {
         persistTimer?.invalidate()
@@ -270,7 +285,9 @@ final class AppState: ObservableObject {
         Persistence.save(.init(
             history: history,
             allowRules: allowRules,
-            recentProjects: recentProjects
+            recentProjects: recentProjects,
+            autoApprove: autoApprove,
+            soundMuted: soundMuted
         ))
     }
 
@@ -344,7 +361,7 @@ final class AppState: ObservableObject {
     func summonCompose() {
         switch mode {
         case .permission, .question:
-            NSSound(named: NSSound.Name("Funk"))?.play()
+            playSound("Funk")
             return
         default:
             beginCompose()
@@ -378,7 +395,7 @@ final class AppState: ObservableObject {
         // as Claude's first prompt. No Accessibility needed.
         if let cwd = composeProjectCwd, !cwd.isEmpty {
             TerminalAutomator.startClaude(in: cwd, message: text)
-            NSSound(named: NSSound.Name("Tink"))?.play()
+            playSound("Tink")
             cancelCompose()
             return
         }
@@ -394,7 +411,7 @@ final class AppState: ObservableObject {
             return
         }
         TerminalAutomator.sendText(text, toBundleID: bid)
-        NSSound(named: NSSound.Name("Tink"))?.play()
+        playSound("Tink")
         cancelCompose()
     }
 
@@ -523,6 +540,25 @@ final class AppState: ObservableObject {
             req.resolver(.allow)
             return
         }
+
+        // Auto-approve mode: allow immediately and show a brief, button-less
+        // "live activity" card of what's changing. Dangerous commands are
+        // exempt — they still require an explicit hold-to-confirm.
+        if autoApprove, req.kind == .toolUse, !req.isDangerous {
+            req.resolver(.allow)
+            appendHistory(HistoryEntry(
+                timestamp: Date(),
+                kind: .permission,
+                toolName: req.toolName,
+                title: req.title,
+                detail: req.detail,
+                project: (req.cwd as NSString).lastPathComponent,
+                outcome: .allowed
+            ))
+            showAutoInfo(req)
+            return
+        }
+
         permissionQueue.append(req)
         // Record notifications immediately — they don't have an Allow/Deny.
         if req.kind == .notification {
@@ -538,6 +574,22 @@ final class AppState: ObservableObject {
         }
         playAlert()
         recompute()
+    }
+
+    /// Show a transient, button-less card of an auto-approved action. A new
+    /// one replaces the current (live-activity style); clears after 1.6s.
+    private func showAutoInfo(_ req: PermissionRequest) {
+        playSound("Tink")
+        autoInfo = req
+        recompute()
+        autoInfoTimer?.invalidate()
+        autoInfoTimer = Timer.scheduledTimer(withTimeInterval: 1.6, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.autoInfo = nil
+                self.recompute()
+            }
+        }
     }
 
     func enqueueCompleted(_ task: CompletedTask) {
@@ -584,9 +636,9 @@ final class AppState: ObservableObject {
             outcome: outcome
         ))
         if answers != nil {
-            NSSound(named: NSSound.Name("Tink"))?.play()
+            playSound("Tink")
         } else {
-            NSSound(named: NSSound.Name("Pop"))?.play()
+            playSound("Pop")
         }
         recompute()
         returnKeyboardToTerminal(preferred: first.originatorBundleID)
@@ -632,10 +684,40 @@ final class AppState: ObservableObject {
         returnKeyboardToTerminal(preferred: first.originatorBundleID)
     }
 
+    /// Resolve EVERY queued permission at once — for the "Claude fired 5 edits
+    /// at the same time, I don't want to click 5 times" case. Skips dangerous
+    /// ones (those stay queued for an explicit hold-to-confirm).
+    func resolveAllPermissions(_ decision: PermissionDecision) {
+        let originator = permissionQueue.first?.originatorBundleID
+        var remaining: [PermissionRequest] = []
+        for req in permissionQueue {
+            if decision == .allow && req.isDangerous {
+                remaining.append(req)   // never batch-allow a destructive command
+                continue
+            }
+            req.resolver(decision)
+            if req.kind != .notification {
+                appendHistory(HistoryEntry(
+                    timestamp: Date(),
+                    kind: .permission,
+                    toolName: req.toolName,
+                    title: req.title,
+                    detail: req.detail,
+                    project: (req.cwd as NSString).lastPathComponent,
+                    outcome: decision == .allow ? .allowed : (decision == .deny ? .denied : .dismissed)
+                ))
+            }
+        }
+        permissionQueue = remaining
+        playFeedback(for: decision)
+        recompute()
+        returnKeyboardToTerminal(preferred: originator)
+    }
+
     private func playFeedback(for decision: PermissionDecision) {
         switch decision {
-        case .allow: NSSound(named: NSSound.Name("Tink"))?.play()    // small success "tick"
-        case .deny:  NSSound(named: NSSound.Name("Pop"))?.play()     // soft dismiss
+        case .allow: playSound("Tink")    // small success "tick"
+        case .deny:  playSound("Pop")     // soft dismiss
         case .ask:   break
         }
     }
@@ -708,12 +790,17 @@ final class AppState: ObservableObject {
         openOriginator(bid)
     }
 
+    func playSound(_ name: String) {
+        guard !soundMuted else { return }
+        NSSound(named: NSSound.Name(name))?.play()
+    }
+
     private func playAlert() {
-        NSSound(named: NSSound.Name("Funk"))?.play()
+        playSound("Funk")
     }
 
     private func playChime() {
-        NSSound(named: NSSound.Name("Glass"))?.play()
+        playSound("Glass")
     }
 
     private func recompute() {
@@ -730,6 +817,8 @@ final class AppState: ObservableObject {
             next = .permission(p)
         } else if let c = completedQueue.first {
             next = .completed(c)
+        } else if let info = autoInfo {
+            next = .autoInfo(info)
         } else if let exp = thinkingExpiresAt, exp > Date() {
             next = .thinking(label: thinkingLabel)
         } else {

@@ -79,7 +79,12 @@ final class KeyboardMonitor {
                 // Dangerous commands MUST use hold-to-confirm. Enter is a no-op
                 // (we don't want a single keystroke to trigger an rm -rf).
                 if req.isDangerous { return }
-                state.resolveCurrentPermission(.allow)
+                // Multiple queued → Enter approves them all in one go.
+                if state.permissionQueue.count > 1 {
+                    state.resolveAllPermissions(.allow)
+                } else {
+                    state.resolveCurrentPermission(.allow)
+                }
             case .permission:
                 state.resolveCurrentPermission(.ask)
             case .completed:

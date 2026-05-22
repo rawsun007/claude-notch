@@ -15,6 +15,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var recentProjectsItem: NSMenuItem!
     private var recentProjectsMenu: NSMenu!
     private var statusItem: NSMenuItem!
+    private var autoApproveItem: NSMenuItem!
+    private var muteItem: NSMenuItem!
     private var cancellables = Set<AnyCancellable>()
     private var permissionsTimer: Timer?
     private var isMenuOpen = false
@@ -101,6 +103,18 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         permsItem.submenu = permsMenu
         menu.addItem(permsItem)
 
+        menu.addItem(.separator())
+
+        autoApproveItem = NSMenuItem(title: "Auto-Approve All", action: #selector(toggleAutoApprove), keyEquivalent: "")
+        autoApproveItem.target = self
+        menu.addItem(autoApproveItem)
+
+        muteItem = NSMenuItem(title: "Mute Sounds", action: #selector(toggleMute), keyEquivalent: "")
+        muteItem.target = self
+        menu.addItem(muteItem)
+
+        menu.addItem(.separator())
+
         loginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
         loginItem.target = self
         menu.addItem(loginItem)
@@ -136,6 +150,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshPermissions()
         refreshRecentProjects()
         refreshStatusLine()
+        refreshPrefs()
 
         // Slower poll (12s) so background ticks don't compete with menu redraw
         // — we also explicitly refresh just-in-time when the menu opens.
@@ -157,6 +172,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             self.refreshPermissions()
             self.refreshStatusLine()
             self.refreshRecentProjects()
+            self.refreshPrefs()
         }
     }
 
@@ -403,6 +419,23 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func showOnboarding() {
         onboarding.show()
+    }
+
+    @objc private func toggleAutoApprove() {
+        state.setAutoApprove(!state.autoApprove)
+        refreshPrefs()
+    }
+
+    @objc private func toggleMute() {
+        state.setSoundMuted(!state.soundMuted)
+        refreshPrefs()
+    }
+
+    private func refreshPrefs() {
+        autoApproveItem.state = state.autoApprove ? .on : .off
+        autoApproveItem.title = state.autoApprove ? "Auto-Approve All: On" : "Auto-Approve All"
+        muteItem.state = state.soundMuted ? .on : .off
+        muteItem.title = state.soundMuted ? "Sounds Muted" : "Mute Sounds"
     }
 
     /// Our bundled notch+spark glyph, falling back to an SF Symbol if the

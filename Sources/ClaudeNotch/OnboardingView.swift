@@ -50,6 +50,15 @@ struct OnboardingView: View {
                     action: state.toggleLaunchAtLogin,
                     optional: true
                 )
+                StepRow(
+                    title: "Auto-approve everything",
+                    description: "Optional. Skip the Allow/Deny buttons — every tool is allowed automatically and the notch just shows what's changing. Destructive commands still ask. Toggle anytime from the menu bar.",
+                    done: state.autoApprove,
+                    actionLabel: state.autoApprove ? "Turn Off" : "Turn On",
+                    action: state.toggleAutoApprove,
+                    optional: true,
+                    alwaysEnabled: true
+                )
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 18)
@@ -104,6 +113,7 @@ private struct StepRow: View {
     var errorText: String? = nil
     var needsRelaunch: Bool = false
     var relaunch: (() -> Void)? = nil
+    var alwaysEnabled: Bool = false   // for toggles that can switch back off
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
@@ -155,7 +165,7 @@ private struct StepRow: View {
                 }
                 .frame(minWidth: 78)
             }
-            .disabled(done || busy)
+            .disabled((done && !alwaysEnabled) || busy)
             .controlSize(.regular)
         }
         .padding(.horizontal, 14)

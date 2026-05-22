@@ -5,6 +5,7 @@ import SwiftUI
 final class OnboardingWindowController {
     private var window: NSWindow?
     private let state = OnboardingState()
+    weak var appState: AppState?
 
     private static let userDefaultsKey = "claudenotch.onboardingCompleted"
 
@@ -26,6 +27,7 @@ final class OnboardingWindowController {
     }
 
     func show() {
+        state.appState = appState
         if let existing = window {
             state.startPolling()
             existing.makeKeyAndOrderFront(nil)

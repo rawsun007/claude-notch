@@ -21,6 +21,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             reason: "Notch overlay animations"
         )
 
+        onboarding.appState = state
+
         notch = NotchWindowController(state: state)
         notch.show()
 

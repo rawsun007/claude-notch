@@ -8,6 +8,8 @@ enum Persistence {
         var history: [HistoryEntry]
         var allowRules: Set<AllowRule>
         var recentProjects: [String]
+        var autoApprove: Bool? = nil
+        var soundMuted: Bool? = nil
     }
 
     static let storeURL: URL = {

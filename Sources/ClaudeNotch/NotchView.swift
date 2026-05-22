@@ -165,6 +165,9 @@ struct NotchView: View {
             // Reasonably tall drawer; cap at 70% of screen on small displays.
             let screenH = s?.frame.height ?? 900
             return CGSize(width: 640, height: min(inset + 460, screenH * 0.70))
+        case .autoInfo:
+            // Compact, button-less "live activity" card.
+            return CGSize(width: 460, height: inset + 96)
         }
     }
 
@@ -285,9 +288,16 @@ struct NotchView: View {
                 .transition(.opacity)
         case .permission(let req):
             if req.kind == .toolUse {
-                PermissionCard(request: req) { decision, scope in
-                    state.resolveCurrentPermission(decision, alwaysAllow: scope)
-                }
+                PermissionCard(
+                    request: req,
+                    pendingCount: state.permissionQueue.count,
+                    onResolve: { decision, scope in
+                        state.resolveCurrentPermission(decision, alwaysAllow: scope)
+                    },
+                    onResolveAll: { decision in
+                        state.resolveAllPermissions(decision)
+                    }
+                )
                 .transition(.opacity)
             } else {
                 NotificationCard(request: req, onOpen: {
@@ -321,6 +331,9 @@ struct NotchView: View {
                 .transition(.opacity)
         case .history:
             HistoryCard(state: state)
+                .transition(.opacity)
+        case .autoInfo(let req):
+            AutoInfoCard(request: req)
                 .transition(.opacity)
         }
     }
@@ -628,7 +641,9 @@ private struct ThinkingPill: View {
 
 private struct PermissionCard: View {
     let request: PermissionRequest
+    var pendingCount: Int = 1
     let onResolve: (PermissionDecision, AllowScope) -> Void
+    var onResolveAll: ((PermissionDecision) -> Void)? = nil
 
     private var accentColor: Color { request.isDangerous ? .red : .yellow }
     private var headerIcon: String { request.isDangerous ? "exclamationmark.triangle.fill" : "exclamationmark.bubble.fill" }
@@ -722,6 +737,15 @@ private struct PermissionCard: View {
                 if request.isDangerous {
                     HoldToConfirmButton(label: "Hold to Allow", duration: 0.9) {
                         onResolve(.allow, .none)
+                    }
+                } else if pendingCount > 1, let onResolveAll {
+                    // Multiple permissions queued (e.g. several edits at once)
+                    // — one tap approves them all.
+                    NotchButton(label: "Allow", style: .secondary) {
+                        onResolve(.allow, .none)
+                    }
+                    NotchButton(label: "Allow All (\(pendingCount))", style: .primary, shortcut: "⏎") {
+                        onResolveAll(.allow)
                     }
                 } else {
                     NotchButton(label: "Allow", style: .primary, shortcut: "⏎") {
@@ -1156,6 +1180,47 @@ private struct CompletedCard: View {
                 Spacer()
                 NotchButton(label: "Open IDE", style: .secondary, action: onOpen)
                 NotchButton(label: "Done", style: .primary, action: onDismiss)
+            }
+        }
+    }
+}
+
+// MARK: - Auto-approved (info only, no buttons)
+
+private struct AutoInfoCard: View {
+    let request: PermissionRequest
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "bolt.badge.checkmark.fill")
+                    .foregroundColor(.green)
+                    .font(.system(size: 13, weight: .semibold))
+                Text("Auto-allowed")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundColor(.green.opacity(0.9))
+                    .textCase(.uppercase)
+                Text("·").foregroundColor(.white.opacity(0.3))
+                Text(request.toolName)
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.55))
+                Spacer()
+                if !request.cwd.isEmpty {
+                    Text((request.cwd as NSString).lastPathComponent)
+                        .font(.system(size: 10, design: .rounded))
+                        .foregroundColor(.white.opacity(0.4))
+                }
+            }
+            Text(request.title)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.white)
+                .lineLimit(1)
+            if !request.detail.isEmpty {
+                Text(request.detail)
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.7))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
         }
     }
