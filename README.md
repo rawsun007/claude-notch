@@ -12,9 +12,9 @@ your editor — no more tabbing back to the terminal every few seconds.
 
 <br/>
 
-[![Download for macOS](https://img.shields.io/badge/⬇_Download_for_macOS-FF6B5E?style=for-the-badge&logoColor=white)](https://github.com/rawsun007/claude-mac-notch/releases/latest/download/ClaudeNotch.dmg)
+[![Download for macOS](https://img.shields.io/badge/⬇_Download_for_macOS-FF6B5E?style=for-the-badge&logoColor=white)](https://github.com/rawsun007/claude-notch/releases/latest/download/ClaudeNotch.dmg)
 &nbsp;
-[![Website](https://img.shields.io/badge/Website-1a1a1a?style=for-the-badge)](https://rawsun007.github.io/claude-mac-notch/)
+[![Website](https://img.shields.io/badge/Website-1a1a1a?style=for-the-badge)](https://rawsun007.github.io/claude-notch/)
 
 ![macOS 13+](https://img.shields.io/badge/macOS-13%2B-black?logo=apple)
 ![Apple Silicon + Intel](https://img.shields.io/badge/Apple_Silicon_%2B_Intel-✓-black)
@@ -62,7 +62,7 @@ system, and shows no Dock icon — just a small bell in your menu bar.
 
 ### The easy way (recommended)
 
-1. **[⬇ Download ClaudeNotch.dmg](https://github.com/rawsun007/claude-mac-notch/releases/latest/download/ClaudeNotch.dmg)**
+1. **[⬇ Download ClaudeNotch.dmg](https://github.com/rawsun007/claude-notch/releases/latest/download/ClaudeNotch.dmg)**
 2. Open the DMG and drag **ClaudeNotch** into **Applications**.
 3. Launch it. On first open, macOS may warn that the app is from an unidentified
    developer — **right-click the app → Open**, then click **Open** again. You only
@@ -81,8 +81,8 @@ system, and shows no Dock icon — just a small bell in your menu bar.
 Requires macOS 13+, Swift 5.9+ (`xcode-select --install`), and `jq` (`brew install jq`).
 
 ```bash
-git clone https://github.com/rawsun007/claude-mac-notch.git
-cd claude-mac-notch
+git clone https://github.com/rawsun007/claude-notch.git
+cd claude-notch
 ./build.sh        # produces ClaudeNotch.app
 ./install.sh      # copies to /Applications, wires Claude Code hooks, launches
 ```
@@ -242,7 +242,7 @@ If ClaudeNotch saves you a few context switches, a ⭐ on the repo means a lot.
 &nbsp;
 [![X](https://img.shields.io/badge/X-@roshanramani007-000000?logo=x&logoColor=white)](https://x.com/roshanramani007)
 
-Found a bug or have an idea? [Open an issue](https://github.com/rawsun007/claude-mac-notch/issues) — feedback welcome.
+Found a bug or have an idea? [Open an issue](https://github.com/rawsun007/claude-notch/issues) — feedback welcome.
 
 ---
 
