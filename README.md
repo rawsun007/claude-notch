@@ -77,6 +77,15 @@ system, and shows no Dock icon — just a small bell in your menu bar.
 > 💡 **Tip:** To launch automatically on startup, click the menu-bar bell →
 > *Launch at login*.
 
+### With Homebrew
+
+Run **both** lines — the tap has to come before install:
+
+```bash
+brew tap rawsun007/claudenotch https://github.com/rawsun007/claude-notch
+brew install --cask claudenotch
+```
+
 ### Build from source (for developers)
 
 <details>
