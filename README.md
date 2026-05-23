@@ -22,6 +22,10 @@ your editor — no more tabbing back to the terminal every few seconds.
 ![License: Noncommercial](https://img.shields.io/badge/License-Noncommercial-blue)
 ![Free for personal use](https://img.shields.io/badge/Free_for_personal_%26_community_use-💛-yellow)
 
+<br/>
+
+<img src="assets/demo.gif" alt="ClaudeNotch demo — approving Claude Code permissions from the notch" width="720" />
+
 </div>
 
 ---
