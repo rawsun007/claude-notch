@@ -19,8 +19,8 @@ your editor — no more tabbing back to the terminal every few seconds.
 ![macOS 13+](https://img.shields.io/badge/macOS-13%2B-black?logo=apple)
 ![Apple Silicon + Intel](https://img.shields.io/badge/Apple_Silicon_%2B_Intel-✓-black)
 ![Built with Swift](https://img.shields.io/badge/Built_with-Swift-orange?logo=swift&logoColor=white)
-![License MIT](https://img.shields.io/badge/License-MIT-blue)
-![Free & Open Source](https://img.shields.io/badge/Free_%26_Open_Source-💛-yellow)
+![License: Noncommercial](https://img.shields.io/badge/License-Noncommercial-blue)
+![Free for personal use](https://img.shields.io/badge/Free_for_personal_%26_community_use-💛-yellow)
 
 </div>
 
@@ -165,7 +165,9 @@ to Claude Code's own prompt, so there's no way to get stuck.
 ## ❓ FAQ
 
 **Is it free?**
-Yes — free and open source (MIT). The full source lives right here on GitHub.
+Yes — free for personal and any noncommercial use, and the full source lives right
+here on GitHub. **Commercial use isn't allowed without permission** — if you want to
+sell it or make money from it, [ask me first](https://www.linkedin.com/in/roshan-ramani-0510102b2).
 
 **Why does macOS warn me on first open?**
 It isn't notarized through Apple's paid program yet. Right-click the app → **Open**
@@ -248,8 +250,14 @@ Found a bug or have an idea? [Open an issue](https://github.com/rawsun007/claude
 
 ## 📄 License
 
-MIT © Roshan Ramani — free to use, fork, and build on.
+**PolyForm Noncommercial License 1.0.0** © 2026 Roshan Ramani.
+
+Free to use, modify, and share for **personal, educational, and other noncommercial
+purposes**. **Commercial use is not permitted without a separate license** — if you'd
+like to use ClaudeNotch commercially or build a paid product on it, please
+[reach out first](https://www.linkedin.com/in/roshan-ramani-0510102b2). See
+[LICENSE](LICENSE) for full terms.
 
 <div align="center">
-<sub><b>ClaudeNotch</b> — a Dynamic Island / notch overlay for Claude Code on macOS · permission prompts, diffs &amp; notifications in your menu bar · Swift · open source</sub>
+<sub><b>ClaudeNotch</b> — a Dynamic Island / notch overlay for Claude Code on macOS · permission prompts, diffs &amp; notifications in your menu bar · Swift · noncommercial &amp; source-available</sub>
 </div>
