@@ -1,193 +1,260 @@
+<div align="center">
+
+<img src="assets/icon-1024.png" alt="ClaudeNotch app icon" width="120" />
+
 # ClaudeNotch
 
-> Tested live: this very line was added by Claude Code through the ClaudeNotch
-> permission flow — the notch expanded with the file path and "Allow" was
-> clicked from the notch instead of switching back to the IDE.
+### Approve Claude Code without leaving your work.
 
-A Dynamic-Island-style overlay for AI coding agents. Sits at the top of your
-screen and turns invisible agent events into ambient UI you can't miss.
+ClaudeNotch puts every Claude Code permission prompt, question, and notification
+right in your Mac's notch. Read the diff, allow or deny with one key, and stay in
+your editor — no more tabbing back to the terminal every few seconds.
 
-- **Permission requests** expand the notch with **Allow / Always allow / Deny**
-  buttons that actually drive Claude Code's hook system — clicking *Allow*
-  unblocks the tool call without you switching apps.
-- **Notifications** ("Claude is waiting for input") show a sticky orange card
-  with an **Open IDE** button that brings the previously-frontmost app back.
-- **Task completions** show a green card that stays put until you click *Done*.
-- **Tool use** shows a quiet blue thinking pulse.
+<br/>
 
-It's a SwiftUI menu-bar app that exposes a localhost HTTP server on
-`127.0.0.1:53127`. Three shell scripts wire it to Claude Code via the standard
-`PreToolUse` / `Notification` / `Stop` hooks.
+[![Download for macOS](https://img.shields.io/badge/⬇_Download_for_macOS-FF6B5E?style=for-the-badge&logoColor=white)](https://github.com/rawsun007/claude-mac-notch/releases/latest/download/ClaudeNotch.dmg)
+&nbsp;
+[![Website](https://img.shields.io/badge/Website-1a1a1a?style=for-the-badge)](https://rawsun007.github.io/claude-mac-notch/)
+
+![macOS 13+](https://img.shields.io/badge/macOS-13%2B-black?logo=apple)
+![Apple Silicon + Intel](https://img.shields.io/badge/Apple_Silicon_%2B_Intel-✓-black)
+![Built with Swift](https://img.shields.io/badge/Built_with-Swift-orange?logo=swift&logoColor=white)
+![License MIT](https://img.shields.io/badge/License-MIT-blue)
+![Free & Open Source](https://img.shields.io/badge/Free_%26_Open_Source-💛-yellow)
+
+</div>
 
 ---
 
-## Install (60 seconds)
+## What is ClaudeNotch?
 
-Requires macOS 13+, Swift 5.9+ (Xcode CLT — `xcode-select --install`), and `jq`
-(`brew install jq`).
+When you use [Claude Code](https://claude.com/claude-code), it constantly stops to
+ask permission — *"Can I run this command?"*, *"Can I edit this file?"* Every prompt
+pulls you back to the terminal and breaks your flow.
+
+**ClaudeNotch is a tiny macOS menu-bar app that surfaces those prompts in a
+Dynamic-Island-style overlay at the top of your screen.** The notch quietly
+expands with the command (or a diff of the change), you click **Allow** or
+**Deny** — or just tap a key — and your keyboard pops right back to where you
+were. You never switch apps.
+
+It runs entirely on your machine, talks to Claude Code through its official hook
+system, and shows no Dock icon — just a small bell in your menu bar.
+
+---
+
+## ✨ Features
+
+| | |
+|---|---|
+| 🛡️ **Permissions in the notch** | When Claude wants to run a command or edit a file, the notch unfurls with **Allow**, **Deny**, and **Always Allow**. Resolve it and your keyboard jumps straight back to the terminal. |
+| 🟥🟩 **See the diff first** | Edit and Write requests show a red/green diff right inside the card, so you know exactly what's about to change. |
+| ⚠️ **Guardrails for risky commands** | Dangerous ones like `rm -rf`, `sudo`, and force-push get a red warning and a **press-and-hold** button, so nothing irreversible slips through by accident. |
+| ❓ **Answer Claude's questions** | `AskUserQuestion` prompts arrive as tappable options. Pick one and Claude keeps going. |
+| ✉️ **Send a message from anywhere** | Press **⌥⌘N** to open a quick composer — send a note to your running session, or start a fresh one in a recent project. |
+| 🕘 **Activity history** | Click the notch for a timeline of everything you've allowed, denied, or answered. |
+| ✅ **Smart always-allow** | Approve a tool for the whole session, or just one exact command. Your rules stick around between launches. |
+| 📁 **Start Claude in any folder** | Launch Claude Code in any project straight from the menu bar, or jump back into a recent one. |
+
+---
+
+## 🚀 Install
+
+### The easy way (recommended)
+
+1. **[⬇ Download ClaudeNotch.dmg](https://github.com/rawsun007/claude-mac-notch/releases/latest/download/ClaudeNotch.dmg)**
+2. Open the DMG and drag **ClaudeNotch** into **Applications**.
+3. Launch it. On first open, macOS may warn that the app is from an unidentified
+   developer — **right-click the app → Open**, then click **Open** again. You only
+   do this once.
+4. A small **bell icon** appears in your menu bar. Click it → **Wire up Claude
+   Code** to connect the hooks. Done!
+
+> 💡 **Tip:** To launch automatically on startup, click the menu-bar bell →
+> *Launch at login*.
+
+### Build from source (for developers)
+
+<details>
+<summary>Click to expand</summary>
+
+Requires macOS 13+, Swift 5.9+ (`xcode-select --install`), and `jq` (`brew install jq`).
 
 ```bash
-cd "/Users/roshanramani/claude mac app"
-./build.sh        # produces ClaudeNotch.app (ad-hoc signed)
+git clone https://github.com/rawsun007/claude-mac-notch.git
+cd claude-mac-notch
+./build.sh        # produces ClaudeNotch.app
 ./install.sh      # copies to /Applications, wires Claude Code hooks, launches
 ```
 
-A bell icon appears in your menu bar. The app is permission-only and shows no
-Dock icon (`LSUIElement`).
-
-To launch at login: click the menu-bar bell → *Launch at login*.
-
----
-
-## Test it
-
-### Without Claude Code
-
-Menu-bar bell → *Demo: tool permission (blocking)* — should expand the notch.
-Clicking *Allow* / *Deny* logs the decision to Console.
-
-Or from a shell:
+Want your macOS permission grants (Accessibility) to survive every rebuild? Run
+this once before building — it creates a stable self-signed identity so the app's
+signature stops changing:
 
 ```bash
-# Sticky orange notification
-curl -s -X POST http://127.0.0.1:53127/notification \
-  -H 'Content-Type: application/json' \
-  -d '{"message":"Hello from curl","cwd":"'"$PWD"'"}'
-
-# Sticky green completion
-curl -s -X POST http://127.0.0.1:53127/stop \
-  -H 'Content-Type: application/json' \
-  -d '{"title":"Tests passed","detail":"42 passing"}'
-
-# Blocking permission — terminal hangs until you click in the notch
-curl -s -X POST http://127.0.0.1:53127/permission \
-  -H 'Content-Type: application/json' \
-  -d '{"tool_name":"Bash","tool_input":{"command":"rm -rf node_modules"},"cwd":"'"$PWD"'"}'
-# → {"decision":"allow"}  (or deny/ask, based on your click)
+./tools/make-signing-cert.sh
 ```
 
-### With Claude Code
-
-After `./install.sh`:
-
-1. Open a Claude Code session in any project.
-2. Ask Claude to run a shell command, write a file, or edit something.
-3. The notch should expand at the top of your screen with the command shown
-   and three buttons. Whatever you click is what Claude Code does next —
-   you never have to switch back to the IDE for the prompt.
-
-Tools matched: `Bash`, `Write`, `Edit`, `MultiEdit`. Other tools (Read, Grep,
-Glob, etc.) keep using Claude Code's normal permission flow so you're not
-pestered for every read.
-
-If ClaudeNotch isn't running, the hook silently falls back to `ask` —
-Claude Code shows its own prompt as if the hook wasn't there.
+</details>
 
 ---
 
-## How the blocking permission works
+## 🎮 Try it in 30 seconds
+
+After installing, you don't even need Claude Code to see it work:
+
+> Click the menu-bar **bell → Demo: tool permission**. The notch should expand
+> with a sample command and Allow / Deny buttons.
+
+Then, with a real session:
+
+1. Open Claude Code in any project.
+2. Ask it to run a command, write a file, or edit something.
+3. The notch expands at the top of your screen with the details and buttons.
+   **Whatever you click is what Claude does next** — no need to switch back.
+
+ClaudeNotch only intercepts the tools that matter (`Bash`, `Write`, `Edit`,
+`MultiEdit`). Quiet ones like reading and searching files use Claude Code's
+normal flow, so you're not pestered for every little thing. And if ClaudeNotch
+isn't running, Claude Code just shows its own prompt as usual — nothing breaks.
+
+---
+
+## ⌨️ Keyboard shortcuts
+
+| Key | Action |
+|-----|--------|
+| **Enter** | Allow the current permission (or confirm the focused card) |
+| **Esc** | Deny / dismiss the current card |
+| **⌥⌘N** | Open the quick message composer from anywhere |
+
+> Keyboard control needs macOS **Accessibility** permission (System Settings →
+> Privacy & Security → Accessibility). The app will prompt you the first time.
+
+---
+
+## 🔒 Privacy
+
+Everything stays on your machine. ClaudeNotch talks to Claude Code over a
+**localhost-only** connection (`127.0.0.1`) and never sends your prompts,
+commands, or code anywhere. No accounts, no telemetry, no servers.
+
+---
+
+## 🧠 How it works
 
 ```
-Claude Code  ── PreToolUse hook fires ─▶  claudenotch-permission.sh
-                                                  │
-                                                  ▼
-                                            POST /permission
-                                                  │  (curl --max-time 290)
-                                                  ▼
-                                          ClaudeNotch (Swift)
-                                                  │
-                                            shows notch card
-                                                  │
-                                            user clicks Allow
-                                                  │
-                                                  ▼
-                                          {"decision":"allow"}
-                                                  │
-                                                  ▼
-                              hook prints JSON to Claude Code stdout:
-                              { "hookSpecificOutput":
-                                { "permissionDecision":"allow" } }
-                                                  │
-                                                  ▼
-                                       Claude Code runs the tool
+Claude Code  ──▶  PreToolUse hook  ──▶  POST /permission  ──▶  ClaudeNotch
+                                                                    │
+                                                          notch shows the card
+                                                                    │
+                                                            you click Allow
+                                                                    │
+                                          {"decision":"allow"}  ◀───┘
+                                                    │
+                                                    ▼
+                                          Claude Code runs the tool
 ```
 
-The connection is held open server-side using a `DispatchSemaphore`. Timeout
-is 285 s (just under the 290 s curl timeout, which is just under Claude
-Code's hook timeout). On any failure path — server not running, jq missing,
-timeout — the hook returns `ask`, which falls through to Claude Code's own
-prompt. No way to deadlock Claude.
+The hook holds the connection open while it waits for your click. If anything
+goes wrong — app not running, timeout, missing dependency — it safely falls back
+to Claude Code's own prompt, so there's no way to get stuck.
 
 ---
 
-## Endpoints
+## ❓ FAQ
 
-| Endpoint              | Method | Behavior |
-| --------------------- | ------ | -------- |
-| `POST /permission`    | block  | Holds the connection open. Body: `{tool_name, tool_input, cwd}`. Responds with `{"decision":"allow"\|"deny"\|"ask"}` when user clicks. |
-| `POST /notification`  | async  | Sticky orange card with *Open IDE* / *Dismiss*. |
-| `POST /stop`          | async  | Sticky green completion. |
-| `POST /pretool`       | async  | Brief blue thinking pulse (auto-fades ~8 s). |
-| `POST /ping`          | async  | Liveness probe. |
+**Is it free?**
+Yes — free and open source (MIT). The full source lives right here on GitHub.
 
----
+**Why does macOS warn me on first open?**
+It isn't notarized through Apple's paid program yet. Right-click the app → **Open**
+once, and you're set from then on.
 
-## Always-allow
+**Does it send my data anywhere?**
+No. Everything runs locally over a localhost hook. Nothing leaves your machine.
 
-Click *Always allow Bash* on a permission card → that tool auto-approves for
-the rest of the session (no notch shown, hook returns `allow` immediately).
+**Which AI tools does it support?**
+Claude Code today. Support for more agents may come as the project grows.
 
-Clear via menu-bar bell → *Always-allowed: …* (click to reset). Not persisted
-across restarts — by design, in case you ever say *always allow* to `rm -rf`.
-
----
-
-## Multi-screen
-
-The notch follows the screen your mouse is on, recomputed on each state
-change. If you've moved to a different display since the last event, the next
-one appears where you're actually looking.
+**Can I uninstall the hooks?**
+Yes — your `settings.json` is backed up during setup, and there's an uninstall
+script (below) to remove everything cleanly.
 
 ---
 
-## Layout
-
-```
-Sources/ClaudeNotch/
-  main.swift                  — bootstrap as a .accessory app (no Dock)
-  AppDelegate.swift           — wires window, menu bar, HTTP server
-  AppState.swift              — @MainActor state + frontmost-app tracker
-  NotchView.swift             — SwiftUI: idle / thinking / permission / completed
-  NotchWindowController.swift — borderless NSPanel, follows current screen
-  MenuBarController.swift     — NSStatusItem, login-item toggle, allowlist
-  EventServer.swift           — NWListener HTTP/1.1, blocking permission handler
-
-bin/
-  claudenotch-permission.sh   — PreToolUse hook (blocking)
-  claudenotch-notify.sh       — Notification hook (fire-and-forget)
-  claudenotch-stop.sh         — Stop hook (fire-and-forget)
-  install-hooks.sh            — jq-merges hooks into ~/.claude/settings.json
-  uninstall-hooks.sh          — removes them, idempotent
-build.sh                      — produces ClaudeNotch.app
-install.sh                    — copies to /Applications + runs install-hooks.sh
-```
-
----
-
-## Uninstall
+## 🧹 Uninstall
 
 ```bash
-~/.claudenotch/bin/uninstall-hooks.sh   # remove from ~/.claude/settings.json
+~/.claudenotch/bin/uninstall-hooks.sh        # unwire from Claude Code
 rm -rf /Applications/ClaudeNotch.app ~/.claudenotch
 ```
 
 ---
 
-## Known limits
+## 🛠️ For the curious — project layout
 
-- *Always-allow* is session-scoped only (intentional).
-- No global keyboard shortcuts for Allow/Deny — the notch is a non-activating
-  panel and can't reliably capture keys without Accessibility permissions.
-  Click-only for now.
-- Hook scripts require `jq` and `nc` (both preinstalled on macOS, except `jq`
-  which needs `brew install jq`).
+<details>
+<summary>Click to expand</summary>
+
+```
+Sources/ClaudeNotch/
+  main.swift                  — boots as a menu-bar accessory app (no Dock)
+  AppDelegate.swift           — wires window, menu bar, HTTP server
+  AppState.swift              — app state + frontmost-app tracking
+  NotchView.swift             — the SwiftUI notch UI + animations
+  NotchShape.swift            — the concave "Dynamic Island" shape
+  NotchWindowController.swift — borderless panel that follows your screen
+  KeyboardMonitor.swift       — Enter/Esc handling without stealing focus
+  GlobalHotkey.swift          — the ⌥⌘N composer shortcut
+  EventServer.swift           — localhost HTTP server + blocking permission
+  MenuBarController.swift     — the menu-bar bell and its menu
+  HookInstaller.swift         — wires/unwires Claude Code hooks in-app
+  TerminalAutomator.swift     — "Start Claude in folder"
+  OnboardingView.swift        — first-run setup flow
+  Persistence.swift           — saves your always-allow rules & history
+
+bin/                          — the Claude Code hook scripts
+build.sh                      — builds ClaudeNotch.app
+install.sh                    — installs to /Applications + wires hooks
+tools/                        — DMG builder, icon generators, signing cert
+```
+
+**Localhost endpoints** (for tinkering):
+
+| Endpoint | What it does |
+|----------|--------------|
+| `POST /permission` | Blocks until you click; returns `{"decision":"allow\|deny\|ask"}` |
+| `POST /notification` | Sticky orange "needs your input" card |
+| `POST /stop` | Sticky green "task done" card |
+| `POST /pretool` | Brief blue thinking pulse |
+| `POST /ping` | Liveness check |
+
+</details>
+
+---
+
+## 👋 Made by Roshan Ramani
+
+If ClaudeNotch saves you a few context switches, a ⭐ on the repo means a lot.
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Roshan_Ramani-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/roshan-ramani-0510102b2)
+&nbsp;
+[![X](https://img.shields.io/badge/X-@roshanramani007-000000?logo=x&logoColor=white)](https://x.com/roshanramani007)
+
+Found a bug or have an idea? [Open an issue](https://github.com/rawsun007/claude-mac-notch/issues) — feedback welcome.
+
+---
+
+## 📄 License
+
+MIT © Roshan Ramani — free to use, fork, and build on.
+
+<div align="center">
+<sub>
+
+**ClaudeNotch** · a Dynamic Island / notch overlay for Claude Code on macOS ·
+permission prompts, diffs & notifications in your menu bar · Swift · open source
+
+</sub>
+</div>
