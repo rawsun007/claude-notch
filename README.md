@@ -251,10 +251,5 @@ Found a bug or have an idea? [Open an issue](https://github.com/rawsun007/claude
 MIT © Roshan Ramani — free to use, fork, and build on.
 
 <div align="center">
-<sub>
-
-**ClaudeNotch** · a Dynamic Island / notch overlay for Claude Code on macOS ·
-permission prompts, diffs & notifications in your menu bar · Swift · open source
-
-</sub>
+<sub><b>ClaudeNotch</b> — a Dynamic Island / notch overlay for Claude Code on macOS · permission prompts, diffs &amp; notifications in your menu bar · Swift · open source</sub>
 </div>
