@@ -75,6 +75,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         addDemo("Tool Permission",      #selector(triggerDemoPermission), "p")
         addDemo("Destructive Command",  #selector(triggerDemoDangerous),  "d")
         addDemo("Edit with Diff Preview", #selector(triggerDemoDiff),     "e")
+        addDemo("Auto-Approve (Live Activity)", #selector(triggerDemoAutoApprove), "")
         addDemo("Notification",         #selector(triggerDemoNotification), "n")
         addDemo("Task Complete",        #selector(triggerDemoCompleted),  "c")
         addDemo("Thinking Pulse",       #selector(triggerDemoThinking),   "t")
@@ -266,7 +267,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 NSLog("Demo permission resolved: \(decision.rawValue)")
             }
         )
-        state.enqueuePermission(req)
+        state.enqueuePermission(req, bypassRules: true)
     }
 
     /// Destructive command demo — exercises the red banner + hold-to-allow
@@ -287,7 +288,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 NSLog("Demo dangerous resolved: \(decision.rawValue)")
             }
         )
-        state.enqueuePermission(req)
+        state.enqueuePermission(req, bypassRules: true)
     }
 
     /// Edit demo — exercises the diff-preview block (red old / green new).
@@ -312,7 +313,31 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 NSLog("Demo diff resolved: \(decision.rawValue)")
             }
         )
-        state.enqueuePermission(req)
+        state.enqueuePermission(req, bypassRules: true)
+    }
+
+    /// Auto-approve demo — shows the button-less "live activity" card exactly
+    /// as it appears when Auto-Approve silently allows an edit.
+    @objc private func triggerDemoAutoApprove() {
+        let oldText = "timeout = 30"
+        let newText = "timeout = 60"
+        let toolInput: [String: Any] = [
+            "file_path": "/Users/example/config.swift",
+            "old_string": oldText,
+            "new_string": newText
+        ]
+        let preview = ToolPreviewParser.preview(for: "Edit", input: toolInput)
+        let req = PermissionRequest(
+            kind: .toolUse,
+            title: "Edit file",
+            detail: "/Users/example/config.swift",
+            toolName: "Edit",
+            source: "Demo",
+            cwd: "/Users/example",
+            preview: preview,
+            resolver: { _ in }
+        )
+        state.demoAutoApprove(req)
     }
 
     @objc private func triggerDemoNotification() {
@@ -324,7 +349,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             source: "Demo",
             cwd: "",
             resolver: { _ in }
-        ))
+        ), bypassRules: true)
     }
 
     @objc private func triggerDemoCompleted() {

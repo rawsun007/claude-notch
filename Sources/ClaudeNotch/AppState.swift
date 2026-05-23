@@ -525,8 +525,12 @@ final class AppState: ObservableObject {
     private var thinkingExpiresAt: Date?
     private var thinkingTask: Task<Void, Never>?
 
-    func enqueuePermission(_ req: PermissionRequest) {
-        if let matched = allowRules.first(where: { $0.matches(req) }) {
+    /// `bypassRules: true` skips the always-allow and auto-approve
+    /// short-circuits so the card is always shown — used by the menu-bar demos,
+    /// which must demonstrate the UI even if the user has Bash always-allowed
+    /// or Auto-Approve turned on.
+    func enqueuePermission(_ req: PermissionRequest, bypassRules: Bool = false) {
+        if !bypassRules, let matched = allowRules.first(where: { $0.matches(req) }) {
             // Auto-allowed by a rule the user installed earlier. Still
             // log it to history so they can see what we approved silently.
             appendHistory(HistoryEntry(
@@ -545,7 +549,7 @@ final class AppState: ObservableObject {
         // Auto-approve mode: allow immediately and show a brief, button-less
         // "live activity" card of what's changing. Dangerous commands are
         // exempt — they still require an explicit hold-to-confirm.
-        if autoApprove, req.kind == .toolUse, !req.isDangerous {
+        if !bypassRules, autoApprove, req.kind == .toolUse, !req.isDangerous {
             req.resolver(.allow)
             appendHistory(HistoryEntry(
                 timestamp: Date(),
@@ -597,6 +601,12 @@ final class AppState: ObservableObject {
                 self.recompute()
             }
         }
+    }
+
+    /// Demo entry point: show the auto-approve "live activity" card exactly as
+    /// it appears when Auto-Approve silently allows a tool call.
+    func demoAutoApprove(_ req: PermissionRequest) {
+        showAutoInfo(req)
     }
 
     func dismissAutoInfo() {
