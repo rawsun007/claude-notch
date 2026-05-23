@@ -43,10 +43,12 @@ openssl pkcs12 -export -legacy -inkey "$TMP/key.pem" -in "$TMP/cert.pem" \
   || openssl pkcs12 -export -inkey "$TMP/key.pem" -in "$TMP/cert.pem" \
     -out "$TMP/id.p12" -passout pass:claudenotch -name "$CN" >/dev/null 2>&1
 
-# Import the identity and let codesign use the private key without prompting.
-security import "$TMP/id.p12" -k "$KEYCHAIN" -P claudenotch \
-    -T /usr/bin/codesign -T /usr/bin/security >/dev/null 2>&1
+# Import with -A so codesign can use the private key without an ACL prompt
+# (no keychain password needed). The cert stays untrusted, which is fine —
+# signing only needs the key, and TCC matches the (stable) cert, not trust.
+security import "$TMP/id.p12" -k "$KEYCHAIN" -P claudenotch -A >/dev/null 2>&1
 
 echo "✓ Created signing identity: $CN"
-echo "  Now run ./build.sh — it will sign with this identity automatically."
-echo "  (The first codesign may prompt to allow keychain access — click Always Allow.)"
+echo "  Now run ./build.sh && ./install.sh — builds are signed with this"
+echo "  stable identity, so your Accessibility / Input Monitoring grants"
+echo "  persist across rebuilds and updates."

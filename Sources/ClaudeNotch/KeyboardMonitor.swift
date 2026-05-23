@@ -27,14 +27,33 @@ final class KeyboardMonitor {
 
     init(state: AppState) { self.state = state }
 
+    private var retryTimer: Timer?
+
     func start() {
         stop()
         installEventTap()
         installLocalMonitor()
-        if !hasEventTap { installGlobalMonitorFallback() }
+        if !hasEventTap {
+            installGlobalMonitorFallback()
+            // The tap fails until Accessibility is trusted (e.g. right after a
+            // reinstall changed our signature). Retry so it activates the
+            // moment the user re-grants — no relaunch needed.
+            retryTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self, !self.hasEventTap else { return }
+                    self.installEventTap()
+                    if self.hasEventTap {
+                        self.dbg("event tap activated on retry")
+                        if let g = self.globalMonitor { NSEvent.removeMonitor(g); self.globalMonitor = nil }
+                        self.retryTimer?.invalidate(); self.retryTimer = nil
+                    }
+                }
+            }
+        }
     }
 
     func stop() {
+        retryTimer?.invalidate(); retryTimer = nil
         if let l = localMonitor { NSEvent.removeMonitor(l); localMonitor = nil }
         if let g = globalMonitor { NSEvent.removeMonitor(g); globalMonitor = nil }
         if let src = runLoopSource { CFRunLoopRemoveSource(CFRunLoopGetCurrent(), src, .commonModes); runLoopSource = nil }
@@ -60,6 +79,7 @@ final class KeyboardMonitor {
             userInfo: ptr
         ) else {
             hasEventTap = false
+            dbg("event tap FAILED to create (accessibility not trusted?)")
             return
         }
         let src = CFMachPortCreateRunLoopSource(nil, tap, 0)
@@ -68,6 +88,15 @@ final class KeyboardMonitor {
         eventTap = tap
         runLoopSource = src
         hasEventTap = true
+        dbg("event tap CREATED")
+    }
+
+    private func dbg(_ s: String) {
+        let url = URL(fileURLWithPath: "/tmp/claudenotch-debug.log")
+        let line = "[\(Date())] kbd: \(s)\n"
+        guard let d = line.data(using: .utf8) else { return }
+        if let h = try? FileHandle(forWritingTo: url) { h.seekToEndOfFile(); h.write(d); try? h.close() }
+        else { try? d.write(to: url) }
     }
 
     private func tapCallback(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {

@@ -53,12 +53,15 @@ PLIST
 # Prefer a stable self-signed identity (so TCC permission grants persist
 # across rebuilds — see tools/make-signing-cert.sh). Fall back to ad-hoc.
 SIGN_ID="ClaudeNotch Code Signing"
+# Use the stable identity ONLY if it's valid for code signing (trusted +
+# usable key). An untrusted/keyless leftover is skipped so codesign never
+# blocks on a keychain prompt. Falls back to ad-hoc.
 if security find-identity -v -p codesigning 2>/dev/null | grep -q "$SIGN_ID"; then
     echo "→ Code signing with stable identity ($SIGN_ID)"
     codesign --force --deep --sign "$SIGN_ID" "$APP" 2>/dev/null \
         || codesign --force --deep --sign - "$APP" 2>/dev/null || true
 else
-    echo "→ Ad-hoc code signing (run tools/make-signing-cert.sh once so permissions persist across updates)"
+    echo "→ Ad-hoc code signing"
     codesign --force --deep --sign - "$APP" 2>/dev/null || true
 fi
 

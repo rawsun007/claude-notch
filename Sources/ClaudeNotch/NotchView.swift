@@ -334,7 +334,7 @@ struct NotchView: View {
             HistoryCard(state: state)
                 .transition(.opacity)
         case .autoInfo(let req):
-            AutoInfoCard(request: req)
+            AutoInfoCard(request: req) { state.dismissAutoInfo() }
                 .transition(.opacity)
         }
     }
@@ -1191,6 +1191,7 @@ private struct CompletedCard: View {
 
 private struct AutoInfoCard: View {
     let request: PermissionRequest
+    var onDismiss: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1207,11 +1208,9 @@ private struct AutoInfoCard: View {
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.55))
                 Spacer()
-                if !request.cwd.isEmpty {
-                    Text((request.cwd as NSString).lastPathComponent)
-                        .font(.system(size: 10, design: .rounded))
-                        .foregroundColor(.white.opacity(0.4))
-                }
+                Text("click to dismiss")
+                    .font(.system(size: 9, design: .rounded))
+                    .foregroundColor(.white.opacity(0.3))
             }
             Text(request.title)
                 .font(.system(size: 14, weight: .semibold))
@@ -1225,6 +1224,8 @@ private struct AutoInfoCard: View {
                     .truncationMode(.middle)
             }
         }
+        .contentShape(Rectangle())
+        .onTapGesture { onDismiss() }
     }
 }
 
