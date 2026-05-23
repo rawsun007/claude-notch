@@ -17,6 +17,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var statusItem: NSMenuItem!
     private var autoApproveItem: NSMenuItem!
     private var muteItem: NSMenuItem!
+    private var updateItem: NSMenuItem!
+    private var checkUpdateItem: NSMenuItem!
     private var cancellables = Set<AnyCancellable>()
     private var permissionsTimer: Timer?
     private var isMenuOpen = false
@@ -43,6 +45,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         statusItem = NSMenuItem(title: "No Active Session", action: #selector(clearSession), keyEquivalent: "")
         statusItem.target = self
         menu.addItem(statusItem)
+
+        // Hidden until the update checker finds a newer release.
+        updateItem = NSMenuItem(title: "Update available", action: #selector(openUpdate), keyEquivalent: "")
+        updateItem.target = self
+        updateItem.isHidden = true
+        menu.addItem(updateItem)
 
         menu.addItem(.separator())
 
@@ -124,6 +132,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         setupItem.target = self
         menu.addItem(setupItem)
 
+        checkUpdateItem = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdatesNow), keyEquivalent: "")
+        checkUpdateItem.target = self
+        menu.addItem(checkUpdateItem)
+
         menu.addItem(.separator())
 
         let quit = NSMenuItem(title: "Quit ClaudeNotch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -162,6 +174,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 self.refreshPermissions()
             }
         }
+
+        // Update checker: surfaces "Update available" in the menu when a newer
+        // release is published. Callbacks fire on the main thread.
+        UpdateChecker.shared.onUpdateAvailable = { [weak self] version in
+            self?.showUpdateAvailable(version)
+        }
+        UpdateChecker.shared.onUpToDate = { [weak self] in
+            self?.presentUpToDate()
+        }
+        UpdateChecker.shared.start()
     }
 
     // NSMenuDelegate — pause background refreshes while the user is in the menu
@@ -444,6 +466,41 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func showOnboarding() {
         onboarding.show()
+    }
+
+    // MARK: - Updates
+
+    private func showUpdateAvailable(_ version: String) {
+        updateItem.title = "↑ Update available: v\(version) — Download"
+        updateItem.isHidden = false
+    }
+
+    @objc private func openUpdate() {
+        if let url = URL(string: UpdateChecker.shared.releasesPage) {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    @objc private func checkForUpdatesNow() {
+        checkUpdateItem.title = "Checking for Updates…"
+        checkUpdateItem.isEnabled = false
+        UpdateChecker.shared.check(userInitiated: true)
+        // Re-enable shortly; callbacks restore the title.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+            self?.checkUpdateItem.title = "Check for Updates…"
+            self?.checkUpdateItem.isEnabled = true
+        }
+    }
+
+    private func presentUpToDate() {
+        checkUpdateItem.title = "Check for Updates…"
+        checkUpdateItem.isEnabled = true
+        let alert = NSAlert()
+        alert.messageText = "You're up to date"
+        alert.informativeText = "ClaudeNotch v\(UpdateChecker.shared.currentVersion) is the latest version."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 
     @objc private func toggleAutoApprove() {
