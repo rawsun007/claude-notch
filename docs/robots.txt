@@ -1,0 +1,4 @@
+User-Agent: *
+Allow: /
+
+Sitemap: https://rawsun007.github.io/claude-notch/sitemap.xml
