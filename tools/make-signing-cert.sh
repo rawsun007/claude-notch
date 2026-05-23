@@ -13,7 +13,7 @@ set -euo pipefail
 CN="ClaudeNotch Code Signing"
 KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 
-if security find-identity -v -p codesigning 2>/dev/null | grep -q "$CN"; then
+if security find-identity 2>/dev/null | grep -q "$CN"; then
     echo "✓ Signing identity already present: $CN"
     exit 0
 fi
