@@ -96,13 +96,25 @@ enum ToolPreviewParser {
         let scrubbed = stripQuotedAndHeredocs(command)
         var reasons: [String] = []
 
+        // Custom, robust check for rm -rf variants
+        if matches(#"\brm\s+"#, in: scrubbed, options: []) {
+            let commands = scrubbed.components(separatedBy: CharacterSet(charactersIn: ";|&"))
+            for cmd in commands {
+                if matches(#"\brm\s+"#, in: cmd, options: []) {
+                    let hasR = matches(#"\s-[a-zA-Z]*[rR]"#, in: cmd, options: []) || matches(#"\s--recursive\b"#, in: cmd, options: [])
+                    let hasF = matches(#"\s-[a-zA-Z]*[fF]"#, in: cmd, options: []) || matches(#"\s--force\b"#, in: cmd, options: [])
+                    
+                    if hasR && hasF {
+                        reasons.append("rm -rf — deletes files recursively without prompting")
+                        break
+                    }
+                }
+            }
+        }
+
         // Test in (rough) order of severity. Each entry: regex (case-
         // insensitive where it makes sense) → reason string.
         let patterns: [(String, NSRegularExpression.Options, String)] = [
-            (#"\brm\s+-[a-zA-Z]*[rR][a-zA-Z]*[fF]"#, [],
-             "rm -rf — deletes files recursively without prompting"),
-            (#"\brm\s+-[a-zA-Z]*[fF][a-zA-Z]*[rR]"#, [],
-             "rm -rf — deletes files recursively without prompting"),
             (#"\bsudo\b"#, [],
              "sudo — runs with root privileges"),
             (#"\bgit\s+push\b.*(--force\b|--force-with-lease\b|\s-f\b)"#, [],
