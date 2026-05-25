@@ -10,6 +10,7 @@ enum Persistence {
         var recentProjects: [String]
         var autoApprove: Bool? = nil
         var soundMuted: Bool? = nil
+        var stats: UsageStats? = nil
     }
 
     static let storeURL: URL = {

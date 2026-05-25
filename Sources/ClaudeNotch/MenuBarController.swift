@@ -19,6 +19,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var muteItem: NSMenuItem!
     private var updateItem: NSMenuItem!
     private var checkUpdateItem: NSMenuItem!
+    private var insightsMenu: NSMenu!
+    private var insightsItem: NSMenuItem!
     private var cancellables = Set<AnyCancellable>()
     private var permissionsTimer: Timer?
     private var isMenuOpen = false
@@ -90,6 +92,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let demosItem = NSMenuItem(title: "Demos", action: nil, keyEquivalent: "")
         demosItem.submenu = demosMenu
         menu.addItem(demosItem)
+
+        // Insights — local usage stats (rebuilt each time the menu opens).
+        insightsMenu = NSMenu()
+        insightsItem = NSMenuItem(title: "Insights", action: nil, keyEquivalent: "")
+        insightsItem.submenu = insightsMenu
+        menu.addItem(insightsItem)
 
         // Permissions & setup — grouped into a submenu.
         let permsMenu = NSMenu()
@@ -164,6 +172,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshRecentProjects()
         refreshStatusLine()
         refreshPrefs()
+        refreshInsights()
 
         // Slower poll (12s) so background ticks don't compete with menu redraw
         // — we also explicitly refresh just-in-time when the menu opens.
@@ -196,6 +205,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             self.refreshStatusLine()
             self.refreshRecentProjects()
             self.refreshPrefs()
+            self.refreshInsights()
         }
     }
 
@@ -511,6 +521,39 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func toggleMute() {
         state.setSoundMuted(!state.soundMuted)
         refreshPrefs()
+    }
+
+    private func refreshInsights() {
+        insightsMenu.removeAllItems()
+        let s = state.stats
+
+        func row(_ title: String, enabled: Bool = false) {
+            let mi = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            mi.isEnabled = enabled
+            insightsMenu.addItem(mi)
+        }
+
+        row("This session:  \(state.sessionTools) tools · \(state.sessionAllowed) allowed · \(state.sessionDenied) denied")
+        insightsMenu.addItem(.separator())
+        row("Approved:  \(s.allowed)   (\(s.autoApproved) auto)")
+        row("Denied:  \(s.denied)")
+        row("Risky commands flagged:  \(s.dangerousFlagged)")
+        row("Questions answered:  \(s.questionsAnswered)")
+
+        let top = s.toolCounts.sorted { $0.value > $1.value }.prefix(5)
+        if !top.isEmpty {
+            insightsMenu.addItem(.separator())
+            row("Most-used tools")
+            for (tool, n) in top { row("    \(tool):  \(n)") }
+        }
+
+        insightsMenu.addItem(.separator())
+        row("Active days:  \(state.activeDayCount)    ·    Streak:  \(state.currentStreak)🔥")
+        if let first = s.firstUsed {
+            let df = DateFormatter()
+            df.dateStyle = .medium
+            row("Using ClaudeNotch since \(df.string(from: first))")
+        }
     }
 
     private func refreshPrefs() {

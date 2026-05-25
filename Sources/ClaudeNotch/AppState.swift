@@ -55,6 +55,20 @@ struct HistoryEntry: Identifiable, Equatable, Codable {
     }
 }
 
+/// Aggregate, all-time usage counters — accumulated locally and persisted to
+/// state.json. No event-by-event log beyond `history`; just running totals so
+/// the Insights menu can show "what ClaudeNotch has done for you".
+struct UsageStats: Codable {
+    var allowed: Int = 0
+    var denied: Int = 0
+    var autoApproved: Int = 0
+    var dangerousFlagged: Int = 0
+    var questionsAnswered: Int = 0
+    var toolCounts: [String: Int] = [:]
+    var activeDays: [String] = []   // yyyy-MM-dd, deduped, oldest→newest
+    var firstUsed: Date? = nil
+}
+
 /// One auto-approval rule. The `commandRegex` is optional: nil means
 /// "match any input for this tool" (the old tool-wide always-allow),
 /// non-nil means "this tool AND the command matches this regex".
@@ -213,6 +227,12 @@ final class AppState: ObservableObject {
     @Published var autoApprove: Bool = false   // auto-allow every permission
     @Published var soundMuted: Bool = false     // silence all notch sounds
 
+    // Usage stats — all-time (persisted) + this-session (in-memory).
+    @Published private(set) var stats = UsageStats()
+    private(set) var sessionTools = 0
+    private(set) var sessionAllowed = 0
+    private(set) var sessionDenied = 0
+
     /// Transient "live activity" card shown after an auto-approved action —
     /// shows WHAT changed, no buttons, auto-dismisses.
     @Published private(set) var autoInfo: PermissionRequest? = nil
@@ -269,7 +289,72 @@ final class AppState: ObservableObject {
             self.recentProjects = snapshot.recentProjects
             self.autoApprove = snapshot.autoApprove ?? false
             self.soundMuted = snapshot.soundMuted ?? false
+            self.stats = snapshot.stats ?? UsageStats()
         }
+    }
+
+    // MARK: - Usage stats
+
+    static func dayKey(_ d: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: d)
+    }
+
+    private func markActiveToday() {
+        if stats.firstUsed == nil { stats.firstUsed = Date() }
+        let today = Self.dayKey(Date())
+        if stats.activeDays.last != today, !stats.activeDays.contains(today) {
+            stats.activeDays.append(today)
+            if stats.activeDays.count > 400 {
+                stats.activeDays = Array(stats.activeDays.suffix(400))
+            }
+        }
+    }
+
+    /// A tool permission was requested (shown or auto-handled).
+    private func recordToolRequested(_ toolName: String, dangerousShown: Bool) {
+        markActiveToday()
+        stats.toolCounts[toolName, default: 0] += 1
+        sessionTools += 1
+        if dangerousShown { stats.dangerousFlagged += 1 }
+        schedulePersist()
+    }
+
+    private func recordDecision(_ decision: PermissionDecision, auto: Bool) {
+        switch decision {
+        case .allow:
+            stats.allowed += 1; sessionAllowed += 1
+            if auto { stats.autoApproved += 1 }
+        case .deny:
+            stats.denied += 1; sessionDenied += 1
+        case .ask:
+            break
+        }
+        schedulePersist()
+    }
+
+    /// Distinct days ClaudeNotch handled something.
+    var activeDayCount: Int { Set(stats.activeDays).count }
+
+    /// Consecutive-day streak ending today (or yesterday if nothing yet today).
+    var currentStreak: Int {
+        let set = Set(stats.activeDays)
+        let cal = Calendar.current
+        var day = Date()
+        if !set.contains(Self.dayKey(day)) {
+            guard let y = cal.date(byAdding: .day, value: -1, to: day) else { return 0 }
+            day = y
+            if !set.contains(Self.dayKey(day)) { return 0 }
+        }
+        var streak = 0
+        while set.contains(Self.dayKey(day)) {
+            streak += 1
+            guard let prev = cal.date(byAdding: .day, value: -1, to: day) else { break }
+            day = prev
+        }
+        return streak
     }
 
     func setAutoApprove(_ on: Bool) { autoApprove = on; schedulePersist() }
@@ -288,7 +373,8 @@ final class AppState: ObservableObject {
             allowRules: allowRules,
             recentProjects: recentProjects,
             autoApprove: autoApprove,
-            soundMuted: soundMuted
+            soundMuted: soundMuted,
+            stats: stats
         ))
     }
 
@@ -542,6 +628,10 @@ final class AppState: ObservableObject {
                 project: (req.cwd as NSString).lastPathComponent,
                 outcome: req.kind == .notification ? .info : .allowed
             ))
+            if req.kind == .toolUse {
+                recordToolRequested(req.toolName, dangerousShown: false)
+                recordDecision(.allow, auto: true)
+            }
             req.resolver(.allow)
             return
         }
@@ -560,10 +650,15 @@ final class AppState: ObservableObject {
                 project: (req.cwd as NSString).lastPathComponent,
                 outcome: .allowed
             ))
+            recordToolRequested(req.toolName, dangerousShown: false)
+            recordDecision(.allow, auto: true)
             showAutoInfo(req)
             return
         }
 
+        if req.kind == .toolUse, req.source != "Demo" {
+            recordToolRequested(req.toolName, dangerousShown: req.isDangerous)
+        }
         permissionQueue.append(req)
         // Record notifications immediately — they don't have an Allow/Deny.
         if req.kind == .notification {
@@ -647,6 +742,11 @@ final class AppState: ObservableObject {
         if let answers, !answers.isEmpty {
             outcome = .answered(count: answers.flatMap { $0 }.count)
             title = first.questions.first?.text ?? "Question"
+            if first.source != "Demo" {
+                stats.questionsAnswered += 1
+                markActiveToday()
+                schedulePersist()
+            }
         } else {
             outcome = .dismissed
             title = first.questions.first?.text ?? "Question"
@@ -685,6 +785,7 @@ final class AppState: ObservableObject {
                 schedulePersist()
             }
         }
+        if first.kind == .toolUse, first.source != "Demo" { recordDecision(decision, auto: false) }
         first.resolver(decision)
         // Notifications were already logged at enqueue time.
         if first.kind != .notification {
@@ -720,6 +821,7 @@ final class AppState: ObservableObject {
                 remaining.append(req)   // never batch-allow a destructive command
                 continue
             }
+            if req.kind == .toolUse, req.source != "Demo" { recordDecision(decision, auto: false) }
             req.resolver(decision)
             if req.kind != .notification {
                 appendHistory(HistoryEntry(
