@@ -16,17 +16,14 @@ final class EventServer {
 
     private func recordTask(id: String, subject: String) {
         guard !id.isEmpty, !subject.isEmpty else { return }
-        taskRegistryLock.lock()
-        taskRegistry[id] = subject
-        taskRegistryLock.unlock()
+        taskRegistryLock.withLock {
+            taskRegistry[id] = subject
+        }
     }
 
     private func taskSubject(for id: String) -> String? {
         guard !id.isEmpty else { return nil }
-        taskRegistryLock.lock()
-        let s = taskRegistry[id]
-        taskRegistryLock.unlock()
-        return s
+        return taskRegistryLock.withLock { taskRegistry[id] }
     }
 
     /// Best-effort: pull a task id out of TaskCreate's response, which Claude
@@ -400,9 +397,7 @@ final class EventServer {
                 preview: preview,
                 dangerReasons: dangers,
                 resolver: { d in
-                    lock.lock()
-                    decision = d
-                    lock.unlock()
+                    lock.withLock { decision = d }
                     semaphore.signal()
                 }
             )
@@ -415,7 +410,7 @@ final class EventServer {
             if result == .timedOut {
                 final = .ask
             } else {
-                lock.lock(); final = decision; lock.unlock()
+                final = lock.withLock { decision }
             }
             let body = "{\"decision\":\"\(final.rawValue)\"}"
             self?.send(body: body, on: conn)
@@ -459,14 +454,14 @@ final class EventServer {
         Task { @MainActor [weak state] in
             guard let state else { return }
             let frontBID = Self.capturedOriginator(state: state)
-            lock.lock(); capturedOriginatorBID = frontBID; lock.unlock()
+            lock.withLock { capturedOriginatorBID = frontBID }
             let req = QuestionRequest(
                 questions: parsed,
                 source: "Claude Code",
                 cwd: cwd,
                 originatorBundleID: frontBID,
                 resolver: { ans in
-                    lock.lock(); answers = ans; lock.unlock()
+                    lock.withLock { answers = ans }
                     semaphore.signal()
                 }
             )
@@ -482,7 +477,7 @@ final class EventServer {
                 return
             }
 
-            lock.lock(); let ans = answers; let originatorBID = capturedOriginatorBID; lock.unlock()
+            let (ans, originatorBID) = lock.withLock { (answers, capturedOriginatorBID) }
             guard let ans else {
                 self?.send(body: "{\"cancelled\":true,\"reason\":\"user dismissed\"}", on: conn)
                 return
