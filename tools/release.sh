@@ -48,6 +48,22 @@ echo "  cask updated: version ${VERSION}, sha256 ${SHA:0:12}…"
 # 4. Commit the bump + cask and push so the tag points at this commit.
 git add build.sh Casks/claudenotch.rb
 git commit -m "Release v${VERSION}" >/dev/null
+
+# Wait for any in-progress GitHub Pages deploy to clear before pushing —
+# Pages refuses concurrent deploys, and our push will trigger a fresh one
+# even though docs/ didn't change in this commit. Skip silently if no
+# token is set or the API check fails.
+if [ -n "${GITHUB_TOKEN:-}" ]; then
+    for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+        in_prog=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" \
+            "https://api.github.com/repos/${REPO}/actions/runs?per_page=10&status=in_progress" \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(1 for r in d.get('workflow_runs',[]) if 'pages' in r.get('name','').lower()))" 2>/dev/null || echo "0")
+        [ "$in_prog" = "0" ] && break
+        echo "  waiting for in-progress Pages deploy to finish ($i/12)…"
+        sleep 10
+    done
+fi
+
 git push origin main >/dev/null
 echo "  committed + pushed version bump"
 
