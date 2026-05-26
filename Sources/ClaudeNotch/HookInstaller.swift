@@ -124,15 +124,15 @@ enum HookInstaller {
             try? existing.write(to: backupURL)
         }
 
+        // Non-destructive merge: keep any hooks the user already had at each
+        // event, drop any prior ClaudeNotch entry (so reinstalling doesn't
+        // duplicate), and append ours.
         var hooks = (settings["hooks"] as? [String: Any]) ?? [:]
-        let cmd: [String: Any] = ["type": "command", "command": shellQuote(hookEntryPoint)]
-        let withMatcher: [[String: Any]] = [["matcher": ".*", "hooks": [cmd]]]
-        let noMatcher: [[String: Any]] = [["hooks": [cmd]]]
-        hooks["PreToolUse"]       = withMatcher
-        hooks["PostToolUse"]      = withMatcher
-        hooks["UserPromptSubmit"] = noMatcher
-        hooks["Notification"]     = noMatcher
-        hooks["Stop"]             = noMatcher
+        appendHook(to: "PreToolUse", in: &hooks, matcher: ".*")
+        appendHook(to: "PostToolUse", in: &hooks, matcher: ".*")
+        appendHook(to: "UserPromptSubmit", in: &hooks, matcher: nil)
+        appendHook(to: "Notification", in: &hooks, matcher: nil)
+        appendHook(to: "Stop", in: &hooks, matcher: nil)
         settings["hooks"] = hooks
 
         do {
@@ -141,6 +141,29 @@ enum HookInstaller {
         } catch {
             throw InstallError.settingsWriteFailed(error.localizedDescription)
         }
+    }
+
+    /// Append our hook into an event's rule list without clobbering anything
+    /// the user already has there. Idempotent: any previous ClaudeNotch entry
+    /// for this event is removed first so reinstalling doesn't duplicate it.
+    private static func appendHook(to eventName: String, in hooks: inout [String: Any], matcher: String?) {
+        let cmd: [String: Any] = ["type": "command", "command": shellQuote(hookEntryPoint)]
+        var ourRule: [String: Any] = ["hooks": [cmd]]
+        if let m = matcher { ourRule["matcher"] = m }
+
+        var existingList = (hooks[eventName] as? [[String: Any]]) ?? []
+        existingList.removeAll { rule in
+            let subHooks = (rule["hooks"] as? [[String: Any]]) ?? []
+            return subHooks.contains { sub in
+                if sub["type"] as? String == "command",
+                   let c = sub["command"] as? String {
+                    return c.contains("claudenotch-hook.sh")
+                }
+                return false
+            }
+        }
+        existingList.append(ourRule)
+        hooks[eventName] = existingList
     }
 
     /// Shell-quote a path for embedding in a settings.json command string.
