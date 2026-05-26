@@ -17,11 +17,15 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var statusItem: NSMenuItem!
     private var autoApproveItem: NSMenuItem!
     private var autoApproveMenu: NSMenu!
-    private var muteItem: NSMenuItem!
     private var snoozeItem: NSMenuItem!
     private var snoozeMenu: NSMenu!
     private var soundItem: NSMenuItem!
     private var soundMenu: NSMenu!
+    // Keep-open row views for the Sound submenu — clicking these does not
+    // dismiss the menu, so the user can preview multiple sounds.
+    private var soundRowViews: [String: KeepOpenRowView] = [:]
+    private var muteRowView: KeepOpenRowView?
+    private var perToolRowView: KeepOpenRowView?
     private var updateItem: NSMenuItem!
     private var checkUpdateItem: NSMenuItem!
     private var insightsMenu: NSMenu!
@@ -139,14 +143,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         snoozeItem.submenu = snoozeMenu
         menu.addItem(snoozeItem)
 
-        // Sound submenu: mute + per-tool toggle + alert sound picker. The
-        // muteItem itself lives here now (used to be top-level).
+        // Sound submenu: mute + per-tool toggle + alert sound picker, all as
+        // keep-open rows so you can audition multiple sounds in one go.
         soundMenu = NSMenu()
         soundItem = NSMenuItem(title: "Sound", action: nil, keyEquivalent: "")
         soundItem.submenu = soundMenu
         menu.addItem(soundItem)
-        muteItem = NSMenuItem(title: "Mute Sounds", action: #selector(toggleMute), keyEquivalent: "")
-        muteItem.target = self
 
         menu.addItem(.separator())
 
@@ -558,23 +560,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshPrefs()
     }
 
-    @objc private func toggleMute() {
-        state.setSoundMuted(!state.soundMuted)
-        refreshPrefs()
-    }
-
-    @objc private func togglePerToolSounds() {
-        state.setPerToolSounds(!state.perToolSounds)
-        refreshPrefs()
-    }
-
-    @objc private func setSoundAction(_ sender: NSMenuItem) {
-        guard let name = sender.representedObject as? String else { return }
-        state.setAlertSound(name)
-        if !state.soundMuted { NSSound(named: NSSound.Name(name))?.play() }
-        refreshPrefs()
-    }
-
     @objc private func dismissDigest() {
         state.markDigestShown()
         refreshInsights()
@@ -659,27 +644,61 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private func refreshSoundMenu() {
         soundMenu.removeAllItems()
+        soundRowViews.removeAll()
 
-        muteItem.state = state.soundMuted ? .on : .off
-        muteItem.title = state.soundMuted ? "Sounds Muted" : "Mute Sounds"
-        soundMenu.addItem(muteItem)
+        // Mute toggle — keep-open so the user can toggle and then immediately
+        // pick / preview sounds without re-opening the menu.
+        let mute = KeepOpenRowView(
+            title: state.soundMuted ? "Sounds Muted" : "Mute Sounds",
+            checked: state.soundMuted
+        )
+        mute.handler = { [weak self] in
+            guard let self else { return }
+            self.state.setSoundMuted(!self.state.soundMuted)
+            self.muteRowView?.update(
+                title: self.state.soundMuted ? "Sounds Muted" : "Mute Sounds",
+                checked: self.state.soundMuted
+            )
+        }
+        let muteHolder = NSMenuItem()
+        muteHolder.view = mute
+        soundMenu.addItem(muteHolder)
+        muteRowView = mute
 
-        let perTool = NSMenuItem(title: "Per-tool sounds", action: #selector(togglePerToolSounds), keyEquivalent: "")
-        perTool.target = self
-        perTool.state = state.perToolSounds ? .on : .off
-        soundMenu.addItem(perTool)
+        // Per-tool toggle — keep-open.
+        let perTool = KeepOpenRowView(title: "Per-tool sounds", checked: state.perToolSounds)
+        perTool.handler = { [weak self] in
+            guard let self else { return }
+            self.state.setPerToolSounds(!self.state.perToolSounds)
+            self.perToolRowView?.update(title: "Per-tool sounds", checked: self.state.perToolSounds)
+        }
+        let perToolHolder = NSMenuItem()
+        perToolHolder.view = perTool
+        soundMenu.addItem(perToolHolder)
+        perToolRowView = perTool
 
         soundMenu.addItem(.separator())
-        let header = NSMenuItem(title: "Alert sound", action: nil, keyEquivalent: "")
+        let header = NSMenuItem(title: "Alert sound (click to preview)", action: nil, keyEquivalent: "")
         header.isEnabled = false
         soundMenu.addItem(header)
 
+        // Sound picker — keep-open per row, plays a preview on click.
         for sound in AppState.availableSounds {
-            let mi = NSMenuItem(title: sound, action: #selector(setSoundAction(_:)), keyEquivalent: "")
-            mi.target = self
-            mi.representedObject = sound
-            mi.state = (sound == state.alertSound) ? .on : .off
-            soundMenu.addItem(mi)
+            let row = KeepOpenRowView(title: sound, checked: sound == state.alertSound)
+            row.handler = { [weak self] in
+                guard let self else { return }
+                let previous = self.state.alertSound
+                self.state.setAlertSound(sound)
+                if !self.state.soundMuted {
+                    NSSound(named: NSSound.Name(sound))?.play()
+                }
+                self.soundRowViews[previous]?.update(title: previous, checked: false)
+                self.soundRowViews[sound]?.update(title: sound, checked: true)
+            }
+            let holder = NSMenuItem()
+            holder.view = row
+            soundMenu.addItem(holder)
+            soundRowViews[sound] = row
         }
     }
 
@@ -814,5 +833,81 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")
         alert.runModal()
+    }
+}
+
+/// A menu-row view that does NOT dismiss the surrounding menu when clicked,
+/// so the user can toggle / preview repeatedly in one open session.
+///
+/// Standard NSMenuItem actions tear down the menu the moment they fire. By
+/// using `NSMenuItem.view = KeepOpenRowView`, the click hits this view's
+/// `mouseDown` first and we deliberately don't propagate to `super`, so the
+/// menu's tracking loop keeps running.
+@MainActor
+final class KeepOpenRowView: NSView {
+    private let label = NSTextField(labelWithString: "")
+    private let check = NSImageView()
+    var handler: () -> Void = {}
+    private var trackingArea: NSTrackingArea?
+
+    init(title: String, checked: Bool, width: CGFloat = 220) {
+        super.init(frame: NSRect(x: 0, y: 0, width: width, height: 22))
+        wantsLayer = true
+        layer?.cornerRadius = 4
+
+        label.translatesAutoresizingMaskIntoConstraints = false
+        check.translatesAutoresizingMaskIntoConstraints = false
+        label.font = NSFont.menuFont(ofSize: 0)
+        label.textColor = .labelColor
+        check.contentTintColor = .labelColor
+        addSubview(check)
+        addSubview(label)
+        NSLayoutConstraint.activate([
+            check.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            check.centerYAnchor.constraint(equalTo: centerYAnchor),
+            check.widthAnchor.constraint(equalToConstant: 14),
+            check.heightAnchor.constraint(equalToConstant: 14),
+            label.leadingAnchor.constraint(equalTo: check.trailingAnchor, constant: 6),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -8),
+        ])
+        update(title: title, checked: checked)
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    func update(title: String, checked: Bool) {
+        label.stringValue = title
+        check.image = checked ? NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil) : nil
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        handler()
+        // Deliberately not calling super — that's what keeps the menu open.
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let t = trackingArea { removeTrackingArea(t) }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        layer?.backgroundColor = NSColor.selectedMenuItemColor.cgColor
+        label.textColor = .selectedMenuItemTextColor
+        check.contentTintColor = .selectedMenuItemTextColor
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        layer?.backgroundColor = NSColor.clear.cgColor
+        label.textColor = .labelColor
+        check.contentTintColor = .labelColor
     }
 }
