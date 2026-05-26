@@ -67,6 +67,17 @@ struct UsageStats: Codable {
     var toolCounts: [String: Int] = [:]
     var activeDays: [String] = []   // yyyy-MM-dd, deduped, oldest→newest
     var firstUsed: Date? = nil
+    /// Per-day counts (keyed yyyy-MM-dd) for the heatmap + daily digest.
+    var dailyCounts: [String: DayCounts] = [:]
+}
+
+struct DayCounts: Codable {
+    var allowed: Int = 0
+    var denied: Int = 0
+    var autoApproved: Int = 0
+    var dangerousFlagged: Int = 0
+    var tools: Int = 0   // total tool requests that day
+    var total: Int { allowed + denied }
 }
 
 /// One auto-approval rule. The `commandRegex` is optional: nil means
@@ -172,6 +183,11 @@ final class PermissionRequest: Identifiable, Equatable {
     let dangerReasons: [String]       // empty unless command matched a danger pattern
     let resolver: (PermissionDecision) -> Void
 
+    // For "group similar prompts": when the next request matches this one, we
+    // replace the queue item with a new one whose resolver fires both callbacks.
+    var groupCount: Int = 1
+    var originalDetail: String? = nil   // captured the first time we group
+
     init(kind: Kind, title: String, detail: String, toolName: String, source: String, cwd: String, originatorBundleID: String? = nil, preview: ToolPreview? = nil, dangerReasons: [String] = [], resolver: @escaping (PermissionDecision) -> Void) {
         self.kind = kind
         self.title = title
@@ -233,6 +249,27 @@ final class AppState: ObservableObject {
     private(set) var sessionAllowed = 0
     private(set) var sessionDenied = 0
 
+    // Timed auto-approve: when set, auto-approve turns itself off at this time.
+    // Not persisted, so a restart always reverts to the permanent toggle.
+    @Published private(set) var autoApproveUntil: Date? = nil
+    private var autoApproveTimer: Timer?
+
+    // Snooze: suppress non-blocking cards (notification + completed) until this
+    // time. Blocking permission cards always show — Claude is waiting on them.
+    @Published private(set) var snoozedUntil: Date? = nil
+    private var snoozeTimer: Timer?
+    var isSnoozed: Bool {
+        if let until = snoozedUntil { return until > Date() }
+        return false
+    }
+
+    // Sound preferences (persisted).
+    @Published var alertSound: String = "Funk"
+    @Published var perToolSounds: Bool = false
+
+    // Daily digest tracking — only shown once per day.
+    @Published private(set) var lastDigestDate: String? = nil
+
     /// Transient "live activity" card shown after an auto-approved action —
     /// shows WHAT changed, no buttons, auto-dismisses.
     @Published private(set) var autoInfo: PermissionRequest? = nil
@@ -290,6 +327,9 @@ final class AppState: ObservableObject {
             self.autoApprove = snapshot.autoApprove ?? false
             self.soundMuted = snapshot.soundMuted ?? false
             self.stats = snapshot.stats ?? UsageStats()
+            self.alertSound = snapshot.alertSound ?? "Funk"
+            self.perToolSounds = snapshot.perToolSounds ?? false
+            self.lastDigestDate = snapshot.lastDigestDate
         }
     }
 
@@ -318,20 +358,58 @@ final class AppState: ObservableObject {
         markActiveToday()
         stats.toolCounts[toolName, default: 0] += 1
         sessionTools += 1
-        if dangerousShown { stats.dangerousFlagged += 1 }
+        let today = Self.dayKey(Date())
+        var day = stats.dailyCounts[today] ?? DayCounts()
+        day.tools += 1
+        if dangerousShown {
+            stats.dangerousFlagged += 1
+            day.dangerousFlagged += 1
+        }
+        stats.dailyCounts[today] = day
+        pruneOldDailyCounts()
         schedulePersist()
     }
 
     private func recordDecision(_ decision: PermissionDecision, auto: Bool) {
+        let today = Self.dayKey(Date())
+        var day = stats.dailyCounts[today] ?? DayCounts()
         switch decision {
         case .allow:
             stats.allowed += 1; sessionAllowed += 1
-            if auto { stats.autoApproved += 1 }
+            day.allowed += 1
+            if auto { stats.autoApproved += 1; day.autoApproved += 1 }
         case .deny:
             stats.denied += 1; sessionDenied += 1
+            day.denied += 1
         case .ask:
             break
         }
+        stats.dailyCounts[today] = day
+        schedulePersist()
+    }
+
+    /// Keep the per-day map bounded so state.json doesn't grow forever.
+    private func pruneOldDailyCounts() {
+        guard stats.dailyCounts.count > 400 else { return }
+        let sorted = stats.dailyCounts.keys.sorted()
+        let drop = sorted.prefix(stats.dailyCounts.count - 400)
+        for k in drop { stats.dailyCounts.removeValue(forKey: k) }
+    }
+
+    /// Counts for "yesterday" (or nil if you weren't active yesterday).
+    var yesterdayCounts: DayCounts? {
+        let cal = Calendar.current
+        guard let y = cal.date(byAdding: .day, value: -1, to: Date()) else { return nil }
+        return stats.dailyCounts[Self.dayKey(y)]
+    }
+
+    var shouldShowDigest: Bool {
+        let today = Self.dayKey(Date())
+        return yesterdayCounts != nil && lastDigestDate != today
+    }
+
+    func markDigestShown() {
+        lastDigestDate = Self.dayKey(Date())
         schedulePersist()
     }
 
@@ -357,8 +435,67 @@ final class AppState: ObservableObject {
         return streak
     }
 
-    func setAutoApprove(_ on: Bool) { autoApprove = on; schedulePersist() }
+    func setAutoApprove(_ on: Bool) {
+        autoApprove = on
+        // Manual toggle cancels any in-progress timed window.
+        autoApproveTimer?.invalidate(); autoApproveTimer = nil
+        autoApproveUntil = nil
+        schedulePersist()
+    }
+
+    /// Turn auto-approve on for N minutes, then automatically turn it back off.
+    func enableAutoApprove(forMinutes minutes: Int) {
+        autoApprove = true
+        autoApproveUntil = Date().addingTimeInterval(Double(minutes) * 60)
+        autoApproveTimer?.invalidate()
+        autoApproveTimer = Timer.scheduledTimer(withTimeInterval: Double(minutes) * 60, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.autoApprove = false
+                self.autoApproveUntil = nil
+                self.autoApproveTimer = nil
+                self.schedulePersist()
+            }
+        }
+        // Don't persist autoApprove=true here — persistNow guards it.
+    }
+
     func setSoundMuted(_ on: Bool) { soundMuted = on; schedulePersist() }
+    func setAlertSound(_ name: String) { alertSound = name; schedulePersist() }
+    func setPerToolSounds(_ on: Bool) { perToolSounds = on; schedulePersist() }
+
+    /// Suppress non-blocking cards (notifications + completions) for N minutes.
+    /// Permission cards still show — Claude is blocking on them.
+    func snooze(forMinutes minutes: Int) {
+        snoozedUntil = Date().addingTimeInterval(Double(minutes) * 60)
+        snoozeTimer?.invalidate()
+        snoozeTimer = Timer.scheduledTimer(withTimeInterval: Double(minutes) * 60, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.snoozedUntil = nil
+                self?.snoozeTimer = nil
+            }
+        }
+    }
+
+    func cancelSnooze() {
+        snoozeTimer?.invalidate(); snoozeTimer = nil
+        snoozedUntil = nil
+    }
+
+    /// Friendly welcome card shown once at the end of the onboarding flow, so
+    /// first-time users immediately see what a ClaudeNotch card looks like.
+    func triggerWelcomeDemo() {
+        let req = PermissionRequest(
+            kind: .notification,
+            title: "Welcome to ClaudeNotch!",
+            detail: "Permissions, questions, and notifications from Claude Code will appear right here. Click Dismiss when you're ready.",
+            toolName: "Notification",
+            source: "Demo",
+            cwd: NSHomeDirectory(),
+            resolver: { _ in }
+        )
+        enqueuePermission(req, bypassRules: true)
+    }
 
     fileprivate func schedulePersist() {
         persistTimer?.invalidate()
@@ -372,9 +509,14 @@ final class AppState: ObservableObject {
             history: history,
             allowRules: allowRules,
             recentProjects: recentProjects,
-            autoApprove: autoApprove,
+            // Don't persist a timed auto-approve as a permanent ON — would
+            // get stuck on after a restart since the timer is gone.
+            autoApprove: autoApprove && autoApproveUntil == nil,
             soundMuted: soundMuted,
-            stats: stats
+            stats: stats,
+            alertSound: alertSound,
+            perToolSounds: perToolSounds,
+            lastDigestDate: lastDigestDate
         ))
     }
 
@@ -659,6 +801,53 @@ final class AppState: ObservableObject {
         if req.kind == .toolUse, req.source != "Demo" {
             recordToolRequested(req.toolName, dangerousShown: req.isDangerous)
         }
+
+        // Snooze: log notifications quietly, skip showing them.
+        if req.kind == .notification, isSnoozed {
+            appendHistory(HistoryEntry(
+                timestamp: Date(),
+                kind: .notification,
+                toolName: req.toolName,
+                title: req.title,
+                detail: req.detail + "  (snoozed)",
+                project: (req.cwd as NSString).lastPathComponent,
+                outcome: .info
+            ))
+            return
+        }
+
+        // Group similar tool requests: if the last queued item is the same tool
+        // with the same input and arrived in the last 5 seconds, fold this
+        // request into it. The merged item's resolver fires every callback.
+        if req.kind == .toolUse,
+           let last = permissionQueue.last,
+           last.kind == .toolUse,
+           last.toolName == req.toolName,
+           (last.originalDetail ?? last.detail) == req.detail,
+           Date().timeIntervalSince(last.receivedAt) < 5 {
+            let prev = last.resolver
+            let newReq = PermissionRequest(
+                kind: last.kind,
+                title: last.title,
+                detail: "(×\(last.groupCount + 1)) \(last.originalDetail ?? last.detail)",
+                toolName: last.toolName,
+                source: last.source,
+                cwd: last.cwd,
+                originatorBundleID: last.originatorBundleID,
+                preview: last.preview,
+                dangerReasons: last.dangerReasons,
+                resolver: { decision in
+                    prev(decision)
+                    req.resolver(decision)
+                }
+            )
+            newReq.groupCount = last.groupCount + 1
+            newReq.originalDetail = last.originalDetail ?? last.detail
+            permissionQueue[permissionQueue.count - 1] = newReq
+            recompute()
+            return
+        }
+
         permissionQueue.append(req)
         // Record notifications immediately — they don't have an Allow/Deny.
         if req.kind == .notification {
@@ -672,7 +861,7 @@ final class AppState: ObservableObject {
                 outcome: .info
             ))
         }
-        playAlert()
+        playAlert(toolName: req.toolName)
         recompute()
     }
 
@@ -713,6 +902,18 @@ final class AppState: ObservableObject {
     }
 
     func enqueueCompleted(_ task: CompletedTask) {
+        if isSnoozed {
+            appendHistory(HistoryEntry(
+                timestamp: Date(),
+                kind: .completed,
+                toolName: "Stop",
+                title: task.title,
+                detail: task.detail + "  (snoozed)",
+                project: (task.cwd as NSString).lastPathComponent,
+                outcome: .info
+            ))
+            return
+        }
         completedQueue.append(task)
         appendHistory(HistoryEntry(
             timestamp: Date(),
@@ -922,9 +1123,33 @@ final class AppState: ObservableObject {
         NSSound(named: NSSound.Name(name))?.play()
     }
 
-    private func playAlert() {
-        playSound("Funk")
+    private func playAlert(toolName: String? = nil) {
+        let name: String
+        if perToolSounds, let t = toolName {
+            name = Self.soundForTool(t)
+        } else {
+            name = alertSound
+        }
+        playSound(name)
     }
+
+    /// Distinct chime per tool when "Per-tool sounds" is enabled.
+    static func soundForTool(_ tool: String) -> String {
+        switch tool {
+        case "Bash":                  return "Funk"
+        case "Edit", "MultiEdit":     return "Pop"
+        case "Write", "NotebookEdit": return "Tink"
+        case "Notification":          return "Submarine"
+        default:                      return "Funk"
+        }
+    }
+
+    /// The set of system sounds we offer in the picker. macOS ships these
+    /// under /System/Library/Sounds.
+    static let availableSounds = [
+        "Funk", "Pop", "Tink", "Glass", "Submarine", "Hero", "Blow", "Bottle",
+        "Frog", "Morse", "Ping", "Purr", "Sosumi"
+    ]
 
     private func playChime() {
         playSound("Glass")
