@@ -24,25 +24,34 @@ cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 
 cat > "$STAGE/README.txt" <<'TXT'
-ClaudeNotch — install in 3 steps
-================================
+ClaudeNotch — first launch (one time)
+=====================================
 
 1. Drag  ClaudeNotch.app  onto the  Applications  folder (in this window).
 
-2. Open Applications, then RIGHT-CLICK ClaudeNotch → "Open".
-   (macOS asks once because the app isn't notarized — click "Open" again.
-    You only do this the very first time.)
+2. Open Applications and double-click ClaudeNotch.
+   macOS will block it the first time because the app is not notarized
+   through Apple's paid Developer program. Click "Done" on the warning.
 
-   If macOS still refuses: System Settings → Privacy & Security →
-   scroll down → "Open Anyway" next to ClaudeNotch.
+3. Open  System Settings -> Privacy & Security , scroll to the Security
+   section, and click "Open Anyway" next to ClaudeNotch.
+   Click "Open" in the confirmation dialog that follows.
 
-3. The setup window appears. Grant Accessibility + Input Monitoring,
-   click "Install" to wire up Claude Code hooks, and you're done.
+   (On macOS Sonoma and earlier, right-click ClaudeNotch -> "Open" still
+    works as a faster bypass.)
+
+4. The Setup window appears. Grant Accessibility + Input Monitoring,
+   click "Install" to wire up the Claude Code hooks, and you are done.
 
 Then start Claude Code in any terminal and your permission prompts,
 questions, and notifications show up in the notch instead of the terminal.
 
-Tip: press  ⌥⌘N  anywhere to type a message straight to Claude.
+Tip:  press  Opt-Cmd-N  anywhere to type a message straight to Claude.
+
+Skip this warning entirely: install with Homebrew instead.
+   brew tap rawsun007/claudenotch https://github.com/rawsun007/claude-notch
+   brew install --cask claudenotch
+Homebrew strips the quarantine attribute, so no warning.
 TXT
 
 # Brand the disk image with our icon (instead of the generic .dmg icon).

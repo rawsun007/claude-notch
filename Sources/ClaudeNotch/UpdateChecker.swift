@@ -14,9 +14,13 @@ final class UpdateChecker: @unchecked Sendable {
     let releasesPage = "https://github.com/rawsun007/claude-notch/releases/latest"
 
     /// Called on the main thread with the new version when an update is found.
-    var onUpdateAvailable: ((String) -> Void)?
+    /// `userInitiated` lets the UI decide whether to show a modal alert
+    /// (manual "Check for Updates…") or silently update a menu item (daily poll).
+    var onUpdateAvailable: ((_ version: String, _ userInitiated: Bool) -> Void)?
     /// Called on the main thread after a user-initiated check that found nothing.
     var onUpToDate: (() -> Void)?
+    /// Called on the main thread when a user-initiated check fails (network, etc.).
+    var onCheckFailed: (() -> Void)?
 
     var currentVersion: String {
         (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "0"
@@ -37,20 +41,28 @@ final class UpdateChecker: @unchecked Sendable {
         req.timeoutInterval = 15
         let current = currentVersion
 
-        URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
+        URLSession.shared.dataTask(with: req) { [weak self] data, response, error in
             guard let self else { return }
             var newVersion: String?
+            var failed = false
             if let data,
+               let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
                let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let tag = obj["tag_name"] as? String {
                 let latest = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
                 if Self.isNewer(latest, than: current) { newVersion = latest }
+            } else if error != nil || data == nil {
+                failed = true
             }
             DispatchQueue.main.async {
                 if let v = newVersion {
-                    self.onUpdateAvailable?(v)
+                    self.onUpdateAvailable?(v, userInitiated)
                 } else if userInitiated {
-                    self.onUpToDate?()
+                    if failed {
+                        self.onCheckFailed?()
+                    } else {
+                        self.onUpToDate?()
+                    }
                 }
             }
         }.resume()

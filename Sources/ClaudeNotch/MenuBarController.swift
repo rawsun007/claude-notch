@@ -206,11 +206,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         // Update checker: surfaces "Update available" in the menu when a newer
         // release is published. Callbacks fire on the main thread.
-        UpdateChecker.shared.onUpdateAvailable = { [weak self] version in
-            self?.showUpdateAvailable(version)
+        UpdateChecker.shared.onUpdateAvailable = { [weak self] version, userInitiated in
+            self?.handleUpdateAvailable(version, userInitiated: userInitiated)
         }
         UpdateChecker.shared.onUpToDate = { [weak self] in
             self?.presentUpToDate()
+        }
+        UpdateChecker.shared.onCheckFailed = { [weak self] in
+            self?.presentCheckFailed()
         }
         UpdateChecker.shared.start()
     }
@@ -500,9 +503,24 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     // MARK: - Updates
 
-    private func showUpdateAvailable(_ version: String) {
+    private func handleUpdateAvailable(_ version: String, userInitiated: Bool) {
         updateItem.title = "↑ Update available: v\(version) — Download"
         updateItem.isHidden = false
+        checkUpdateItem.title = "Check for Updates…"
+        checkUpdateItem.isEnabled = true
+        guard userInitiated else { return }
+        // Bring the alert to the front — accessory apps need to activate first
+        // or the alert ends up behind everything.
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Update available"
+        alert.informativeText = "ClaudeNotch v\(version) is available. You're on v\(UpdateChecker.shared.currentVersion)."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Download")
+        alert.addButton(withTitle: "Later")
+        if alert.runModal() == .alertFirstButtonReturn {
+            openUpdate()
+        }
     }
 
     @objc private func openUpdate() {
@@ -515,8 +533,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         checkUpdateItem.title = "Checking for Updates…"
         checkUpdateItem.isEnabled = false
         UpdateChecker.shared.check(userInitiated: true)
-        // Re-enable shortly; callbacks restore the title.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+        // Safety net: if no callback fires in 10s (network hang), re-enable.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
             self?.checkUpdateItem.title = "Check for Updates…"
             self?.checkUpdateItem.isEnabled = true
         }
@@ -525,10 +543,23 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func presentUpToDate() {
         checkUpdateItem.title = "Check for Updates…"
         checkUpdateItem.isEnabled = true
+        NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = "You're up to date"
         alert.informativeText = "ClaudeNotch v\(UpdateChecker.shared.currentVersion) is the latest version."
         alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+
+    private func presentCheckFailed() {
+        checkUpdateItem.title = "Check for Updates…"
+        checkUpdateItem.isEnabled = true
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Couldn't check for updates"
+        alert.informativeText = "Something went wrong reaching GitHub. Check your internet connection and try again."
+        alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }

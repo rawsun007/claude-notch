@@ -68,14 +68,21 @@ system, and shows no Dock icon — just a small bell in your menu bar.
 
 1. **[⬇ Download ClaudeNotch.dmg](https://github.com/rawsun007/claude-notch/releases/latest/download/ClaudeNotch.dmg)**
 2. Open the DMG and drag **ClaudeNotch** into **Applications**.
-3. Launch it. On first open, macOS may warn that the app is from an unidentified
-   developer — **right-click the app → Open**, then click **Open** again. You only
-   do this once.
-4. A small **bell icon** appears in your menu bar. Click it → **Wire up Claude
-   Code** to connect the hooks. Done!
+3. Double-click ClaudeNotch. **macOS Sequoia 15 and later** will block the
+   first launch because the app isn't notarized through Apple's paid Developer
+   program. Click **Done** on the warning, then open **System Settings → Privacy
+   & Security**, scroll to the Security section, and click **Open Anyway** next
+   to ClaudeNotch. You only do this once. (On macOS Sonoma and earlier you can
+   still right-click → **Open** to bypass.)
+4. A small **bell icon** appears in your menu bar. Click it → **Setup** to
+   wire up the Claude Code hooks. Done!
 
-> 💡 **Tip:** To launch automatically on startup, click the menu-bar bell →
-> *Launch at login*.
+> 💡 **Skip the warning entirely:** install with **Homebrew** (see below).
+> `brew install --cask` strips macOS's quarantine attribute, so the app
+> launches with no warning at all.
+
+> **Tip:** To launch automatically on startup, click the menu-bar bell →
+> *Launch at Login*.
 
 ### With Homebrew
 
