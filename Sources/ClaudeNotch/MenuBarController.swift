@@ -16,7 +16,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var recentProjectsMenu: NSMenu!
     private var statusItem: NSMenuItem!
     private var autoApproveItem: NSMenuItem!
-    private var muteItem: NSMenuItem!
+    private var autoApproveMenu: NSMenu!
+    private var snoozeItem: NSMenuItem!
+    private var snoozeMenu: NSMenu!
+    private var soundItem: NSMenuItem!
+    private var soundMenu: NSMenu!
+    // Keep-open row views for the Sound submenu — clicking these does not
+    // dismiss the menu, so the user can preview multiple sounds.
+    private var soundRowViews: [String: KeepOpenRowView] = [:]
+    private var muteRowView: KeepOpenRowView?
+    private var perToolRowView: KeepOpenRowView?
     private var updateItem: NSMenuItem!
     private var checkUpdateItem: NSMenuItem!
     private var insightsMenu: NSMenu!
@@ -122,13 +131,24 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        autoApproveItem = NSMenuItem(title: "Auto-Approve All", action: #selector(toggleAutoApprove), keyEquivalent: "")
-        autoApproveItem.target = self
+        // Auto-Approve submenu: permanent toggle + timed windows.
+        autoApproveMenu = NSMenu()
+        autoApproveItem = NSMenuItem(title: "Auto-Approve", action: nil, keyEquivalent: "")
+        autoApproveItem.submenu = autoApproveMenu
         menu.addItem(autoApproveItem)
 
-        muteItem = NSMenuItem(title: "Mute Sounds", action: #selector(toggleMute), keyEquivalent: "")
-        muteItem.target = self
-        menu.addItem(muteItem)
+        // Snooze submenu: pause non-blocking cards for a window.
+        snoozeMenu = NSMenu()
+        snoozeItem = NSMenuItem(title: "Snooze", action: nil, keyEquivalent: "")
+        snoozeItem.submenu = snoozeMenu
+        menu.addItem(snoozeItem)
+
+        // Sound submenu: mute + per-tool toggle + alert sound picker, all as
+        // keep-open rows so you can audition multiple sounds in one go.
+        soundMenu = NSMenu()
+        soundItem = NSMenuItem(title: "Sound", action: nil, keyEquivalent: "")
+        soundItem.submenu = soundMenu
+        menu.addItem(soundItem)
 
         menu.addItem(.separator())
 
@@ -513,14 +533,173 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         alert.runModal()
     }
 
+    // MARK: - Auto-Approve / Snooze / Sound actions
+
     @objc private func toggleAutoApprove() {
         state.setAutoApprove(!state.autoApprove)
         refreshPrefs()
     }
 
-    @objc private func toggleMute() {
-        state.setSoundMuted(!state.soundMuted)
+    @objc private func autoApproveForAction(_ sender: NSMenuItem) {
+        state.enableAutoApprove(forMinutes: sender.tag)
         refreshPrefs()
+    }
+
+    @objc private func turnOffAutoApprove() {
+        state.setAutoApprove(false)
+        refreshPrefs()
+    }
+
+    @objc private func snoozeForAction(_ sender: NSMenuItem) {
+        state.snooze(forMinutes: sender.tag)
+        refreshPrefs()
+    }
+
+    @objc private func cancelSnoozeAction() {
+        state.cancelSnooze()
+        refreshPrefs()
+    }
+
+    @objc private func dismissDigest() {
+        state.markDigestShown()
+        refreshInsights()
+    }
+
+    // MARK: - Refresh
+
+    private func refreshPrefs() {
+        refreshAutoApproveMenu()
+        refreshSnoozeMenu()
+        refreshSoundMenu()
+    }
+
+    private func refreshAutoApproveMenu() {
+        autoApproveMenu.removeAllItems()
+
+        if state.autoApprove {
+            if let until = state.autoApproveUntil {
+                let remaining = max(0, Int(ceil(until.timeIntervalSinceNow / 60)))
+                autoApproveItem.title = "Auto-Approve: On (\(remaining)m left)"
+            } else {
+                autoApproveItem.title = "Auto-Approve: On"
+            }
+        } else {
+            autoApproveItem.title = "Auto-Approve"
+        }
+
+        let toggle = NSMenuItem(title: "Auto-Approve All", action: #selector(toggleAutoApprove), keyEquivalent: "")
+        toggle.target = self
+        toggle.state = (state.autoApprove && state.autoApproveUntil == nil) ? .on : .off
+        autoApproveMenu.addItem(toggle)
+        autoApproveMenu.addItem(.separator())
+
+        for minutes in [5, 15, 30, 60] {
+            let label = minutes < 60 ? "For \(minutes) minutes" : "For 1 hour"
+            let mi = NSMenuItem(title: label, action: #selector(autoApproveForAction(_:)), keyEquivalent: "")
+            mi.target = self
+            mi.tag = minutes
+            autoApproveMenu.addItem(mi)
+        }
+
+        if state.autoApprove {
+            autoApproveMenu.addItem(.separator())
+            let cancel = NSMenuItem(title: "Turn off", action: #selector(turnOffAutoApprove), keyEquivalent: "")
+            cancel.target = self
+            autoApproveMenu.addItem(cancel)
+        }
+    }
+
+    private func refreshSnoozeMenu() {
+        snoozeMenu.removeAllItems()
+
+        if let until = state.snoozedUntil, until > Date() {
+            let remaining = max(0, Int(ceil(until.timeIntervalSinceNow / 60)))
+            snoozeItem.title = "Snooze: \(remaining)m left"
+        } else {
+            snoozeItem.title = "Snooze"
+        }
+
+        let header = NSMenuItem(title: "Suppress non-blocking cards for…", action: nil, keyEquivalent: "")
+        header.isEnabled = false
+        snoozeMenu.addItem(header)
+
+        for minutes in [15, 30, 60, 120] {
+            let label: String
+            if minutes < 60 { label = "\(minutes) minutes" }
+            else if minutes == 60 { label = "1 hour" }
+            else { label = "\(minutes/60) hours" }
+            let mi = NSMenuItem(title: label, action: #selector(snoozeForAction(_:)), keyEquivalent: "")
+            mi.target = self
+            mi.tag = minutes
+            snoozeMenu.addItem(mi)
+        }
+
+        if state.isSnoozed {
+            snoozeMenu.addItem(.separator())
+            let cancel = NSMenuItem(title: "Cancel snooze", action: #selector(cancelSnoozeAction), keyEquivalent: "")
+            cancel.target = self
+            snoozeMenu.addItem(cancel)
+        }
+    }
+
+    private func refreshSoundMenu() {
+        soundMenu.removeAllItems()
+        soundRowViews.removeAll()
+
+        // Mute toggle — keep-open so the user can toggle and then immediately
+        // pick / preview sounds without re-opening the menu.
+        let mute = KeepOpenRowView(
+            title: state.soundMuted ? "Sounds Muted" : "Mute Sounds",
+            checked: state.soundMuted
+        )
+        mute.handler = { [weak self] in
+            guard let self else { return }
+            self.state.setSoundMuted(!self.state.soundMuted)
+            self.muteRowView?.update(
+                title: self.state.soundMuted ? "Sounds Muted" : "Mute Sounds",
+                checked: self.state.soundMuted
+            )
+        }
+        let muteHolder = NSMenuItem()
+        muteHolder.view = mute
+        soundMenu.addItem(muteHolder)
+        muteRowView = mute
+
+        // Per-tool toggle — keep-open.
+        let perTool = KeepOpenRowView(title: "Per-tool sounds", checked: state.perToolSounds)
+        perTool.handler = { [weak self] in
+            guard let self else { return }
+            self.state.setPerToolSounds(!self.state.perToolSounds)
+            self.perToolRowView?.update(title: "Per-tool sounds", checked: self.state.perToolSounds)
+        }
+        let perToolHolder = NSMenuItem()
+        perToolHolder.view = perTool
+        soundMenu.addItem(perToolHolder)
+        perToolRowView = perTool
+
+        soundMenu.addItem(.separator())
+        let header = NSMenuItem(title: "Alert sound (click to preview)", action: nil, keyEquivalent: "")
+        header.isEnabled = false
+        soundMenu.addItem(header)
+
+        // Sound picker — keep-open per row, plays a preview on click.
+        for sound in AppState.availableSounds {
+            let row = KeepOpenRowView(title: sound, checked: sound == state.alertSound)
+            row.handler = { [weak self] in
+                guard let self else { return }
+                let previous = self.state.alertSound
+                self.state.setAlertSound(sound)
+                if !self.state.soundMuted {
+                    NSSound(named: NSSound.Name(sound))?.play()
+                }
+                self.soundRowViews[previous]?.update(title: previous, checked: false)
+                self.soundRowViews[sound]?.update(title: sound, checked: true)
+            }
+            let holder = NSMenuItem()
+            holder.view = row
+            soundMenu.addItem(holder)
+            soundRowViews[sound] = row
+        }
     }
 
     private func refreshInsights() {
@@ -533,6 +712,20 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             insightsMenu.addItem(mi)
         }
 
+        // Daily digest — shown once per day when yesterday had activity.
+        if state.shouldShowDigest, let y = state.yesterdayCounts {
+            row("🌙  Yesterday: \(y.tools) tools  ·  \(y.allowed) allowed  ·  \(y.denied) denied  ·  \(y.dangerousFlagged) risky")
+            let dismiss = NSMenuItem(title: "Dismiss digest", action: #selector(dismissDigest), keyEquivalent: "")
+            dismiss.target = self
+            insightsMenu.addItem(dismiss)
+            insightsMenu.addItem(.separator())
+        }
+
+        if let t = state.stats.dailyCounts[AppState.dayKey(Date())] {
+            row("Today:  \(t.tools) tools  ·  \(t.allowed) allowed  ·  \(t.denied) denied")
+        } else {
+            row("Today:  no activity yet")
+        }
         row("This session:  \(state.sessionTools) tools · \(state.sessionAllowed) allowed · \(state.sessionDenied) denied")
         insightsMenu.addItem(.separator())
         row("Approved:  \(s.allowed)   (\(s.autoApproved) auto)")
@@ -554,13 +747,49 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             df.dateStyle = .medium
             row("Using ClaudeNotch since \(df.string(from: first))")
         }
+
+        insightsMenu.addItem(.separator())
+        appendHeatmap()
     }
 
-    private func refreshPrefs() {
-        autoApproveItem.state = state.autoApprove ? .on : .off
-        autoApproveItem.title = state.autoApprove ? "Auto-Approve All: On" : "Auto-Approve All"
-        muteItem.state = state.soundMuted ? .on : .off
-        muteItem.title = state.soundMuted ? "Sounds Muted" : "Mute Sounds"
+    /// Append a 7×7 text heatmap of the last 49 days to the Insights submenu.
+    private func appendHeatmap() {
+        let symbols = ["·", "▫", "▪", "▣", "■"]
+        let mono = NSFont.userFixedPitchFont(ofSize: NSFont.systemFontSize) ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
+
+        let header = NSMenuItem(title: "Activity — last 7 weeks", action: nil, keyEquivalent: "")
+        header.isEnabled = false
+        insightsMenu.addItem(header)
+
+        let cal = Calendar.current
+        var grid: [[Int]] = Array(repeating: Array(repeating: 0, count: 7), count: 7)
+        for i in 0..<49 {
+            guard let day = cal.date(byAdding: .day, value: -(48 - i), to: Date()) else { continue }
+            let n = state.stats.dailyCounts[AppState.dayKey(day)]?.tools ?? 0
+            let level: Int
+            switch n {
+            case 0:      level = 0
+            case 1...5:  level = 1
+            case 6...15: level = 2
+            case 16...30: level = 3
+            default:     level = 4
+            }
+            grid[i / 7][i % 7] = level
+        }
+
+        for row in grid {
+            let s = "    " + row.map { symbols[$0] }.joined(separator: "  ")
+            let mi = NSMenuItem(title: s, action: nil, keyEquivalent: "")
+            mi.isEnabled = false
+            mi.attributedTitle = NSAttributedString(string: s, attributes: [.font: mono])
+            insightsMenu.addItem(mi)
+        }
+
+        let legend = "    less  " + symbols.joined(separator: " ") + "  more"
+        let leg = NSMenuItem(title: legend, action: nil, keyEquivalent: "")
+        leg.isEnabled = false
+        leg.attributedTitle = NSAttributedString(string: legend, attributes: [.font: mono])
+        insightsMenu.addItem(leg)
     }
 
     /// Our bundled notch+spark glyph, falling back to an SF Symbol if the
@@ -604,5 +833,81 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")
         alert.runModal()
+    }
+}
+
+/// A menu-row view that does NOT dismiss the surrounding menu when clicked,
+/// so the user can toggle / preview repeatedly in one open session.
+///
+/// Standard NSMenuItem actions tear down the menu the moment they fire. By
+/// using `NSMenuItem.view = KeepOpenRowView`, the click hits this view's
+/// `mouseDown` first and we deliberately don't propagate to `super`, so the
+/// menu's tracking loop keeps running.
+@MainActor
+final class KeepOpenRowView: NSView {
+    private let label = NSTextField(labelWithString: "")
+    private let check = NSImageView()
+    var handler: () -> Void = {}
+    private var trackingArea: NSTrackingArea?
+
+    init(title: String, checked: Bool, width: CGFloat = 220) {
+        super.init(frame: NSRect(x: 0, y: 0, width: width, height: 22))
+        wantsLayer = true
+        layer?.cornerRadius = 4
+
+        label.translatesAutoresizingMaskIntoConstraints = false
+        check.translatesAutoresizingMaskIntoConstraints = false
+        label.font = NSFont.menuFont(ofSize: 0)
+        label.textColor = .labelColor
+        check.contentTintColor = .labelColor
+        addSubview(check)
+        addSubview(label)
+        NSLayoutConstraint.activate([
+            check.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            check.centerYAnchor.constraint(equalTo: centerYAnchor),
+            check.widthAnchor.constraint(equalToConstant: 14),
+            check.heightAnchor.constraint(equalToConstant: 14),
+            label.leadingAnchor.constraint(equalTo: check.trailingAnchor, constant: 6),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -8),
+        ])
+        update(title: title, checked: checked)
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    func update(title: String, checked: Bool) {
+        label.stringValue = title
+        check.image = checked ? NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil) : nil
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        handler()
+        // Deliberately not calling super — that's what keeps the menu open.
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let t = trackingArea { removeTrackingArea(t) }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        layer?.backgroundColor = NSColor.selectedMenuItemColor.cgColor
+        label.textColor = .selectedMenuItemTextColor
+        check.contentTintColor = .selectedMenuItemTextColor
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        layer?.backgroundColor = NSColor.clear.cgColor
+        label.textColor = .labelColor
+        check.contentTintColor = .labelColor
     }
 }

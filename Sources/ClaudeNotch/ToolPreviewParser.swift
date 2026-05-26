@@ -96,18 +96,18 @@ enum ToolPreviewParser {
         let scrubbed = stripQuotedAndHeredocs(command)
         var reasons: [String] = []
 
-        // Custom, robust check for rm -rf variants
+        // Catch `rm` with recursive + force flags in any combination — combined
+        // (`-rf`), split (`-r -f`), or long (`--recursive --force`). Split on
+        // command separators first so flags from one command in a chain don't
+        // count toward another (e.g. `git push -f && rm -r foo` shouldn't fire).
         if matches(#"\brm\s+"#, in: scrubbed, options: []) {
-            let commands = scrubbed.components(separatedBy: CharacterSet(charactersIn: ";|&"))
-            for cmd in commands {
-                if matches(#"\brm\s+"#, in: cmd, options: []) {
-                    let hasR = matches(#"\s-[a-zA-Z]*[rR]"#, in: cmd, options: []) || matches(#"\s--recursive\b"#, in: cmd, options: [])
-                    let hasF = matches(#"\s-[a-zA-Z]*[fF]"#, in: cmd, options: []) || matches(#"\s--force\b"#, in: cmd, options: [])
-                    
-                    if hasR && hasF {
-                        reasons.append("rm -rf — deletes files recursively without prompting")
-                        break
-                    }
+            for cmd in scrubbed.components(separatedBy: CharacterSet(charactersIn: ";|&")) {
+                guard matches(#"\brm\s+"#, in: cmd, options: []) else { continue }
+                let hasR = matches(#"\s-[a-zA-Z]*[rR]"#, in: cmd, options: []) || matches(#"\s--recursive\b"#, in: cmd, options: [])
+                let hasF = matches(#"\s-[a-zA-Z]*[fF]"#, in: cmd, options: []) || matches(#"\s--force\b"#, in: cmd, options: [])
+                if hasR && hasF {
+                    reasons.append("rm -rf — deletes files recursively without prompting")
+                    break
                 }
             }
         }

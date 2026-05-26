@@ -11,6 +11,9 @@ enum Persistence {
         var autoApprove: Bool? = nil
         var soundMuted: Bool? = nil
         var stats: UsageStats? = nil
+        var alertSound: String? = nil
+        var perToolSounds: Bool? = nil
+        var lastDigestDate: String? = nil
     }
 
     static let storeURL: URL = {

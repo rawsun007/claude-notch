@@ -66,7 +66,16 @@ final class OnboardingWindowController {
     func close() {
         state.stopPolling()
         window?.orderOut(nil)
+        // First-completion welcome tour: when the user finishes onboarding for
+        // the first time AND the hooks are actually wired, show a sample card
+        // so they see what ClaudeNotch looks like right away.
+        let isFirstCompletion = !Self.hasBeenDismissed
         Self.markDismissed()
+        if isFirstCompletion, HookInstaller.isInstalled {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                self?.appState?.triggerWelcomeDemo()
+            }
+        }
     }
 
     private func handleUserClose() {

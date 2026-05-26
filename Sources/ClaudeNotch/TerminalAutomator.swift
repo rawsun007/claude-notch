@@ -64,7 +64,7 @@ enum TerminalAutomator {
         }
     }
 
-    private static func debugLog(_ msg: String) {
+    nonisolated private static func debugLog(_ msg: String) {
         let url = URL(fileURLWithPath: "/tmp/claudenotch-debug.log")
         let line = "[\(Date())] automator: \(msg)\n"
         guard let data = line.data(using: .utf8) else { return }
