@@ -410,7 +410,7 @@ final class EventServer {
             if result == .timedOut {
                 final = .ask
             } else {
-                final = lock.withLock { decision }
+                lock.withLock { final = decision }
             }
             let body = "{\"decision\":\"\(final.rawValue)\"}"
             self?.send(body: body, on: conn)

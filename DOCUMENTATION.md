@@ -1,3 +1,3 @@
-- [2026-05-26 12:18]: Fix Concurrency Violations in EventServer.swift
-  - *Details*: Replaced explicit `lock.lock()` and `lock.unlock()` calls with the safe closure `lock.withLock { ... }`. This resolves Swift 6 strict concurrency warnings where using explicit locks within asynchronous contexts (like `Task { @MainActor }` or GCD async queues) can lead to cooperative thread deadlocks.
-  - *Tech Notes*: Modified `recordTask`, `taskSubject`, and multiple `PermissionRequest` and `QuestionRequest` resolution handlers to use `withLock`. The warnings in `EventServer.swift` have been completely eliminated.
+- [2026-05-26]: Fix Swift 6 concurrency warnings in EventServer.swift
+  - *Details*: Replaced explicit `lock()` and `unlock()` calls on `NSLock` instances with `withLock { ... }`.
+  - *Tech Notes*: Swift 6 compiler flags explicit lock method calls in asynchronous contexts (`Task`, `async`) as they might cause cooperative thread deadlocks. Using the safe scoped locking method `withLock` ensures the lock is safely acquired and released without triggering compiler warnings.
