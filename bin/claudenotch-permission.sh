@@ -78,7 +78,7 @@ fi
 # prompt for Read in not-yet-trusted directories, so it's now routed
 # through the notch like everything else.
 case "$tool" in
-    Grep|Glob|LS|TodoWrite|BashOutput|KillShell)
+    Grep|Glob|LS|BashOutput|KillShell)
         emit_ask "tool $tool is safe/non-interactive" ;;
     *) ;;
 esac

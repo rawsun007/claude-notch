@@ -579,7 +579,8 @@ private func humanTitle(for tool: String) -> String {
     case "WebFetch":     return "Fetch URL"
     case "WebSearch":    return "Search the web"
     case "Task":         return "Spawn subagent"
-    case "ExitPlanMode": return "Exit plan mode"
+    case "ExitPlanMode": return "Approve plan"
+    case "TodoWrite":    return "Update todos"
     case "SlashCommand": return "Run slash command"
     default:             return "Run \(tool)"
     }
@@ -614,6 +615,12 @@ private func humanDetail(for tool: String, input: [String: Any]) -> String {
         return type.isEmpty ? desc : type
     case "ExitPlanMode":
         return (input["plan"] as? String).map { String($0.prefix(120)) } ?? ""
+    case "TodoWrite":
+        let todos = (input["todos"] as? [[String: Any]]) ?? []
+        let inProgress = todos.filter { ($0["status"] as? String) == "in_progress" }.count
+        let n = todos.count
+        if n == 0 { return "no todos" }
+        return inProgress > 0 ? "\(n) todos  ·  \(inProgress) in progress" : "\(n) todos"
     case "SlashCommand":
         return (input["command"] as? String) ?? ""
     default:

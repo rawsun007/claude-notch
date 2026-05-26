@@ -47,6 +47,33 @@ enum ToolPreviewParser {
             let head = lines.prefix(maxWriteLines).joined(separator: "\n")
             return .write(head: head, totalLines: lines.count)
 
+        case "ExitPlanMode":
+            // Show the proposed plan markdown right in the card so the user
+            // can read what Claude wants to do before approving.
+            let plan = (input["plan"] as? String) ?? ""
+            guard !plan.isEmpty else { return nil }
+            let lines = plan.split(separator: "\n", omittingEmptySubsequences: false)
+            let head = lines.prefix(maxWriteLines).joined(separator: "\n")
+            return .write(head: head, totalLines: lines.count)
+
+        case "TodoWrite":
+            // Render the todo list as a checkbox preview (□ pending / ▣ doing
+            // / ✓ done) so the user can see what's about to change.
+            let todos = (input["todos"] as? [[String: Any]]) ?? []
+            guard !todos.isEmpty else { return nil }
+            let rendered = todos.prefix(maxWriteLines).map { todo -> String in
+                let status = (todo["status"] as? String) ?? "pending"
+                let text   = (todo["content"] as? String) ?? (todo["activeForm"] as? String) ?? ""
+                let icon: String
+                switch status {
+                case "in_progress": icon = "▣"
+                case "completed":   icon = "✓"
+                default:            icon = "□"
+                }
+                return "\(icon) \(text)"
+            }.joined(separator: "\n")
+            return .write(head: rendered, totalLines: todos.count)
+
         default:
             return nil
         }
