@@ -225,9 +225,11 @@ struct NotchView: View {
                                alignment: .top)
                         .padding(.horizontal, 22)
                         .padding(.top, state.notchTopInset + 10)
-                        // Bottom padding clears the notch shape's bottom corner
-                        // curve so buttons aren't clipped.
-                        .padding(.bottom, 24)
+                        // Bottom padding only needs to clear the notch shape's
+                        // bottom corner curve. Buttons are inset 22 pt
+                        // horizontally so they sit above the straight edge.
+                        // Pairs with the +18 top padding on each button row.
+                        .padding(.bottom, 10)
                         .frame(width: card.width,
                                height: isScrollableMode ? card.height : nil,
                                alignment: .top)
@@ -524,7 +526,7 @@ private struct ComposeCard: View {
                     .foregroundColor(.white)
                     .scrollContentBackground(.hidden)
                     .padding(.horizontal, 9)   // +5 lineFragment ≈ placeholder's 14
-                    .padding(.top, 6)          // aligns the caret with the placeholder baseline
+                    .padding(.top, 18)          // aligns the caret with the placeholder baseline
                     .padding(.bottom, 6)
                     .focused($focused)
             }
@@ -552,6 +554,7 @@ private struct ComposeCard: View {
                     state.sendCompose()
                 }
             }
+            .padding(.top, 18)
         }
         .onAppear {
             // Small delay — the panel needs a beat to fully become key before
@@ -608,6 +611,7 @@ private struct ResponseDetailCard: View {
                     state.closeResponseDetail()
                 }
             }
+            .padding(.top, 18)
         }
     }
 }
@@ -755,6 +759,7 @@ private struct PermissionCard: View {
                     }
                 }
             }
+            .padding(.top, 18)
         }
     }
 }
@@ -1007,6 +1012,7 @@ private struct HistoryCard: View {
                     state.closeHistory()
                 }
             }
+            .padding(.top, 18)
         }
     }
 }
@@ -1137,6 +1143,7 @@ private struct NotificationCard: View {
                 NotchButton(label: "Dismiss", style: .secondary, action: onDismiss)
                 NotchButton(label: "Open IDE", style: .primary, action: onOpen)
             }
+            .padding(.top, 18)
         }
     }
 }
@@ -1183,6 +1190,7 @@ private struct CompletedCard: View {
                 NotchButton(label: "Open IDE", style: .secondary, action: onOpen)
                 NotchButton(label: "Done", style: .primary, action: onDismiss)
             }
+            .padding(.top, 18)
         }
     }
 }
@@ -1352,6 +1360,7 @@ private struct QuestionCard: View {
                     onSubmit(answers)
                 }
             }
+            .padding(.top, 18)
         }
         .onAppear {
             if selections.count != request.questions.count {
