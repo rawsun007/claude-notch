@@ -106,7 +106,7 @@ struct NotchView: View {
             if req.kind != .toolUse {
                 // Notification card — generous fallback so it never clips
                 // before the exact height is measured.
-                return CGSize(width: 500, height: inset + 150)
+                return CGSize(width: 500, height: inset + 128)
             }
             // Tight content-fits sizing. Numbers calibrated against the
             // actual rendered rows (font + padding) — there is no Spacer in
@@ -115,11 +115,11 @@ struct NotchView: View {
             //   title row ............ 22
             //   detail box (2 lines) . 42
             //   buttons row .......... 32
-            //   four 8pt gaps ........ 32
+            //   four 6pt gaps ........ 24
             //   bottom card padding .. 12
             //                          ────
-            //                          164
-            var visible: CGFloat = 152
+            //                          156
+            var visible: CGFloat = 144
             if !req.dangerReasons.isEmpty {
                 // Banner: 14pt of v-padding + 14pt header + 13pt per reason.
                 visible += 28 + CGFloat(req.dangerReasons.count) * 14 + 8 // +8 gap
@@ -142,7 +142,7 @@ struct NotchView: View {
             let cap = max(180, screenH * 0.85 - inset)
             return CGSize(width: 620, height: inset + min(visible, cap))
         case .completed:
-            return CGSize(width: 500, height: inset + 150)
+            return CGSize(width: 500, height: inset + 128)
         case .question(let q):
             // Header strip ≈ 30, button row ≈ 44, outer padding/spacing ≈ 30.
             // Each question heading ≈ 26 + 6 spacing; each option row ≈ 48
@@ -651,7 +651,7 @@ private struct PermissionCard: View {
     private var headerIcon: String { request.isDangerous ? "exclamationmark.triangle.fill" : "exclamationmark.bubble.fill" }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Image(systemName: headerIcon)
                     .foregroundColor(accentColor)
@@ -1102,7 +1102,7 @@ private struct NotificationCard: View {
     let onDismiss: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Image(systemName: "bell.fill")
                     .foregroundColor(.orange)
@@ -1149,7 +1149,7 @@ private struct CompletedCard: View {
     let onDismiss: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Image(systemName: "checkmark.seal.fill")
                     .foregroundColor(.green)
