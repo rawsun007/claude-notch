@@ -82,6 +82,7 @@ struct NotchView: View {
     @ObservedObject var state: AppState
     @State private var compactHeight: CGFloat = 0
     @StateObject private var sizer = CardSizeAnimator()
+    private let contentHorizontalPadding: CGFloat = 40
 
     /// How much vertical space is hidden by the physical notch (or 0 if none).
     static func notchInset(on screen: NSScreen?) -> CGFloat {
@@ -223,7 +224,7 @@ struct NotchView: View {
                         .frame(maxWidth: .infinity,
                                maxHeight: isScrollableMode ? .infinity : nil,
                                alignment: .top)
-                        .padding(.horizontal, 22)
+                        .padding(.horizontal, contentHorizontalPadding)
                         .padding(.top, state.notchTopInset + 10)
                         // Bottom padding only needs to clear the notch shape's
                         // bottom corner curve. Buttons are inset 22 pt
