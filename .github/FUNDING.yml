@@ -1,0 +1,16 @@
+# Drives the Sponsor button at the top of the repo.
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+
+# GitHub Sponsors. Will only accept money once you enrol at
+# https://github.com/sponsors -- before then it just shows the button.
+github: rawsun007
+
+# Custom links (any payment / contact page you want to send people to).
+# Up to four entries.
+custom:
+  - https://gravatar.com/briefly8aac5dc84b
+
+# Uncomment any of these once you have an account:
+# buy_me_a_coffee: rawsun007
+# ko_fi: rawsun007
+# patreon: rawsun007
