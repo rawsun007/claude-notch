@@ -1111,9 +1111,10 @@ private struct NotificationCard: View {
     let request: PermissionRequest
     let onOpen: () -> Void
     let onDismiss: () -> Void
+    private let rowSpacing: CGFloat = 14
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: rowSpacing) {
             HStack(spacing: 8) {
                 Image(systemName: "bell.fill")
                     .foregroundColor(.orange)
@@ -1165,9 +1166,10 @@ private struct CompletedCard: View {
     let task: CompletedTask
     let onOpen: () -> Void
     let onDismiss: () -> Void
+    private let rowSpacing: CGFloat = 14
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: rowSpacing) {
             HStack(spacing: 8) {
                 Image(systemName: "checkmark.seal.fill")
                     .foregroundColor(.green)
