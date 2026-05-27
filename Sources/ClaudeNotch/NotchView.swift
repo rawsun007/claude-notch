@@ -1118,37 +1118,43 @@ private struct NotificationCard: View {
                 Image(systemName: "bell.fill")
                     .foregroundColor(.orange)
                     .font(.system(size: 13, weight: .semibold))
-                Text(request.source)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundColor(.orange.opacity(0.9))
-                    .textCase(.uppercase)
-                Spacer()
-                Text(timeAgo(request.receivedAt))
-                    .font(.system(size: 10, design: .rounded))
-                    .foregroundColor(.white.opacity(0.45))
+                HStack(spacing: 6) {
+                    Text(request.source)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundColor(.orange.opacity(0.9))
+                        .textCase(.uppercase)
+                    Text("·").foregroundColor(.white.opacity(0.3))
+                    Text(timeAgo(request.receivedAt))
+                        .font(.system(size: 10, design: .rounded))
+                        .foregroundColor(.white.opacity(0.45))
+                }
+                Spacer(minLength: 0)
             }
 
-            Text(request.title)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.white)
-                .lineLimit(2)
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(request.title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
 
-            if !request.detail.isEmpty {
-                Text(request.detail)
-                    .font(.system(size: 11, design: .rounded))
-                    .foregroundColor(.white.opacity(0.55))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                    if !request.detail.isEmpty {
+                        Text(request.detail)
+                            .font(.system(size: 11, design: .rounded))
+                            .foregroundColor(.white.opacity(0.55))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack(spacing: 8) {
+                    NotchButton(label: "Dismiss", style: .secondary, action: onDismiss)
+                    NotchButton(label: "Open IDE", style: .primary, action: onOpen)
+                }
+                .fixedSize()
             }
-
-            Spacer(minLength: 0)
-
-            HStack {
-                Spacer()
-                NotchButton(label: "Dismiss", style: .secondary, action: onDismiss)
-                NotchButton(label: "Open IDE", style: .primary, action: onOpen)
-            }
-            .padding(.top, 18)
         }
     }
 }
@@ -1165,37 +1171,44 @@ private struct CompletedCard: View {
             HStack(spacing: 8) {
                 Image(systemName: "checkmark.seal.fill")
                     .foregroundColor(.green)
-                    .font(.system(size: 14, weight: .semibold))
-                Text(task.source)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundColor(.green.opacity(0.9))
-                    .textCase(.uppercase)
-                Spacer()
-                Text(timeAgo(task.receivedAt))
-                    .font(.system(size: 10, design: .rounded))
-                    .foregroundColor(.white.opacity(0.45))
+                    .font(.system(size: 15, weight: .semibold))
+                HStack(spacing: 6) {
+                    Text(task.source)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundColor(.green.opacity(0.9))
+                        .textCase(.uppercase)
+                    Text("·").foregroundColor(.white.opacity(0.3))
+                    Text(timeAgo(task.receivedAt))
+                        .font(.system(size: 10, design: .rounded))
+                        .foregroundColor(.white.opacity(0.45))
+                }
+                Spacer(minLength: 0)
             }
 
-            Text(task.title)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.white)
-                .lineLimit(2)
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(task.title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
 
-            if !task.detail.isEmpty {
-                Text(task.detail)
-                    .font(.system(size: 11, design: .rounded))
-                    .foregroundColor(.white.opacity(0.6))
-                    .lineLimit(2)
+                    if !task.detail.isEmpty {
+                        Text(task.detail)
+                            .font(.system(size: 11, design: .rounded))
+                            .foregroundColor(.white.opacity(0.6))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack(spacing: 8) {
+                    NotchButton(label: "Open IDE", style: .secondary, action: onOpen)
+                    NotchButton(label: "Done", style: .primary, action: onDismiss)
+                }
+                .fixedSize()
             }
-
-            Spacer(minLength: 0)
-
-            HStack {
-                Spacer()
-                NotchButton(label: "Open IDE", style: .secondary, action: onOpen)
-                NotchButton(label: "Done", style: .primary, action: onDismiss)
-            }
-            .padding(.top, 18)
         }
     }
 }
