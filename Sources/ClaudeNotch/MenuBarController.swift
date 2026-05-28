@@ -15,6 +15,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var recentProjectsItem: NSMenuItem!
     private var recentProjectsMenu: NSMenu!
     private var statusItem: NSMenuItem!
+    private var persistentNotchItem: NSMenuItem!
     private var autoApproveItem: NSMenuItem!
     private var autoApproveMenu: NSMenu!
     private var snoozeItem: NSMenuItem!
@@ -141,6 +142,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(permsItem)
 
         menu.addItem(.separator())
+
+        persistentNotchItem = NSMenuItem(title: "Persistent Notch Display", action: #selector(togglePersistentNotchDisplay), keyEquivalent: "")
+        persistentNotchItem.target = self
+        menu.addItem(persistentNotchItem)
 
         // Auto-Approve submenu: permanent toggle + timed windows.
         autoApproveMenu = NSMenu()
@@ -604,6 +609,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshPrefs()
     }
 
+    @objc private func togglePersistentNotchDisplay() {
+        state.setPersistentNotchDisplay(!state.persistentNotchDisplay)
+        refreshPrefs()
+    }
+
     @objc private func dismissDigest() {
         state.markDigestShown()
         refreshInsights()
@@ -612,6 +622,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     // MARK: - Refresh
 
     private func refreshPrefs() {
+        persistentNotchItem.state = state.persistentNotchDisplay ? .on : .off
         refreshAutoApproveMenu()
         refreshSnoozeMenu()
         refreshSoundMenu()

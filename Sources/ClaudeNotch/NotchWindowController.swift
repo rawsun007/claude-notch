@@ -22,7 +22,7 @@ final class PassThroughHostingView: NSHostingView<NotchView> {
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         guard let state = appState else { return super.hitTest(point) }
-        let card = NotchView.size(for: state.mode, hovering: state.isHovering, on: screenProvider())
+        let card = NotchView.size(for: state.mode, hovering: state.persistentNotchDisplay || state.isHovering, on: screenProvider())
         // The card is pinned to the top-centre of our bounds. Add slack so
         // the card's actual (content-fit) height — which can exceed the
         // formula a touch — is always clickable.

@@ -8,6 +8,9 @@ final class EventServer {
     private var listener: NWListener?
     private let queue = DispatchQueue(label: "com.claudenotch.server")
     private let workQueue = DispatchQueue(label: "com.claudenotch.server.work", attributes: .concurrent)
+    private let transcriptPollLock = NSLock()
+    private var transcriptPollID = 0
+    private var activeTranscriptPath: String?
 
     // taskId → subject, learned from TaskCreate / TaskUpdate(with subject).
     // Lets us put a human label on TaskUpdate calls that only carry {taskId, status}.
@@ -161,6 +164,11 @@ final class EventServer {
 
         // Every hook payload tells us about a project (cwd) — always record it.
         recordSessionMetadata(payload: payload)
+        let transcriptPath = (payload["transcript_path"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        if path != "/prompt", let transcriptPath {
+            let duration: TimeInterval = path == "/stop" ? 4 : 300
+            startResponsePolling(transcriptPath: transcriptPath, duration: duration)
+        }
 
         switch path {
         case "/permission":
@@ -178,6 +186,9 @@ final class EventServer {
             sendOK(on: conn)
         case "/prompt":
             handlePrompt(payload: payload)
+            if let transcriptPath {
+                startResponsePolling(transcriptPath: transcriptPath, duration: 300, delayFirstRead: true)
+            }
             sendOK(on: conn)
         case "/pretool", "/posttool", "/thinking":
             handleThinking(payload: payload)
@@ -305,17 +316,58 @@ final class EventServer {
         }
     }
 
+    private func startResponsePolling(transcriptPath path: String, duration: TimeInterval, delayFirstRead: Bool = false) {
+        let token = transcriptPollLock.withLock { () -> Int in
+            activeTranscriptPath = path
+            transcriptPollID += 1
+            return transcriptPollID
+        }
+        let deadline = Date().addingTimeInterval(duration)
+        if delayFirstRead {
+            workQueue.asyncAfter(deadline: .now() + .milliseconds(500)) { [weak self] in
+                guard let self else { return }
+                let isCurrent = self.transcriptPollLock.withLock {
+                    self.transcriptPollID == token && self.activeTranscriptPath == path
+                }
+                guard isCurrent else { return }
+                self.pollTranscript(path: path, token: token, until: deadline)
+            }
+        } else {
+            pollTranscript(path: path, token: token, until: deadline)
+        }
+    }
+
+    private func pollTranscript(path: String, token: Int, until deadline: Date) {
+        readAndPushClaudeResponse(transcriptPath: path)
+        guard Date() < deadline else { return }
+        workQueue.asyncAfter(deadline: .now() + .milliseconds(700)) { [weak self] in
+            guard let self else { return }
+            let isCurrent = self.transcriptPollLock.withLock {
+                self.transcriptPollID == token && self.activeTranscriptPath == path
+            }
+            guard isCurrent else { return }
+            self.pollTranscript(path: path, token: token, until: deadline)
+        }
+    }
+
     /// Tail the JSONL transcript and pull the most recent assistant text
     /// content. Tolerant of multiple message shapes Claude Code emits.
     private func lastAssistantText(fromTranscriptAt path: String) -> String? {
         debugLog("transcript read: \(path)")
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)) else {
-            debugLog("transcript read: FAILED to load file")
+        guard let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path)) else {
+            debugLog("transcript read: FAILED to open file")
             return nil
         }
-        guard let body = String(data: data, encoding: .utf8) else {
-            debugLog("transcript read: invalid UTF-8")
-            return nil
+        let maxBytes: UInt64 = 512 * 1024
+        let size = handle.seekToEndOfFile()
+        let offset = size > maxBytes ? size - maxBytes : 0
+        handle.seek(toFileOffset: offset)
+        let data = handle.readDataToEndOfFile()
+        try? handle.close()
+
+        var body = String(decoding: data, as: UTF8.self)
+        if offset > 0, let newline = body.firstIndex(of: "\n") {
+            body = String(body[body.index(after: newline)...])
         }
         let lines = body.split(separator: "\n", omittingEmptySubsequences: true)
         debugLog("transcript read: \(lines.count) lines")

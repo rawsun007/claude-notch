@@ -13,6 +13,7 @@ enum Persistence {
         var stats: UsageStats? = nil
         var alertSound: String? = nil
         var perToolSounds: Bool? = nil
+        var persistentNotchDisplay: Bool? = nil
         var lastDigestDate: String? = nil
     }
 
@@ -58,6 +59,7 @@ extension Persistence.Snapshot {
             stats: try? c.decode(UsageStats.self, forKey: .stats),
             alertSound: try? c.decode(String.self, forKey: .alertSound),
             perToolSounds: try? c.decode(Bool.self, forKey: .perToolSounds),
+            persistentNotchDisplay: try? c.decode(Bool.self, forKey: .persistentNotchDisplay),
             lastDigestDate: try? c.decode(String.self, forKey: .lastDigestDate)
         )
     }
