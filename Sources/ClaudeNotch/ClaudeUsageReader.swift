@@ -32,6 +32,9 @@ enum ClaudeUsageReader {
         var week = Tokens()
         var weekByModel: [String: Tokens] = [:]
         var weekByProject: [String: Tokens] = [:]   // keyed by cwd
+        var dailyTokens: [String: Int] = [:]         // yyyy-MM-dd → total tokens
+        var hourCounts: [Int: Int] = [:]             // local hour 0...23 → message count
+        var cacheSavingsUSD: Double = 0              // vs paying fresh input price
         var sessionsToday = 0
         var sessionsWeek = 0
         var computedAt = Date()
@@ -42,6 +45,14 @@ enum ClaudeUsageReader {
             let inputSide = week.input + week.cacheCreation + week.cacheRead
             return inputSide > 0 ? Double(week.cacheRead) / Double(inputSide) : 0
         }
+        var avgTokensPerSession: Int { sessionsWeek > 0 ? week.total / sessionsWeek : 0 }
+        var activeDays: Int { dailyTokens.values.filter { $0 > 0 }.count }
+        var dailyAverageTokens: Int { week.total / max(activeDays, 1) }
+        var todayVsAverage: Double {
+            let avg = dailyAverageTokens
+            return avg > 0 ? Double(today.total) / Double(avg) : 0
+        }
+        var topHours: [Int] { hourCounts.sorted { $0.value > $1.value }.prefix(3).map(\.key) }
     }
 
     // Public per-million-token pricing, used only to estimate cost.
@@ -60,10 +71,50 @@ enum ClaudeUsageReader {
              + Double(cacheRead) / 1_000_000 * p.cacheRead
     }
 
+    /// What the cache-read tokens would have cost at the fresh input price,
+    /// minus what they actually cost — i.e. money saved by prompt caching.
+    private static func cacheSavings(cacheRead: Int, model: String) -> Double {
+        let p = price(for: model)
+        return Double(cacheRead) / 1_000_000 * (p.input - p.cacheRead)
+    }
+
     /// Last path component of a working directory, e.g. ".../claude mac app" → "claude mac app".
     static func projectName(_ cwd: String) -> String {
         let name = (cwd as NSString).lastPathComponent
         return name.isEmpty ? cwd : name
+    }
+
+    /// 12-hour clock label for an hour-of-day, e.g. 16 → "4 PM".
+    static func hourLabel(_ h: Int) -> String {
+        let suffix = h < 12 ? "AM" : "PM"
+        let hour12 = h % 12 == 0 ? 12 : h % 12
+        return "\(hour12) \(suffix)"
+    }
+
+    /// Build a 7-bar token sparkline for the last 7 days (oldest to newest),
+    /// returning the bar row and an aligned narrow-weekday label row.
+    static func sparkline(daily: [String: Int]) -> (bars: String, labels: String) {
+        let blocks = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"]
+        let cal = Calendar.current
+        let dayFmt = DateFormatter()
+        dayFmt.locale = Locale(identifier: "en_US_POSIX")
+        dayFmt.dateFormat = "yyyy-MM-dd"
+        let labelFmt = DateFormatter()
+        labelFmt.locale = Locale(identifier: "en_US_POSIX")
+        labelFmt.dateFormat = "EEEEE"   // narrow weekday: M T W T F S S
+
+        var values: [Int] = []
+        var labels: [String] = []
+        for offset in stride(from: 6, through: 0, by: -1) {
+            guard let day = cal.date(byAdding: .day, value: -offset, to: Date()) else { continue }
+            values.append(daily[dayFmt.string(from: day)] ?? 0)
+            labels.append(labelFmt.string(from: day))
+        }
+        let maxVal = max(values.max() ?? 0, 1)
+        let bars = values.map { v -> String in
+            v == 0 ? blocks[0] : blocks[min(blocks.count - 1, max(1, Int((Double(v) / Double(maxVal) * 7).rounded())))]
+        }
+        return (bars.joined(separator: " "), labels.joined(separator: " "))
     }
 
     static func shortModel(_ model: String) -> String {
@@ -92,6 +143,9 @@ enum ClaudeUsageReader {
         iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let isoPlain = ISO8601DateFormatter()
         isoPlain.formatOptions = [.withInternetDateTime]
+        let dayFmt = DateFormatter()
+        dayFmt.locale = Locale(identifier: "en_US_POSIX")
+        dayFmt.dateFormat = "yyyy-MM-dd"
 
         var sessionsTodaySet = Set<String>()
         var sessionsWeekSet = Set<String>()
@@ -133,6 +187,9 @@ enum ClaudeUsageReader {
                 if !cwd.isEmpty {
                     usage.weekByProject[cwd, default: Tokens()] = usage.weekByProject[cwd, default: Tokens()] + t
                 }
+                usage.dailyTokens[dayFmt.string(from: ts), default: 0] += t.total
+                usage.hourCounts[cal.component(.hour, from: ts), default: 0] += 1
+                usage.cacheSavingsUSD += cacheSavings(cacheRead: cacheRead, model: model)
                 if let sid { sessionsWeekSet.insert(sid) }
                 if ts >= startOfToday {
                     usage.today = usage.today + t

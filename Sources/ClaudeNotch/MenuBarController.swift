@@ -821,6 +821,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             mi.isEnabled = false
             claudeUsageMenu.addItem(mi)
         }
+        func monoRow(_ title: String) {
+            let mono = NSFont.userFixedPitchFont(ofSize: NSFont.systemFontSize) ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
+            let mi = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            mi.isEnabled = false
+            mi.attributedTitle = NSAttributedString(string: title, attributes: [.font: mono])
+            claudeUsageMenu.addItem(mi)
+        }
         guard let u = cachedClaudeUsage else {
             row(claudeUsageComputing ? "Computing…" : "No usage data yet")
             return
@@ -833,13 +840,30 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let mn = ClaudeUsageReader.fmtMoney
         if u.today.total > 0 {
             row("Today:  \(tk(u.today.total)) tokens  ·  ~\(mn(u.today.costUSD))")
+            if u.todayVsAverage > 0 {
+                row(String(format: "    %.1f× your daily average", u.todayVsAverage))
+            }
         } else {
             row("Today:  no activity yet")
         }
         row("This week:  \(tk(u.week.total)) tokens  ·  ~\(mn(u.week.costUSD))")
-        row("Sessions (7 days):  \(u.sessionsWeek)")
+
+        // 7-day token sparkline.
+        let spark = ClaudeUsageReader.sparkline(daily: u.dailyTokens)
+        claudeUsageMenu.addItem(.separator())
+        row("Tokens — last 7 days")
+        monoRow("    " + spark.bars)
+        monoRow("    " + spark.labels)
+
+        claudeUsageMenu.addItem(.separator())
+        if u.sessionsWeek > 0 {
+            row("Sessions (7 days):  \(u.sessionsWeek)  ·  ~\(tk(u.avgTokensPerSession))/session")
+        }
         if u.cacheHitRate > 0 {
-            row("Cache:  \(Int((u.cacheHitRate * 100).rounded()))% of input reused")
+            row("Cache:  \(Int((u.cacheHitRate * 100).rounded()))% reused  ·  saved ~\(mn(u.cacheSavingsUSD))")
+        }
+        if !u.topHours.isEmpty {
+            row("Busiest:  " + u.topHours.map { ClaudeUsageReader.hourLabel($0) }.joined(separator: "  ·  "))
         }
 
         let byModel = u.weekByModel.sorted { $0.value.total > $1.value.total }
