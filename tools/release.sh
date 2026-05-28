@@ -49,13 +49,20 @@ echo "  cask updated: version ${VERSION}, sha256 ${SHA:0:12}…"
 git add build.sh Casks/claudenotch.rb
 git commit -m "Release v${VERSION}" >/dev/null
 
+# Resolve a token for the GitHub API: prefer an explicit env var, else the
+# gh CLI's stored login, so nothing has to be pasted on each release.
+TOKEN="${GITHUB_TOKEN:-}"
+if [ -z "$TOKEN" ] && command -v gh >/dev/null 2>&1; then
+    TOKEN=$(gh auth token 2>/dev/null || true)
+fi
+
 # Wait for any in-progress GitHub Pages deploy to clear before pushing —
 # Pages refuses concurrent deploys, and our push will trigger a fresh one
 # even though docs/ didn't change in this commit. Skip silently if no
-# token is set or the API check fails.
-if [ -n "${GITHUB_TOKEN:-}" ]; then
+# token is available or the API check fails.
+if [ -n "$TOKEN" ]; then
     for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
-        in_prog=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" \
+        in_prog=$(curl -s -H "Authorization: token ${TOKEN}" \
             "https://api.github.com/repos/${REPO}/actions/runs?per_page=10&status=in_progress" \
             | python3 -c "import sys,json; d=json.load(sys.stdin); print(sum(1 for r in d.get('workflow_runs',[]) if 'pages' in r.get('name','').lower()))" 2>/dev/null || echo "0")
         [ "$in_prog" = "0" ] && break
@@ -67,18 +74,30 @@ fi
 git push origin main >/dev/null
 echo "  committed + pushed version bump"
 
-# 5. Create the GitHub release + upload the DMG (needs a token).
-if [ -n "${GITHUB_TOKEN:-}" ]; then
-    BODY="ClaudeNotch v${VERSION}. See the changelog: https://rawsun007.github.io/claude-notch/changelog/"
+# 5. Create the GitHub release + upload the DMG.
+BODY="ClaudeNotch v${VERSION}. See the changelog: https://rawsun007.github.io/claude-notch/changelog/"
+if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+    # Preferred path: gh uses its keychain-stored login — no token needed.
+    if gh release create "v${VERSION}" "$DMG" \
+        --repo "${REPO}" \
+        --title "ClaudeNotch v${VERSION}" \
+        --notes "$BODY" >/dev/null 2>&1; then
+        echo "✓ Published release v${VERSION} with ClaudeNotch.dmg (via gh)"
+    else
+        echo "⚠ gh release create failed. Run 'gh auth login', or finish manually at:"
+        echo "       https://github.com/${REPO}/releases/new?tag=v${VERSION}"
+        echo "     and upload ${DMG} as ClaudeNotch.dmg"
+    fi
+elif [ -n "$TOKEN" ]; then
     RESP=$(curl -s -X POST \
-        -H "Authorization: token ${GITHUB_TOKEN}" \
+        -H "Authorization: token ${TOKEN}" \
         -H "Accept: application/vnd.github+json" \
         "https://api.github.com/repos/${REPO}/releases" \
         -d "{\"tag_name\":\"v${VERSION}\",\"name\":\"ClaudeNotch v${VERSION}\",\"body\":$(printf '%s' "$BODY" | python3 -c 'import json,sys;print(json.dumps(sys.stdin.read()))')}")
     UPLOAD=$(printf '%s' "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('upload_url','').split('{')[0])" 2>/dev/null || echo "")
     if [ -n "$UPLOAD" ]; then
         curl -s -X POST \
-            -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Authorization: token ${TOKEN}" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @"$DMG" \
             "${UPLOAD}?name=ClaudeNotch.dmg" >/dev/null
@@ -89,7 +108,7 @@ if [ -n "${GITHUB_TOKEN:-}" ]; then
     fi
 else
     echo
-    echo "No GITHUB_TOKEN set — finish the release manually:"
+    echo "No gh login or GITHUB_TOKEN — finish the release manually:"
     echo "  1. Create a release tagged v${VERSION} at:"
     echo "       https://github.com/${REPO}/releases/new?tag=v${VERSION}"
     echo "  2. Upload ${DMG} as an asset named ClaudeNotch.dmg"
