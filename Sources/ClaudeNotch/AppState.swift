@@ -302,6 +302,7 @@ final class AppState: ObservableObject {
     // Sound preferences (persisted).
     @Published var alertSound: String = "Funk"
     @Published var perToolSounds: Bool = false
+    @Published var persistentNotchDisplay: Bool = true
 
     // Daily digest tracking — only shown once per day.
     @Published private(set) var lastDigestDate: String? = nil
@@ -366,6 +367,7 @@ final class AppState: ObservableObject {
             self.stats = snapshot.stats ?? UsageStats()
             self.alertSound = snapshot.alertSound ?? "Funk"
             self.perToolSounds = snapshot.perToolSounds ?? false
+            self.persistentNotchDisplay = snapshot.persistentNotchDisplay ?? true
             self.lastDigestDate = snapshot.lastDigestDate
         }
     }
@@ -500,6 +502,7 @@ final class AppState: ObservableObject {
     func setSoundMuted(_ on: Bool) { soundMuted = on; schedulePersist() }
     func setAlertSound(_ name: String) { alertSound = name; schedulePersist() }
     func setPerToolSounds(_ on: Bool) { perToolSounds = on; schedulePersist() }
+    func setPersistentNotchDisplay(_ on: Bool) { persistentNotchDisplay = on; schedulePersist() }
 
     /// Suppress non-blocking cards (notifications + completions) for N minutes.
     /// Permission cards still show — Claude is blocking on them.
@@ -553,6 +556,7 @@ final class AppState: ObservableObject {
             stats: stats,
             alertSound: alertSound,
             perToolSounds: perToolSounds,
+            persistentNotchDisplay: persistentNotchDisplay,
             lastDigestDate: lastDigestDate
         ))
     }

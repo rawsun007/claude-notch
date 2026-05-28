@@ -198,7 +198,7 @@ struct NotchView: View {
         // window itself never resizes, which is what makes the motion smooth
         // (no AppKit frame animation fighting SwiftUI) and kills the
         // "pops twice" double-relayout entirely.
-        let card = NotchView.size(for: state.mode, hovering: true, on: NSScreen.main)
+        let card = NotchView.size(for: state.mode, hovering: isIdleOpen, on: NSScreen.main)
         let collapsed = isCollapsedIdle
         let shape = NotchShape(topCornerRadius: notchTopRadius,
                                bottomCornerRadius: notchBottomRadius)
@@ -270,7 +270,12 @@ struct NotchView: View {
     }
 
     private var isCollapsedIdle: Bool {
-        false
+        if case .idle = state.mode, !isIdleOpen { return true }
+        return false
+    }
+
+    private var isIdleOpen: Bool {
+        state.persistentNotchDisplay || state.isHovering
     }
 
     /// Modes that wrap a ScrollView and need a bounded (fixed) height so the
