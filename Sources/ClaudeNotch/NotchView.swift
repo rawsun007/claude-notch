@@ -386,6 +386,7 @@ extension NotchView {
 
 private struct IdlePill: View {
     @ObservedObject var state: AppState
+    @State private var pulsePhase: Double = 0
 
     private var subtitle: String {
         if !state.lastClaudeResponse.isEmpty { return state.lastClaudeResponse }
@@ -405,7 +406,16 @@ private struct IdlePill: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Circle().fill(dotColor).frame(width: 8, height: 8)
+            // Pulses while Claude is mid-task, steady otherwise.
+            Circle()
+                .fill(dotColor)
+                .frame(width: 8, height: 8)
+                .opacity(state.isClaudeWorking ? 0.4 + 0.6 * (0.5 + 0.5 * sin(pulsePhase)) : 1.0)
+                .onAppear {
+                    withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                        pulsePhase = .pi * 2
+                    }
+                }
             VStack(alignment: .leading, spacing: 1) {
                 Text(state.idleTitle)
                     .font(.system(size: 12, weight: .semibold, design: .rounded))

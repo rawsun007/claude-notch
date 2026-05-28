@@ -302,7 +302,7 @@ final class AppState: ObservableObject {
     // Sound preferences (persisted).
     @Published var alertSound: String = "Funk"
     @Published var perToolSounds: Bool = false
-    @Published var persistentNotchDisplay: Bool = true
+    @Published var persistentNotchDisplay: Bool = false
 
     // Daily digest tracking — only shown once per day.
     @Published private(set) var lastDigestDate: String? = nil
@@ -367,7 +367,7 @@ final class AppState: ObservableObject {
             self.stats = snapshot.stats ?? UsageStats()
             self.alertSound = snapshot.alertSound ?? "Funk"
             self.perToolSounds = snapshot.perToolSounds ?? false
-            self.persistentNotchDisplay = snapshot.persistentNotchDisplay ?? true
+            self.persistentNotchDisplay = snapshot.persistentNotchDisplay ?? false
             self.lastDigestDate = snapshot.lastDigestDate
         }
     }
@@ -629,6 +629,15 @@ final class AppState: ObservableObject {
 
     var idleTitle: String {
         "\(Self.statusEntityName) · \(claudeActionStatus)"
+    }
+
+    /// True while Claude is mid-task — drives the pulsing status dot. Idle,
+    /// finished, and "last reply" states are steady (not pulsing).
+    var isClaudeWorking: Bool {
+        switch claudeActionStatus {
+        case "ready", "done", "last reply": return false
+        default: return true
+        }
     }
 
     private static func statusSnippet(from text: String) -> String {
