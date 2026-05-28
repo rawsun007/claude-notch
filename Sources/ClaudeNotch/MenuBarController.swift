@@ -30,6 +30,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var checkUpdateItem: NSMenuItem!
     private var insightsMenu: NSMenu!
     private var insightsItem: NSMenuItem!
+    private var claudeUsageMenu: NSMenu!
+    private var claudeUsageItem: NSMenuItem!
+    private var cachedClaudeUsage: ClaudeUsageReader.Usage?
+    private var claudeUsageComputing = false
     private var cancellables = Set<AnyCancellable>()
     private var permissionsTimer: Timer?
     private var isMenuOpen = false
@@ -107,6 +111,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         insightsItem = NSMenuItem(title: "Insights", action: nil, keyEquivalent: "")
         insightsItem.submenu = insightsMenu
         menu.addItem(insightsItem)
+
+        // Claude Usage — token usage + estimated cost from Claude Code's own
+        // transcripts. Rebuilt on open; the parse runs off the main thread.
+        claudeUsageMenu = NSMenu()
+        claudeUsageItem = NSMenuItem(title: "Claude Usage", action: nil, keyEquivalent: "")
+        claudeUsageItem.submenu = claudeUsageMenu
+        menu.addItem(claudeUsageItem)
 
         // Permissions & setup — grouped into a submenu.
         let permsMenu = NSMenu()
@@ -193,6 +204,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshStatusLine()
         refreshPrefs()
         refreshInsights()
+        refreshClaudeUsage()
 
         // Slower poll (12s) so background ticks don't compete with menu redraw
         // — we also explicitly refresh just-in-time when the menu opens.
@@ -229,6 +241,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             self.refreshRecentProjects()
             self.refreshPrefs()
             self.refreshInsights()
+            self.refreshClaudeUsage()
         }
     }
 
@@ -781,6 +794,61 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         insightsMenu.addItem(.separator())
         appendHeatmap()
+    }
+
+    /// Render the cached usage immediately, then recompute in the background if
+    /// the cache is missing or older than ~30s (parsing transcripts hits disk).
+    private func refreshClaudeUsage() {
+        renderClaudeUsage()
+        let stale = cachedClaudeUsage.map { Date().timeIntervalSince($0.computedAt) > 30 } ?? true
+        guard stale, !claudeUsageComputing else { return }
+        claudeUsageComputing = true
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let usage = ClaudeUsageReader.compute()
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.cachedClaudeUsage = usage
+                self.claudeUsageComputing = false
+                self.renderClaudeUsage()
+            }
+        }
+    }
+
+    private func renderClaudeUsage() {
+        claudeUsageMenu.removeAllItems()
+        func row(_ title: String) {
+            let mi = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            mi.isEnabled = false
+            claudeUsageMenu.addItem(mi)
+        }
+        guard let u = cachedClaudeUsage else {
+            row(claudeUsageComputing ? "Computing…" : "No usage data yet")
+            return
+        }
+        guard u.hasData else {
+            row("No Claude usage in the last 7 days")
+            return
+        }
+        let tk = ClaudeUsageReader.fmtTokens
+        let mn = ClaudeUsageReader.fmtMoney
+        if u.today.total > 0 {
+            row("Today:  \(tk(u.today.total)) tokens  ·  ~\(mn(u.today.costUSD))")
+        } else {
+            row("Today:  no activity yet")
+        }
+        row("This week:  \(tk(u.week.total)) tokens  ·  ~\(mn(u.week.costUSD))")
+        row("Sessions (7 days):  \(u.sessionsWeek)")
+
+        let byModel = u.weekByModel.sorted { $0.value.total > $1.value.total }
+        if !byModel.isEmpty {
+            claudeUsageMenu.addItem(.separator())
+            row("By model (7 days)")
+            for (model, t) in byModel {
+                row("    \(model):  \(tk(t.total))  ·  ~\(mn(t.costUSD))")
+            }
+        }
+        claudeUsageMenu.addItem(.separator())
+        row("Est. cost if billed at public API rates")
     }
 
     /// Append a 7×7 text heatmap of the last 49 days to the Insights submenu.
