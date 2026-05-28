@@ -55,10 +55,12 @@ enum ClaudeUsageReader {
         var topHours: [Int] { hourCounts.sorted { $0.value > $1.value }.prefix(3).map(\.key) }
     }
 
-    // Public per-million-token pricing, used only to estimate cost.
+    // Public per-million-token pricing (input, output, cacheWrite, cacheRead),
+    // used only to estimate cost. Opus 4.x is $5/$25, not the legacy $15/$75 —
+    // verified against Claude Code's own /usage totals.
     private static func price(for model: String) -> (input: Double, output: Double, cacheWrite: Double, cacheRead: Double) {
         let m = model.lowercased()
-        if m.contains("opus")  { return (15, 75, 18.75, 1.5) }
+        if m.contains("opus")  { return (5, 25, 6.25, 0.5) }
         if m.contains("haiku") { return (1, 5, 1.25, 0.1) }
         return (3, 15, 3.75, 0.3)   // default to Sonnet pricing
     }
