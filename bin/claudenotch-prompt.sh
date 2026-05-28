@@ -8,8 +8,9 @@ echo "[$(date '+%H:%M:%S')] prompt hook fired" >> "$LOG"
 nc -z 127.0.0.1 53127 2>/dev/null || exit 0
 command -v jq >/dev/null 2>&1 || exit 0
 printf '%s' "$input" | jq -c '{
-    prompt: (.prompt // ""),
-    cwd:    (.cwd    // "")
+    prompt:          (.prompt          // ""),
+    cwd:             (.cwd             // ""),
+    transcript_path: (.transcript_path // "")
 }' | curl -s --max-time 2 -X POST \
        -H 'Content-Type: application/json' \
        --data-binary @- \
