@@ -449,12 +449,10 @@ final class EventServer {
         let semaphore = DispatchSemaphore(value: 0)
         let lock = NSLock()
         var answers: [[String]]? = nil
-        var capturedOriginatorBID: String? = nil
 
         Task { @MainActor [weak state] in
             guard let state else { return }
             let frontBID = Self.capturedOriginator(state: state)
-            lock.withLock { capturedOriginatorBID = frontBID }
             let req = QuestionRequest(
                 questions: parsed,
                 source: "Claude Code",
@@ -477,70 +475,27 @@ final class EventServer {
                 return
             }
 
-            let (ans, originatorBID) = lock.withLock { (answers, capturedOriginatorBID) }
+            let ans = lock.withLock { answers }
             guard let ans else {
                 self?.send(body: "{\"cancelled\":true,\"reason\":\"user dismissed\"}", on: conn)
                 return
             }
 
-            // Only allow keystroke route when:
-            //   - every question is single-select
-            //   - every question got exactly one pick
-            //   - we know which app to inject into
-            //   - Accessibility is granted
-            let allSingleAnswered = zip(parsed, ans).allSatisfy { (q, picks) in
-                !q.multiSelect && picks.count == 1
+            // Always feed the answer back through the hook's deny reason so
+            // Claude Code never renders its own blocking prompt in the
+            // terminal. We used to optionally return allow + AppleScript
+            // keystrokes, but that left the terminal waiting for input whenever
+            // the keystroke mis-timed or the wrong app had focus — answering in
+            // the notch is now sufficient on its own.
+            let pairs = zip(parsed, ans).map { (q, picks) -> [String: Any] in
+                ["question": q.text, "header": q.header, "picked": picks]
             }
-            var indexes: [Int] = []
-            if allSingleAnswered {
-                for (q, picks) in zip(parsed, ans) {
-                    if let label = picks.first,
-                       let idx = q.options.firstIndex(where: { $0.label == label }) {
-                        indexes.append(idx + 1)
-                    } else {
-                        indexes.removeAll()
-                        break
-                    }
-                }
-            }
-
-            let accessibilityOK: Bool = {
-                var ok = false
-                let sem = DispatchSemaphore(value: 0)
-                Task { @MainActor in
-                    ok = TerminalAutomator.isAccessibilityTrusted
-                    sem.signal()
-                }
-                _ = sem.wait(timeout: .now() + .seconds(1))
-                return ok
-            }()
-
-            if allSingleAnswered, !indexes.isEmpty, let bid = originatorBID, accessibilityOK {
-                // Schedule the keystroke send. Hook returns allow → Claude Code
-                // renders the prompt → AppleScript fires after a short delay.
-                Task { @MainActor in
-                    TerminalAutomator.sendAnswers(indexes, toBundleID: bid)
-                }
-                bodyJSON = "{\"mode\":\"allow\"}"
+            let payload: [String: Any] = ["mode": "deny", "answers": pairs]
+            if let data = try? JSONSerialization.data(withJSONObject: payload),
+               let s = String(data: data, encoding: .utf8) {
+                bodyJSON = s
             } else {
-                // Fall back to deny+reason so Claude at least sees the answers.
-                let pairs = zip(parsed, ans).map { (q, picks) -> [String: Any] in
-                    ["question": q.text, "header": q.header, "picked": picks]
-                }
-                var payload: [String: Any] = ["mode": "deny", "answers": pairs]
-                if !accessibilityOK {
-                    payload["fallback_reason"] = "accessibility-not-granted"
-                } else if !allSingleAnswered {
-                    payload["fallback_reason"] = "multi-select-not-supported"
-                } else if originatorBID == nil {
-                    payload["fallback_reason"] = "originator-unknown"
-                }
-                if let data = try? JSONSerialization.data(withJSONObject: payload),
-                   let s = String(data: data, encoding: .utf8) {
-                    bodyJSON = s
-                } else {
-                    bodyJSON = "{\"cancelled\":true,\"reason\":\"encode failed\"}"
-                }
+                bodyJSON = "{\"cancelled\":true,\"reason\":\"encode failed\"}"
             }
 
             self?.send(body: bodyJSON, on: conn)
