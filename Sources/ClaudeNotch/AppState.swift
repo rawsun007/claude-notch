@@ -266,6 +266,8 @@ final class CompletedTask: Identifiable, Equatable {
 
 @MainActor
 final class AppState: ObservableObject {
+    static let statusEntityName = "Claude"
+
     @Published private(set) var mode: NotchMode = .idle
     @Published private(set) var permissionQueue: [PermissionRequest] = []
     @Published private(set) var completedQueue: [CompletedTask] = []
@@ -328,6 +330,7 @@ final class AppState: ObservableObject {
     @Published private(set) var fullClaudeResponse: String = ""        // up to 8000 chars
     @Published private(set) var lastClaudeResponseAt: Date? = nil
     @Published private(set) var lastActivityAt: Date? = nil
+    @Published private(set) var claudeActionStatus: String = "ready"
     @Published var composeText: String = ""
     @Published private(set) var isComposing: Bool = false
     @Published private(set) var composeTarget: String? = nil
@@ -579,6 +582,7 @@ final class AppState: ObservableObject {
 
     func noteActivity(_ label: String) {
         lastActivity = label
+        claudeActionStatus = Self.statusLabel(fromActivity: label)
         lastActivityAt = Date()
         lastHookAt = Date()
         ensureStaleTimer()
@@ -586,6 +590,10 @@ final class AppState: ObservableObject {
 
     func noteUserPrompt(_ prompt: String) {
         lastUserPrompt = String(prompt.prefix(140))
+        lastClaudeResponse = ""
+        fullClaudeResponse = ""
+        lastClaudeResponseAt = nil
+        claudeActionStatus = "thinking"
         lastHookAt = Date()
         ensureStaleTimer()
     }
@@ -598,16 +606,57 @@ final class AppState: ObservableObject {
         lastActivity = ""
         lastUserPrompt = ""
         lastClaudeResponse = ""
+        claudeActionStatus = "ready"
         lastHookAt = nil
     }
 
     func noteClaudeResponse(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+        guard trimmed != fullClaudeResponse else { return }
         fullClaudeResponse = String(trimmed.prefix(8000))
-        lastClaudeResponse = String(trimmed.prefix(240))
+        lastClaudeResponse = Self.statusSnippet(from: trimmed)
+        if completedQueue.isEmpty {
+            claudeActionStatus = "replying"
+        }
         lastClaudeResponseAt = Date()
         lastHookAt = Date()
+    }
+
+    var idleTitle: String {
+        "\(Self.statusEntityName) · \(claudeActionStatus)"
+    }
+
+    private static func statusSnippet(from text: String) -> String {
+        let lines = text.components(separatedBy: .newlines)
+        let currentLine = lines.reversed().first {
+            !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        } ?? text
+        let compact = currentLine
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return String(compact.prefix(240))
+    }
+
+    private static func statusLabel(fromActivity label: String) -> String {
+        let tool = label.split(separator: ":", maxSplits: 1).first.map(String.init) ?? label
+        switch tool {
+        case "Bash":                  return "running Bash"
+        case "Read":                  return "reading"
+        case "Edit", "MultiEdit":     return "editing"
+        case "Write", "NotebookEdit": return "writing"
+        case "Grep", "Glob", "LS":    return "searching files"
+        case "WebFetch":              return "fetching"
+        case "WebSearch":             return "searching web"
+        case "TodoWrite":             return "updating todos"
+        case "Task", "TaskCreate":    return "delegating"
+        case "TaskUpdate":            return "tracking task"
+        case "TaskList", "TaskGet":   return "checking tasks"
+        case "ExitPlanMode":          return "waiting approval"
+        default:
+            let clean = tool.trimmingCharacters(in: .whitespacesAndNewlines)
+            return clean.isEmpty ? "working" : "using \(clean)"
+        }
     }
 
     // Override noteActivity to stamp its own time so the IdlePill can pick
@@ -771,6 +820,7 @@ final class AppState: ObservableObject {
             currentCwd = ""
             lastActivity = ""
             lastUserPrompt = ""
+            claudeActionStatus = lastClaudeResponse.isEmpty ? "ready" : "last reply"
             lastHookAt = nil
             staleTimer?.invalidate()
             staleTimer = nil
@@ -778,6 +828,9 @@ final class AppState: ObservableObject {
             // Just drop the volatile fields.
             if !lastActivity.isEmpty { lastActivity = "" }
             if !lastUserPrompt.isEmpty { lastUserPrompt = "" }
+            if !lastClaudeResponse.isEmpty {
+                claudeActionStatus = "last reply"
+            }
         }
     }
 
@@ -936,6 +989,7 @@ final class AppState: ObservableObject {
     }
 
     func enqueueCompleted(_ task: CompletedTask) {
+        claudeActionStatus = "done"
         if isSnoozed {
             appendHistory(HistoryEntry(
                 timestamp: Date(),
@@ -1103,6 +1157,7 @@ final class AppState: ObservableObject {
 
     func pingThinking(label: String) {
         thinkingLabel = label
+        claudeActionStatus = "thinking"
         thinkingExpiresAt = Date().addingTimeInterval(8)
         recompute()
         thinkingTask?.cancel()

@@ -198,7 +198,7 @@ struct NotchView: View {
         // window itself never resizes, which is what makes the motion smooth
         // (no AppKit frame animation fighting SwiftUI) and kills the
         // "pops twice" double-relayout entirely.
-        let card = NotchView.size(for: state.mode, hovering: state.isHovering, on: NSScreen.main)
+        let card = NotchView.size(for: state.mode, hovering: true, on: NSScreen.main)
         let collapsed = isCollapsedIdle
         let shape = NotchShape(topCornerRadius: notchTopRadius,
                                bottomCornerRadius: notchBottomRadius)
@@ -270,8 +270,7 @@ struct NotchView: View {
     }
 
     private var isCollapsedIdle: Bool {
-        if case .idle = state.mode, !state.isHovering { return true }
-        return false
+        false
     }
 
     /// Modes that wrap a ScrollView and need a bounded (fixed) height so the
@@ -370,11 +369,7 @@ struct NotchView: View {
 
 extension NotchView {
     fileprivate func idleSubtitle() -> String {
-        // Most-recently updated signal wins. If both are recent, prefer
-        // the actual response over the tool call.
-        let r = state.lastClaudeResponseAt ?? .distantPast
-        let a = state.lastActivityAt ?? .distantPast
-        if r >= a && !state.lastClaudeResponse.isEmpty { return state.lastClaudeResponse }
+        if !state.lastClaudeResponse.isEmpty { return state.lastClaudeResponse }
         if !state.lastActivity.isEmpty { return state.lastActivity }
         if !state.lastUserPrompt.isEmpty { return state.lastUserPrompt }
         return "ready"
@@ -388,9 +383,7 @@ private struct IdlePill: View {
     @ObservedObject var state: AppState
 
     private var subtitle: String {
-        let r = state.lastClaudeResponseAt ?? .distantPast
-        let a = state.lastActivityAt ?? .distantPast
-        if r >= a && !state.lastClaudeResponse.isEmpty { return state.lastClaudeResponse }
+        if !state.lastClaudeResponse.isEmpty { return state.lastClaudeResponse }
         if !state.lastActivity.isEmpty   { return state.lastActivity }
         if !state.lastUserPrompt.isEmpty { return state.lastUserPrompt }
         return "ready"
@@ -409,10 +402,11 @@ private struct IdlePill: View {
         HStack(spacing: 10) {
             Circle().fill(dotColor).frame(width: 8, height: 8)
             VStack(alignment: .leading, spacing: 1) {
-                Text(state.currentProject.isEmpty ? "ClaudeNotch" : state.currentProject)
+                Text(state.idleTitle)
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)
                     .lineLimit(1)
+                    .truncationMode(.tail)
                 Text(subtitle)
                     .font(.system(size: 10, design: .rounded))
                     .foregroundColor(.white.opacity(0.55))
