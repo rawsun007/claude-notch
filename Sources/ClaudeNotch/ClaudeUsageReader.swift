@@ -31,10 +31,17 @@ enum ClaudeUsageReader {
         var today = Tokens()
         var week = Tokens()
         var weekByModel: [String: Tokens] = [:]
+        var weekByProject: [String: Tokens] = [:]   // keyed by cwd
         var sessionsToday = 0
         var sessionsWeek = 0
         var computedAt = Date()
         var hasData: Bool { week.total > 0 }
+
+        /// Fraction of input-side tokens served from the prompt cache (0...1).
+        var cacheHitRate: Double {
+            let inputSide = week.input + week.cacheCreation + week.cacheRead
+            return inputSide > 0 ? Double(week.cacheRead) / Double(inputSide) : 0
+        }
     }
 
     // Public per-million-token pricing, used only to estimate cost.
@@ -51,6 +58,12 @@ enum ClaudeUsageReader {
              + Double(output) / 1_000_000 * p.output
              + Double(cacheCreation) / 1_000_000 * p.cacheWrite
              + Double(cacheRead) / 1_000_000 * p.cacheRead
+    }
+
+    /// Last path component of a working directory, e.g. ".../claude mac app" → "claude mac app".
+    static func projectName(_ cwd: String) -> String {
+        let name = (cwd as NSString).lastPathComponent
+        return name.isEmpty ? cwd : name
     }
 
     static func shortModel(_ model: String) -> String {
@@ -113,9 +126,13 @@ enum ClaudeUsageReader {
                 let t = Tokens(input: input, output: output, cacheRead: cacheRead, cacheCreation: cacheCreation, costUSD: c)
                 let key = shortModel(model)
                 let sid = obj["sessionId"] as? String
+                let cwd = (obj["cwd"] as? String) ?? ""
 
                 usage.week = usage.week + t
                 usage.weekByModel[key, default: Tokens()] = usage.weekByModel[key, default: Tokens()] + t
+                if !cwd.isEmpty {
+                    usage.weekByProject[cwd, default: Tokens()] = usage.weekByProject[cwd, default: Tokens()] + t
+                }
                 if let sid { sessionsWeekSet.insert(sid) }
                 if ts >= startOfToday {
                     usage.today = usage.today + t

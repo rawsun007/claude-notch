@@ -838,6 +838,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
         row("This week:  \(tk(u.week.total)) tokens  ·  ~\(mn(u.week.costUSD))")
         row("Sessions (7 days):  \(u.sessionsWeek)")
+        if u.cacheHitRate > 0 {
+            row("Cache:  \(Int((u.cacheHitRate * 100).rounded()))% of input reused")
+        }
 
         let byModel = u.weekByModel.sorted { $0.value.total > $1.value.total }
         if !byModel.isEmpty {
@@ -847,6 +850,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 row("    \(model):  \(tk(t.total))  ·  ~\(mn(t.costUSD))")
             }
         }
+
+        let byProject = u.weekByProject.sorted { $0.value.total > $1.value.total }.prefix(6)
+        if !byProject.isEmpty {
+            claudeUsageMenu.addItem(.separator())
+            row("By project (7 days)")
+            for (cwd, t) in byProject {
+                row("    \(ClaudeUsageReader.projectName(cwd)):  \(tk(t.total))  ·  ~\(mn(t.costUSD))")
+            }
+        }
+
         claudeUsageMenu.addItem(.separator())
         row("Est. cost if billed at public API rates")
     }
