@@ -40,3 +40,25 @@ enum Persistence {
         try? data.write(to: storeURL, options: .atomic)
     }
 }
+
+// Decode each field independently so a single unreadable section (e.g. a
+// history schema change) degrades gracefully instead of throwing away the
+// whole snapshot — which previously dropped all usage stats on every update
+// that added a field. Defined in an extension to keep the memberwise init that
+// persistNow() uses.
+extension Persistence.Snapshot {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            history: (try? c.decode([HistoryEntry].self, forKey: .history)) ?? [],
+            allowRules: (try? c.decode(Set<AllowRule>.self, forKey: .allowRules)) ?? [],
+            recentProjects: (try? c.decode([String].self, forKey: .recentProjects)) ?? [],
+            autoApprove: try? c.decode(Bool.self, forKey: .autoApprove),
+            soundMuted: try? c.decode(Bool.self, forKey: .soundMuted),
+            stats: try? c.decode(UsageStats.self, forKey: .stats),
+            alertSound: try? c.decode(String.self, forKey: .alertSound),
+            perToolSounds: try? c.decode(Bool.self, forKey: .perToolSounds),
+            lastDigestDate: try? c.decode(String.self, forKey: .lastDigestDate)
+        )
+    }
+}
