@@ -45,7 +45,8 @@ struct LiveSession: Identifiable, Equatable {
     var project: String            // basename of cwd
     var status: String             // same vocabulary as claudeActionStatus
     var activity: String           // last "Bash: ls" style line
-    var lastResponse: String
+    var lastResponse: String       // snippet for the row
+    var fullResponse: String       // full reply text for the detail view
     var originatorBundleID: String?
     var lastHookAt: Date
 }
@@ -364,6 +365,10 @@ final class AppState: ObservableObject {
     // `claude "<message>"`, instead of typing into the active terminal.
     @Published var composeProjectCwd: String? = nil
     @Published private(set) var isResponseDetailOpen: Bool = false
+    // The reply currently shown in the detail view — set from either the global
+    // last reply or a tapped session row, so the card can render whichever.
+    @Published private(set) var detailResponseText: String = ""
+    @Published private(set) var detailProject: String = ""
     @Published private(set) var isHistoryOpen: Bool = false
 
     // Click-to-expand history drawer (most recent first, ring-buffered).
@@ -673,6 +678,7 @@ final class AppState: ObservableObject {
         if !sessionId.isEmpty || !currentCwd.isEmpty {
             upsertSession(id: sessionId, cwd: currentCwd) { s in
                 s.lastResponse = snippet
+                s.fullResponse = String(trimmed.prefix(8000))
                 if !Self.terminalSessionStatuses.contains(s.status) {
                     s.status = "replying"
                 }
@@ -739,6 +745,7 @@ final class AppState: ObservableObject {
             status: "ready",
             activity: "",
             lastResponse: "",
+            fullResponse: "",
             originatorBundleID: nil,
             lastHookAt: Date()
         )
@@ -898,6 +905,18 @@ final class AppState: ObservableObject {
 
     func showResponseDetail() {
         guard !fullClaudeResponse.isEmpty else { return }
+        detailResponseText = fullClaudeResponse
+        detailProject = currentProject
+        isResponseDetailOpen = true
+        recompute()
+    }
+
+    /// Show a specific session's last reply (from tapping its row in the
+    /// multi-session list). No-op if that session hasn't replied yet.
+    func showSessionResponse(_ session: LiveSession) {
+        guard !session.fullResponse.isEmpty else { return }
+        detailResponseText = session.fullResponse
+        detailProject = session.project
         isResponseDetailOpen = true
         recompute()
     }
@@ -938,17 +957,54 @@ final class AppState: ObservableObject {
 
     private func ensureStaleTimer() {
         guard staleTimer == nil else { return }
-        staleTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+        staleTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.checkStale() }
         }
     }
 
+    /// A session is dead if its terminal app has quit (so a Stop hook will
+    /// never come — e.g. the user killed the terminal mid-run) or it has gone
+    /// silent past the stale window.
+    private func isSessionDead(_ s: LiveSession, cutoff: Date) -> Bool {
+        if s.lastHookAt <= cutoff { return true }
+        if let bid = s.originatorBundleID, !bid.isEmpty,
+           NSRunningApplication.runningApplications(withBundleIdentifier: bid).isEmpty {
+            return true
+        }
+        return false
+    }
+
     private func checkStale() {
-        // Drop sessions whose last hook is older than the project-stale window
-        // so the per-session list shrinks reactively.
+        // Drop sessions whose terminal has been killed/closed, or that have
+        // gone silent past the stale window, so the per-session list reflects
+        // only what's actually running.
         let sessionCutoff = Date().addingTimeInterval(-projectStaleAfter)
-        let dead = sessions.filter { $0.value.lastHookAt <= sessionCutoff }.map(\.key)
-        for k in dead { sessions.removeValue(forKey: k) }
+        let dead = sessions.filter { isSessionDead($0.value, cutoff: sessionCutoff) }.map(\.key)
+        if !dead.isEmpty {
+            for k in dead { sessions.removeValue(forKey: k) }
+            // If the global "current" session was one of the dead ones, re-point
+            // the mirror at the newest survivor (or collapse if none remain) so
+            // the notch doesn't keep showing a closed terminal's project.
+            if !sessions.values.contains(where: { $0.cwd == currentCwd }) {
+                if let newest = activeSessions.first {
+                    currentCwd = newest.cwd
+                    currentProject = newest.project
+                    lastActivity = newest.activity
+                    claudeActionStatus = newest.status
+                    lastClaudeResponse = newest.lastResponse
+                } else {
+                    currentProject = ""
+                    currentCwd = ""
+                    lastActivity = ""
+                    lastUserPrompt = ""
+                    claudeActionStatus = lastClaudeResponse.isEmpty ? "ready" : "last reply"
+                    lastHookAt = nil
+                    staleTimer?.invalidate()
+                    staleTimer = nil
+                    return
+                }
+            }
+        }
 
         guard let last = lastHookAt else { return }
         let age = Date().timeIntervalSince(last)

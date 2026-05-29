@@ -498,7 +498,7 @@ private struct SessionsList: View {
                 .padding(.bottom, 4)
             ForEach(state.activeSessions) { session in
                 Button {
-                    state.beginCompose(project: session.cwd)
+                    state.showSessionResponse(session)
                 } label: {
                     HStack(spacing: 8) {
                         let working = AppState.isWorking(status: session.status)
@@ -521,7 +521,7 @@ private struct SessionsList: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help("Send a message to \(session.project)")
+                .help(session.fullResponse.isEmpty ? "No reply yet" : "Show \(session.project)'s last reply")
             }
         }
     }
@@ -660,9 +660,9 @@ private struct ResponseDetailCard: View {
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundColor(.green.opacity(0.9))
                     .textCase(.uppercase)
-                if !state.currentProject.isEmpty {
+                if !state.detailProject.isEmpty {
                     Text("·").foregroundColor(.white.opacity(0.3))
-                    Text(state.currentProject)
+                    Text(state.detailProject)
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundColor(.white.opacity(0.6))
                         .lineLimit(1)
@@ -672,7 +672,7 @@ private struct ResponseDetailCard: View {
 
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(alignment: .leading, spacing: 6) {
-                    ForEach(Array(parseMarkdownBlocks(state.fullClaudeResponse).enumerated()), id: \.offset) { _, block in
+                    ForEach(Array(parseMarkdownBlocks(state.detailResponseText).enumerated()), id: \.offset) { _, block in
                         MarkdownBlockView(block: block)
                     }
                 }
