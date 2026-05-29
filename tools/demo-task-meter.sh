@@ -9,13 +9,14 @@
 # The notch only shows session rows while it's OPEN, so either turn on
 # "Persistent notch display" (menu-bar bell) or hover the notch while this runs.
 #
-# Usage: tools/demo-task-meter.sh [project_name] [step_seconds]
+# Usage: tools/demo-task-meter.sh [project_name] [step_seconds] [hold_seconds]
 set -u
 
 PORT=53127
 HOST=127.0.0.1
 PROJECT="${1:-auth-service}"
 STEP="${2:-1.2}"
+HOLD="${3:-8}"   # seconds to leave the finished meter up before cleaning up
 CWD="$HOME/Demos/$PROJECT"
 SESSION="demo-$(date +%s)"
 
@@ -25,6 +26,15 @@ post() {  # post <event> <task_id> [subject]
         -d "{\"event\":\"$1\",\"task_id\":\"$2\",\"task_subject\":\"${3:-}\",\"session_id\":\"$SESSION\",\"cwd\":\"$CWD\"}" \
         >/dev/null
 }
+
+# Remove the demo's fake session from the notch so it doesn't linger as a
+# phantom (it has no real Claude session behind it). Runs on any exit.
+cleanup() {
+    curl -s --max-time 2 -X POST "http://$HOST:$PORT/sessionend" \
+        -H 'Content-Type: application/json' \
+        -d "{\"session_id\":\"$SESSION\",\"cwd\":\"$CWD\"}" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
 
 if ! nc -z "$HOST" "$PORT" 2>/dev/null; then
     echo "ClaudeNotch isn't listening on $HOST:$PORT — launch the app first." >&2
@@ -59,4 +69,6 @@ for i in $(seq 0 $((N - 1))); do
     sleep "$STEP"
 done
 
-echo "✓ Finished: meter should read $N/$N (green)."
+echo "✓ Finished: meter should read $N/$N (green). Holding ${HOLD}s, then cleaning up the demo session."
+sleep "$HOLD"
+# cleanup() runs on EXIT (trap) and removes the phantom session.

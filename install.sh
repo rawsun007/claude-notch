@@ -27,7 +27,12 @@ echo "→ Installed hook scripts to $HOOK_DIR"
 # 3. Wire hooks into ~/.claude/settings.json (idempotent, with backup)
 "$HOOK_DIR/install-hooks.sh"
 
-# 4. Launch
+# 4. Relaunch. `open` alone just re-activates an already-running instance, so a
+# reinstall would keep the OLD binary in memory and the update would silently
+# not take effect. Kill any running copy first, then launch the fresh one.
+killall ClaudeNotch 2>/dev/null || true
+# Give the old process a moment to release the menu-bar item + event port.
+sleep 1
 open /Applications/ClaudeNotch.app
 
 cat <<EOF
