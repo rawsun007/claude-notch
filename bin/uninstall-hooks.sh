@@ -21,6 +21,7 @@ def strip_event(arr):
 
 .hooks = (.hooks // {}) |
 .hooks.PreToolUse       = strip_event(.hooks.PreToolUse) |
+.hooks.PermissionRequest = strip_event(.hooks.PermissionRequest) |
 .hooks.PostToolUse      = strip_event(.hooks.PostToolUse) |
 .hooks.UserPromptSubmit = strip_event(.hooks.UserPromptSubmit) |
 .hooks.Notification     = strip_event(.hooks.Notification) |
@@ -29,6 +30,7 @@ def strip_event(arr):
 .hooks.TaskCreated      = strip_event(.hooks.TaskCreated) |
 .hooks.TaskCompleted    = strip_event(.hooks.TaskCompleted) |
 ( if (.hooks.PreToolUse       | length) == 0 then del(.hooks.PreToolUse)       else . end ) |
+( if (.hooks.PermissionRequest | length) == 0 then del(.hooks.PermissionRequest) else . end ) |
 ( if (.hooks.PostToolUse      | length) == 0 then del(.hooks.PostToolUse)      else . end ) |
 ( if (.hooks.UserPromptSubmit | length) == 0 then del(.hooks.UserPromptSubmit) else . end ) |
 ( if (.hooks.Notification     | length) == 0 then del(.hooks.Notification)     else . end ) |

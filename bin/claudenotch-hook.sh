@@ -28,6 +28,9 @@ case "$event" in
     PreToolUse)
         printf '%s' "$input" | exec "$DIR/claudenotch-permission.sh"
         ;;
+    PermissionRequest)
+        printf '%s' "$input" | exec "$DIR/claudenotch-permreq.sh"
+        ;;
     PostToolUse)
         printf '%s' "$input" | exec "$DIR/claudenotch-posttool.sh"
         ;;

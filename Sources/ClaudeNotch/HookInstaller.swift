@@ -129,6 +129,9 @@ enum HookInstaller {
         // duplicate), and append ours.
         var hooks = (settings["hooks"] as? [String: Any]) ?? [:]
         appendHook(to: "PreToolUse", in: &hooks, matcher: ".*")
+        // Permission dialogs that don't fire PreToolUse (TodoWrite, ExitPlanMode)
+        // come through here so they still surface in the notch.
+        appendHook(to: "PermissionRequest", in: &hooks, matcher: ".*")
         appendHook(to: "PostToolUse", in: &hooks, matcher: ".*")
         appendHook(to: "UserPromptSubmit", in: &hooks, matcher: nil)
         appendHook(to: "Notification", in: &hooks, matcher: nil)
