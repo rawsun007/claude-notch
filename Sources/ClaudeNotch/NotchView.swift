@@ -489,7 +489,7 @@ private struct IdlePill: View {
 
             // Row 2 — shimmer action label while working; last Claude message when idle.
             if state.isClaudeWorking {
-                TimelineView(.animation) { tl in
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: false)) { tl in
                     let phase = CGFloat(tl.date.timeIntervalSinceReferenceDate
                         .truncatingRemainder(dividingBy: 2.5) / 2.5)
                     Text(actionLabel)
@@ -537,7 +537,7 @@ private struct CommandLineBlock: View {
     let text: String
 
     var body: some View {
-        TimelineView(.animation) { tl in
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: false)) { tl in
             let phase = CGFloat(tl.date.timeIntervalSinceReferenceDate
                 .truncatingRemainder(dividingBy: 2.5) / 2.5)
             let border = IdlePill.shimmerGradient(phase: phase, base: 0.07, peak: 0.28)

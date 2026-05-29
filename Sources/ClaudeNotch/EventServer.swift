@@ -508,16 +508,6 @@ final class EventServer {
         }
     }
 
-    private func handleThinking(payload: [String: Any]) {
-        Task { @MainActor [weak state] in
-            guard let state else { return }
-            let label = (payload["label"] as? String)
-                ?? (payload["tool_name"] as? String).map { "Using \($0)" }
-                ?? "Working…"
-            state.pingThinking(label: label)
-        }
-    }
-
     /// PreToolUse: tool was just approved and is now executing. Update the
     /// activity strip live so the user sees what's running while it runs.
     private func handlePreTool(payload: [String: Any]) {
