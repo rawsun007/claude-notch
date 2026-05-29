@@ -18,4 +18,11 @@ printf '%s' "$input" | jq -c '{
        -H 'Content-Type: application/json' \
        --data-binary @- \
        http://127.0.0.1:53127/activity >/dev/null || true
+
+# Signal that Claude is now reasoning between tool calls.
+printf '%s' "$input" | jq -c '{cwd:(.cwd//""),session_id:(.session_id//"")}' \
+    | curl -s --max-time 2 -X POST \
+       -H 'Content-Type: application/json' \
+       --data-binary @- \
+       http://127.0.0.1:53127/thinking >/dev/null || true
 exit 0
