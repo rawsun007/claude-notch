@@ -17,12 +17,16 @@ for s in claudenotch-hook.sh \
          claudenotch-posttool.sh claudenotch-prompt.sh claudenotch-sessionend.sh \
          uninstall-hooks.sh; do
     src="$SCRIPT_DIR/$s"
+    dst="$INSTALL_DIR/$s"
     [ -f "$src" ] || { echo "Missing source script: $src"; exit 1; }
-    # Remove first: on APFS, cp clones and refuses to overwrite a byte-identical
-    # file ("are identical"), which under set -e would abort the whole install.
-    rm -f "$INSTALL_DIR/$s"
-    cp "$src" "$INSTALL_DIR/$s"
-    chmod +x "$INSTALL_DIR/$s"
+    # When invoked from the install dir itself, src == dst — nothing to copy.
+    # Otherwise remove first: on APFS, cp clones and refuses to overwrite a
+    # byte-identical file ("are identical"), which under set -e would abort.
+    if [ "$src" != "$dst" ]; then
+        rm -f "$dst"
+        cp "$src" "$dst"
+    fi
+    chmod +x "$dst"
 done
 echo "→ Hook scripts copied to $INSTALL_DIR"
 
