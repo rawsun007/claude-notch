@@ -205,8 +205,13 @@ final class EventServer {
                 startResponsePolling(transcriptPath: transcriptPath, sessionId: sessionId, duration: 300, delayFirstRead: true)
             }
             sendOK(on: conn)
-        case "/pretool", "/posttool", "/thinking":
-            handleThinking(payload: payload)
+        case "/pretool":
+            handlePreTool(payload: payload)
+            sendOK(on: conn)
+        case "/thinking":
+            handlePostToolThinking(payload: payload)
+            sendOK(on: conn)
+        case "/posttool":
             sendOK(on: conn)
         case "/ping":
             sendOK(on: conn)
@@ -510,6 +515,30 @@ final class EventServer {
                 ?? (payload["tool_name"] as? String).map { "Using \($0)" }
                 ?? "Working…"
             state.pingThinking(label: label)
+        }
+    }
+
+    /// PreToolUse: tool was just approved and is now executing. Update the
+    /// activity strip live so the user sees what's running while it runs.
+    private func handlePreTool(payload: [String: Any]) {
+        let tool = (payload["tool_name"] as? String) ?? ""
+        let input = payload["tool_input"] as? [String: Any] ?? [:]
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        guard !tool.isEmpty else { return }
+        Task { @MainActor [weak state] in
+            guard let state else { return }
+            let detail = self.enrichedDetail(for: tool, input: input)
+            let label = detail.isEmpty ? tool : "\(tool): \(detail)"
+            state.noteActivity(String(label.prefix(80)), sessionId: sessionId)
+        }
+    }
+
+    /// PostToolUse: tool finished, Claude is now reasoning between actions.
+    /// Clears the command strip and shows "thinking" until the next tool starts.
+    private func handlePostToolThinking(payload: [String: Any]) {
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.noteThinkingBetweenTools(sessionId: sessionId)
         }
     }
 
