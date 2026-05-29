@@ -10,6 +10,7 @@ command -v jq >/dev/null 2>&1 || exit 0
 printf '%s' "$input" | jq -c '{
     prompt:          (.prompt          // ""),
     cwd:             (.cwd             // ""),
+    session_id:      (.session_id      // ""),
     transcript_path: (.transcript_path // "")
 }' | curl -s --max-time 2 -X POST \
        -H 'Content-Type: application/json' \

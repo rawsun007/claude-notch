@@ -404,59 +404,124 @@ private struct IdlePill: View {
     private var canExpand: Bool { !state.fullClaudeResponse.isEmpty }
     private var canShowHistory: Bool { !state.history.isEmpty }
 
+    // The notch is "open" (persistent display or hovered) — only then do we
+    // unfurl the multi-session list under the main line.
+    private var isOpen: Bool { state.persistentNotchDisplay || state.isHovering }
+    private var hasMultipleSessions: Bool { state.activeSessionCount >= 2 }
+
+    // When several sessions are live, the headline becomes a count instead of a
+    // single status (which would only describe the most-recent one).
+    private var headline: String {
+        hasMultipleSessions
+            ? "\(AppState.statusEntityName) · \(state.activeSessionCount) sessions"
+            : state.idleTitle
+    }
+
     var body: some View {
-        HStack(spacing: 10) {
-            // Pulses while Claude is mid-task, steady otherwise.
-            Circle()
-                .fill(dotColor)
-                .frame(width: 8, height: 8)
-                .opacity(state.isClaudeWorking ? 0.4 + 0.6 * (0.5 + 0.5 * sin(pulsePhase)) : 1.0)
-                .onAppear {
-                    withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                        pulsePhase = .pi * 2
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 10) {
+                // Pulses while Claude is mid-task, steady otherwise.
+                Circle()
+                    .fill(dotColor)
+                    .frame(width: 8, height: 8)
+                    .opacity(state.isClaudeWorking ? 0.4 + 0.6 * (0.5 + 0.5 * sin(pulsePhase)) : 1.0)
+                    .onAppear {
+                        withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                            pulsePhase = .pi * 2
+                        }
                     }
-                }
-            VStack(alignment: .leading, spacing: 1) {
-                Text(state.idleTitle)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                Text(subtitle)
-                    .font(.system(size: 10, design: .rounded))
-                    .foregroundColor(.white.opacity(0.55))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                // Body tap → history drawer when we have anything to show.
-                // Falls through to the response detail when only that's available.
-                if canShowHistory { state.openHistory() }
-                else if canExpand { state.showResponseDetail() }
-            }
-            Spacer(minLength: 0)
-            if canShowHistory {
-                Button {
-                    state.openHistory()
-                } label: {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 11, weight: .semibold))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(headline)
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Text(subtitle)
+                        .font(.system(size: 10, design: .rounded))
                         .foregroundColor(.white.opacity(0.55))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    // Body tap → history drawer when we have anything to show.
+                    // Falls through to the response detail when only that's available.
+                    if canShowHistory { state.openHistory() }
+                    else if canExpand { state.showResponseDetail() }
+                }
+                Spacer(minLength: 0)
+                if canShowHistory {
+                    Button {
+                        state.openHistory()
+                    } label: {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.55))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Show history")
+                }
+                if canExpand {
+                    Button {
+                        state.showResponseDetail()
+                    } label: {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.55))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Expand response")
+                }
+            }
+
+            if isOpen && hasMultipleSessions {
+                SessionsList(state: state, pulsePhase: pulsePhase)
+            }
+        }
+    }
+}
+
+// MARK: - Multi-session list
+
+/// One tappable row per live Claude Code session — shown under the idle pill
+/// when more than one session is active. Tapping a row opens the composer
+/// pre-targeted at that session's project.
+private struct SessionsList: View {
+    @ObservedObject var state: AppState
+    var pulsePhase: Double
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Rectangle()
+                .fill(Color.white.opacity(0.08))
+                .frame(height: 0.5)
+                .padding(.bottom, 4)
+            ForEach(state.activeSessions) { session in
+                Button {
+                    state.beginCompose(project: session.cwd)
+                } label: {
+                    HStack(spacing: 8) {
+                        let working = AppState.isWorking(status: session.status)
+                        Circle()
+                            .fill(working ? Color.blue : Color.green)
+                            .frame(width: 6, height: 6)
+                            .opacity(working ? 0.4 + 0.6 * (0.5 + 0.5 * sin(pulsePhase)) : 1.0)
+                        Text(session.project.isEmpty ? "session" : session.project)
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundColor(.white.opacity(0.9))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        Spacer(minLength: 8)
+                        Text(session.status)
+                            .font(.system(size: 10, design: .rounded))
+                            .foregroundColor(.white.opacity(0.5))
+                            .lineLimit(1)
+                    }
+                    .padding(.vertical, 3)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help("Show history")
-            }
-            if canExpand {
-                Button {
-                    state.showResponseDetail()
-                } label: {
-                    Image(systemName: "arrow.up.left.and.arrow.down.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.55))
-                }
-                .buttonStyle(.plain)
-                .help("Expand response")
+                .help("Send a message to \(session.project)")
             }
         }
     }

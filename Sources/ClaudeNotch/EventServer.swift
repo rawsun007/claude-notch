@@ -164,10 +164,11 @@ final class EventServer {
 
         // Every hook payload tells us about a project (cwd) — always record it.
         recordSessionMetadata(payload: payload)
+        let sessionId = (payload["session_id"] as? String) ?? ""
         let transcriptPath = (payload["transcript_path"] as? String).flatMap { $0.isEmpty ? nil : $0 }
         if path != "/prompt", let transcriptPath {
             let duration: TimeInterval = path == "/stop" ? 4 : 300
-            startResponsePolling(transcriptPath: transcriptPath, duration: duration)
+            startResponsePolling(transcriptPath: transcriptPath, sessionId: sessionId, duration: duration)
         }
 
         switch path {
@@ -187,7 +188,7 @@ final class EventServer {
         case "/prompt":
             handlePrompt(payload: payload)
             if let transcriptPath {
-                startResponsePolling(transcriptPath: transcriptPath, duration: 300, delayFirstRead: true)
+                startResponsePolling(transcriptPath: transcriptPath, sessionId: sessionId, duration: 300, delayFirstRead: true)
             }
             sendOK(on: conn)
         case "/pretool", "/posttool", "/thinking":
@@ -204,15 +205,17 @@ final class EventServer {
     private func recordSessionMetadata(payload: [String: Any]) {
         let cwd = (payload["cwd"] as? String) ?? ""
         guard !cwd.isEmpty else { return }
+        let sessionId = (payload["session_id"] as? String) ?? ""
         Task { @MainActor [weak state] in
             let frontBID = Self.capturedOriginator(state: state)
-            state?.noteSession(cwd: cwd, originatorBundleID: frontBID)
+            state?.noteSession(cwd: cwd, sessionId: sessionId, originatorBundleID: frontBID)
         }
     }
 
     private func handleActivity(payload: [String: Any]) {
         let tool = (payload["tool_name"] as? String) ?? ""
         let input = payload["tool_input"] as? [String: Any] ?? [:]
+        let sessionId = (payload["session_id"] as? String) ?? ""
 
         // Learn taskId → subject so a later TaskUpdate (which only carries
         // {taskId, status}) can be rendered with a real label.
@@ -234,19 +237,20 @@ final class EventServer {
             guard !tool.isEmpty else { return }
             let detail = self.enrichedDetail(for: tool, input: input)
             let label = detail.isEmpty ? tool : "\(tool): \(detail)"
-            state.noteActivity(String(label.prefix(80)))
+            state.noteActivity(String(label.prefix(80)), sessionId: sessionId)
         }
         // Also catch any assistant text Claude wrote before this tool call.
         // Cheap and keeps the notch fresh between Stop hooks.
         if let path = payload["transcript_path"] as? String, !path.isEmpty {
-            readAndPushClaudeResponse(transcriptPath: path)
+            readAndPushClaudeResponse(transcriptPath: path, sessionId: sessionId)
         }
     }
 
     private func handlePrompt(payload: [String: Any]) {
+        let sessionId = (payload["session_id"] as? String) ?? ""
         Task { @MainActor [weak state] in
             let prompt = (payload["prompt"] as? String) ?? ""
-            state?.noteUserPrompt(prompt)
+            state?.noteUserPrompt(prompt, sessionId: sessionId)
         }
     }
 
@@ -277,22 +281,25 @@ final class EventServer {
 
     private func handleStop(payload: [String: Any]) {
         let path = (payload["transcript_path"] as? String) ?? ""
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let cwd = (payload["cwd"] as? String) ?? ""
 
         // Stop fires BEFORE Claude's final assistant message is necessarily
         // flushed to disk. Read now + at +300/+800ms — whichever finds newer
         // content wins (noteClaudeResponse is idempotent).
         if !path.isEmpty {
-            readAndPushClaudeResponse(transcriptPath: path)
+            readAndPushClaudeResponse(transcriptPath: path, sessionId: sessionId)
             workQueue.asyncAfter(deadline: .now() + .milliseconds(300)) { [weak self] in
-                self?.readAndPushClaudeResponse(transcriptPath: path)
+                self?.readAndPushClaudeResponse(transcriptPath: path, sessionId: sessionId)
             }
             workQueue.asyncAfter(deadline: .now() + .milliseconds(800)) { [weak self] in
-                self?.readAndPushClaudeResponse(transcriptPath: path)
+                self?.readAndPushClaudeResponse(transcriptPath: path, sessionId: sessionId)
             }
         }
 
         Task { @MainActor [weak state] in
             guard let state else { return }
+            state.markSessionDone(cwd: cwd, sessionId: sessionId)
             let title = (payload["title"] as? String) ?? "Claude finished"
             let detail = (payload["detail"] as? String) ?? detailFromHookPayload(payload)
             let source = (payload["source"] as? String) ?? "Claude Code"
@@ -309,14 +316,14 @@ final class EventServer {
 
     /// Read the transcript and push the latest assistant text into state.
     /// Safe to call from any queue.
-    private func readAndPushClaudeResponse(transcriptPath path: String) {
+    private func readAndPushClaudeResponse(transcriptPath path: String, sessionId: String = "") {
         guard let text = lastAssistantText(fromTranscriptAt: path) else { return }
         Task { @MainActor [weak state] in
-            state?.noteClaudeResponse(text)
+            state?.noteClaudeResponse(text, sessionId: sessionId)
         }
     }
 
-    private func startResponsePolling(transcriptPath path: String, duration: TimeInterval, delayFirstRead: Bool = false) {
+    private func startResponsePolling(transcriptPath path: String, sessionId: String = "", duration: TimeInterval, delayFirstRead: Bool = false) {
         let token = transcriptPollLock.withLock { () -> Int in
             activeTranscriptPath = path
             transcriptPollID += 1
@@ -330,15 +337,15 @@ final class EventServer {
                     self.transcriptPollID == token && self.activeTranscriptPath == path
                 }
                 guard isCurrent else { return }
-                self.pollTranscript(path: path, token: token, until: deadline)
+                self.pollTranscript(path: path, sessionId: sessionId, token: token, until: deadline)
             }
         } else {
-            pollTranscript(path: path, token: token, until: deadline)
+            pollTranscript(path: path, sessionId: sessionId, token: token, until: deadline)
         }
     }
 
-    private func pollTranscript(path: String, token: Int, until deadline: Date) {
-        readAndPushClaudeResponse(transcriptPath: path)
+    private func pollTranscript(path: String, sessionId: String, token: Int, until deadline: Date) {
+        readAndPushClaudeResponse(transcriptPath: path, sessionId: sessionId)
         guard Date() < deadline else { return }
         workQueue.asyncAfter(deadline: .now() + .milliseconds(700)) { [weak self] in
             guard let self else { return }
@@ -346,7 +353,7 @@ final class EventServer {
                 self.transcriptPollID == token && self.activeTranscriptPath == path
             }
             guard isCurrent else { return }
-            self.pollTranscript(path: path, token: token, until: deadline)
+            self.pollTranscript(path: path, sessionId: sessionId, token: token, until: deadline)
         }
     }
 

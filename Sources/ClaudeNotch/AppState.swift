@@ -33,6 +33,23 @@ enum ToolPreview: Equatable {
     case write(head: String, totalLines: Int)
 }
 
+// MARK: - Live sessions
+
+/// One live Claude Code session, keyed by its `session_id` (or, when a hook
+/// didn't carry one, by its normalized cwd). Lets the notch show several
+/// concurrent sessions at once instead of collapsing them onto one global
+/// "current" set of fields.
+struct LiveSession: Identifiable, Equatable {
+    let id: String                 // session_id, or normalized cwd when absent
+    var cwd: String
+    var project: String            // basename of cwd
+    var status: String             // same vocabulary as claudeActionStatus
+    var activity: String           // last "Bash: ls" style line
+    var lastResponse: String
+    var originatorBundleID: String?
+    var lastHookAt: Date
+}
+
 // MARK: - History
 
 /// One row in the click-to-expand history drawer. Captured at resolve time
@@ -332,6 +349,13 @@ final class AppState: ObservableObject {
     @Published private(set) var lastClaudeResponseAt: Date? = nil
     @Published private(set) var lastActivityAt: Date? = nil
     @Published private(set) var claudeActionStatus: String = "ready"
+
+    // Per-session live state. Keyed by session_id (or normalized cwd when a
+    // hook didn't carry one). The global fields above stay as a mirror of the
+    // most-recent session so existing UI keeps working unchanged.
+    @Published private(set) var sessions: [String: LiveSession] = [:]
+    private let sessionsMax = 12
+
     @Published var composeText: String = ""
     @Published private(set) var isComposing: Bool = false
     @Published private(set) var composeTarget: String? = nil
@@ -565,7 +589,7 @@ final class AppState: ObservableObject {
         if isHovering != value { isHovering = value }
     }
 
-    func noteSession(cwd: String, originatorBundleID: String? = nil) {
+    func noteSession(cwd: String, sessionId: String = "", originatorBundleID: String? = nil) {
         // Normalize: strip trailing slashes so "/a/b" and "/a/b/" dedupe.
         var c = cwd
         while c.count > 1, c.hasSuffix("/") { c.removeLast() }
@@ -577,30 +601,54 @@ final class AppState: ObservableObject {
         recentProjects.insert(c, at: 0)
         if recentProjects.count > 8 { recentProjects = Array(recentProjects.prefix(8)) }
         if recentProjects != beforeRecent { schedulePersist() }
-        if let bid = originatorBundleID, bid != Bundle.main.bundleIdentifier {
-            lastOriginatorBundleID = bid
-        }
+        let bid = (originatorBundleID != Bundle.main.bundleIdentifier) ? originatorBundleID : nil
+        if let bid { lastOriginatorBundleID = bid }
         lastHookAt = Date()
+        upsertSession(id: sessionId, cwd: c) { s in
+            if let bid { s.originatorBundleID = bid }
+        }
         ensureStaleTimer()
     }
 
-    func noteActivity(_ label: String) {
+    func noteActivity(_ label: String, sessionId: String = "") {
         lastActivity = label
-        claudeActionStatus = Self.statusLabel(fromActivity: label)
+        let status = Self.statusLabel(fromActivity: label)
+        claudeActionStatus = status
         lastActivityAt = Date()
         lastHookAt = Date()
+        upsertSession(id: sessionId, cwd: currentCwd) { s in
+            s.activity = label
+            s.status = status
+        }
         ensureStaleTimer()
     }
 
-    func noteUserPrompt(_ prompt: String) {
+    func noteUserPrompt(_ prompt: String, sessionId: String = "") {
         lastUserPrompt = String(prompt.prefix(140))
         lastClaudeResponse = ""
         fullClaudeResponse = ""
         lastClaudeResponseAt = nil
         claudeActionStatus = "thinking"
         lastHookAt = Date()
+        upsertSession(id: sessionId, cwd: currentCwd) { s in
+            s.status = "thinking"
+            s.lastResponse = ""
+        }
         ensureStaleTimer()
     }
+
+    /// A turn finished for a session — settle it to a steady state (so its dot
+    /// stops pulsing) without disturbing the other live sessions.
+    func markSessionDone(cwd: String = "", sessionId: String = "") {
+        guard !sessionId.isEmpty || !cwd.isEmpty || !currentCwd.isEmpty else { return }
+        upsertSession(id: sessionId, cwd: cwd.isEmpty ? currentCwd : cwd) { s in
+            s.status = s.lastResponse.isEmpty ? "done" : "last reply"
+        }
+    }
+
+    // Statuses a session rests in once a turn ends — don't let late transcript
+    // polling drag a finished session back into a pulsing "replying" state.
+    private static let terminalSessionStatuses: Set<String> = ["done", "last reply", "ready"]
 
     /// Manually wipe the live session info — useful when you closed the
     /// terminal and want the notch to forget what was running there.
@@ -612,14 +660,28 @@ final class AppState: ObservableObject {
         lastClaudeResponse = ""
         claudeActionStatus = "ready"
         lastHookAt = nil
+        sessions.removeAll()
     }
 
-    func noteClaudeResponse(_ text: String) {
+    func noteClaudeResponse(_ text: String, sessionId: String = "") {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+
+        let snippet = Self.statusSnippet(from: trimmed)
+        // Attribute to the session even if the global mirror already holds this
+        // text (e.g. two sessions emitting the same reply).
+        if !sessionId.isEmpty || !currentCwd.isEmpty {
+            upsertSession(id: sessionId, cwd: currentCwd) { s in
+                s.lastResponse = snippet
+                if !Self.terminalSessionStatuses.contains(s.status) {
+                    s.status = "replying"
+                }
+            }
+        }
+
         guard trimmed != fullClaudeResponse else { return }
         fullClaudeResponse = String(trimmed.prefix(8000))
-        lastClaudeResponse = Self.statusSnippet(from: trimmed)
+        lastClaudeResponse = snippet
         if completedQueue.isEmpty {
             claudeActionStatus = "replying"
         }
@@ -633,10 +695,67 @@ final class AppState: ObservableObject {
 
     /// True while Claude is mid-task — drives the pulsing status dot. Idle,
     /// finished, and "last reply" states are steady (not pulsing).
-    var isClaudeWorking: Bool {
-        switch claudeActionStatus {
+    var isClaudeWorking: Bool { Self.isWorking(status: claudeActionStatus) }
+
+    /// Shared definition of "mid-task" so the global dot and per-session rows
+    /// agree. Idle, finished, and "last reply" states are steady.
+    static func isWorking(status: String) -> Bool {
+        switch status {
         case "ready", "done", "last reply": return false
         default: return true
+        }
+    }
+
+    // MARK: - Live sessions
+
+    /// Sessions that have fired a hook recently enough to still be considered
+    /// alive, newest first. Filters out anything past the project-stale window.
+    var activeSessions: [LiveSession] {
+        let cutoff = Date().addingTimeInterval(-projectStaleAfter)
+        return sessions.values
+            .filter { $0.lastHookAt > cutoff }
+            .sorted { $0.lastHookAt > $1.lastHookAt }
+    }
+
+    var activeSessionCount: Int { activeSessions.count }
+
+    var workingSessionCount: Int {
+        activeSessions.filter { Self.isWorking(status: $0.status) }.count
+    }
+
+    /// Create-or-update the session entry for `id` (falling back to `cwd` when
+    /// no session_id was supplied), then apply `mutate`. Stamps lastHookAt and
+    /// bounds the dict so it can't grow without limit.
+    private func upsertSession(id rawId: String, cwd: String, _ mutate: (inout LiveSession) -> Void) {
+        var normCwd = cwd
+        while normCwd.count > 1, normCwd.hasSuffix("/") { normCwd.removeLast() }
+        let key = !rawId.isEmpty ? rawId : normCwd
+        guard !key.isEmpty else { return }
+
+        var session = sessions[key] ?? LiveSession(
+            id: key,
+            cwd: normCwd,
+            project: (normCwd as NSString).lastPathComponent,
+            status: "ready",
+            activity: "",
+            lastResponse: "",
+            originatorBundleID: nil,
+            lastHookAt: Date()
+        )
+        if !normCwd.isEmpty {
+            session.cwd = normCwd
+            session.project = (normCwd as NSString).lastPathComponent
+        }
+        mutate(&session)
+        session.lastHookAt = Date()
+        sessions[key] = session
+
+        if sessions.count > sessionsMax {
+            let drop = sessions.values
+                .sorted { $0.lastHookAt < $1.lastHookAt }
+                .prefix(sessions.count - sessionsMax)
+                .map(\.id)
+            for k in drop { sessions.removeValue(forKey: k) }
         }
     }
 
@@ -825,6 +944,12 @@ final class AppState: ObservableObject {
     }
 
     private func checkStale() {
+        // Drop sessions whose last hook is older than the project-stale window
+        // so the per-session list shrinks reactively.
+        let sessionCutoff = Date().addingTimeInterval(-projectStaleAfter)
+        let dead = sessions.filter { $0.value.lastHookAt <= sessionCutoff }.map(\.key)
+        for k in dead { sessions.removeValue(forKey: k) }
+
         guard let last = lastHookAt else { return }
         let age = Date().timeIntervalSince(last)
         if age > projectStaleAfter {

@@ -10,6 +10,7 @@ printf '%s' "$input" | jq -c '{
     title:           "Claude finished",
     detail:          ((.cwd // "") | split("/") | last // ""),
     cwd:             (.cwd // ""),
+    session_id:      (.session_id // ""),
     transcript_path: (.transcript_path // ""),
     source:          "Claude Code"
 }' | curl -s --max-time 3 -X POST \
