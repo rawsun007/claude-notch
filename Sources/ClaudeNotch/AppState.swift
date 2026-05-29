@@ -645,6 +645,20 @@ final class AppState: ObservableObject {
         ensureStaleTimer()
     }
 
+    /// Called after a tool completes (PostToolUse) to show Claude is reasoning
+    /// before the next tool call. Clears the command strip and sets status to
+    /// "thinking" — persists until the next noteActivity call.
+    func noteThinkingBetweenTools(sessionId: String = "") {
+        claudeActionStatus = "thinking"
+        lastActivity = ""
+        lastHookAt = Date()
+        upsertSession(id: sessionId, cwd: currentCwd) { s in
+            s.activity = ""
+            s.status = "thinking"
+        }
+        ensureStaleTimer()
+    }
+
     func noteUserPrompt(_ prompt: String, sessionId: String = "") {
         lastUserPrompt = String(prompt.prefix(140))
         lastClaudeResponse = ""

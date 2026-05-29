@@ -386,97 +386,183 @@ extension NotchView {
 
 private struct IdlePill: View {
     @ObservedObject var state: AppState
-    @State private var pulsePhase: Double = 0
+    @State private var pulsePhase: Double = 0   // 0→2π, used by SessionsList
 
-    private var subtitle: String {
-        if !state.lastClaudeResponse.isEmpty { return state.lastClaudeResponse }
-        if !state.lastActivity.isEmpty   { return state.lastActivity }
-        if !state.lastUserPrompt.isEmpty { return state.lastUserPrompt }
-        return "ready"
-    }
-
-    private var dotColor: Color {
-        if !state.lastClaudeResponse.isEmpty { return Color.green }
-        if !state.lastActivity.isEmpty       { return Color.blue }
-        return Color.gray
+    private var actionLabel: String {
+        let s = state.claudeActionStatus
+        guard !s.isEmpty else { return "ready" }
+        return s.prefix(1).uppercased() + s.dropFirst()
     }
 
     private var canExpand: Bool { !state.fullClaudeResponse.isEmpty }
     private var canShowHistory: Bool { !state.history.isEmpty }
-
-    // The notch is "open" (persistent display or hovered) — only then do we
-    // unfurl the multi-session list under the main line.
     private var isOpen: Bool { state.persistentNotchDisplay || state.isHovering }
     private var hasMultipleSessions: Bool { state.activeSessionCount >= 2 }
 
-    // When several sessions are live, the headline becomes a count instead of a
-    // single status (which would only describe the most-recent one).
-    private var headline: String {
+    private var nameText: String {
         hasMultipleSessions
             ? "\(AppState.statusEntityName) · \(state.activeSessionCount) sessions"
-            : state.idleTitle
+            : AppState.statusEntityName
+    }
+
+    private var dotColor: Color {
+        if !state.lastClaudeResponse.isEmpty { return .green }
+        if state.isClaudeWorking             { return .blue }
+        return .gray
+    }
+
+    private func parseActivity(_ activity: String) -> (icon: String, text: String) {
+        let parts = activity.split(separator: ":", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+        let toolName = parts.first ?? activity
+        let argument = parts.count > 1 ? parts[1] : ""
+        let icon: String
+        switch toolName.lowercased() {
+        case "bash":         icon = "terminal"
+        case "edit":         icon = "pencil"
+        case "write":        icon = "square.and.pencil"
+        case "read":         icon = "doc.text"
+        case "websearch":    icon = "magnifyingglass"
+        case "webfetch":     icon = "globe"
+        case "todowrite":    icon = "checklist"
+        case "agent":        icon = "person.fill"
+        case "notebookedit": icon = "book"
+        default:             icon = "bolt.fill"
+        }
+        return (icon, argument.isEmpty ? toolName : argument)
+    }
+
+    // Sweeping shimmer: bright spot travels left→right. phase 0→1 maps position -0.3→1.3
+    // so the highlight enters and exits the text cleanly with a natural pause at each end.
+    static func shimmerGradient(phase: CGFloat, base: CGFloat = 0.32, peak: CGFloat = 0.72) -> LinearGradient {
+        let pos = phase * 1.6 - 0.3
+        let span: CGFloat = 0.22
+        var stops: [Gradient.Stop] = [.init(color: .white.opacity(base), location: 0.0)]
+        let lo = pos - span; let hi = pos + span
+        if lo > 0.01 && lo < 0.99 { stops.append(.init(color: .white.opacity(base), location: lo)) }
+        if pos > 0.01 && pos < 0.99 { stops.append(.init(color: .white.opacity(peak), location: pos)) }
+        if hi > 0.01 && hi < 0.99 { stops.append(.init(color: .white.opacity(base), location: hi)) }
+        stops.append(.init(color: .white.opacity(base), location: 1.0))
+        return LinearGradient(stops: stops.sorted { $0.location < $1.location },
+                              startPoint: .leading, endPoint: .trailing)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 10) {
+            // Row 1 — dot + name + session count + action buttons
             HStack(spacing: 10) {
-                // Pulses while Claude is mid-task, steady otherwise.
                 Circle()
                     .fill(dotColor)
                     .frame(width: 8, height: 8)
-                    .opacity(state.isClaudeWorking ? 0.4 + 0.6 * (0.5 + 0.5 * sin(pulsePhase)) : 1.0)
-                    .onAppear {
-                        withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                            pulsePhase = .pi * 2
-                        }
+                    .opacity(state.isClaudeWorking
+                        ? 0.4 + 0.6 * (0.5 + 0.5 * sin(pulsePhase))
+                        : 1.0)
+                Text(nameText)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if canShowHistory { state.openHistory() }
+                        else if canExpand { state.showResponseDetail() }
                     }
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(headline)
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundColor(.white)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    Text(subtitle)
-                        .font(.system(size: 10, design: .rounded))
-                        .foregroundColor(.white.opacity(0.55))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    // Body tap → history drawer when we have anything to show.
-                    // Falls through to the response detail when only that's available.
-                    if canShowHistory { state.openHistory() }
-                    else if canExpand { state.showResponseDetail() }
-                }
                 Spacer(minLength: 0)
                 if canShowHistory {
-                    Button {
-                        state.openHistory()
-                    } label: {
+                    Button { state.openHistory() } label: {
                         Image(systemName: "clock.arrow.circlepath")
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(.white.opacity(0.55))
+                            .foregroundColor(.white.opacity(0.45))
                     }
                     .buttonStyle(.plain)
                     .help("Show history")
                 }
                 if canExpand {
-                    Button {
-                        state.showResponseDetail()
-                    } label: {
+                    Button { state.showResponseDetail() } label: {
                         Image(systemName: "arrow.up.left.and.arrow.down.right")
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(.white.opacity(0.55))
+                            .foregroundColor(.white.opacity(0.45))
                     }
                     .buttonStyle(.plain)
                     .help("Expand response")
                 }
             }
 
+            // Row 2 — shimmer action label while working; last Claude message when idle.
+            if state.isClaudeWorking {
+                TimelineView(.animation) { tl in
+                    let phase = CGFloat(tl.date.timeIntervalSinceReferenceDate
+                        .truncatingRemainder(dividingBy: 2.5) / 2.5)
+                    Text(actionLabel)
+                        .font(.system(size: 10, design: .rounded))
+                        .foregroundStyle(Self.shimmerGradient(phase: phase))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            } else if !state.lastClaudeResponse.isEmpty {
+                Text(state.lastClaudeResponse)
+                    .font(.system(size: 10, design: .rounded))
+                    .foregroundColor(.white.opacity(0.55))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            } else {
+                Text(actionLabel)
+                    .font(.system(size: 10, design: .rounded))
+                    .foregroundColor(.white.opacity(0.38))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+
+            // Row 3 — command strip, visible only while Claude is active
+            if state.isClaudeWorking && !state.lastActivity.isEmpty {
+                let parsed = parseActivity(state.lastActivity)
+                CommandLineBlock(icon: parsed.icon, text: parsed.text)
+            }
+
             if isOpen && hasMultipleSessions {
                 SessionsList(state: state, pulsePhase: pulsePhase)
             }
+        }
+        .onAppear {
+            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                pulsePhase = .pi * 2
+            }
+        }
+    }
+}
+
+// MARK: - Command line block
+
+private struct CommandLineBlock: View {
+    let icon: String
+    let text: String
+
+    var body: some View {
+        TimelineView(.animation) { tl in
+            let phase = CGFloat(tl.date.timeIntervalSinceReferenceDate
+                .truncatingRemainder(dividingBy: 2.5) / 2.5)
+            let border = IdlePill.shimmerGradient(phase: phase, base: 0.07, peak: 0.28)
+            HStack(spacing: 5) {
+                Spacer(minLength: 0)
+                Image(systemName: icon)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.white.opacity(0.38))
+                Text(text)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.42))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(Color.white.opacity(0.04))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 7)
+                            .strokeBorder(border, lineWidth: 0.5)
+                    )
+            )
         }
     }
 }

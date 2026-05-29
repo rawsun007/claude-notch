@@ -103,4 +103,15 @@ reason=$(printf '%s' "$response" | jq -r '.reason // ""' 2>/dev/null | head -c 2
 reason_json=$(printf '%s' "$reason" | jq -Rs . 2>/dev/null || printf '""')
 
 echo "[$(date '+%H:%M:%S')]   → emit $decision" >> "$LOG"
+
+# When allowed, immediately update the notch to show the tool is now running.
+# Fire-and-forget in the background so it never delays Claude's execution.
+if [ "$decision" = "allow" ]; then
+    printf '%s' "$input" | jq -c '{tool_name:(.tool_name//""),tool_input:(.tool_input//{}),cwd:(.cwd//""),session_id:(.session_id//"")}' 2>/dev/null \
+        | curl -s --max-time 1 -X POST \
+            -H 'Content-Type: application/json' \
+            --data-binary @- \
+            http://127.0.0.1:53127/pretool >/dev/null 2>&1 &
+fi
+
 printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"%s","permissionDecisionReason":%s}}\n' "$decision" "$reason_json"
