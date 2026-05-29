@@ -133,6 +133,7 @@ enum HookInstaller {
         appendHook(to: "UserPromptSubmit", in: &hooks, matcher: nil)
         appendHook(to: "Notification", in: &hooks, matcher: nil)
         appendHook(to: "Stop", in: &hooks, matcher: nil)
+        appendHook(to: "SessionEnd", in: &hooks, matcher: ".*")
         settings["hooks"] = hooks
 
         do {

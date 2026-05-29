@@ -15,8 +15,11 @@ fi
 cp -R ClaudeNotch.app /Applications/
 
 # 2. Install hook scripts to a stable, absolute path so settings.json can reference them.
+# Remove first: on APFS, cp clones and refuses to overwrite a byte-identical file
+# ("are identical"), which under set -e would abort the install.
 HOOK_DIR="$HOME/.claudenotch/bin"
 mkdir -p "$HOOK_DIR"
+rm -f "$HOOK_DIR"/*.sh
 cp bin/*.sh "$HOOK_DIR/"
 chmod +x "$HOOK_DIR"/*.sh
 echo "→ Installed hook scripts to $HOOK_DIR"

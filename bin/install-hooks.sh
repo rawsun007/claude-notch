@@ -1,7 +1,7 @@
 #!/bin/bash
 # Merge ClaudeNotch hooks into ~/.claude/settings.json (idempotent, backed up).
 #
-# Single-dispatcher mode: all 5 Claude Code hook events point at the same
+# Single-dispatcher mode: all Claude Code hook events point at the same
 # command (claudenotch-hook.sh). Claude Code's "do you trust this hook?"
 # prompt fires once per command per project, so this is one click total.
 set -euo pipefail
@@ -14,10 +14,13 @@ INSTALL_DIR="$HOME/.claudenotch/bin"
 mkdir -p "$INSTALL_DIR"
 for s in claudenotch-hook.sh \
          claudenotch-permission.sh claudenotch-notify.sh claudenotch-stop.sh \
-         claudenotch-posttool.sh claudenotch-prompt.sh \
+         claudenotch-posttool.sh claudenotch-prompt.sh claudenotch-sessionend.sh \
          uninstall-hooks.sh; do
     src="$SCRIPT_DIR/$s"
     [ -f "$src" ] || { echo "Missing source script: $src"; exit 1; }
+    # Remove first: on APFS, cp clones and refuses to overwrite a byte-identical
+    # file ("are identical"), which under set -e would abort the whole install.
+    rm -f "$INSTALL_DIR/$s"
     cp "$src" "$INSTALL_DIR/$s"
     chmod +x "$INSTALL_DIR/$s"
 done
@@ -57,6 +60,9 @@ jq --arg hook "$HOOK_Q" '
     ] |
     .hooks.Stop = [
         { "hooks": [{ "type": "command", "command": $hook }] }
+    ] |
+    .hooks.SessionEnd = [
+        { "matcher": ".*", "hooks": [{ "type": "command", "command": $hook }] }
     ]
 ' "$SETTINGS" > "$SETTINGS.new"
 

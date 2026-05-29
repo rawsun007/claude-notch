@@ -609,7 +609,7 @@ final class AppState: ObservableObject {
         let bid = (originatorBundleID != Bundle.main.bundleIdentifier) ? originatorBundleID : nil
         if let bid { lastOriginatorBundleID = bid }
         lastHookAt = Date()
-        upsertSession(id: sessionId, cwd: c) { s in
+        upsertSession(id: sessionId, cwd: c, authoritativeCwd: true, create: true) { s in
             if let bid { s.originatorBundleID = bid }
         }
         ensureStaleTimer()
@@ -732,11 +732,21 @@ final class AppState: ObservableObject {
     /// Create-or-update the session entry for `id` (falling back to `cwd` when
     /// no session_id was supplied), then apply `mutate`. Stamps lastHookAt and
     /// bounds the dict so it can't grow without limit.
-    private func upsertSession(id rawId: String, cwd: String, _ mutate: (inout LiveSession) -> Void) {
+    ///
+    /// `authoritativeCwd` must be true ONLY for the per-request metadata call,
+    /// which carries this session's real cwd. The activity/prompt/response
+    /// helpers fall back to the global `currentCwd`, which can belong to a
+    /// *different* session — so they must NOT rewrite an existing entry's cwd,
+    /// or two concurrent sessions cross-contaminate each other's project label.
+    /// `create` must be true ONLY for the per-request metadata call. The
+    /// activity/prompt/response helpers pass false so a stale transcript poll
+    /// can't resurrect a session that already ended (SessionEnd removed it).
+    private func upsertSession(id rawId: String, cwd: String, authoritativeCwd: Bool = false, create: Bool = false, _ mutate: (inout LiveSession) -> Void) {
         var normCwd = cwd
         while normCwd.count > 1, normCwd.hasSuffix("/") { normCwd.removeLast() }
         let key = !rawId.isEmpty ? rawId : normCwd
         guard !key.isEmpty else { return }
+        if sessions[key] == nil, !create { return }
 
         var session = sessions[key] ?? LiveSession(
             id: key,
@@ -749,7 +759,7 @@ final class AppState: ObservableObject {
             originatorBundleID: nil,
             lastHookAt: Date()
         )
-        if !normCwd.isEmpty {
+        if authoritativeCwd, !normCwd.isEmpty {
             session.cwd = normCwd
             session.project = (normCwd as NSString).lastPathComponent
         }
@@ -974,6 +984,44 @@ final class AppState: ObservableObject {
         return false
     }
 
+    /// After one or more sessions are removed, keep the global "current" mirror
+    /// honest: if the session it pointed at is gone, re-point at the newest
+    /// survivor, or collapse the notch to idle when nothing is left.
+    private func resyncCurrentSession() {
+        guard !sessions.values.contains(where: { $0.cwd == currentCwd }) else { return }
+        if let newest = activeSessions.first {
+            currentCwd = newest.cwd
+            currentProject = newest.project
+            lastActivity = newest.activity
+            claudeActionStatus = newest.status
+            lastClaudeResponse = newest.lastResponse
+        } else {
+            currentProject = ""
+            currentCwd = ""
+            lastActivity = ""
+            lastUserPrompt = ""
+            claudeActionStatus = lastClaudeResponse.isEmpty ? "ready" : "last reply"
+            lastHookAt = nil
+        }
+    }
+
+    /// A Claude Code session ended (SessionEnd hook — Ctrl+C / Ctrl+D / exit).
+    /// Drop it immediately instead of waiting for the stale window.
+    func removeSession(sessionId: String, cwd: String = "") {
+        var keys: [String] = []
+        if !sessionId.isEmpty, sessions[sessionId] != nil { keys.append(sessionId) }
+        var normCwd = cwd
+        while normCwd.count > 1, normCwd.hasSuffix("/") { normCwd.removeLast() }
+        if !normCwd.isEmpty, sessions[normCwd] != nil { keys.append(normCwd) }
+        guard !keys.isEmpty else { return }
+        for k in keys { sessions.removeValue(forKey: k) }
+        resyncCurrentSession()
+        if sessions.isEmpty {
+            staleTimer?.invalidate()
+            staleTimer = nil
+        }
+    }
+
     private func checkStale() {
         // Drop sessions whose terminal has been killed/closed, or that have
         // gone silent past the stale window, so the per-session list reflects
@@ -982,27 +1030,11 @@ final class AppState: ObservableObject {
         let dead = sessions.filter { isSessionDead($0.value, cutoff: sessionCutoff) }.map(\.key)
         if !dead.isEmpty {
             for k in dead { sessions.removeValue(forKey: k) }
-            // If the global "current" session was one of the dead ones, re-point
-            // the mirror at the newest survivor (or collapse if none remain) so
-            // the notch doesn't keep showing a closed terminal's project.
-            if !sessions.values.contains(where: { $0.cwd == currentCwd }) {
-                if let newest = activeSessions.first {
-                    currentCwd = newest.cwd
-                    currentProject = newest.project
-                    lastActivity = newest.activity
-                    claudeActionStatus = newest.status
-                    lastClaudeResponse = newest.lastResponse
-                } else {
-                    currentProject = ""
-                    currentCwd = ""
-                    lastActivity = ""
-                    lastUserPrompt = ""
-                    claudeActionStatus = lastClaudeResponse.isEmpty ? "ready" : "last reply"
-                    lastHookAt = nil
-                    staleTimer?.invalidate()
-                    staleTimer = nil
-                    return
-                }
+            resyncCurrentSession()
+            if sessions.isEmpty {
+                staleTimer?.invalidate()
+                staleTimer = nil
+                return
             }
         }
 

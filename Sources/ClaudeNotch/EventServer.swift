@@ -166,11 +166,15 @@ final class EventServer {
         let payload = (try? JSONSerialization.jsonObject(with: req.body) as? [String: Any]) ?? [:]
         let path = (req.path.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? req.path).lowercased()
 
-        // Every hook payload tells us about a project (cwd) — always record it.
-        recordSessionMetadata(payload: payload)
+        // Every hook payload tells us about a project (cwd) — record it, except
+        // for SessionEnd, which exists only to REMOVE a session (recording it
+        // here would just re-add the session we're about to drop).
+        if path != "/sessionend" {
+            recordSessionMetadata(payload: payload)
+        }
         let sessionId = (payload["session_id"] as? String) ?? ""
         let transcriptPath = (payload["transcript_path"] as? String).flatMap { $0.isEmpty ? nil : $0 }
-        if path != "/prompt", let transcriptPath {
+        if path != "/prompt", path != "/sessionend", let transcriptPath {
             let duration: TimeInterval = path == "/stop" ? 4 : 300
             startResponsePolling(transcriptPath: transcriptPath, sessionId: sessionId, duration: duration)
         }
@@ -185,6 +189,9 @@ final class EventServer {
             sendOK(on: conn)
         case "/stop":
             handleStop(payload: payload)
+            sendOK(on: conn)
+        case "/sessionend":
+            handleSessionEnd(payload: payload)
             sendOK(on: conn)
         case "/activity":
             handleActivity(payload: payload)
@@ -315,6 +322,27 @@ final class EventServer {
                 cwd: (payload["cwd"] as? String) ?? "",
                 originatorBundleID: frontBID
             ))
+        }
+    }
+
+    /// SessionEnd hook (Ctrl+C / Ctrl+D / exit): the session is gone, so stop
+    /// polling its transcript and drop it from the notch immediately.
+    private func handleSessionEnd(payload: [String: Any]) {
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let cwd = (payload["cwd"] as? String) ?? ""
+        if let path = (payload["transcript_path"] as? String), !path.isEmpty {
+            cancelPolling(transcriptPath: path)
+        }
+        Task { @MainActor [weak state] in
+            state?.removeSession(sessionId: sessionId, cwd: cwd)
+        }
+    }
+
+    /// Stop any in-flight poll loop for a transcript path (its next tick sees a
+    /// missing token and bails) so an ended session can't be resurrected.
+    private func cancelPolling(transcriptPath path: String) {
+        transcriptPollLock.withLock {
+            transcriptPollTokens[path] = nil
         }
     }
 

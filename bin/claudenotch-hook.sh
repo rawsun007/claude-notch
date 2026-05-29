@@ -40,6 +40,9 @@ case "$event" in
     Stop|SubagentStop)
         printf '%s' "$input" | exec "$DIR/claudenotch-stop.sh"
         ;;
+    SessionEnd)
+        printf '%s' "$input" | exec "$DIR/claudenotch-sessionend.sh"
+        ;;
     *)
         echo "[$(date '+%H:%M:%S')] dispatcher: unknown event=$event" >> "$LOG"
         exit 0
