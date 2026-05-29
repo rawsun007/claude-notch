@@ -9,8 +9,12 @@ final class EventServer {
     private let queue = DispatchQueue(label: "com.claudenotch.server")
     private let workQueue = DispatchQueue(label: "com.claudenotch.server.work", attributes: .concurrent)
     private let transcriptPollLock = NSLock()
-    private var transcriptPollID = 0
-    private var activeTranscriptPath: String?
+    // Per-transcript poll generation, keyed by transcript path, so concurrent
+    // sessions each keep polling independently. A newer poll for a given path
+    // supersedes only the previous poll for that same path — never the polls of
+    // other sessions (which previously happened because the "active" path and
+    // generation id were single shared values).
+    private var transcriptPollTokens: [String: Int] = [:]
 
     // taskId → subject, learned from TaskCreate / TaskUpdate(with subject).
     // Lets us put a human label on TaskUpdate calls that only carry {taskId, status}.
@@ -325,16 +329,16 @@ final class EventServer {
 
     private func startResponsePolling(transcriptPath path: String, sessionId: String = "", duration: TimeInterval, delayFirstRead: Bool = false) {
         let token = transcriptPollLock.withLock { () -> Int in
-            activeTranscriptPath = path
-            transcriptPollID += 1
-            return transcriptPollID
+            let next = (transcriptPollTokens[path] ?? 0) + 1
+            transcriptPollTokens[path] = next
+            return next
         }
         let deadline = Date().addingTimeInterval(duration)
         if delayFirstRead {
             workQueue.asyncAfter(deadline: .now() + .milliseconds(500)) { [weak self] in
                 guard let self else { return }
                 let isCurrent = self.transcriptPollLock.withLock {
-                    self.transcriptPollID == token && self.activeTranscriptPath == path
+                    self.transcriptPollTokens[path] == token
                 }
                 guard isCurrent else { return }
                 self.pollTranscript(path: path, sessionId: sessionId, token: token, until: deadline)
@@ -346,14 +350,25 @@ final class EventServer {
 
     private func pollTranscript(path: String, sessionId: String, token: Int, until deadline: Date) {
         readAndPushClaudeResponse(transcriptPath: path, sessionId: sessionId)
-        guard Date() < deadline else { return }
+        guard Date() < deadline else { finishPolling(path: path, token: token); return }
         workQueue.asyncAfter(deadline: .now() + .milliseconds(700)) { [weak self] in
             guard let self else { return }
             let isCurrent = self.transcriptPollLock.withLock {
-                self.transcriptPollID == token && self.activeTranscriptPath == path
+                self.transcriptPollTokens[path] == token
             }
             guard isCurrent else { return }
             self.pollTranscript(path: path, sessionId: sessionId, token: token, until: deadline)
+        }
+    }
+
+    /// Drop a transcript's poll token once its loop ends, but only if it is
+    /// still the current generation — otherwise a newer poll has taken over and
+    /// owns the entry. Keeps `transcriptPollTokens` from growing unbounded.
+    private func finishPolling(path: String, token: Int) {
+        transcriptPollLock.withLock {
+            if transcriptPollTokens[path] == token {
+                transcriptPollTokens[path] = nil
+            }
         }
     }
 
