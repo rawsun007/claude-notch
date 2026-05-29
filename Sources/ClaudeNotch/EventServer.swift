@@ -196,6 +196,9 @@ final class EventServer {
         case "/activity":
             handleActivity(payload: payload)
             sendOK(on: conn)
+        case "/task":
+            handleTask(payload: payload)
+            sendOK(on: conn)
         case "/prompt":
             handlePrompt(payload: payload)
             if let transcriptPath {
@@ -237,10 +240,28 @@ final class EventServer {
                 taskId = extractTaskId(from: resp) ?? ""
             }
             recordTask(id: taskId, subject: subject)
+            if !taskId.isEmpty {
+                let id = taskId
+                Task { @MainActor [weak state] in
+                    state?.noteTaskCreated(id: id, subject: subject, sessionId: sessionId)
+                }
+            }
         } else if tool == "TaskUpdate" {
             let subject = (input["subject"] as? String) ?? ""
             let taskId  = (input["taskId"] as? String) ?? ""
             recordTask(id: taskId, subject: subject)
+            // Secondary feed for the progress meter: status transitions arrive
+            // here even if the dedicated TaskCompleted hook is missed.
+            let status = (input["status"] as? String) ?? ""
+            if !taskId.isEmpty {
+                Task { @MainActor [weak state] in
+                    switch status {
+                    case "completed": state?.noteTaskCompleted(id: taskId, sessionId: sessionId)
+                    case "deleted":   state?.noteTaskDeleted(id: taskId, sessionId: sessionId)
+                    default:          break
+                    }
+                }
+            }
         }
 
         Task { @MainActor [weak state] in
@@ -254,6 +275,26 @@ final class EventServer {
         // Cheap and keeps the notch fresh between Stop hooks.
         if let path = payload["transcript_path"] as? String, !path.isEmpty {
             readAndPushClaudeResponse(transcriptPath: path, sessionId: sessionId)
+        }
+    }
+
+    /// Dedicated TaskCreated / TaskCompleted hook events — the primary feed for
+    /// the per-session progress meter. One event fires per task, so batch
+    /// TaskCreate calls (which the PostToolUse path under-counts) are handled
+    /// correctly here. The forwarding script casts a wide net over candidate
+    /// id/subject field names since these payloads aren't documented.
+    private func handleTask(payload: [String: Any]) {
+        let event = (payload["event"] as? String) ?? ""
+        let taskId = (payload["task_id"] as? String) ?? ""
+        let subject = (payload["subject"] as? String) ?? ""
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        guard !taskId.isEmpty else { return }
+        Task { @MainActor [weak state] in
+            switch event {
+            case "TaskCreated":   state?.noteTaskCreated(id: taskId, subject: subject, sessionId: sessionId)
+            case "TaskCompleted": state?.noteTaskCompleted(id: taskId, sessionId: sessionId)
+            default:              break
+            }
         }
     }
 

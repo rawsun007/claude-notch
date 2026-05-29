@@ -512,10 +512,14 @@ private struct SessionsList: View {
                             .lineLimit(1)
                             .truncationMode(.tail)
                         Spacer(minLength: 8)
-                        Text(session.status)
-                            .font(.system(size: 10, design: .rounded))
-                            .foregroundColor(.white.opacity(0.5))
-                            .lineLimit(1)
+                        if session.taskTotal > 0 {
+                            TaskMeter(done: session.taskDone, total: session.taskTotal)
+                        } else {
+                            Text(session.status)
+                                .font(.system(size: 10, design: .rounded))
+                                .foregroundColor(.white.opacity(0.5))
+                                .lineLimit(1)
+                        }
                     }
                     .padding(.vertical, 3)
                     .contentShape(Rectangle())
@@ -524,6 +528,40 @@ private struct SessionsList: View {
                 .help(session.fullResponse.isEmpty ? "No reply yet" : "Show \(session.project)'s last reply")
             }
         }
+    }
+}
+
+// MARK: - Task progress meter
+
+/// Compact "N/M" task progress pill shown on a session row while a task list is
+/// active. Turns green once every task is done.
+private struct TaskMeter: View {
+    let done: Int
+    let total: Int
+
+    private var fraction: CGFloat {
+        guard total > 0 else { return 0 }
+        return min(1, max(0, CGFloat(done) / CGFloat(total)))
+    }
+    private var complete: Bool { total > 0 && done >= total }
+    private var tint: Color { complete ? .green : .blue }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.white.opacity(0.15))
+                    .frame(width: 26, height: 3)
+                Capsule()
+                    .fill(tint.opacity(0.9))
+                    .frame(width: 26 * fraction, height: 3)
+            }
+            Text("\(done)/\(total)")
+                .font(.system(size: 10, weight: .medium, design: .rounded).monospacedDigit())
+                .foregroundColor(.white.opacity(complete ? 0.8 : 0.55))
+                .lineLimit(1)
+        }
+        .help("\(done) of \(total) tasks done")
     }
 }
 

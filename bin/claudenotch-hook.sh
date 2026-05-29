@@ -43,6 +43,9 @@ case "$event" in
     SessionEnd)
         printf '%s' "$input" | exec "$DIR/claudenotch-sessionend.sh"
         ;;
+    TaskCreated|TaskCompleted)
+        printf '%s' "$input" | exec "$DIR/claudenotch-task.sh"
+        ;;
     *)
         echo "[$(date '+%H:%M:%S')] dispatcher: unknown event=$event" >> "$LOG"
         exit 0

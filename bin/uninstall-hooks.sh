@@ -26,12 +26,16 @@ def strip_event(arr):
 .hooks.Notification     = strip_event(.hooks.Notification) |
 .hooks.Stop             = strip_event(.hooks.Stop) |
 .hooks.SessionEnd       = strip_event(.hooks.SessionEnd) |
+.hooks.TaskCreated      = strip_event(.hooks.TaskCreated) |
+.hooks.TaskCompleted    = strip_event(.hooks.TaskCompleted) |
 ( if (.hooks.PreToolUse       | length) == 0 then del(.hooks.PreToolUse)       else . end ) |
 ( if (.hooks.PostToolUse      | length) == 0 then del(.hooks.PostToolUse)      else . end ) |
 ( if (.hooks.UserPromptSubmit | length) == 0 then del(.hooks.UserPromptSubmit) else . end ) |
 ( if (.hooks.Notification     | length) == 0 then del(.hooks.Notification)     else . end ) |
 ( if (.hooks.Stop             | length) == 0 then del(.hooks.Stop)             else . end ) |
 ( if (.hooks.SessionEnd       | length) == 0 then del(.hooks.SessionEnd)       else . end ) |
+( if (.hooks.TaskCreated      | length) == 0 then del(.hooks.TaskCreated)      else . end ) |
+( if (.hooks.TaskCompleted    | length) == 0 then del(.hooks.TaskCompleted)    else . end ) |
 ( if (.hooks | length) == 0 then del(.hooks) else . end )
 ' "$SETTINGS" > "$SETTINGS.new"
 

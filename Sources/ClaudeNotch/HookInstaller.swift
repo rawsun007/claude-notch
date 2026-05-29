@@ -1,7 +1,7 @@
 import Foundation
 
 /// Self-install for Claude Code hooks. Copies bundled hook scripts to a
-/// stable absolute path (~/.claudenotch/bin) and merges the five hook
+/// stable absolute path (~/.claudenotch/bin) and merges the hook
 /// events into ~/.claude/settings.json. Pure Swift — no shell-out, so it
 /// works from inside the .app without needing the user to open a terminal.
 enum HookInstaller {
@@ -134,6 +134,10 @@ enum HookInstaller {
         appendHook(to: "Notification", in: &hooks, matcher: nil)
         appendHook(to: "Stop", in: &hooks, matcher: nil)
         appendHook(to: "SessionEnd", in: &hooks, matcher: ".*")
+        // Task lifecycle drives the per-session progress meter. These events
+        // take no matcher (they always fire on every occurrence).
+        appendHook(to: "TaskCreated", in: &hooks, matcher: nil)
+        appendHook(to: "TaskCompleted", in: &hooks, matcher: nil)
         settings["hooks"] = hooks
 
         do {

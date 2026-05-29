@@ -49,6 +49,14 @@ struct LiveSession: Identifiable, Equatable {
     var fullResponse: String       // full reply text for the detail view
     var originatorBundleID: String?
     var lastHookAt: Date
+    // Task progress for the current task list. Tracked as sets (keyed by task
+    // id) so duplicate Created/Completed events dedup themselves. In-memory
+    // only — sessions aren't persisted, so no Codable concern.
+    var createdTaskIds: Set<String> = []
+    var completedTaskIds: Set<String> = []
+
+    var taskTotal: Int { createdTaskIds.count }
+    var taskDone: Int { completedTaskIds.count }
 }
 
 // MARK: - History
@@ -640,6 +648,50 @@ final class AppState: ObservableObject {
             s.lastResponse = ""
         }
         ensureStaleTimer()
+    }
+
+    // MARK: - Task progress meter
+
+    /// A task was created (TaskCreated hook, or a TaskCreate tool call). Counts
+    /// toward the session's "N/M" meter. If the previous batch was already
+    /// fully complete, a fresh creation starts a new list (so the denominator
+    /// doesn't grow without bound across a long session).
+    func noteTaskCreated(id: String, subject: String = "", sessionId: String = "") {
+        guard !id.isEmpty else { return }
+        upsertSession(id: sessionId, cwd: currentCwd, create: true) { s in
+            if !s.createdTaskIds.isEmpty,
+               s.completedTaskIds.count >= s.createdTaskIds.count {
+                s.createdTaskIds.removeAll()
+                s.completedTaskIds.removeAll()
+            }
+            s.createdTaskIds.insert(id)
+        }
+        lastHookAt = Date()
+        ensureStaleTimer()
+    }
+
+    /// A task was completed (TaskCompleted hook, or TaskUpdate status=completed).
+    func noteTaskCompleted(id: String, sessionId: String = "") {
+        guard !id.isEmpty else { return }
+        upsertSession(id: sessionId, cwd: currentCwd, create: true) { s in
+            // A completion can arrive for a task we never saw created (e.g. the
+            // TaskCreated hook was missed) — count it on both sides so the meter
+            // never shows more done than total.
+            s.createdTaskIds.insert(id)
+            s.completedTaskIds.insert(id)
+        }
+        lastHookAt = Date()
+        ensureStaleTimer()
+    }
+
+    /// A task was abandoned (TaskUpdate status=deleted). Drop it from both sets
+    /// so a cancelled task doesn't inflate the denominator.
+    func noteTaskDeleted(id: String, sessionId: String = "") {
+        guard !id.isEmpty else { return }
+        upsertSession(id: sessionId, cwd: currentCwd) { s in
+            s.createdTaskIds.remove(id)
+            s.completedTaskIds.remove(id)
+        }
     }
 
     /// A turn finished for a session — settle it to a steady state (so its dot
