@@ -13,11 +13,6 @@ input=$(cat)
 tool=$(printf '%s' "$input" | jq -r '.tool_name // "?"' 2>/dev/null)
 echo "[$(date '+%H:%M:%S')] permreq hook fired: tool=$tool" >> "$LOG"
 
-# Temporary: capture raw payloads to confirm the PermissionRequest schema
-# (tool_name / tool_input) across tools like TodoWrite and ExitPlanMode.
-# Remove once the schema is confirmed.
-printf '%s\n' "$input" >> /tmp/claudenotch-permreq-raw.log
-
 # Pass through (Claude's own prompt) when we can't reach the notch or lack jq.
 pass_through() {
     echo "[$(date '+%H:%M:%S')]   → pass through (${1:-native prompt})" >> "$LOG"
