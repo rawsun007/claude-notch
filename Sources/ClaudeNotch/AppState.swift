@@ -348,6 +348,11 @@ final class AppState: ObservableObject {
     // Live session info — populated from every hook payload.
     @Published private(set) var currentProject: String = ""        // basename of cwd
     @Published private(set) var currentCwd: String = ""
+    // Which session the global mirror (lastClaudeResponse, claudeActionStatus,
+    // etc.) currently reflects. Only this session may write the mirror, so a
+    // background session's transcript poll — or a closed session whose poll is
+    // still winding down — can't thrash the collapsed header every tick.
+    private var currentSessionId: String = ""
     @Published private(set) var lastActivity: String = ""          // "Bash: ls -la" etc.
     @Published private(set) var lastUserPrompt: String = ""
     @Published private(set) var recentProjects: [String] = []      // ordered, deduped cwds (newest first)
@@ -609,6 +614,10 @@ final class AppState: ObservableObject {
         guard !c.isEmpty else { return }
         currentCwd = c
         currentProject = (c as NSString).lastPathComponent
+        // A real hook just arrived for this session, so it becomes the one the
+        // global mirror tracks. (Polls don't run through here, so they can't
+        // steal "current" from the session the user is actually watching.)
+        if !sessionId.isEmpty { currentSessionId = sessionId }
         let beforeRecent = recentProjects
         recentProjects.removeAll { $0 == c }
         recentProjects.insert(c, at: 0)
@@ -736,6 +745,16 @@ final class AppState: ObservableObject {
                 }
             }
         }
+
+        // Only the current session writes the global mirror. Without this gate,
+        // two sessions polling their transcripts (one possibly just-closed but
+        // still winding down) overwrite lastClaudeResponse on alternating ticks,
+        // and the collapsed header flickers between their replies every second.
+        // Gate on session identity, not sessions.count: a closed session can be
+        // gone from the dict (count == 1) while its poll loop is still pushing.
+        // currentSessionId == "" means legacy/no per-session tracking → allow.
+        let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
+        guard isCurrent else { return }
 
         guard trimmed != fullClaudeResponse else { return }
         fullClaudeResponse = String(trimmed.prefix(8000))
@@ -1040,14 +1059,21 @@ final class AppState: ObservableObject {
     /// honest: if the session it pointed at is gone, re-point at the newest
     /// survivor, or collapse the notch to idle when nothing is left.
     private func resyncCurrentSession() {
-        guard !sessions.values.contains(where: { $0.cwd == currentCwd }) else { return }
+        // Still pointing at a live session? Nothing to do. Prefer the session-id
+        // identity (cwd can be shared by two terminals in the same project).
+        let currentAlive = (!currentSessionId.isEmpty && sessions[currentSessionId] != nil)
+            || (currentSessionId.isEmpty && sessions.values.contains { $0.cwd == currentCwd })
+        guard !currentAlive else { return }
         if let newest = activeSessions.first {
+            currentSessionId = newest.id
             currentCwd = newest.cwd
             currentProject = newest.project
             lastActivity = newest.activity
             claudeActionStatus = newest.status
             lastClaudeResponse = newest.lastResponse
+            fullClaudeResponse = newest.fullResponse
         } else {
+            currentSessionId = ""
             currentProject = ""
             currentCwd = ""
             lastActivity = ""
