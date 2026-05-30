@@ -86,13 +86,17 @@ final class NotchWindowController {
             .sink { [weak self] mode, _ in
                 guard let self else { return }
                 self.position(on: self.currentScreen())
-                // ONLY compose needs key focus (the TextEditor must receive
-                // typing). All other cards' Enter/Esc are handled by the
-                // global CGEventTap in KeyboardMonitor WITHOUT stealing focus
-                // — so we never hijack the user's keyboard or beep, and the
-                // open animation isn't interrupted by a makeKey.
-                if case .compose = mode {
+                // Compose and question both host text fields (the composer's
+                // editor; the question card's "Other" free-text answer), so
+                // they must become key to receive typing. Every other card's
+                // Enter/Esc is handled by the global CGEventTap in
+                // KeyboardMonitor WITHOUT stealing focus, so we don't hijack
+                // the keyboard or interrupt their open animation.
+                switch mode {
+                case .compose, .question:
                     self.window.makeKey()
+                default:
+                    break
                 }
             }
     }

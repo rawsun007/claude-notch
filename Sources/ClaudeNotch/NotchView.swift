@@ -153,7 +153,8 @@ struct NotchView: View {
             // Each question heading ≈ 26 + 6 spacing; each option row ≈ 48
             // (icon + 12pt label + 10pt description + 5pt vertical padding ×2).
             let perOption: CGFloat = 48
-            let perQuestion: CGFloat = 26 + 6 + CGFloat(q.questions.first?.options.count ?? 1) * perOption
+            // +44 for the "Something else…" free-text row each question carries.
+            let perQuestion: CGFloat = 26 + 6 + CGFloat(q.questions.first?.options.count ?? 1) * perOption + 44
             let want = 104 + CGFloat(q.questions.count) * perQuestion
             // Don't blow past the screen — leave at least 15% headroom so the
             // card stays usable on small displays. Only at that cap will the
@@ -1623,6 +1624,9 @@ private struct QuestionCard: View {
 
     // selections[questionIndex] = set of selected option labels
     @State private var selections: [Set<String>] = []
+    // others[questionIndex] = free-text "type your own" answer (optional)
+    @State private var others: [String] = []
+    @FocusState private var focusedOther: Int?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -1669,6 +1673,7 @@ private struct QuestionCard: View {
                             ForEach(q.options) { opt in
                                 optionRow(qIdx: idx, q: q, opt: opt)
                             }
+                            otherRow(qIdx: idx, q: q)
                         }
                     }
                 }
@@ -1678,9 +1683,8 @@ private struct QuestionCard: View {
             HStack {
                 Spacer()
                 NotchButton(label: "Cancel", style: .secondary, action: onCancel)
-                NotchButton(label: "Send", style: .primary, shortcut: "⏎") {
-                    let answers = selections.map { Array($0).sorted() }
-                    onSubmit(answers)
+                NotchButton(label: "Send", style: .primary) {
+                    onSubmit(buildAnswers())
                 }
             }
             .padding(.top, 18)
@@ -1689,7 +1693,56 @@ private struct QuestionCard: View {
             if selections.count != request.questions.count {
                 selections = Array(repeating: Set<String>(), count: request.questions.count)
             }
+            if others.count != request.questions.count {
+                others = Array(repeating: "", count: request.questions.count)
+            }
         }
+    }
+
+    /// Combine the picked options with any typed "Other" text. For
+    /// single-select a typed answer replaces the radio pick; for multi-select
+    /// it's added alongside.
+    private func buildAnswers() -> [[String]] {
+        request.questions.enumerated().map { (idx, q) in
+            let custom = (others.indices.contains(idx) ? others[idx] : "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            var picks = selections.indices.contains(idx) ? Array(selections[idx]).sorted() : []
+            if !custom.isEmpty {
+                if q.multiSelect { picks.append(custom) } else { picks = [custom] }
+            }
+            return picks
+        }
+    }
+
+    @ViewBuilder
+    private func otherRow(qIdx: Int, q: AskQuestion) -> some View {
+        let active = !(others.indices.contains(qIdx) ? others[qIdx] : "")
+            .trimmingCharacters(in: .whitespaces).isEmpty
+        HStack(alignment: .center, spacing: 8) {
+            Image(systemName: active ? "pencil.circle.fill" : "pencil.circle")
+                .foregroundColor(active ? .purple : .white.opacity(0.4))
+                .font(.system(size: 13))
+                .frame(width: 16)
+            TextField("Something else… (type your own answer)", text: Binding(
+                get: { others.indices.contains(qIdx) ? others[qIdx] : "" },
+                set: { if others.indices.contains(qIdx) { others[qIdx] = $0 } }
+            ))
+            .textFieldStyle(.plain)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(.white)
+            .focused($focusedOther, equals: qIdx)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(active ? Color.purple.opacity(0.18) : Color.white.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(focusedOther == qIdx ? Color.purple.opacity(0.6) : Color.clear, lineWidth: 1)
+        )
     }
 
     @ViewBuilder
