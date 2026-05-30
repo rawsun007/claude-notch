@@ -336,7 +336,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             source: "Demo",
             cwd: NSHomeDirectory(),
             dangerReasons: [],
-            resolver: { decision in
+            resolver: { decision, _ in
                 NSLog("Demo permission resolved: \(decision.rawValue)")
             }
         )
@@ -357,7 +357,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             source: "Demo",
             cwd: NSHomeDirectory(),
             dangerReasons: reasons,
-            resolver: { decision in
+            resolver: { decision, _ in
                 NSLog("Demo dangerous resolved: \(decision.rawValue)")
             }
         )
@@ -382,7 +382,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             source: "Demo",
             cwd: "/Users/example",
             preview: preview,
-            resolver: { decision in
+            resolver: { decision, _ in
                 NSLog("Demo diff resolved: \(decision.rawValue)")
             }
         )
@@ -408,7 +408,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             source: "Demo",
             cwd: "/Users/example",
             preview: preview,
-            resolver: { _ in }
+            resolver: { _, _ in }
         )
         state.demoAutoApprove(req)
     }
@@ -421,7 +421,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             toolName: "Notification",
             source: "Demo",
             cwd: "",
-            resolver: { _ in }
+            resolver: { _, _ in }
         ), bypassRules: true)
     }
 

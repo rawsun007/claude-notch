@@ -232,6 +232,14 @@ enum AllowScope {
     case none, tool, exactCommand
 }
 
+/// What the composer is for. `.message` types into a terminal / opens Claude;
+/// `.denyReason` reuses the same editor to deny a held permission with a note
+/// that's fed back to Claude (so it knows what to do instead).
+enum ComposePurpose: Equatable {
+    case message
+    case denyReason(PermissionRequest)
+}
+
 final class PermissionRequest: Identifiable, Equatable {
     enum Kind: Equatable {
         case toolUse                // blocking — must resolve to allow/deny/ask
@@ -249,14 +257,17 @@ final class PermissionRequest: Identifiable, Equatable {
     let originatorBundleID: String?   // app that was frontmost when request came in
     let preview: ToolPreview?         // Edit diff / Write head / MultiEdit summary
     let dangerReasons: [String]       // empty unless command matched a danger pattern
-    let resolver: (PermissionDecision) -> Void
+    // `reason` is an optional note (used for "deny with a reason"): the hook
+    // forwards it to Claude as the permissionDecisionReason so it knows what to
+    // do instead. nil for plain allow/deny/ask.
+    let resolver: (PermissionDecision, String?) -> Void
 
     // For "group similar prompts": when the next request matches this one, we
     // replace the queue item with a new one whose resolver fires both callbacks.
     var groupCount: Int = 1
     var originalDetail: String? = nil   // captured the first time we group
 
-    init(kind: Kind, title: String, detail: String, toolName: String, source: String, cwd: String, originatorBundleID: String? = nil, preview: ToolPreview? = nil, dangerReasons: [String] = [], resolver: @escaping (PermissionDecision) -> Void) {
+    init(kind: Kind, title: String, detail: String, toolName: String, source: String, cwd: String, originatorBundleID: String? = nil, preview: ToolPreview? = nil, dangerReasons: [String] = [], resolver: @escaping (PermissionDecision, String?) -> Void) {
         self.kind = kind
         self.title = title
         self.detail = detail
@@ -385,6 +396,7 @@ final class AppState: ObservableObject {
 
     @Published var composeText: String = ""
     @Published private(set) var isComposing: Bool = false
+    @Published private(set) var composePurpose: ComposePurpose = .message
     @Published private(set) var composeTarget: String? = nil
     @Published private(set) var composeError: String? = nil
     // When set, "send" opens a NEW terminal in this project's folder running
@@ -587,7 +599,7 @@ final class AppState: ObservableObject {
             toolName: "Notification",
             source: "Demo",
             cwd: NSHomeDirectory(),
-            resolver: { _ in }
+            resolver: { _, _ in }
         )
         enqueuePermission(req, bypassRules: true)
     }
@@ -959,10 +971,49 @@ final class AppState: ObservableObject {
     func beginCompose(project: String? = nil) {
         composeText = ""
         composeError = nil
+        composePurpose = .message
         composeProjectCwd = project
         // Resolve the active-terminal target NOW, before we become key —
         // otherwise frontmost might briefly become ClaudeNotch.
         composeTarget = pickComposeTarget()
+        isComposing = true
+        recompute()
+    }
+
+    /// Open the composer pointed at a finished session, so the user can reply
+    /// without alt-tabbing. Types into the terminal that ran the session when
+    /// we know it; otherwise opens a fresh terminal in the project folder.
+    func beginReply(to task: CompletedTask) {
+        // Drop the completed card we're replying to so it doesn't pop back up
+        // when the composer closes.
+        completedQueue.removeAll { $0.id == task.id }
+        composeText = ""
+        composeError = nil
+        composePurpose = .message
+        if let bid = task.originatorBundleID, !bid.isEmpty,
+           !NSRunningApplication.runningApplications(withBundleIdentifier: bid).isEmpty {
+            composeProjectCwd = nil
+            composeTarget = bid
+        } else if !task.cwd.isEmpty {
+            composeProjectCwd = task.cwd
+            composeTarget = pickComposeTarget()
+        } else {
+            composeProjectCwd = nil
+            composeTarget = pickComposeTarget()
+        }
+        isComposing = true
+        recompute()
+    }
+
+    /// Open the composer to deny a held permission with a note. Reuses the
+    /// compose editor (key window + focus + ⌘↩/⎋ handling) instead of trying to
+    /// host a text field inside the always-non-key permission card.
+    func beginDenyReason(for req: PermissionRequest) {
+        composeText = ""
+        composeError = nil
+        composeProjectCwd = nil
+        composeTarget = nil
+        composePurpose = .denyReason(req)
         isComposing = true
         recompute()
     }
@@ -973,6 +1024,18 @@ final class AppState: ObservableObject {
     }
 
     func sendCompose() {
+        // Deny-with-reason mode: resolve the held permission instead of typing
+        // into a terminal. An empty note just denies (same as a plain deny).
+        if case .denyReason(let req) = composePurpose {
+            let note = composeText.trimmingCharacters(in: .whitespacesAndNewlines)
+            isComposing = false
+            composePurpose = .message
+            composeText = ""
+            composeError = nil
+            resolvePermission(req, decision: .deny, reason: note.isEmpty ? nil : note)
+            return
+        }
+
         let text = composeText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { cancelCompose(); return }
 
@@ -1002,13 +1065,17 @@ final class AppState: ObservableObject {
 
     func cancelCompose() {
         let target = composeTarget
+        let wasDeny = composePurpose != .message
         composeText = ""
         isComposing = false
+        composePurpose = .message
         composeError = nil
         composeTarget = nil
         composeProjectCwd = nil
         recompute()
-        returnKeyboardToTerminal(preferred: target)
+        // Cancelling a deny-reason returns to the still-queued permission card,
+        // which is interactive — don't hand the keyboard back to the terminal.
+        if !wasDeny { returnKeyboardToTerminal(preferred: target) }
     }
 
     private func pickComposeTarget() -> String? {
@@ -1224,7 +1291,7 @@ final class AppState: ObservableObject {
                 recordToolRequested(req.toolName, dangerousShown: false)
                 recordDecision(.allow, auto: true)
             }
-            req.resolver(.allow)
+            req.resolver(.allow, nil)
             return
         }
 
@@ -1232,7 +1299,7 @@ final class AppState: ObservableObject {
         // "live activity" card of what's changing. Dangerous commands are
         // exempt — they still require an explicit hold-to-confirm.
         if !bypassRules, autoApprove, req.kind == .toolUse, !req.isDangerous {
-            req.resolver(.allow)
+            req.resolver(.allow, nil)
             appendHistory(HistoryEntry(
                 timestamp: Date(),
                 kind: .permission,
@@ -1286,9 +1353,9 @@ final class AppState: ObservableObject {
                 originatorBundleID: last.originatorBundleID,
                 preview: last.preview,
                 dangerReasons: last.dangerReasons,
-                resolver: { decision in
-                    prev(decision)
-                    req.resolver(decision)
+                resolver: { decision, reason in
+                    prev(decision, reason)
+                    req.resolver(decision, reason)
                 }
             )
             newReq.groupCount = last.groupCount + 1
@@ -1421,49 +1488,58 @@ final class AppState: ObservableObject {
         returnKeyboardToTerminal(preferred: first.originatorBundleID)
     }
 
-    func resolveCurrentPermission(_ decision: PermissionDecision, alwaysAllow: AllowScope = .none) {
-        guard !permissionQueue.isEmpty else { return }
-        let first = permissionQueue.removeFirst()
+    func resolveCurrentPermission(_ decision: PermissionDecision, alwaysAllow: AllowScope = .none, reason: String? = nil) {
+        guard let first = permissionQueue.first else { return }
+        resolvePermission(first, decision: decision, alwaysAllow: alwaysAllow, reason: reason)
+    }
+
+    /// Resolve a specific queued request (not necessarily the head). Used by the
+    /// deny-with-reason flow, which resolves the request the composer was opened
+    /// for, and by resolveCurrentPermission for the common head case.
+    func resolvePermission(_ req: PermissionRequest, decision: PermissionDecision, alwaysAllow: AllowScope = .none, reason: String? = nil) {
+        guard let idx = permissionQueue.firstIndex(where: { $0.id == req.id }) else { return }
+        permissionQueue.remove(at: idx)
         if decision == .allow {
             switch alwaysAllow {
             case .none:
                 break
             case .tool:
-                allowRules.insert(AllowRule(tool: first.toolName, commandRegex: nil))
+                allowRules.insert(AllowRule(tool: req.toolName, commandRegex: nil))
                 schedulePersist()
             case .exactCommand:
-                let escaped = NSRegularExpression.escapedPattern(for: first.detail)
-                allowRules.insert(AllowRule(tool: first.toolName, commandRegex: "^\(escaped)$"))
+                let escaped = NSRegularExpression.escapedPattern(for: req.detail)
+                allowRules.insert(AllowRule(tool: req.toolName, commandRegex: "^\(escaped)$"))
                 schedulePersist()
             }
         }
         // Grouped requests fold N tool calls into one card — count each one so
         // the decision tally matches the tool tally (recorded per request).
-        if first.kind == .toolUse, first.source != "Demo" {
-            for _ in 0..<max(1, first.groupCount) { recordDecision(decision, auto: false) }
+        if req.kind == .toolUse, req.source != "Demo" {
+            for _ in 0..<max(1, req.groupCount) { recordDecision(decision, auto: false) }
         }
-        first.resolver(decision)
+        req.resolver(decision, reason)
         // Notifications were already logged at enqueue time.
-        if first.kind != .notification {
+        if req.kind != .notification {
             let outcome: HistoryEntry.Outcome
             switch decision {
-            case .allow: outcome = first.isDangerous ? .dangerous : .allowed
+            case .allow: outcome = req.isDangerous ? .dangerous : .allowed
             case .deny:  outcome = .denied
             case .ask:   outcome = .dismissed
             }
+            let detail = (reason?.isEmpty == false) ? "\(req.detail)  (reason: \(reason!))" : req.detail
             appendHistory(HistoryEntry(
                 timestamp: Date(),
                 kind: .permission,
-                toolName: first.toolName,
-                title: first.title,
-                detail: first.detail,
-                project: (first.cwd as NSString).lastPathComponent,
+                toolName: req.toolName,
+                title: req.title,
+                detail: detail,
+                project: (req.cwd as NSString).lastPathComponent,
                 outcome: outcome
             ))
         }
         playFeedback(for: decision)
         recompute()
-        returnKeyboardToTerminal(preferred: first.originatorBundleID)
+        returnKeyboardToTerminal(preferred: req.originatorBundleID)
     }
 
     /// Resolve EVERY queued permission at once — for the "Claude fired 5 edits
@@ -1480,7 +1556,7 @@ final class AppState: ObservableObject {
             if req.kind == .toolUse, req.source != "Demo" {
                 for _ in 0..<max(1, req.groupCount) { recordDecision(decision, auto: false) }
             }
-            req.resolver(decision)
+            req.resolver(decision, nil)
             if req.kind != .notification {
                 appendHistory(HistoryEntry(
                     timestamp: Date(),

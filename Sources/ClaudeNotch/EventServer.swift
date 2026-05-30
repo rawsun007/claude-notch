@@ -375,7 +375,7 @@ final class EventServer {
                 source: source,
                 cwd: (payload["cwd"] as? String) ?? "",
                 originatorBundleID: frontBID,
-                resolver: { _ in }
+                resolver: { _, _ in }
             )
             state.enqueuePermission(req)
         }
@@ -595,6 +595,7 @@ final class EventServer {
         let semaphore = DispatchSemaphore(value: 0)
         let lock = NSLock()
         var decision: PermissionDecision = .ask
+        var denyReason: String? = nil
 
         Task { @MainActor [weak state] in
             guard let state else { return }
@@ -609,8 +610,8 @@ final class EventServer {
                 originatorBundleID: frontBID,
                 preview: preview,
                 dangerReasons: dangers,
-                resolver: { d in
-                    lock.withLock { decision = d }
+                resolver: { d, r in
+                    lock.withLock { decision = d; denyReason = r }
                     semaphore.signal()
                 }
             )
@@ -620,12 +621,21 @@ final class EventServer {
         workQueue.async { [weak self] in
             let result = semaphore.wait(timeout: .now() + .seconds(285))
             let final: PermissionDecision
+            let reason: String?
             if result == .timedOut {
                 final = .ask
+                reason = nil
             } else {
-                final = lock.withLock { decision }
+                (final, reason) = lock.withLock { (decision, denyReason) }
             }
-            let body = "{\"decision\":\"\(final.rawValue)\"}"
+            // Build with JSONSerialization so a free-text reason is escaped.
+            // The hook (claudenotch-permission.sh) forwards `reason` to Claude
+            // as the permissionDecisionReason on a deny.
+            var dict: [String: Any] = ["decision": final.rawValue]
+            if final == .deny, let r = reason, !r.isEmpty { dict["reason"] = r }
+            let body = (try? JSONSerialization.data(withJSONObject: dict))
+                .flatMap { String(data: $0, encoding: .utf8) }
+                ?? "{\"decision\":\"\(final.rawValue)\"}"
             self?.send(body: body, on: conn)
         }
     }

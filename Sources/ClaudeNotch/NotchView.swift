@@ -147,7 +147,7 @@ struct NotchView: View {
             let cap = max(180, screenH * 0.85 - inset)
             return CGSize(width: 620, height: inset + min(visible, cap))
         case .completed:
-            return CGSize(width: 500, height: inset + 100)
+            return CGSize(width: 560, height: inset + 100)
         case .question(let q):
             // Header strip ≈ 30, button row ≈ 44, outer padding/spacing ≈ 30.
             // Each question heading ≈ 26 + 6 spacing; each option row ≈ 48
@@ -308,6 +308,9 @@ struct NotchView: View {
                     },
                     onResolveAll: { decision in
                         state.resolveAllPermissions(decision)
+                    },
+                    onDenyReason: {
+                        state.beginDenyReason(for: req)
                     }
                 )
                 .transition(.opacity)
@@ -321,7 +324,9 @@ struct NotchView: View {
                 .transition(.opacity)
             }
         case .completed(let task):
-            CompletedCard(task: task, onOpen: {
+            CompletedCard(task: task, onReply: {
+                state.beginReply(to: task)
+            }, onOpen: {
                 state.openOriginator(task.originatorBundleID)
                 state.dismissCurrentCompleted()
             }, onDismiss: {
@@ -739,19 +744,34 @@ private struct ComposeCard: View {
         return activeTerminalName
     }
 
+    private var isDeny: Bool {
+        if case .denyReason = state.composePurpose { return true }
+        return false
+    }
+    private var accent: Color { isDeny ? .red : .cyan }
+    private var headerIcon: String { isDeny ? "hand.raised.fill" : "paperplane.fill" }
+    private var headerLabel: String { isDeny ? "Deny with a reason" : "Send to Claude" }
+    private var placeholder: String {
+        isDeny
+            ? "tell Claude why, or what to do instead — ⌘↩ to deny, ⎋ to keep the prompt"
+            : "type your message — ⌘↩ to send, ↩ for newline, ⎋ to cancel"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Image(systemName: "paperplane.fill")
-                    .foregroundColor(.cyan)
+                Image(systemName: headerIcon)
+                    .foregroundColor(accent)
                     .font(.system(size: 13, weight: .semibold))
-                Text("Send to Claude")
+                Text(headerLabel)
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundColor(.cyan.opacity(0.9))
+                    .foregroundColor(accent.opacity(0.9))
                     .textCase(.uppercase)
                 Spacer()
                 // Target picker: active terminal, or open a fresh terminal in
-                // a recent project.
+                // a recent project. Hidden when denying — there's no terminal
+                // target, the note goes back to the waiting tool call.
+                if !isDeny {
                 Menu {
                     Button("Active terminal (\(activeTerminalName))") {
                         state.setComposeProject(nil)
@@ -781,11 +801,12 @@ private struct ComposeCard: View {
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
                 .fixedSize()
+                }
             }
 
             ZStack(alignment: .topLeading) {
                 if state.composeText.isEmpty {
-                    Text("type your message — ⌘↩ to send, ↩ for newline, ⎋ to cancel")
+                    Text(placeholder)
                         .font(.system(size: 13))
                         .foregroundColor(.white.opacity(0.35))
                         .padding(.horizontal, 14)
@@ -818,10 +839,10 @@ private struct ComposeCard: View {
 
             HStack {
                 Spacer()
-                NotchButton(label: "Cancel", style: .secondary, shortcut: "⎋") {
+                NotchButton(label: isDeny ? "Keep prompt" : "Cancel", style: .secondary, shortcut: "⎋") {
                     state.cancelCompose()
                 }
-                NotchButton(label: "Send", style: .primary, shortcut: "⌘↩") {
+                NotchButton(label: isDeny ? "Deny" : "Send", style: isDeny ? .destructive : .primary, shortcut: "⌘↩") {
                     state.sendCompose()
                 }
             }
@@ -921,6 +942,7 @@ private struct PermissionCard: View {
     var pendingCount: Int = 1
     let onResolve: (PermissionDecision, AllowScope) -> Void
     var onResolveAll: ((PermissionDecision) -> Void)? = nil
+    var onDenyReason: (() -> Void)? = nil
 
     private var accentColor: Color { request.isDangerous ? .red : .yellow }
     private var headerIcon: String { request.isDangerous ? "exclamationmark.triangle.fill" : "exclamationmark.bubble.fill" }
@@ -981,6 +1003,18 @@ private struct PermissionCard: View {
             HStack(spacing: 8) {
                 NotchButton(label: "Deny", style: .destructive, shortcut: "⎋") {
                     onResolve(.deny, .none)
+                }
+                if let onDenyReason {
+                    Button(action: onDenyReason) {
+                        Image(systemName: "text.bubble")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.8))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 7)
+                            .background(Capsule(style: .continuous).fill(Color.white.opacity(0.1)))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Deny with a reason — tell Claude what to do instead")
                 }
                 if !request.isDangerous {
                     Menu {
@@ -1430,6 +1464,7 @@ private struct NotificationCard: View {
 
 private struct CompletedCard: View {
     let task: CompletedTask
+    var onReply: (() -> Void)? = nil
     let onOpen: () -> Void
     let onDismiss: () -> Void
     private let rowSpacing: CGFloat = 14
@@ -1471,6 +1506,9 @@ private struct CompletedCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 HStack(spacing: 8) {
+                    if let onReply {
+                        NotchButton(label: "Reply", style: .secondary, action: onReply)
+                    }
                     NotchButton(label: "Open IDE", style: .secondary, action: onOpen)
                     NotchButton(label: "Done", style: .primary, action: onDismiss)
                 }
