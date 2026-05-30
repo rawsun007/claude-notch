@@ -49,6 +49,9 @@ case "$event" in
     TaskCreated|TaskCompleted)
         printf '%s' "$input" | exec "$DIR/claudenotch-task.sh"
         ;;
+    PreCompact)
+        printf '%s' "$input" | exec "$DIR/claudenotch-compact.sh"
+        ;;
     *)
         echo "[$(date '+%H:%M:%S')] dispatcher: unknown event=$event" >> "$LOG"
         exit 0

@@ -206,6 +206,64 @@ enum ClaudeUsageReader {
         return usage
     }
 
+    /// Live per-session meter for the notch: how full the context window is right
+    /// now and how much the session has cost so far.
+    struct SessionMeter {
+        var contextTokens = 0          // input-side tokens of the most recent turn
+        var contextPercent: Double = 0 // contextTokens / contextWindow (0...1)
+        var costUSD: Double = 0         // cumulative across the whole session
+        var model = ""                 // most recent model id
+    }
+
+    // Standard context window for Opus/Sonnet 4.x. The 1M-token window is a
+    // separate mode the transcript doesn't flag, but a standard session compacts
+    // before it ever exceeds 200k — so if we observe more than that, the session
+    // must be on the 1M window and we switch the denominator accordingly.
+    static let contextWindow = 200_000
+    static let contextWindow1M = 1_000_000
+
+    static func contextWindow(forTokens tokens: Int) -> Int {
+        tokens > contextWindow ? contextWindow1M : contextWindow
+    }
+
+    /// Parse ONE session transcript: sum cost across every assistant message and
+    /// take the latest turn's input-side tokens as the live context occupancy.
+    /// Reads the file off disk — call off the main thread. Returns nil if the
+    /// file can't be read or has no assistant usage yet.
+    static func sessionMeter(transcriptPath path: String) -> SessionMeter? {
+        guard !path.isEmpty,
+              let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+              let text = String(data: data, encoding: .utf8) else { return nil }
+
+        var meter = SessionMeter()
+        var sawUsage = false
+        for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
+            guard let ld = line.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: ld) as? [String: Any],
+                  let msg = obj["message"] as? [String: Any],
+                  (msg["role"] as? String) == "assistant",
+                  let u = msg["usage"] as? [String: Any]
+            else { continue }
+
+            let model = (msg["model"] as? String) ?? meter.model
+            let input = (u["input_tokens"] as? Int) ?? 0
+            let output = (u["output_tokens"] as? Int) ?? 0
+            let cacheRead = (u["cache_read_input_tokens"] as? Int) ?? 0
+            let cacheCreation = (u["cache_creation_input_tokens"] as? Int) ?? 0
+
+            sawUsage = true
+            meter.costUSD += cost(input: input, output: output,
+                                  cacheRead: cacheRead, cacheCreation: cacheCreation, model: model)
+            // Latest turn wins for the live readings (lines are chronological).
+            meter.model = model
+            meter.contextTokens = input + cacheRead + cacheCreation
+        }
+        guard sawUsage else { return nil }
+        let window = contextWindow(forTokens: meter.contextTokens)
+        meter.contextPercent = min(1, Double(meter.contextTokens) / Double(window))
+        return meter
+    }
+
     static func fmtTokens(_ n: Int) -> String {
         if n >= 1_000_000_000 { return String(format: "%.1fB", Double(n) / 1_000_000_000) }
         if n >= 1_000_000     { return String(format: "%.1fM", Double(n) / 1_000_000) }

@@ -141,6 +141,8 @@ enum HookInstaller {
         // take no matcher (they always fire on every occurrence).
         appendHook(to: "TaskCreated", in: &hooks, matcher: nil)
         appendHook(to: "TaskCompleted", in: &hooks, matcher: nil)
+        // Context compaction cue for the context meter.
+        appendHook(to: "PreCompact", in: &hooks, matcher: nil)
         settings["hooks"] = hooks
 
         do {

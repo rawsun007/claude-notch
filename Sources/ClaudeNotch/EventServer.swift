@@ -21,6 +21,37 @@ final class EventServer {
     private var taskRegistry: [String: String] = [:]
     private let taskRegistryLock = NSLock()
 
+    // Throttle per-transcript context+cost recomputation (parses the whole file).
+    private var meterLastComputed: [String: Date] = [:]
+    private let meterLock = NSLock()
+
+    /// Parse a session transcript for its context + cost meter off the main
+    /// thread and push it to AppState. `throttle` skips a recompute if one ran
+    /// for this transcript within the interval (the full-file parse isn't free).
+    private func pushSessionMeter(transcriptPath path: String, sessionId: String, throttle: TimeInterval = 0) {
+        guard !path.isEmpty else { return }
+        if throttle > 0 {
+            let now = Date()
+            let skip = meterLock.withLock { () -> Bool in
+                if let last = meterLastComputed[path], now.timeIntervalSince(last) < throttle { return true }
+                meterLastComputed[path] = now
+                return false
+            }
+            if skip { return }
+        } else {
+            meterLock.withLock { meterLastComputed[path] = Date() }
+        }
+        workQueue.async { [weak self] in
+            guard let self, let m = ClaudeUsageReader.sessionMeter(transcriptPath: path) else { return }
+            Task { @MainActor [weak state = self.state] in
+                state?.noteSessionMeter(sessionId: sessionId,
+                                        contextPercent: m.contextPercent,
+                                        costUSD: m.costUSD,
+                                        model: m.model)
+            }
+        }
+    }
+
     private func recordTask(id: String, subject: String) {
         guard !id.isEmpty, !subject.isEmpty else { return }
         taskRegistryLock.withLock {
@@ -199,6 +230,9 @@ final class EventServer {
         case "/task":
             handleTask(payload: payload)
             sendOK(on: conn)
+        case "/compact":
+            handleCompact(payload: payload)
+            sendOK(on: conn)
         case "/prompt":
             handlePrompt(payload: payload)
             if let transcriptPath {
@@ -280,6 +314,17 @@ final class EventServer {
         // Cheap and keeps the notch fresh between Stop hooks.
         if let path = payload["transcript_path"] as? String, !path.isEmpty {
             readAndPushClaudeResponse(transcriptPath: path, sessionId: sessionId)
+            // Refresh the context/cost meter as the turn grows, but not on every
+            // tool call — the parse reads the whole transcript.
+            pushSessionMeter(transcriptPath: path, sessionId: sessionId, throttle: 4)
+        }
+    }
+
+    /// PreCompact: context is about to be compacted. Show a transient cue.
+    private func handleCompact(payload: [String: Any]) {
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.noteCompacting(sessionId: sessionId)
         }
     }
 
@@ -351,6 +396,12 @@ final class EventServer {
             }
             workQueue.asyncAfter(deadline: .now() + .milliseconds(800)) { [weak self] in
                 self?.readAndPushClaudeResponse(transcriptPath: path, sessionId: sessionId)
+            }
+            // Turn ended: recompute the context/cost meter unthrottled so the
+            // final numbers are accurate. Slight delay so the last turn's usage
+            // is on disk.
+            workQueue.asyncAfter(deadline: .now() + .milliseconds(900)) { [weak self] in
+                self?.pushSessionMeter(transcriptPath: path, sessionId: sessionId)
             }
         }
 

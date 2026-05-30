@@ -57,6 +57,14 @@ struct LiveSession: Identifiable, Equatable {
 
     var taskTotal: Int { createdTaskIds.count }
     var taskDone: Int { completedTaskIds.count }
+
+    // Live context + cost meter, parsed from this session's transcript usage.
+    var contextPercent: Double = 0   // 0...1 of the context window in use now
+    var sessionCostUSD: Double = 0   // cumulative estimated cost so far
+    var model: String = ""           // most recent model id (e.g. claude-opus-4-8)
+    var isCompacting: Bool = false   // true between PreCompact and the next event
+
+    var hasMeter: Bool { contextPercent > 0 || sessionCostUSD > 0 }
 }
 
 // MARK: - History
@@ -363,6 +371,11 @@ final class AppState: ObservableObject {
     @Published private(set) var lastClaudeResponseAt: Date? = nil
     @Published private(set) var lastActivityAt: Date? = nil
     @Published private(set) var claudeActionStatus: String = "ready"
+    // Global mirror of the current session's context + cost meter (for the
+    // collapsed header). Per-session values live on each LiveSession.
+    @Published private(set) var currentContextPercent: Double = 0
+    @Published private(set) var currentCostUSD: Double = 0
+    @Published private(set) var currentModel: String = ""
 
     // Per-session live state. Keyed by session_id (or normalized cwd when a
     // hook didn't carry one). The global fields above stay as a mirror of the
@@ -657,6 +670,32 @@ final class AppState: ObservableObject {
             s.status = "thinking"
         }
         ensureStaleTimer()
+    }
+
+    /// Push a freshly-parsed context + cost meter for a session. Updates that
+    /// session's row always; mirrors to the global header only for the current
+    /// session (same gate as noteClaudeResponse, so background sessions can't
+    /// thrash the header).
+    func noteSessionMeter(sessionId: String, contextPercent: Double, costUSD: Double, model: String) {
+        upsertSession(id: sessionId, cwd: currentCwd) { s in
+            s.contextPercent = contextPercent
+            s.sessionCostUSD = costUSD
+            if !model.isEmpty { s.model = model }
+            s.isCompacting = false
+        }
+        let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
+        guard isCurrent else { return }
+        currentContextPercent = contextPercent
+        currentCostUSD = costUSD
+        if !model.isEmpty { currentModel = model }
+    }
+
+    /// PreCompact: context is about to be compacted. Flag the session so the UI
+    /// can show a "compacting" cue; cleared by the next meter/activity update.
+    func noteCompacting(sessionId: String = "") {
+        upsertSession(id: sessionId, cwd: currentCwd) { s in
+            s.isCompacting = true
+        }
     }
 
     func noteUserPrompt(_ prompt: String, sessionId: String = "") {
@@ -1086,6 +1125,9 @@ final class AppState: ObservableObject {
             claudeActionStatus = newest.status
             lastClaudeResponse = newest.lastResponse
             fullClaudeResponse = newest.fullResponse
+            currentContextPercent = newest.contextPercent
+            currentCostUSD = newest.sessionCostUSD
+            currentModel = newest.model
         } else {
             currentSessionId = ""
             currentProject = ""
@@ -1094,6 +1136,9 @@ final class AppState: ObservableObject {
             lastUserPrompt = ""
             claudeActionStatus = lastClaudeResponse.isEmpty ? "ready" : "last reply"
             lastHookAt = nil
+            currentContextPercent = 0
+            currentCostUSD = 0
+            currentModel = ""
         }
     }
 

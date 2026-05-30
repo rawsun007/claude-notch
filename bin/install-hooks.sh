@@ -15,7 +15,7 @@ mkdir -p "$INSTALL_DIR"
 for s in claudenotch-hook.sh \
          claudenotch-permission.sh claudenotch-notify.sh claudenotch-stop.sh \
          claudenotch-posttool.sh claudenotch-prompt.sh claudenotch-sessionend.sh \
-         claudenotch-task.sh claudenotch-permreq.sh \
+         claudenotch-task.sh claudenotch-permreq.sh claudenotch-compact.sh \
          uninstall-hooks.sh; do
     src="$SCRIPT_DIR/$s"
     dst="$INSTALL_DIR/$s"
@@ -76,6 +76,9 @@ jq --arg hook "$HOOK_Q" '
         { "hooks": [{ "type": "command", "command": $hook }] }
     ] |
     .hooks.TaskCompleted = [
+        { "hooks": [{ "type": "command", "command": $hook }] }
+    ] |
+    .hooks.PreCompact = [
         { "hooks": [{ "type": "command", "command": $hook }] }
     ]
 ' "$SETTINGS" > "$SETTINGS.new"

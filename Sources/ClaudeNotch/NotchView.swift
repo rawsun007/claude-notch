@@ -518,6 +518,14 @@ private struct IdlePill: View {
                 CommandLineBlock(icon: parsed.icon, text: parsed.text)
             }
 
+            // Single-session context + cost meter (multi-session shows it per row).
+            if isOpen && !hasMultipleSessions
+                && (state.currentContextPercent > 0 || state.currentCostUSD > 0) {
+                ContextCostBar(percent: state.currentContextPercent,
+                               cost: state.currentCostUSD,
+                               model: state.currentModel)
+            }
+
             if isOpen && hasMultipleSessions {
                 SessionsList(state: state, pulsePhase: pulsePhase)
             }
@@ -586,25 +594,38 @@ private struct SessionsList: View {
                 Button {
                     state.showSessionResponse(session)
                 } label: {
-                    HStack(spacing: 8) {
-                        let working = AppState.isWorking(status: session.status)
-                        Circle()
-                            .fill(working ? Color.blue : Color.green)
-                            .frame(width: 6, height: 6)
-                            .opacity(working ? 0.4 + 0.6 * (0.5 + 0.5 * sin(pulsePhase)) : 1.0)
-                        Text(session.project.isEmpty ? "session" : session.project)
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundColor(.white.opacity(0.9))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                        Spacer(minLength: 8)
-                        if session.taskTotal > 0 {
-                            TaskMeter(done: session.taskDone, total: session.taskTotal)
-                        } else {
-                            Text(session.status)
-                                .font(.system(size: 10, design: .rounded))
-                                .foregroundColor(.white.opacity(0.5))
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 8) {
+                            let working = AppState.isWorking(status: session.status)
+                            Circle()
+                                .fill(working ? Color.blue : Color.green)
+                                .frame(width: 6, height: 6)
+                                .opacity(working ? 0.4 + 0.6 * (0.5 + 0.5 * sin(pulsePhase)) : 1.0)
+                            Text(session.project.isEmpty ? "session" : session.project)
+                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                .foregroundColor(.white.opacity(0.9))
                                 .lineLimit(1)
+                                .truncationMode(.tail)
+                            Spacer(minLength: 8)
+                            if session.taskTotal > 0 {
+                                TaskMeter(done: session.taskDone, total: session.taskTotal)
+                            } else {
+                                Text(session.status)
+                                    .font(.system(size: 10, design: .rounded))
+                                    .foregroundColor(.white.opacity(0.5))
+                                    .lineLimit(1)
+                            }
+                        }
+                        if session.isCompacting {
+                            Text("compacting context…")
+                                .font(.system(size: 9, design: .rounded))
+                                .foregroundColor(.orange.opacity(0.8))
+                                .padding(.leading, 14)
+                        } else if session.hasMeter {
+                            ContextCostBar(percent: session.contextPercent,
+                                           cost: session.sessionCostUSD,
+                                           model: session.model)
+                                .padding(.leading, 14)
                         }
                     }
                     .padding(.vertical, 3)
@@ -648,6 +669,53 @@ private struct TaskMeter: View {
                 .lineLimit(1)
         }
         .help("\(done) of \(total) tasks done")
+    }
+}
+
+// MARK: - Context + cost meter
+
+/// Compact context-window fill bar + running cost (and short model name) for a
+/// session. The bar warms from blue to orange to red as the window fills, so a
+/// near-full context (where Claude will soon compact) reads at a glance.
+struct ContextCostBar: View {
+    let percent: Double     // 0...1
+    let cost: Double        // cumulative USD
+    var model: String = ""
+
+    private var clamped: CGFloat { min(1, max(0, CGFloat(percent))) }
+    private var tint: Color {
+        switch percent {
+        case ..<0.6:  return .blue
+        case ..<0.85: return .orange
+        default:      return .red
+        }
+    }
+    private var shortModel: String {
+        let m = ClaudeUsageReader.shortModel(model)
+        return m == "unknown" || m.isEmpty ? "" : m
+    }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if !shortModel.isEmpty {
+                Text(shortModel)
+                    .font(.system(size: 9, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.4))
+            }
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.white.opacity(0.12)).frame(width: 28, height: 3)
+                Capsule().fill(tint.opacity(0.9)).frame(width: 28 * clamped, height: 3)
+            }
+            Text("\(Int((percent * 100).rounded()))%")
+                .font(.system(size: 9, design: .rounded).monospacedDigit())
+                .foregroundColor(.white.opacity(0.45))
+            if cost > 0 {
+                Text(ClaudeUsageReader.fmtMoney(cost))
+                    .font(.system(size: 9, design: .rounded).monospacedDigit())
+                    .foregroundColor(.white.opacity(0.4))
+            }
+        }
+        .help("Context window \(Int((percent * 100).rounded()))% full · est. \(ClaudeUsageReader.fmtMoney(cost)) this session")
     }
 }
 
