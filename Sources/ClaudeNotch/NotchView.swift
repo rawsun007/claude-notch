@@ -816,7 +816,11 @@ private struct ComposeCard: View {
                         .font(.system(size: 13))
                         .foregroundColor(.white.opacity(0.35))
                         .padding(.horizontal, 14)
-                        .padding(.top, 12)
+                        // TextEditor renders its first line / caret higher than a
+                        // plain Text at the same top padding (the text view's own
+                        // line metrics), so the placeholder sits ~7 to land on the
+                        // caret's row rather than below it.
+                        .padding(.top, 7)
                         .allowsHitTesting(false)
                 }
                 TextEditor(text: $state.composeText)
@@ -824,7 +828,7 @@ private struct ComposeCard: View {
                     .foregroundColor(.white)
                     .scrollContentBackground(.hidden)
                     .padding(.horizontal, 9)   // +5 lineFragment ≈ placeholder's 14
-                    .padding(.top, 18)          // aligns the caret with the placeholder baseline
+                    .padding(.top, 18)          // caret position; placeholder's top is tuned to match it
                     .padding(.bottom, 6)
                     .focused($focused)
             }
