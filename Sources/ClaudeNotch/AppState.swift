@@ -1437,7 +1437,11 @@ final class AppState: ObservableObject {
                 schedulePersist()
             }
         }
-        if first.kind == .toolUse, first.source != "Demo" { recordDecision(decision, auto: false) }
+        // Grouped requests fold N tool calls into one card — count each one so
+        // the decision tally matches the tool tally (recorded per request).
+        if first.kind == .toolUse, first.source != "Demo" {
+            for _ in 0..<max(1, first.groupCount) { recordDecision(decision, auto: false) }
+        }
         first.resolver(decision)
         // Notifications were already logged at enqueue time.
         if first.kind != .notification {
@@ -1473,7 +1477,9 @@ final class AppState: ObservableObject {
                 remaining.append(req)   // never batch-allow a destructive command
                 continue
             }
-            if req.kind == .toolUse, req.source != "Demo" { recordDecision(decision, auto: false) }
+            if req.kind == .toolUse, req.source != "Demo" {
+                for _ in 0..<max(1, req.groupCount) { recordDecision(decision, auto: false) }
+            }
             req.resolver(decision)
             if req.kind != .notification {
                 appendHistory(HistoryEntry(

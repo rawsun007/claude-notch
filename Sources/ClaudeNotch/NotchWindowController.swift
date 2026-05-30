@@ -18,7 +18,7 @@ final class NotchPanel: NSPanel {
 /// swallowed instead of reaching the app underneath.
 final class PassThroughHostingView: NSHostingView<NotchView> {
     weak var appState: AppState?
-    var screenProvider: () -> NSScreen = { NSScreen.main ?? NSScreen.screens.first! }
+    var screenProvider: () -> NSScreen = { NSScreen.main ?? NSScreen.screens.first ?? NSScreen() }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         guard let state = appState else { return super.hitTest(point) }
@@ -74,7 +74,7 @@ final class NotchWindowController {
 
         self.window = panel
         self.host = host
-        host.screenProvider = { [weak self] in self?.currentScreen() ?? NSScreen.main ?? NSScreen.screens.first! }
+        host.screenProvider = { [weak self] in self?.currentScreen() ?? NSScreen.main ?? NSScreen.screens.first ?? NSScreen() }
 
         position(on: screen)
 

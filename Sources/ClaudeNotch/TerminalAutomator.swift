@@ -35,15 +35,13 @@ enum TerminalAutomator {
             debugLog("sendText: WARNING — no running app with bid=\(bundleID)")
         }
 
-        let escaped = text
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
+        let literal = appleScriptStringExpr(text)
 
         let source = """
         tell application id "\(bundleID)" to activate
         delay \(prePromptDelay)
         tell application "System Events"
-            keystroke "\(escaped)"
+            keystroke \(literal)
             delay 0.05
             key code 36
         end tell
@@ -131,6 +129,24 @@ enum TerminalAutomator {
 
     private static func shellQuote(_ s: String) -> String {
         "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    /// Build an AppleScript string expression for `keystroke`. A raw newline
+    /// inside a "..." literal is an AppleScript compile error — which used to
+    /// make multi-line compose messages fail to type with no feedback. Split on
+    /// newlines and join the per-line literals with `return` so the script
+    /// always compiles and every line is typed.
+    private static func appleScriptStringExpr(_ text: String) -> String {
+        let normalized = text
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        let segments = normalized.components(separatedBy: "\n").map { seg -> String in
+            let escaped = seg
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "\"", with: "\\\"")
+            return "\"\(escaped)\""
+        }
+        return segments.joined(separator: " & return & ")
     }
 
     /// Activates the target app and sends 1-based option indexes as

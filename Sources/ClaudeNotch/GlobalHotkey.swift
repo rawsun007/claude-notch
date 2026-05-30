@@ -50,6 +50,9 @@ final class GlobalHotkey {
             hotKeyRef = ref
         } else {
             NSLog("ClaudeNotch: hotkey registration failed (status=\(status))")
+            // Registration failed, so the event handler we just installed would
+            // otherwise linger uselessly — tear it back down.
+            if let h = eventHandler { RemoveEventHandler(h); eventHandler = nil }
         }
     }
 
