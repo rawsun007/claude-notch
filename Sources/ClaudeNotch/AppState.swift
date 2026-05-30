@@ -398,6 +398,9 @@ final class AppState: ObservableObject {
     @Published private(set) var isComposing: Bool = false
     @Published private(set) var composePurpose: ComposePurpose = .message
     @Published private(set) var composeTarget: String? = nil
+    // Human label for what we're sending to (e.g. the session's project), shown
+    // in the composer header. Set for replies; nil for a plain hotkey compose.
+    @Published private(set) var composeContextLabel: String? = nil
     @Published private(set) var composeError: String? = nil
     // When set, "send" opens a NEW terminal in this project's folder running
     // `claude "<message>"`, instead of typing into the active terminal.
@@ -972,6 +975,7 @@ final class AppState: ObservableObject {
         composeText = ""
         composeError = nil
         composePurpose = .message
+        composeContextLabel = nil
         composeProjectCwd = project
         // Resolve the active-terminal target NOW, before we become key —
         // otherwise frontmost might briefly become ClaudeNotch.
@@ -990,6 +994,8 @@ final class AppState: ObservableObject {
         composeText = ""
         composeError = nil
         composePurpose = .message
+        let project = (task.cwd as NSString).lastPathComponent
+        composeContextLabel = project.isEmpty ? nil : project
         if let bid = task.originatorBundleID, !bid.isEmpty,
            !NSRunningApplication.runningApplications(withBundleIdentifier: bid).isEmpty {
             composeProjectCwd = nil
@@ -1013,6 +1019,7 @@ final class AppState: ObservableObject {
         composeError = nil
         composeProjectCwd = nil
         composeTarget = nil
+        composeContextLabel = nil
         composePurpose = .denyReason(req)
         isComposing = true
         recompute()
@@ -1084,6 +1091,7 @@ final class AppState: ObservableObject {
         composeError = nil
         composeTarget = nil
         composeProjectCwd = nil
+        composeContextLabel = nil
         recompute()
         // Cancelling a deny-reason returns to the still-queued permission card,
         // which is interactive — don't hand the keyboard back to the terminal.

@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import CoreGraphics
 import Foundation
 
 /// Types digits + Enter into a target app to answer Claude Code's AskUserQuestion
@@ -35,30 +36,48 @@ enum TerminalAutomator {
             debugLog("sendText: WARNING — no running app with bid=\(bundleID)")
         }
 
-        let literal = appleScriptStringExpr(text)
-
-        let source = """
-        tell application id "\(bundleID)" to activate
-        delay \(prePromptDelay)
-        tell application "System Events"
-            keystroke \(literal)
-            delay 0.05
-            key code 36
-        end tell
-        """
-
-        DispatchQueue.global(qos: .userInitiated).async {
-            guard let script = NSAppleScript(source: source) else {
-                debugLog("sendText: AppleScript failed to compile")
-                return
+        // Type via synthesized CGEvents rather than AppleScript "tell System
+        // Events". CGEvent posting needs only Accessibility (which we have),
+        // NOT the separate Automation/Apple-Events permission — AppleScript was
+        // failing with -1743 "Not authorized to send Apple events to System
+        // Events". This also sidesteps AppleScript string escaping entirely.
+        DispatchQueue.main.asyncAfter(deadline: .now() + prePromptDelay) {
+            postUnicodeText(text)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
+                postKeyCode(0x24)   // Return / Enter
+                debugLog("sendText: posted \(text.count) chars + Return via CGEvent")
             }
-            var err: NSDictionary?
-            script.executeAndReturnError(&err)
-            if let err {
-                debugLog("sendText: AppleScript error \(err)")
-            } else {
-                debugLog("sendText: AppleScript completed OK")
+        }
+    }
+
+    /// Inject a string as synthetic key events into the frontmost app. Chunked
+    /// because a single event's unicode payload can be capped by the receiver.
+    nonisolated private static func postUnicodeText(_ s: String) {
+        let src = CGEventSource(stateID: .combinedSessionState)
+        let units = Array(s.utf16)
+        guard !units.isEmpty else { return }
+        var i = 0
+        while i < units.count {
+            let chunk = Array(units[i..<min(i + 20, units.count)])
+            if let down = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: true) {
+                down.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
+                down.post(tap: .cghidEventTap)
             }
+            if let up = CGEvent(keyboardEventSource: src, virtualKey: 0, keyDown: false) {
+                up.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
+                up.post(tap: .cghidEventTap)
+            }
+            i += 20
+        }
+    }
+
+    nonisolated private static func postKeyCode(_ code: CGKeyCode) {
+        let src = CGEventSource(stateID: .combinedSessionState)
+        if let down = CGEvent(keyboardEventSource: src, virtualKey: code, keyDown: true) {
+            down.post(tap: .cghidEventTap)
+        }
+        if let up = CGEvent(keyboardEventSource: src, virtualKey: code, keyDown: false) {
+            up.post(tap: .cghidEventTap)
         }
     }
 
@@ -129,24 +148,6 @@ enum TerminalAutomator {
 
     private static func shellQuote(_ s: String) -> String {
         "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
-    }
-
-    /// Build an AppleScript string expression for `keystroke`. A raw newline
-    /// inside a "..." literal is an AppleScript compile error — which used to
-    /// make multi-line compose messages fail to type with no feedback. Split on
-    /// newlines and join the per-line literals with `return` so the script
-    /// always compiles and every line is typed.
-    private static func appleScriptStringExpr(_ text: String) -> String {
-        let normalized = text
-            .replacingOccurrences(of: "\r\n", with: "\n")
-            .replacingOccurrences(of: "\r", with: "\n")
-        let segments = normalized.components(separatedBy: "\n").map { seg -> String in
-            let escaped = seg
-                .replacingOccurrences(of: "\\", with: "\\\\")
-                .replacingOccurrences(of: "\"", with: "\\\"")
-            return "\"\(escaped)\""
-        }
-        return segments.joined(separator: " & return & ")
     }
 
     /// Activates the target app and sends 1-based option indexes as

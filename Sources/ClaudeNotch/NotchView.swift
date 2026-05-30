@@ -742,6 +742,11 @@ private struct ComposeCard: View {
         if let cwd = state.composeProjectCwd, !cwd.isEmpty {
             return (cwd as NSString).lastPathComponent
         }
+        // Reply: show the session's project alongside the terminal it runs in,
+        // instead of just the terminal app name.
+        if let ctx = state.composeContextLabel, !ctx.isEmpty {
+            return "\(ctx) · \(activeTerminalName)"
+        }
         return activeTerminalName
     }
 
