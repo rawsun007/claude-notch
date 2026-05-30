@@ -1055,12 +1055,24 @@ final class AppState: ObservableObject {
             return
         }
         if !TerminalAutomator.isAccessibilityTrusted {
-            composeError = "Grant Accessibility (menu bar → Permissions) so I can type into your terminal."
+            // Typing into a terminal needs Accessibility. Don't fail silently —
+            // pop the system prompt + open Settings, and keep the composer open
+            // (with the text) so the user can grant it and hit Send again.
+            promptAccessibility()
+            composeError = "ClaudeNotch needs Accessibility to type into your terminal. I opened System Settings — enable ClaudeNotch there, then press Send again. (Or pick a project above to open a fresh terminal instead.)"
             return
         }
         TerminalAutomator.sendText(text, toBundleID: bid)
         playSound("Tink")
         cancelCompose()
+    }
+
+    /// Pop the macOS Accessibility prompt and jump to the right Settings pane.
+    func promptAccessibility() {
+        TerminalAutomator.requestAccessibility()
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     func cancelCompose() {
