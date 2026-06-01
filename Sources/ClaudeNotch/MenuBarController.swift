@@ -22,6 +22,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var snoozeMenu: NSMenu!
     private var soundItem: NSMenuItem!
     private var soundMenu: NSMenu!
+    private var costBudgetItem: NSMenuItem!
+    private var costBudgetMenu: NSMenu!
     // Keep-open row views for the Sound submenu — clicking these does not
     // dismiss the menu, so the user can preview multiple sounds.
     private var soundRowViews: [String: KeepOpenRowView] = [:]
@@ -165,6 +167,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         soundItem = NSMenuItem(title: "Sound", action: nil, keyEquivalent: "")
         soundItem.submenu = soundMenu
         menu.addItem(soundItem)
+
+        // Cost Budget submenu: per-session + daily $ caps with a heads-up alert.
+        costBudgetMenu = NSMenu()
+        costBudgetItem = NSMenuItem(title: "Cost Budget", action: nil, keyEquivalent: "")
+        costBudgetItem.submenu = costBudgetMenu
+        menu.addItem(costBudgetItem)
 
         menu.addItem(.separator())
 
@@ -609,6 +617,17 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshPrefs()
     }
 
+    // Cost budgets. tag carries the dollar amount (0 = off).
+    @objc private func setSessionCapAction(_ sender: NSMenuItem) {
+        state.setSessionCostCap(Double(sender.tag))
+        refreshCostBudgetMenu()
+    }
+
+    @objc private func setDailyCapAction(_ sender: NSMenuItem) {
+        state.setDailyCostCap(Double(sender.tag))
+        refreshCostBudgetMenu()
+    }
+
     @objc private func togglePersistentNotchDisplay() {
         state.setPersistentNotchDisplay(!state.persistentNotchDisplay)
         refreshPrefs()
@@ -626,6 +645,48 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshAutoApproveMenu()
         refreshSnoozeMenu()
         refreshSoundMenu()
+        refreshCostBudgetMenu()
+    }
+
+    private func refreshCostBudgetMenu() {
+        costBudgetMenu.removeAllItems()
+        let mn = ClaudeUsageReader.fmtMoney
+
+        // Title reflects whichever caps are set.
+        var parts: [String] = []
+        if state.sessionCostCap > 0 { parts.append("session \(mn(state.sessionCostCap))") }
+        if state.dailyCostCap > 0 { parts.append("daily \(mn(state.dailyCostCap))") }
+        costBudgetItem.title = parts.isEmpty ? "Cost Budget" : "Cost Budget: \(parts.joined(separator: ", "))"
+
+        func header(_ s: String) {
+            let mi = NSMenuItem(title: s, action: nil, keyEquivalent: "")
+            mi.isEnabled = false
+            costBudgetMenu.addItem(mi)
+        }
+        func caps(_ title: String, current: Double, action: Selector, presets: [Int], spent: Double) {
+            header(title)
+            // Current spend line.
+            let spentItem = NSMenuItem(title: "  spent so far: ~\(mn(spent))", action: nil, keyEquivalent: "")
+            spentItem.isEnabled = false
+            costBudgetMenu.addItem(spentItem)
+            // Off + presets, with a checkmark on the active one.
+            for dollars in [0] + presets {
+                let label = dollars == 0 ? "Off" : "$\(dollars)"
+                let mi = NSMenuItem(title: label, action: action, keyEquivalent: "")
+                mi.target = self
+                mi.tag = dollars
+                mi.state = Int(current.rounded()) == dollars ? .on : .off
+                costBudgetMenu.addItem(mi)
+            }
+        }
+
+        caps("Per-session cap — warn at 80% / 100%",
+             current: state.sessionCostCap, action: #selector(setSessionCapAction(_:)),
+             presets: [1, 2, 5, 10, 25], spent: state.currentCostUSD)
+        costBudgetMenu.addItem(.separator())
+        caps("Daily cap — across all sessions today",
+             current: state.dailyCostCap, action: #selector(setDailyCapAction(_:)),
+             presets: [5, 10, 25, 50, 100], spent: state.todayCostUSD)
     }
 
     private func refreshAutoApproveMenu() {

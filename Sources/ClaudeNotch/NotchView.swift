@@ -529,7 +529,8 @@ private struct IdlePill: View {
                 && (state.currentContextPercent > 0 || state.currentCostUSD > 0) {
                 ContextCostBar(percent: state.currentContextPercent,
                                cost: state.currentCostUSD,
-                               model: state.currentModel)
+                               model: state.currentModel,
+                               costCap: state.sessionCostCap)
             }
 
             if isOpen && hasMultipleSessions {
@@ -630,7 +631,8 @@ private struct SessionsList: View {
                         } else if session.hasMeter {
                             ContextCostBar(percent: session.contextPercent,
                                            cost: session.sessionCostUSD,
-                                           model: session.model)
+                                           model: session.model,
+                                           costCap: state.sessionCostCap)
                                 .padding(.leading, 14)
                         }
                     }
@@ -687,8 +689,16 @@ struct ContextCostBar: View {
     let percent: Double     // 0...1
     let cost: Double        // cumulative USD
     var model: String = ""
+    var costCap: Double = 0 // session budget; 0 = off. Tints the cost figure.
 
     private var clamped: CGFloat { min(1, max(0, CGFloat(percent))) }
+    /// Cost text color: warms toward red as the session nears/exceeds the cap.
+    private var costColor: Color {
+        guard costCap > 0 else { return .white.opacity(0.4) }
+        if cost >= costCap { return .red.opacity(0.95) }
+        if cost >= costCap * 0.8 { return .orange.opacity(0.9) }
+        return .white.opacity(0.4)
+    }
     private var tint: Color {
         switch percent {
         case ..<0.6:  return .blue
@@ -718,7 +728,7 @@ struct ContextCostBar: View {
             if cost > 0 {
                 Text(ClaudeUsageReader.fmtMoney(cost))
                     .font(.system(size: 9, design: .rounded).monospacedDigit())
-                    .foregroundColor(.white.opacity(0.4))
+                    .foregroundColor(costColor)
             }
         }
         .help("Context window \(Int((percent * 100).rounded()))% full · est. \(ClaudeUsageReader.fmtMoney(cost)) this session")

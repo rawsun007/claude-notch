@@ -15,6 +15,8 @@ enum Persistence {
         var perToolSounds: Bool? = nil
         var persistentNotchDisplay: Bool? = nil
         var lastDigestDate: String? = nil
+        var sessionCostCap: Double? = nil
+        var dailyCostCap: Double? = nil
     }
 
     static let storeURL: URL = {
@@ -60,7 +62,9 @@ extension Persistence.Snapshot {
             alertSound: try? c.decode(String.self, forKey: .alertSound),
             perToolSounds: try? c.decode(Bool.self, forKey: .perToolSounds),
             persistentNotchDisplay: try? c.decode(Bool.self, forKey: .persistentNotchDisplay),
-            lastDigestDate: try? c.decode(String.self, forKey: .lastDigestDate)
+            lastDigestDate: try? c.decode(String.self, forKey: .lastDigestDate),
+            sessionCostCap: try? c.decode(Double.self, forKey: .sessionCostCap),
+            dailyCostCap: try? c.decode(Double.self, forKey: .dailyCostCap)
         )
     }
 }

@@ -388,6 +388,18 @@ final class AppState: ObservableObject {
     @Published private(set) var currentCostUSD: Double = 0
     @Published private(set) var currentModel: String = ""
 
+    // Cost budgets (USD, estimated from public pricing). 0 = off. Persisted.
+    // sessionCostCap warns on any single session; dailyCostCap on today's total.
+    @Published private(set) var sessionCostCap: Double = 0
+    @Published private(set) var dailyCostCap: Double = 0
+    // Today's total estimated cost across all sessions, pushed from EventServer.
+    @Published private(set) var todayCostUSD: Double = 0
+    // Debounce warnings so a meter that keeps updating doesn't re-alert. Levels
+    // are 0 / 80 / 100; in-memory only (re-arming on restart is fine).
+    private var sessionWarnLevel: [String: Int] = [:]
+    private var dailyWarnLevel: Int = 0
+    private var dailyWarnDate: String = ""
+
     // Per-session live state. Keyed by session_id (or normalized cwd when a
     // hook didn't carry one). The global fields above stay as a mirror of the
     // most-recent session so existing UI keeps working unchanged.
@@ -439,6 +451,8 @@ final class AppState: ObservableObject {
             self.perToolSounds = snapshot.perToolSounds ?? false
             self.persistentNotchDisplay = snapshot.persistentNotchDisplay ?? false
             self.lastDigestDate = snapshot.lastDigestDate
+            self.sessionCostCap = snapshot.sessionCostCap ?? 0
+            self.dailyCostCap = snapshot.dailyCostCap ?? 0
         }
     }
 
@@ -574,6 +588,57 @@ final class AppState: ObservableObject {
     func setPerToolSounds(_ on: Bool) { perToolSounds = on; schedulePersist() }
     func setPersistentNotchDisplay(_ on: Bool) { persistentNotchDisplay = on; schedulePersist() }
 
+    // MARK: - Cost budgets
+
+    func setSessionCostCap(_ usd: Double) {
+        sessionCostCap = max(0, usd)
+        sessionWarnLevel.removeAll()   // re-arm against the new cap
+        schedulePersist()
+    }
+
+    func setDailyCostCap(_ usd: Double) {
+        dailyCostCap = max(0, usd)
+        dailyWarnLevel = 0
+        schedulePersist()
+    }
+
+    /// Which budget threshold `cost` has crossed against `cap`: 100, 80, or 0.
+    private static func budgetLevel(cost: Double, cap: Double) -> Int {
+        guard cap > 0 else { return 0 }
+        if cost >= cap { return 100 }
+        if cost >= cap * 0.8 { return 80 }
+        return 0
+    }
+
+    /// Push today's total estimated spend (from EventServer) and alert if it
+    /// crosses the daily cap. The level resets at the start of a new day.
+    func noteTodayCost(_ cost: Double) {
+        todayCostUSD = cost
+        guard dailyCostCap > 0 else { return }
+        let today = Self.dayKey(Date())
+        if dailyWarnDate != today { dailyWarnDate = today; dailyWarnLevel = 0 }
+        let level = Self.budgetLevel(cost: cost, cap: dailyCostCap)
+        if level > dailyWarnLevel {
+            dailyWarnLevel = level
+            warnBudget(scope: "daily", level: level, cost: cost, cap: dailyCostCap)
+        }
+    }
+
+    private func warnBudget(scope: String, level: Int, cost: Double, cap: Double) {
+        let pct = Int((cost / cap * 100).rounded())
+        let title = level >= 100 ? "Over your \(scope) budget" : "Approaching your \(scope) budget"
+        let detail = "\(ClaudeUsageReader.fmtMoney(cost)) of \(ClaudeUsageReader.fmtMoney(cap)) \(scope) cap (\(pct)%)"
+        enqueuePermission(PermissionRequest(
+            kind: .notification,
+            title: title,
+            detail: detail,
+            toolName: "Budget",
+            source: "Cost budget",
+            cwd: currentCwd,
+            resolver: { _, _ in }
+        ))
+    }
+
     /// Suppress non-blocking cards (notifications + completions) for N minutes.
     /// Permission cards still show — Claude is blocking on them.
     func snooze(forMinutes minutes: Int) {
@@ -627,7 +692,9 @@ final class AppState: ObservableObject {
             alertSound: alertSound,
             perToolSounds: perToolSounds,
             persistentNotchDisplay: persistentNotchDisplay,
-            lastDigestDate: lastDigestDate
+            lastDigestDate: lastDigestDate,
+            sessionCostCap: sessionCostCap,
+            dailyCostCap: dailyCostCap
         ))
     }
 
@@ -698,6 +765,19 @@ final class AppState: ObservableObject {
             if !model.isEmpty { s.model = model }
             s.isCompacting = false
         }
+
+        // Per-session budget: alert when this session crosses 80% / 100% of cap.
+        if sessionCostCap > 0 {
+            let key = !sessionId.isEmpty ? sessionId : currentCwd
+            if !key.isEmpty {
+                let level = Self.budgetLevel(cost: costUSD, cap: sessionCostCap)
+                if level > (sessionWarnLevel[key] ?? 0) {
+                    sessionWarnLevel[key] = level
+                    warnBudget(scope: "session", level: level, cost: costUSD, cap: sessionCostCap)
+                }
+            }
+        }
+
         let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
         guard isCurrent else { return }
         currentContextPercent = contextPercent

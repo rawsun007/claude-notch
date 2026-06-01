@@ -25,11 +25,36 @@ final class EventServer {
     private var meterLastComputed: [String: Date] = [:]
     private let meterLock = NSLock()
 
+    // Throttle the daily total-cost recompute (parses every recent transcript).
+    private var todayCostLastComputed = Date.distantPast
+    private let todayCostLock = NSLock()
+
+    /// Recompute today's total estimated cost across all sessions (heavy: reads
+    /// every recent transcript) and push it for the daily budget check. Throttled
+    /// to once a minute, off the main thread.
+    private func maybePushTodayCost() {
+        let now = Date()
+        let go = todayCostLock.withLock { () -> Bool in
+            if now.timeIntervalSince(todayCostLastComputed) < 60 { return false }
+            todayCostLastComputed = now
+            return true
+        }
+        guard go else { return }
+        workQueue.async { [weak self] in
+            guard let self else { return }
+            let usage = ClaudeUsageReader.compute()
+            Task { @MainActor [weak state = self.state] in
+                state?.noteTodayCost(usage.today.costUSD)
+            }
+        }
+    }
+
     /// Parse a session transcript for its context + cost meter off the main
     /// thread and push it to AppState. `throttle` skips a recompute if one ran
     /// for this transcript within the interval (the full-file parse isn't free).
     private func pushSessionMeter(transcriptPath path: String, sessionId: String, throttle: TimeInterval = 0) {
         guard !path.isEmpty else { return }
+        maybePushTodayCost()
         if throttle > 0 {
             let now = Date()
             let skip = meterLock.withLock { () -> Bool in
