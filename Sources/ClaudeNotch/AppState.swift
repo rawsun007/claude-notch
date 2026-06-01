@@ -594,12 +594,37 @@ final class AppState: ObservableObject {
         sessionCostCap = max(0, usd)
         sessionWarnLevel.removeAll()   // re-arm against the new cap
         schedulePersist()
+        // Evaluate spend right now — don't wait for the next hook. Covers
+        // "I set a cap and I'm already over it."
+        guard sessionCostCap > 0 else { return }
+        // Check every known session, plus the current mirror as a fallback.
+        var checked = false
+        for s in sessions.values where s.sessionCostUSD > 0 {
+            checked = true
+            let level = Self.budgetLevel(cost: s.sessionCostUSD, cap: sessionCostCap)
+            if level > (sessionWarnLevel[s.id] ?? 0) {
+                sessionWarnLevel[s.id] = level
+                warnBudget(scope: "session", level: level, cost: s.sessionCostUSD, cap: sessionCostCap)
+            }
+        }
+        if !checked, currentCostUSD > 0 {
+            let level = Self.budgetLevel(cost: currentCostUSD, cap: sessionCostCap)
+            if level > 0 { warnBudget(scope: "session", level: level, cost: currentCostUSD, cap: sessionCostCap) }
+        }
     }
 
     func setDailyCostCap(_ usd: Double) {
         dailyCostCap = max(0, usd)
         dailyWarnLevel = 0
+        dailyWarnDate = ""
         schedulePersist()
+        // Recompute today's spend off the main thread and evaluate immediately,
+        // so a cap set mid-day reflects what you've already spent.
+        guard dailyCostCap > 0 else { return }
+        Task { [weak self] in
+            let cost = await Task.detached { ClaudeUsageReader.compute().today.costUSD }.value
+            self?.noteTodayCost(cost)
+        }
     }
 
     /// Which budget threshold `cost` has crossed against `cap`: 100, 80, or 0.
@@ -622,6 +647,12 @@ final class AppState: ObservableObject {
             dailyWarnLevel = level
             warnBudget(scope: "daily", level: level, cost: cost, cap: dailyCostCap)
         }
+    }
+
+    /// Demo entry point: show the budget alert card exactly as a real
+    /// over-budget event renders it.
+    func demoBudgetAlert() {
+        warnBudget(scope: "session", level: 100, cost: 27.40, cap: 25)
     }
 
     private func warnBudget(scope: String, level: Int, cost: Double, cap: Double) {

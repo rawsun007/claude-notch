@@ -105,6 +105,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         addDemo("Notification",         #selector(triggerDemoNotification), "n")
         addDemo("Task Complete",        #selector(triggerDemoCompleted),  "c")
         addDemo("Thinking Pulse",       #selector(triggerDemoThinking),   "t")
+        addDemo("Cost Budget Alert",    #selector(triggerDemoBudget),     "")
         let demosItem = NSMenuItem(title: "Demos", action: nil, keyEquivalent: "")
         demosItem.submenu = demosMenu
         menu.addItem(demosItem)
@@ -444,6 +445,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func triggerDemoThinking() {
         state.pingThinking(label: "Editing AuthMiddleware.swift")
+    }
+
+    @objc private func triggerDemoBudget() {
+        state.demoBudgetAlert()
     }
 
     @objc private func clearAllowlist() {
