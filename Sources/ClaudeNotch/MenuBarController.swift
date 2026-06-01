@@ -24,6 +24,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var soundMenu: NSMenu!
     private var costBudgetItem: NSMenuItem!
     private var costBudgetMenu: NSMenu!
+    private var touchIDItem: NSMenuItem?   // only when this Mac has biometrics
     // Keep-open row views for the Sound submenu — clicking these does not
     // dismiss the menu, so the user can preview multiple sounds.
     private var soundRowViews: [String: KeepOpenRowView] = [:]
@@ -139,6 +140,18 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         allowlistItem = NSMenuItem(title: "Always-Allow Rules: —", action: #selector(clearAllowlist), keyEquivalent: "")
         allowlistItem.target = self
         permsMenu.addItem(allowlistItem)
+
+        // Touch ID / Face ID confirmation for destructive commands — only offered
+        // on Macs that actually have biometrics.
+        if BiometricAuth.isAvailable {
+            permsMenu.addItem(.separator())
+            let ti = NSMenuItem(title: "Require \(BiometricAuth.label) for dangerous commands",
+                                action: #selector(toggleTouchID), keyEquivalent: "")
+            ti.target = self
+            ti.state = state.requireTouchID ? .on : .off
+            permsMenu.addItem(ti)
+            touchIDItem = ti
+        }
 
         let permsItem = NSMenuItem(title: "Permissions", action: nil, keyEquivalent: "")
         permsItem.submenu = permsMenu
@@ -638,6 +651,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshPrefs()
     }
 
+    @objc private func toggleTouchID() {
+        state.setRequireTouchID(!state.requireTouchID)
+        touchIDItem?.state = state.requireTouchID ? .on : .off
+    }
+
     @objc private func dismissDigest() {
         state.markDigestShown()
         refreshInsights()
@@ -952,12 +970,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             }
         }
 
-        let byProject = u.weekByProject.sorted { $0.value.total > $1.value.total }.prefix(6)
+        // Sorted by cost (most expensive repos first), since that's what you
+        // usually want to know.
+        let byProject = u.weekByProject.sorted { $0.value.costUSD > $1.value.costUSD }.prefix(6)
         if !byProject.isEmpty {
             claudeUsageMenu.addItem(.separator())
-            row("By project (7 days)")
+            row("Top projects by cost (7 days)")
             for (cwd, t) in byProject {
-                row("    \(ClaudeUsageReader.projectName(cwd)):  \(tk(t.total))  ·  ~\(mn(t.costUSD))")
+                row("    \(ClaudeUsageReader.projectName(cwd)):  ~\(mn(t.costUSD))  ·  \(tk(t.total))")
             }
         }
 

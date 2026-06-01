@@ -17,6 +17,7 @@ enum Persistence {
         var lastDigestDate: String? = nil
         var sessionCostCap: Double? = nil
         var dailyCostCap: Double? = nil
+        var requireTouchID: Bool? = nil
     }
 
     static let storeURL: URL = {
@@ -64,7 +65,8 @@ extension Persistence.Snapshot {
             persistentNotchDisplay: try? c.decode(Bool.self, forKey: .persistentNotchDisplay),
             lastDigestDate: try? c.decode(String.self, forKey: .lastDigestDate),
             sessionCostCap: try? c.decode(Double.self, forKey: .sessionCostCap),
-            dailyCostCap: try? c.decode(Double.self, forKey: .dailyCostCap)
+            dailyCostCap: try? c.decode(Double.self, forKey: .dailyCostCap),
+            requireTouchID: try? c.decode(Bool.self, forKey: .requireTouchID)
         )
     }
 }

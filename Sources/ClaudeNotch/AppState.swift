@@ -348,6 +348,9 @@ final class AppState: ObservableObject {
     @Published var alertSound: String = "Funk"
     @Published var perToolSounds: Bool = false
     @Published var persistentNotchDisplay: Bool = false
+    // Require Touch ID / Face ID to confirm a dangerous command (instead of
+    // press-and-hold). Defaults on when the Mac has biometrics. Persisted.
+    @Published var requireTouchID: Bool = false
 
     // Daily digest tracking — only shown once per day.
     @Published private(set) var lastDigestDate: String? = nil
@@ -453,6 +456,9 @@ final class AppState: ObservableObject {
             self.lastDigestDate = snapshot.lastDigestDate
             self.sessionCostCap = snapshot.sessionCostCap ?? 0
             self.dailyCostCap = snapshot.dailyCostCap ?? 0
+            self.requireTouchID = snapshot.requireTouchID ?? BiometricAuth.isAvailable
+        } else {
+            self.requireTouchID = BiometricAuth.isAvailable
         }
     }
 
@@ -587,6 +593,7 @@ final class AppState: ObservableObject {
     func setAlertSound(_ name: String) { alertSound = name; schedulePersist() }
     func setPerToolSounds(_ on: Bool) { perToolSounds = on; schedulePersist() }
     func setPersistentNotchDisplay(_ on: Bool) { persistentNotchDisplay = on; schedulePersist() }
+    func setRequireTouchID(_ on: Bool) { requireTouchID = on; schedulePersist() }
 
     // MARK: - Cost budgets
 
@@ -725,7 +732,8 @@ final class AppState: ObservableObject {
             persistentNotchDisplay: persistentNotchDisplay,
             lastDigestDate: lastDigestDate,
             sessionCostCap: sessionCostCap,
-            dailyCostCap: dailyCostCap
+            dailyCostCap: dailyCostCap,
+            requireTouchID: requireTouchID
         ))
     }
 

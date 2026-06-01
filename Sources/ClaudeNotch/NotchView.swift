@@ -312,7 +312,8 @@ struct NotchView: View {
                     },
                     onDenyReason: {
                         state.beginDenyReason(for: req)
-                    }
+                    },
+                    useTouchID: state.requireTouchID && BiometricAuth.isAvailable
                 )
                 .transition(.opacity)
             } else {
@@ -963,6 +964,7 @@ private struct PermissionCard: View {
     let onResolve: (PermissionDecision, AllowScope) -> Void
     var onResolveAll: ((PermissionDecision) -> Void)? = nil
     var onDenyReason: (() -> Void)? = nil
+    var useTouchID: Bool = false
 
     private var accentColor: Color { request.isDangerous ? .red : .yellow }
     private var headerIcon: String { request.isDangerous ? "exclamationmark.triangle.fill" : "exclamationmark.bubble.fill" }
@@ -1066,8 +1068,30 @@ private struct PermissionCard: View {
                 }
                 Spacer()
                 if request.isDangerous {
-                    HoldToConfirmButton(label: "Hold to Allow", duration: 0.9) {
-                        onResolve(.allow, .none)
+                    if useTouchID {
+                        // Biometric confirm for destructive commands. The system
+                        // sheet appears; only a successful auth allows it.
+                        Button {
+                            BiometricAuth.confirm(reason: "allow this command: \(String(request.detail.prefix(80)))") { ok in
+                                if ok { onResolve(.allow, .none) }
+                            }
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: BiometricAuth.iconName)
+                                Text("Confirm to Allow")
+                            }
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(Capsule(style: .continuous).fill(Color.red.opacity(0.85)))
+                        }
+                        .buttonStyle(.plain)
+                        .help("Confirm with \(BiometricAuth.label) to run this destructive command")
+                    } else {
+                        HoldToConfirmButton(label: "Hold to Allow", duration: 0.9) {
+                            onResolve(.allow, .none)
+                        }
                     }
                 } else if pendingCount > 1, let onResolveAll {
                     // Multiple permissions queued (e.g. several edits at once)
