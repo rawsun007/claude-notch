@@ -965,7 +965,6 @@ private struct PermissionCard: View {
     var onResolveAll: ((PermissionDecision) -> Void)? = nil
     var onDenyReason: (() -> Void)? = nil
     var useTouchID: Bool = false
-    @State private var didArmTouchID = false
 
     private var accentColor: Color { request.isDangerous ? .red : .yellow }
     private var headerIcon: String { request.isDangerous ? "exclamationmark.triangle.fill" : "exclamationmark.bubble.fill" }
@@ -1110,19 +1109,6 @@ private struct PermissionCard: View {
                 }
             }
             .padding(.top, 18)
-        }
-        .onAppear {
-            // Auto-arm the biometric prompt for a dangerous command so you can
-            // just touch the sensor — no need to click "Confirm to Allow" first.
-            // Small delay lets the card finish animating in. Fires once; the
-            // button remains for retry if you cancel the system sheet.
-            guard useTouchID, request.isDangerous, !didArmTouchID else { return }
-            didArmTouchID = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                BiometricAuth.confirm(reason: "allow this command: \(String(request.detail.prefix(80)))") { ok in
-                    if ok { onResolve(.allow, .none) }
-                }
-            }
         }
     }
 }
