@@ -53,12 +53,14 @@ system, and shows no Dock icon — just a small bell in your menu bar.
 |---|---|
 | 🛡️ **Permissions in the notch** | When Claude wants to run a command or edit a file, the notch unfurls with **Allow**, **Deny**, and **Always Allow**. Resolve it and your keyboard jumps straight back to the terminal. |
 | 🟥🟩 **See the diff first** | Edit and Write requests show a red/green diff right inside the card, so you know exactly what's about to change. |
-| ⚠️ **Guardrails for risky commands** | Dangerous ones like `rm -rf`, `sudo`, and force-push get a red warning and a **press-and-hold** button, so nothing irreversible slips through by accident. |
+| ⚠️ **Guardrails for risky commands** | Dangerous ones like `rm -rf`, `sudo`, and force-push get a red warning. Confirm them with **Touch ID** (or Face ID), or a **press-and-hold** button when Touch ID is off, so nothing irreversible slips through by accident. |
 | 💬 **Deny with a reason** | Not just no. Tap the note button on a prompt to tell Claude what to do instead (say "use ripgrep, not grep"), and it adapts rather than just stopping. |
 | ❓ **Answer Claude's questions** | `AskUserQuestion` prompts arrive as tappable options, with a **type-your-own** field for when none of them fit. |
 | ↩️ **Reply when a task finishes** | The "done" card has a **Reply** button that opens a composer pointed right at that session, so you can send a follow-up without switching windows. |
 | ⚡ **Live activity + progress** | While Claude works, the notch shows what it's doing right now (the active tool and its target) and a **progress bar** as it works through a task list. |
 | 📊 **Context + cost meter** | Each session shows how full Claude's context window is and a running cost estimate, so you get a heads-up before it pauses to compact. |
+| 💸 **Spending caps + alerts** | Set a budget per session and per day. As you near a cap the session's cost figure warms orange then red, and a card warns you at 80% and again at 100%, so a long run never quietly runs up a bill. (Costs are estimates from public pricing, so treat the caps as a guardrail.) |
+| 📈 **Claude usage, broken down** | A **Claude Usage** menu shows your tokens and estimated cost for today and the last 7 days, by model and by project (priciest repos first), plus a 7-day token sparkline and your prompt-cache savings. |
 | 🪟 **Many sessions at once** | Run several Claude sessions side by side. The notch tracks each one separately, with its own status, project, and latest reply. |
 | ✉️ **Send a message from anywhere** | Press **⌥⌘N** to open a quick composer. Send a note to your running session, or start a fresh one in a recent project. |
 | 🕘 **Activity history** | Click the notch for a timeline of everything you've allowed, denied, or answered. |
@@ -240,6 +242,7 @@ Sources/ClaudeNotch/
   EventServer.swift                — localhost HTTP server + blocking permission
   ClaudeUsageReader.swift          — context + cost meter from session transcripts
   ToolPreviewParser.swift          — diff/danger preview for a tool call
+  BiometricAuth.swift              — Touch ID / Face ID confirm for dangerous commands
   MenuBarController.swift          — the menu-bar bell and its menu
   HookInstaller.swift              — wires/unwires Claude Code hooks in-app
   TerminalAutomator.swift          — types into your session + "Start Claude in folder"
