@@ -68,13 +68,22 @@ final class NotificationBridge: NSObject, PermissionMirroring {
         guard Bundle.main.bundleIdentifier != nil else { return }
         let content = UNMutableNotificationContent()
         let dangerous = req.isDangerous
-        content.title = dangerous ? "⚠️ \(req.toolName) — needs your OK"
+        content.title = dangerous ? "⚠️ \(req.toolName) needs your OK"
                                   : "Allow \(req.toolName)?"
         let project = (req.cwd as NSString).lastPathComponent
         if !project.isEmpty { content.subtitle = project }
         var body = req.detail
         if dangerous, !req.dangerReasons.isEmpty {
-            body += "\n⚠️ " + req.dangerReasons.joined(separator: ", ")
+            // Show just the flagged tokens (the bit before the explanation),
+            // not the full "token — explanation" microcopy, which is long and
+            // truncates mid-word in a banner.
+            let tokens = req.dangerReasons.map { reason -> String in
+                for sep in [" — ", " - "] {
+                    if let r = reason.range(of: sep) { return String(reason[..<r.lowerBound]) }
+                }
+                return reason
+            }
+            body += "\nFlagged: " + tokens.joined(separator: ", ")
         }
         content.body = body
         content.categoryIdentifier = dangerous ? Self.catDanger : Self.catSafe
