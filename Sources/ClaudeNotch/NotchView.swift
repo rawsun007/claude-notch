@@ -168,9 +168,10 @@ struct NotchView: View {
         case .responseDetail:
             return CGSize(width: 660, height: inset + 360)
         case .history:
-            // Reasonably tall drawer; cap at 70% of screen on small displays.
+            // Tall drawer (search + filters + scroll-back log); cap at 72% of
+            // screen on small displays.
             let screenH = s?.frame.height ?? 900
-            return CGSize(width: 640, height: min(inset + 460, screenH * 0.70))
+            return CGSize(width: 640, height: min(inset + 520, screenH * 0.72))
         case .autoInfo:
             // Compact, button-less "live activity" card.
             return CGSize(width: 460, height: inset + 96)
@@ -1314,55 +1315,177 @@ private struct HoldToConfirmButton: View {
 
 // MARK: - History drawer
 
+/// Outcome buckets the history drawer can filter by. `.all` short-circuits;
+/// the rest match a single HistoryEntry.Outcome family.
+private enum HistoryFilter: String, CaseIterable, Identifiable {
+    case all, allowed, denied, dangerous, questions
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .all:        return "All"
+        case .allowed:    return "Allowed"
+        case .denied:     return "Denied"
+        case .dangerous:  return "Risky"
+        case .questions:  return "Q&A"
+        }
+    }
+    func matches(_ e: HistoryEntry) -> Bool {
+        switch self {
+        case .all:        return true
+        case .allowed:    if case .allowed   = e.outcome { return true }; return false
+        case .denied:     if case .denied    = e.outcome { return true }; return false
+        case .dangerous:  if case .dangerous = e.outcome { return true }; return false
+        case .questions:  if case .answered  = e.outcome { return true }; return false
+        }
+    }
+}
+
 private struct HistoryCard: View {
     @ObservedObject var state: AppState
+    @State private var search = ""
+    @State private var filter: HistoryFilter = .all
+    @FocusState private var searchFocused: Bool
+
+    /// History narrowed by the active outcome filter + a case-insensitive
+    /// substring search across tool, title, detail, and project.
+    private var filtered: [HistoryEntry] {
+        let q = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return state.history.filter { e in
+            guard filter.matches(e) else { return false }
+            guard !q.isEmpty else { return true }
+            return e.toolName.lowercased().contains(q)
+                || e.title.lowercased().contains(q)
+                || e.detail.lowercased().contains(q)
+                || e.project.lowercased().contains(q)
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: "clock.arrow.circlepath")
-                    .foregroundColor(.white.opacity(0.85))
-                    .font(.system(size: 13, weight: .semibold))
-                Text("Activity")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white.opacity(0.9))
-                    .textCase(.uppercase)
-                Text("·").foregroundColor(.white.opacity(0.3))
-                Text("\(state.history.count) event\(state.history.count == 1 ? "" : "s")")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundColor(.white.opacity(0.5))
-                Spacer()
-                Button("Clear") { state.clearHistory() }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white.opacity(0.55))
-            }
+            header
+            searchField
+            filterChips
+            list
+            footer
+        }
+        .onAppear { searchFocused = true }
+    }
 
-            if state.history.isEmpty {
-                Text("Nothing yet — permissions and questions you resolve will show up here.")
-                    .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.55))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    .multilineTextAlignment(.center)
-            } else {
-                ScrollView {
-                    VStack(spacing: 4) {
-                        ForEach(state.history) { entry in
-                            HistoryRow(entry: entry)
-                        }
+    private var header: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "clock.arrow.circlepath")
+                .foregroundColor(.white.opacity(0.85))
+                .font(.system(size: 13, weight: .semibold))
+            Text("Activity")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundColor(.white.opacity(0.9))
+                .textCase(.uppercase)
+            Text("·").foregroundColor(.white.opacity(0.3))
+            Text(countLabel)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundColor(.white.opacity(0.5))
+            Spacer()
+            Button("Export") { state.exportHistory() }
+                .buttonStyle(.plain)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white.opacity(0.55))
+                .disabled(state.history.isEmpty)
+            Text("·").foregroundColor(.white.opacity(0.2))
+            Button("Clear") { state.clearHistory() }
+                .buttonStyle(.plain)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white.opacity(0.55))
+                .disabled(state.history.isEmpty)
+        }
+    }
+
+    private var countLabel: String {
+        let total = state.history.count
+        let shown = filtered.count
+        if shown == total {
+            return "\(total) event\(total == 1 ? "" : "s")"
+        }
+        return "\(shown) of \(total)"
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.white.opacity(0.4))
+            TextField("Search tool, command, project…", text: $search)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .foregroundColor(.white)
+                .focused($searchFocused)
+            if !search.isEmpty {
+                Button { search = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.4))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.white.opacity(0.06))
+        )
+    }
+
+    private var filterChips: some View {
+        HStack(spacing: 6) {
+            ForEach(HistoryFilter.allCases) { f in
+                Button { filter = f } label: {
+                    Text(f.label)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundColor(filter == f ? .black : .white.opacity(0.7))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule().fill(filter == f
+                                ? Color.white.opacity(0.9)
+                                : Color.white.opacity(0.08))
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    @ViewBuilder
+    private var list: some View {
+        if filtered.isEmpty {
+            Text(state.history.isEmpty
+                 ? "Nothing yet — permissions and questions you resolve will show up here."
+                 : "No events match your search.")
+                .font(.system(size: 12))
+                .foregroundColor(.white.opacity(0.55))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .multilineTextAlignment(.center)
+        } else {
+            ScrollView {
+                VStack(spacing: 4) {
+                    ForEach(filtered) { entry in
+                        HistoryRow(entry: entry)
                     }
                 }
-                .frame(maxHeight: .infinity)
             }
-
-            HStack {
-                Spacer()
-                NotchButton(label: "Close", style: .primary, shortcut: "⏎") {
-                    state.closeHistory()
-                }
-            }
-            .padding(.top, 18)
+            .frame(maxHeight: .infinity)
         }
+    }
+
+    private var footer: some View {
+        HStack {
+            Spacer()
+            NotchButton(label: "Close", style: .primary, shortcut: "⏎") {
+                state.closeHistory()
+            }
+        }
+        .padding(.top, 18)
     }
 }
 

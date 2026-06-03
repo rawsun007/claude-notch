@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import UniformTypeIdentifiers
 
 enum NotchMode: Equatable {
     case idle
@@ -428,8 +429,10 @@ final class AppState: ObservableObject {
     @Published private(set) var isHistoryOpen: Bool = false
 
     // Click-to-expand history drawer (most recent first, ring-buffered).
+    // 500 entries ≈ 100 KB of state.json — cheap enough to keep a real
+    // scroll-back log instead of evaporating after a handful of decisions.
     @Published private(set) var history: [HistoryEntry] = []
-    private let historyMax = 50
+    private let historyMax = 500
 
     // After this many seconds without a hook, drop the activity line.
     private let activityStaleAfter: TimeInterval = 90
@@ -1285,6 +1288,70 @@ final class AppState: ObservableObject {
         history.removeAll()
         schedulePersist()
         if isHistoryOpen { closeHistory() }
+    }
+
+    /// Save the full activity log to a user-chosen file. Writes CSV when the
+    /// chosen name ends in `.csv`, otherwise pretty JSON. The app is an
+    /// LSUIElement (no Dock icon), so we activate first or the save panel
+    /// never comes forward.
+    func exportHistory() {
+        guard !history.isEmpty else { return }
+        let panel = NSSavePanel()
+        panel.title = "Export Activity History"
+        panel.nameFieldStringValue = "claudenotch-history.json"
+        panel.allowedContentTypes = [.json, .commaSeparatedText]
+        panel.canCreateDirectories = true
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else {
+            returnKeyboardToTerminal()
+            return
+        }
+        let csv = url.pathExtension.lowercased() == "csv"
+        let data = csv ? Self.historyCSV(history) : Self.historyJSON(history)
+        try? data.write(to: url, options: .atomic)
+        returnKeyboardToTerminal()
+    }
+
+    private static func outcomeString(_ o: HistoryEntry.Outcome) -> String {
+        switch o {
+        case .allowed:          return "allowed"
+        case .denied:           return "denied"
+        case .dismissed:        return "dismissed"
+        case .answered(let n):  return "answered(\(n))"
+        case .info:             return "info"
+        case .dangerous:        return "dangerous"
+        }
+    }
+
+    private static func historyJSON(_ entries: [HistoryEntry]) -> Data {
+        let iso = ISO8601DateFormatter()
+        let rows: [[String: String]] = entries.map { e in
+            ["timestamp": iso.string(from: e.timestamp),
+             "kind": e.kind.rawValue,
+             "tool": e.toolName,
+             "title": e.title,
+             "detail": e.detail,
+             "project": e.project,
+             "outcome": outcomeString(e.outcome)]
+        }
+        let enc = JSONEncoder()
+        enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return (try? enc.encode(rows)) ?? Data()
+    }
+
+    private static func historyCSV(_ entries: [HistoryEntry]) -> Data {
+        let iso = ISO8601DateFormatter()
+        func esc(_ s: String) -> String {
+            guard s.contains(",") || s.contains("\"") || s.contains("\n") else { return s }
+            return "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+        }
+        var lines = ["timestamp,kind,tool,title,detail,project,outcome"]
+        for e in entries {
+            lines.append([iso.string(from: e.timestamp), e.kind.rawValue, e.toolName,
+                          e.title, e.detail, e.project, outcomeString(e.outcome)]
+                .map(esc).joined(separator: ","))
+        }
+        return lines.joined(separator: "\n").data(using: .utf8) ?? Data()
     }
 
     fileprivate func appendHistory(_ entry: HistoryEntry) {

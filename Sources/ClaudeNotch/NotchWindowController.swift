@@ -86,14 +86,15 @@ final class NotchWindowController {
             .sink { [weak self] mode, _ in
                 guard let self else { return }
                 self.position(on: self.currentScreen())
-                // Compose and question both host text fields (the composer's
-                // editor; the question card's "Other" free-text answer), so
-                // they must become key to receive typing. Every other card's
+                // Compose, question, and history host text fields (the
+                // composer's editor; the question card's "Other" answer; the
+                // history drawer's search box), so they must become key to
+                // receive typing. Every other card's
                 // Enter/Esc is handled by the global CGEventTap in
                 // KeyboardMonitor WITHOUT stealing focus, so we don't hijack
                 // the keyboard or interrupt their open animation.
                 switch mode {
-                case .compose, .question:
+                case .compose, .question, .history:
                     self.window.makeKey()
                 default:
                     break
