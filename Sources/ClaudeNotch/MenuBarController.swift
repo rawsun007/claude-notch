@@ -25,6 +25,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var costBudgetItem: NSMenuItem!
     private var costBudgetMenu: NSMenu!
     private var touchIDItem: NSMenuItem?   // only when this Mac has biometrics
+    private var notifyMirrorItem: NSMenuItem!
     // Keep-open row views for the Sound submenu — clicking these does not
     // dismiss the menu, so the user can preview multiple sounds.
     private var soundRowViews: [String: KeepOpenRowView] = [:]
@@ -152,6 +153,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             permsMenu.addItem(ti)
             touchIDItem = ti
         }
+
+        permsMenu.addItem(.separator())
+        notifyMirrorItem = NSMenuItem(title: "Mirror Alerts to Notifications",
+                                      action: #selector(toggleNotificationMirror), keyEquivalent: "")
+        notifyMirrorItem.target = self
+        notifyMirrorItem.toolTip = "Also send blocking permission prompts to Notification Center so you can Allow or Deny from the lock screen or another Space. Respects Do Not Disturb."
+        notifyMirrorItem.state = state.mirrorToNotificationCenter ? .on : .off
+        permsMenu.addItem(notifyMirrorItem)
 
         let permsItem = NSMenuItem(title: "Permissions", action: nil, keyEquivalent: "")
         permsItem.submenu = permsMenu
@@ -299,6 +308,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             inputMonitoringItem.title = "Grant Input Monitoring…"
             inputMonitoringItem.isEnabled = true
         }
+
+        notifyMirrorItem?.state = state.mirrorToNotificationCenter ? .on : .off
     }
 
     @objc private func promptAccessibility() {
@@ -654,6 +665,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func toggleTouchID() {
         state.setRequireTouchID(!state.requireTouchID)
         touchIDItem?.state = state.requireTouchID ? .on : .off
+    }
+
+    @objc private func toggleNotificationMirror() {
+        state.setMirrorToNotificationCenter(!state.mirrorToNotificationCenter)
+        notifyMirrorItem?.state = state.mirrorToNotificationCenter ? .on : .off
     }
 
     @objc private func dismissDigest() {

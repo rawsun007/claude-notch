@@ -288,6 +288,15 @@ final class PermissionRequest: Identifiable, Equatable {
     }
 }
 
+/// Bridge for mirroring blocking permission cards to native notifications.
+/// AppState only knows this interface; the concrete UserNotifications wiring
+/// lives in NotificationBridge so AppState stays UI-framework-light.
+@MainActor protocol PermissionMirroring: AnyObject {
+    func mirror(_ req: PermissionRequest)
+    func withdraw(_ id: UUID)
+    func withdrawAll()
+}
+
 final class CompletedTask: Identifiable, Equatable {
     let id = UUID()
     let title: String
@@ -352,6 +361,13 @@ final class AppState: ObservableObject {
     // Require Touch ID / Face ID to confirm a dangerous command (instead of
     // press-and-hold). Defaults on when the Mac has biometrics. Persisted.
     @Published var requireTouchID: Bool = false
+
+    // Mirror blocking permission cards to native macOS notifications so they're
+    // actionable from the lock screen / another Space, and auto-respect Focus
+    // (the OS suppresses banners during Do Not Disturb). Persisted; on by
+    // default. The concrete bridge is wired in by AppDelegate at launch.
+    @Published var mirrorToNotificationCenter: Bool = true
+    weak var permissionMirror: PermissionMirroring?
 
     // Daily digest tracking — only shown once per day.
     @Published private(set) var lastDigestDate: String? = nil
@@ -460,6 +476,7 @@ final class AppState: ObservableObject {
             self.sessionCostCap = snapshot.sessionCostCap ?? 0
             self.dailyCostCap = snapshot.dailyCostCap ?? 0
             self.requireTouchID = snapshot.requireTouchID ?? BiometricAuth.isAvailable
+            self.mirrorToNotificationCenter = snapshot.mirrorToNotificationCenter ?? true
         } else {
             self.requireTouchID = BiometricAuth.isAvailable
         }
@@ -597,6 +614,19 @@ final class AppState: ObservableObject {
     func setPerToolSounds(_ on: Bool) { perToolSounds = on; schedulePersist() }
     func setPersistentNotchDisplay(_ on: Bool) { persistentNotchDisplay = on; schedulePersist() }
     func setRequireTouchID(_ on: Bool) { requireTouchID = on; schedulePersist() }
+    func setMirrorToNotificationCenter(_ on: Bool) {
+        mirrorToNotificationCenter = on
+        if on {
+            // Post any currently-queued blocking cards so the toggle takes
+            // effect immediately rather than only on the next request.
+            for req in permissionQueue where req.kind == .toolUse {
+                permissionMirror?.mirror(req)
+            }
+        } else {
+            permissionMirror?.withdrawAll()
+        }
+        schedulePersist()
+    }
 
     // MARK: - Cost budgets
 
@@ -736,7 +766,8 @@ final class AppState: ObservableObject {
             lastDigestDate: lastDigestDate,
             sessionCostCap: sessionCostCap,
             dailyCostCap: dailyCostCap,
-            requireTouchID: requireTouchID
+            requireTouchID: requireTouchID,
+            mirrorToNotificationCenter: mirrorToNotificationCenter
         ))
     }
 
@@ -1567,6 +1598,12 @@ final class AppState: ObservableObject {
             newReq.groupCount = last.groupCount + 1
             newReq.originalDetail = last.originalDetail ?? last.detail
             permissionQueue[permissionQueue.count - 1] = newReq
+            // Re-point the native notification at the merged request so its
+            // count stays accurate and its action resolves the live item.
+            if mirrorToNotificationCenter {
+                permissionMirror?.withdraw(last.id)
+                permissionMirror?.mirror(newReq)
+            }
             recompute()
             return
         }
@@ -1585,6 +1622,12 @@ final class AppState: ObservableObject {
             ))
         }
         playAlert(toolName: req.toolName)
+        // Mirror blocking cards to native notifications (lock screen / other
+        // Space; auto-suppressed during Focus). Notifications aren't blocking,
+        // so they don't need a remote-actionable surface.
+        if req.kind == .toolUse, mirrorToNotificationCenter {
+            permissionMirror?.mirror(req)
+        }
         recompute()
     }
 
@@ -1705,6 +1748,9 @@ final class AppState: ObservableObject {
     func resolvePermission(_ req: PermissionRequest, decision: PermissionDecision, alwaysAllow: AllowScope = .none, reason: String? = nil) {
         guard let idx = permissionQueue.firstIndex(where: { $0.id == req.id }) else { return }
         permissionQueue.remove(at: idx)
+        // Pull any mirrored notification — whether resolved here or from its own
+        // action (idempotent: a no-op if nothing was posted).
+        permissionMirror?.withdraw(req.id)
         if decision == .allow {
             switch alwaysAllow {
             case .none:
@@ -1762,6 +1808,7 @@ final class AppState: ObservableObject {
             if req.kind == .toolUse, req.source != "Demo" {
                 for _ in 0..<max(1, req.groupCount) { recordDecision(decision, auto: false) }
             }
+            permissionMirror?.withdraw(req.id)
             req.resolver(decision, nil)
             if req.kind != .notification {
                 appendHistory(HistoryEntry(

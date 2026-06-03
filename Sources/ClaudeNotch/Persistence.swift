@@ -18,6 +18,7 @@ enum Persistence {
         var sessionCostCap: Double? = nil
         var dailyCostCap: Double? = nil
         var requireTouchID: Bool? = nil
+        var mirrorToNotificationCenter: Bool? = nil
     }
 
     static let storeURL: URL = {
@@ -66,7 +67,8 @@ extension Persistence.Snapshot {
             lastDigestDate: try? c.decode(String.self, forKey: .lastDigestDate),
             sessionCostCap: try? c.decode(Double.self, forKey: .sessionCostCap),
             dailyCostCap: try? c.decode(Double.self, forKey: .dailyCostCap),
-            requireTouchID: try? c.decode(Bool.self, forKey: .requireTouchID)
+            requireTouchID: try? c.decode(Bool.self, forKey: .requireTouchID),
+            mirrorToNotificationCenter: try? c.decode(Bool.self, forKey: .mirrorToNotificationCenter)
         )
     }
 }

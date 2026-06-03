@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var server: EventServer!
     var mouse: MouseTracker!
     var keys: KeyboardMonitor!
+    let notifications = NotificationBridge()
     let onboarding = OnboardingWindowController()
     private var activityToken: NSObjectProtocol?
 
@@ -33,6 +34,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         keys = KeyboardMonitor(state: state)
         keys.start()
+
+        // Mirror blocking permission cards to native notifications (actionable
+        // from the lock screen / another Space; auto-respects Focus).
+        notifications.state = state
+        state.permissionMirror = notifications
+        notifications.start()
 
         server = EventServer(port: 53127, state: state)
         do {
