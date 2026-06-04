@@ -183,7 +183,10 @@ final class KeyboardMonitor {
         case 36, 76:                 // Return / Keypad Enter
             switch state.mode {
             case .permission(let req) where req.kind == .toolUse:
-                if req.isDangerous { return }   // dangerous needs hold-to-confirm
+                // Dangerous needs hold-to-confirm; a budget block needs an
+                // explicit choice (Deny / Allow once / Raise cap), so Enter
+                // must not auto-allow either.
+                if req.isDangerous || req.budgetBlock != nil { return }
                 if state.permissionQueue.count > 1 {
                     state.resolveAllPermissions(.allow)
                 } else {

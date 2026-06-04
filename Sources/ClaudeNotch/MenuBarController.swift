@@ -108,6 +108,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         addDemo("Task Complete",        #selector(triggerDemoCompleted),  "c")
         addDemo("Thinking Pulse",       #selector(triggerDemoThinking),   "t")
         addDemo("Cost Budget Alert",    #selector(triggerDemoBudget),     "")
+        addDemo("Budget Hard-Stop",     #selector(triggerDemoBudgetBlock), "")
         let demosItem = NSMenuItem(title: "Demos", action: nil, keyEquivalent: "")
         demosItem.submenu = demosMenu
         menu.addItem(demosItem)
@@ -475,6 +476,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         state.demoBudgetAlert()
     }
 
+    @objc private func triggerDemoBudgetBlock() {
+        state.demoBudgetBlock()
+    }
+
     @objc private func clearAllowlist() {
         state.clearAllowlist()
     }
@@ -672,6 +677,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         notifyMirrorItem?.state = state.mirrorToNotificationCenter ? .on : .off
     }
 
+    @objc private func toggleEnforceBudget() {
+        state.setEnforceBudget(!state.enforceBudget)
+        refreshCostBudgetMenu()
+    }
+
     @objc private func dismissDigest() {
         state.markDigestShown()
         refreshInsights()
@@ -726,6 +736,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         caps("Daily cap — across all sessions today",
              current: state.dailyCostCap, action: #selector(setDailyCapAction(_:)),
              presets: [5, 10, 25, 50, 100], spent: state.todayCostUSD)
+
+        costBudgetMenu.addItem(.separator())
+        let enforce = NSMenuItem(title: "Enforce: block new commands at 100%",
+                                 action: #selector(toggleEnforceBudget), keyEquivalent: "")
+        enforce.target = self
+        enforce.state = state.enforceBudget ? .on : .off
+        enforce.toolTip = "When a cap is reached, hold new tool calls for a decision (Deny / Allow once / Raise cap) instead of letting them run, even under auto-approve."
+        costBudgetMenu.addItem(enforce)
     }
 
     private func refreshAutoApproveMenu() {

@@ -241,6 +241,16 @@ enum ComposePurpose: Equatable {
     case denyReason(PermissionRequest)
 }
 
+/// Set on a request that the budget hard-stop is holding back: the relevant
+/// cap is already exceeded and enforcement is on, so the card forces a decision
+/// (Deny / Allow once / Raise cap) instead of letting it auto-allow.
+struct BudgetBlock: Equatable {
+    let scope: String    // "session" or "daily"
+    let cost: Double
+    let cap: Double
+    var pct: Int { cap > 0 ? Int((cost / cap * 100).rounded()) : 0 }
+}
+
 final class PermissionRequest: Identifiable, Equatable {
     enum Kind: Equatable {
         case toolUse                // blocking — must resolve to allow/deny/ask
@@ -267,6 +277,9 @@ final class PermissionRequest: Identifiable, Equatable {
     // replace the queue item with a new one whose resolver fires both callbacks.
     var groupCount: Int = 1
     var originalDetail: String? = nil   // captured the first time we group
+    // Non-nil when the budget hard-stop is holding this request (cap exceeded
+    // + enforcement on). Drives the budget framing + Raise-cap button.
+    var budgetBlock: BudgetBlock? = nil
 
     init(kind: Kind, title: String, detail: String, toolName: String, source: String, cwd: String, originatorBundleID: String? = nil, preview: ToolPreview? = nil, dangerReasons: [String] = [], resolver: @escaping (PermissionDecision, String?) -> Void) {
         self.kind = kind
@@ -412,6 +425,11 @@ final class AppState: ObservableObject {
     // sessionCostCap warns on any single session; dailyCostCap on today's total.
     @Published private(set) var sessionCostCap: Double = 0
     @Published private(set) var dailyCostCap: Double = 0
+    // Hard-stop: when on, a tool request whose session/daily cap is already
+    // exceeded is held for a decision (Deny / Allow once / Raise cap) instead
+    // of being auto-allowed — even under an allow-rule or auto-approve. Off by
+    // default (it actively blocks Claude). Persisted.
+    @Published var enforceBudget: Bool = false
     // Today's total estimated cost across all sessions, pushed from EventServer.
     @Published private(set) var todayCostUSD: Double = 0
     // Debounce warnings so a meter that keeps updating doesn't re-alert. Levels
@@ -475,6 +493,7 @@ final class AppState: ObservableObject {
             self.lastDigestDate = snapshot.lastDigestDate
             self.sessionCostCap = snapshot.sessionCostCap ?? 0
             self.dailyCostCap = snapshot.dailyCostCap ?? 0
+            self.enforceBudget = snapshot.enforceBudget ?? false
             self.requireTouchID = snapshot.requireTouchID ?? BiometricAuth.isAvailable
             self.mirrorToNotificationCenter = snapshot.mirrorToNotificationCenter ?? true
         } else {
@@ -695,6 +714,73 @@ final class AppState: ObservableObject {
         warnBudget(scope: "session", level: 100, cost: 27.40, cap: 25)
     }
 
+    /// Demo entry point: show a budget hard-stop card (Deny / Allow once /
+    /// Raise cap) for a fake over-cap command.
+    func demoBudgetBlock() {
+        let req = PermissionRequest(
+            kind: .toolUse, title: "Run shell command", detail: "npm run build",
+            toolName: "Bash", source: "Demo", cwd: NSHomeDirectory(),
+            resolver: { _, _ in })
+        req.budgetBlock = BudgetBlock(scope: "session", cost: 10.40, cap: 10)
+        permissionQueue.append(req)
+        playAlert(toolName: "Bash")
+        recompute()
+    }
+
+    func setEnforceBudget(_ on: Bool) { enforceBudget = on; schedulePersist() }
+
+    /// Is this tool request over a cap that enforcement should hold back? Daily
+    /// is checked first (broader); session uses the originating session's spend.
+    func budgetBlock(for req: PermissionRequest) -> BudgetBlock? {
+        if dailyCostCap > 0, todayCostUSD >= dailyCostCap {
+            return BudgetBlock(scope: "daily", cost: todayCostUSD, cap: dailyCostCap)
+        }
+        if sessionCostCap > 0 {
+            let cost = sessionCost(forCwd: req.cwd)
+            if cost >= sessionCostCap {
+                return BudgetBlock(scope: "session", cost: cost, cap: sessionCostCap)
+            }
+        }
+        return nil
+    }
+
+    /// Best estimate of the spend for the session a request belongs to: the
+    /// priciest live session at that cwd, falling back to the global mirror.
+    private func sessionCost(forCwd cwd: String) -> Double {
+        var c = cwd
+        while c.count > 1, c.hasSuffix("/") { c.removeLast() }
+        let matching = sessions.values.filter { $0.cwd == c }.map { $0.sessionCostUSD }
+        return matching.max() ?? currentCostUSD
+    }
+
+    /// Raise the blocked cap above the current spend and allow the held request,
+    /// so the flow continues instead of re-blocking on the next call.
+    func raiseBudgetAndAllow() {
+        guard let req = permissionQueue.first, let block = req.budgetBlock else { return }
+        let newCap = Self.nextCap(covering: block.cost, current: block.cap)
+        if block.scope == "daily" { setDailyCostCap(newCap) } else { setSessionCostCap(newCap) }
+        resolveCurrentPermission(.allow)
+    }
+
+    /// Turn enforcement off and allow the held request in one click.
+    func disableEnforcementAndAllow() {
+        setEnforceBudget(false)
+        resolveCurrentPermission(.allow)
+    }
+
+    /// Next sensible cap above both the current cap and the spend that tripped
+    /// it, so the allow goes through and isn't re-blocked immediately.
+    static func nextCap(covering cost: Double, current cap: Double) -> Double {
+        let presets: [Double] = [1, 2, 5, 10, 25, 50, 100, 200, 500]
+        if let n = presets.first(where: { $0 > cost && $0 > cap }) { return n }
+        return (cost / 50).rounded(.down) * 50 + 50   // beyond presets: next $50
+    }
+
+    /// The dollar amount the Raise-cap button would set, for its label.
+    func raisedCapTarget(for block: BudgetBlock) -> Double {
+        Self.nextCap(covering: block.cost, current: block.cap)
+    }
+
     private func warnBudget(scope: String, level: Int, cost: Double, cap: Double) {
         let pct = Int((cost / cap * 100).rounded())
         let title = level >= 100 ? "Over your \(scope) budget" : "Approaching your \(scope) budget"
@@ -767,7 +853,8 @@ final class AppState: ObservableObject {
             sessionCostCap: sessionCostCap,
             dailyCostCap: dailyCostCap,
             requireTouchID: requireTouchID,
-            mirrorToNotificationCenter: mirrorToNotificationCenter
+            mirrorToNotificationCenter: mirrorToNotificationCenter,
+            enforceBudget: enforceBudget
         ))
     }
 
@@ -1512,6 +1599,23 @@ final class AppState: ObservableObject {
     /// which must demonstrate the UI even if the user has Bash always-allowed
     /// or Auto-Approve turned on.
     func enqueuePermission(_ req: PermissionRequest, bypassRules: Bool = false) {
+        // Budget hard-stop: when enforcement is on and the relevant cap is
+        // already exceeded, force a decision before any allow-rule or
+        // auto-approve can spend past the cap. The card shows Deny / Allow once
+        // / Raise cap.
+        if !bypassRules, req.kind == .toolUse, enforceBudget,
+           let block = budgetBlock(for: req) {
+            req.budgetBlock = block
+            if req.source != "Demo" {
+                recordToolRequested(req.toolName, dangerousShown: req.isDangerous)
+            }
+            permissionQueue.append(req)
+            playAlert(toolName: req.toolName)
+            if mirrorToNotificationCenter { permissionMirror?.mirror(req) }
+            recompute()
+            return
+        }
+
         if !bypassRules, let matched = allowRules.first(where: { $0.matches(req) }) {
             // Auto-allowed by a rule the user installed earlier. Still
             // log it to history so they can see what we approved silently.

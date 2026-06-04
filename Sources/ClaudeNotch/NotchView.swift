@@ -129,6 +129,9 @@ struct NotchView: View {
                 // Banner: 14pt of v-padding + 14pt header + 13pt per reason.
                 visible += 28 + CGFloat(req.dangerReasons.count) * 14 + 8 // +8 gap
             }
+            if req.budgetBlock != nil {
+                visible += 46   // two-line orange banner + gap
+            }
             if let p = req.preview {
                 switch p {
                 case .diff(let h):
@@ -314,7 +317,10 @@ struct NotchView: View {
                     onDenyReason: {
                         state.beginDenyReason(for: req)
                     },
-                    useTouchID: state.requireTouchID && BiometricAuth.isAvailable
+                    useTouchID: state.requireTouchID && BiometricAuth.isAvailable,
+                    onRaiseCap: { state.raiseBudgetAndAllow() },
+                    onDisableEnforce: { state.disableEnforcementAndAllow() },
+                    raiseCapTarget: req.budgetBlock.map { state.raisedCapTarget(for: $0) } ?? 0
                 )
                 .transition(.opacity)
             } else {
@@ -966,9 +972,21 @@ private struct PermissionCard: View {
     var onResolveAll: ((PermissionDecision) -> Void)? = nil
     var onDenyReason: (() -> Void)? = nil
     var useTouchID: Bool = false
+    var onRaiseCap: (() -> Void)? = nil
+    var onDisableEnforce: (() -> Void)? = nil
+    var raiseCapTarget: Double = 0
 
-    private var accentColor: Color { request.isDangerous ? .red : .yellow }
-    private var headerIcon: String { request.isDangerous ? "exclamationmark.triangle.fill" : "exclamationmark.bubble.fill" }
+    private var isBudgetBlocked: Bool { request.budgetBlock != nil }
+    private var accentColor: Color {
+        if request.isDangerous { return .red }
+        if isBudgetBlocked { return .orange }
+        return .yellow
+    }
+    private var headerIcon: String {
+        if request.isDangerous { return "exclamationmark.triangle.fill" }
+        if isBudgetBlocked { return "dollarsign.circle.fill" }
+        return "exclamationmark.bubble.fill"
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -994,6 +1012,10 @@ private struct PermissionCard: View {
 
             if request.isDangerous {
                 DangerBanner(reasons: request.dangerReasons)
+            }
+
+            if let block = request.budgetBlock {
+                BudgetBanner(block: block, onDisableEnforce: onDisableEnforce)
             }
 
             Text(request.title)
@@ -1039,7 +1061,7 @@ private struct PermissionCard: View {
                     .buttonStyle(.plain)
                     .help("Deny with a reason — tell Claude what to do instead")
                 }
-                if !request.isDangerous {
+                if !request.isDangerous && !isBudgetBlocked {
                     Menu {
                         Button("Always Allow This Exact Command") {
                             onResolve(.allow, .exactCommand)
@@ -1094,6 +1116,17 @@ private struct PermissionCard: View {
                             onResolve(.allow, .none)
                         }
                     }
+                } else if isBudgetBlocked {
+                    // Over budget: explicit choices only. "Allow once" lets this
+                    // one through; "Raise to $X" bumps the cap so the flow
+                    // continues. No Enter shortcut — must be deliberate.
+                    NotchButton(label: "Allow once", style: .secondary) {
+                        onResolve(.allow, .none)
+                    }
+                    if let onRaiseCap, raiseCapTarget > 0 {
+                        NotchButton(label: "Raise to \(ClaudeUsageReader.fmtMoney(raiseCapTarget))",
+                                    style: .primary, action: onRaiseCap)
+                    }
                 } else if pendingCount > 1, let onResolveAll {
                     // Multiple permissions queued (e.g. several edits at once)
                     // — one tap approves them all.
@@ -1146,6 +1179,47 @@ private struct DangerBanner: View {
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(Color.red.opacity(0.35), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Budget banner
+
+private struct BudgetBanner: View {
+    let block: BudgetBlock
+    var onDisableEnforce: (() -> Void)? = nil
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Image(systemName: "dollarsign.circle.fill")
+                .foregroundColor(.orange)
+                .font(.system(size: 11, weight: .bold))
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Over your \(block.scope) budget")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.orange.opacity(0.95))
+                Text("\(ClaudeUsageReader.fmtMoney(block.cost)) of \(ClaudeUsageReader.fmtMoney(block.cap)) cap (\(block.pct)%)")
+                    .font(.system(size: 10))
+                    .foregroundColor(.orange.opacity(0.85))
+            }
+            Spacer(minLength: 0)
+            if let onDisableEnforce {
+                Button("Turn off", action: onDisableEnforce)
+                    .buttonStyle(.plain)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.white.opacity(0.6))
+                    .help("Turn off budget enforcement and allow this command")
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.orange.opacity(0.14))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.orange.opacity(0.35), lineWidth: 1)
         )
     }
 }
