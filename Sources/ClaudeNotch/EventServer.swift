@@ -799,6 +799,7 @@ private func humanTitle(for tool: String) -> String {
     case "ExitPlanMode": return "Approve plan"
     case "TodoWrite":    return "Update todos"
     case "SlashCommand": return "Run slash command"
+    case "Skill":        return "Load skill"
     default:             return "Run \(tool)"
     }
 }
@@ -840,6 +841,11 @@ private func humanDetail(for tool: String, input: [String: Any]) -> String {
         return inProgress > 0 ? "\(n) todos  ·  \(inProgress) in progress" : "\(n) todos"
     case "SlashCommand":
         return (input["command"] as? String) ?? ""
+    case "Skill":
+        let name = (input["skill"] as? String) ?? ""
+        let args = (input["args"] as? String) ?? ""
+        if !name.isEmpty && !args.isEmpty { return "\(name) · \(args)" }
+        return name
     default:
         if let s = input["command"] as? String  { return s }
         if let s = input["file_path"] as? String { return s }

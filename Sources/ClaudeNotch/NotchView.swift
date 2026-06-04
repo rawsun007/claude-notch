@@ -439,9 +439,9 @@ private struct IdlePill: View {
     }
 
     private var statusText: String {
-        if state.claudeActionStatus == "thinking" { return "thinking" }
-        if state.isClaudeWorking { return "running command" }
-        return "ready"
+        if state.claudeActionStatus == "thinking" { return "Thinking" }
+        if state.isClaudeWorking { return "Running command" }
+        return "Ready"
     }
 
     private var statusDotColor: Color {
@@ -486,6 +486,7 @@ private struct IdlePill: View {
         case "todowrite":    icon = "checklist"
         case "agent":        icon = "person.fill"
         case "notebookedit": icon = "book"
+        case "skill":        icon = "wand.and.stars"
         default:             icon = "bolt.fill"
         }
         return (icon, argument.isEmpty ? toolName : argument)
