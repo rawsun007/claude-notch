@@ -27,4 +27,3 @@ assets/AppIcon.iconset/
 # Local debug + hook logs (runtime artifacts)
 /tmp/claudenotch-*.log
 claudenotch-*.log
-LOCALNOTES.md
