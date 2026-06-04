@@ -434,21 +434,24 @@ private struct ClaudeIconView: View {
 private struct StatusBarRow: View {
     @ObservedObject var state: AppState
 
-    // Per-bar fill 0...1, or nil when there's no data to show yet ("—"). In
-    // `.planLimits` mode these are Claude Code's real 5h/weekly usage; in
-    // `.estimatedCost` mode they're $ spent vs the user's caps.
-    private var fiveHourPct: CGFloat? {
-        switch state.statusBarMode {
-        case .planLimits:    return state.fiveHourLimitPercent >= 0 ? CGFloat(state.fiveHourLimitPercent) : nil
-        case .estimatedCost: return state.fiveHourCostCap > 0 ? CGFloat(min(1, max(0, state.fiveHourCostUSD / state.fiveHourCostCap))) : nil
-        case .off:           return nil
-        }
+    /// Display data for one bar slot: bar fill (0...1, nil = no data) and the
+    /// right-side label. For `.sessionCost` we skip the fill bar and show raw $.
+    private struct BarData {
+        var pct: CGFloat?       // nil hides the bar track (cost item); 0...1 fills it
+        var text: String        // "38%", "$0.42", or "—"
+        var showBar: Bool       // false for session-cost item
     }
-    private var weeklyPct: CGFloat? {
-        switch state.statusBarMode {
-        case .planLimits:    return state.weeklyLimitPercent >= 0 ? CGFloat(state.weeklyLimitPercent) : nil
-        case .estimatedCost: return state.weeklyCostCap > 0 ? CGFloat(min(1, max(0, state.weeklyCostUSD / state.weeklyCostCap))) : nil
-        case .off:           return nil
+
+    private func barData(for item: StatusBarItem) -> BarData {
+        switch item {
+        case .fiveHourLimit:
+            let p = state.fiveHourLimitPercent >= 0 ? CGFloat(state.fiveHourLimitPercent) : nil
+            return BarData(pct: p, text: p.map { "\(Int(($0 * 100).rounded()))%" } ?? "—", showBar: true)
+        case .weeklyLimit:
+            let p = state.weeklyLimitPercent >= 0 ? CGFloat(state.weeklyLimitPercent) : nil
+            return BarData(pct: p, text: p.map { "\(Int(($0 * 100).rounded()))%" } ?? "—", showBar: true)
+        case .sessionCost:
+            return BarData(pct: nil, text: ClaudeUsageReader.fmtMoney(state.currentCostUSD), showBar: false)
         }
     }
 
@@ -462,7 +465,7 @@ private struct StatusBarRow: View {
 
     private struct BarWidget: View {
         let label: String
-        let pct: CGFloat?       // nil = no data yet ("—")
+        let data: BarData
         let tint: Color
 
         var body: some View {
@@ -470,11 +473,13 @@ private struct StatusBarRow: View {
                 Text(label)
                     .font(.system(size: 9, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.35))
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.white.opacity(0.10)).frame(width: 52, height: 3)
-                    Capsule().fill(tint.opacity(0.9)).frame(width: 52 * (pct ?? 0), height: 3)
+                if data.showBar {
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.white.opacity(0.10)).frame(width: 52, height: 3)
+                        Capsule().fill(tint.opacity(0.9)).frame(width: 52 * (data.pct ?? 0), height: 3)
+                    }
                 }
-                Text(pct.map { "\(Int(($0 * 100).rounded()))%" } ?? "—")
+                Text(data.text)
                     .font(.system(size: 9, weight: .semibold, design: .rounded).monospacedDigit())
                     .foregroundColor(.white.opacity(0.65))
             }
@@ -482,11 +487,12 @@ private struct StatusBarRow: View {
     }
 
     var body: some View {
+        let items = state.statusBarItems
         HStack(spacing: 0) {
-            if state.statusBarMode != .off {
-                BarWidget(label: "5H", pct: fiveHourPct, tint: tint(for: fiveHourPct ?? 0))
-                separator
-                BarWidget(label: "WK", pct: weeklyPct, tint: tint(for: weeklyPct ?? 0))
+            ForEach(Array(items.enumerated()), id: \.offset) { idx, item in
+                let d = barData(for: item)
+                BarWidget(label: item.barLabel, data: d, tint: tint(for: d.pct ?? 0))
+                if idx < items.count - 1 { separator }
             }
         }
         .padding(.horizontal, 16)

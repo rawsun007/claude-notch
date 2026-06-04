@@ -22,7 +22,7 @@ enum Persistence {
         var requireTouchID: Bool? = nil
         var mirrorToNotificationCenter: Bool? = nil
         var enforceBudget: Bool? = nil
-        var statusBarMode: String? = nil
+        var statusBarItems: [String]? = nil
         var contextWindowMode: String? = nil
     }
 
@@ -77,7 +77,7 @@ extension Persistence.Snapshot {
             requireTouchID: try? c.decode(Bool.self, forKey: .requireTouchID),
             mirrorToNotificationCenter: try? c.decode(Bool.self, forKey: .mirrorToNotificationCenter),
             enforceBudget: try? c.decode(Bool.self, forKey: .enforceBudget),
-            statusBarMode: try? c.decode(String.self, forKey: .statusBarMode),
+            statusBarItems: try? c.decode([String].self, forKey: .statusBarItems),
             contextWindowMode: try? c.decode(String.self, forKey: .contextWindowMode)
         )
     }

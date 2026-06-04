@@ -2,13 +2,28 @@ import Foundation
 import AppKit
 import UniformTypeIdentifiers
 
-/// What the always-visible bottom status bar displays.
-/// - `planLimits`: real 5-hour / weekly plan-limit usage from Claude Code's
-///   statusLine feed (requires the statusLine forwarder to be installed).
-/// - `estimatedCost`: estimated $ spend vs user-set caps (works without it).
-/// - `off`: hide the bar.
-enum StatusBarMode: String, Codable, CaseIterable {
-    case planLimits, estimatedCost, off
+/// An individual item that can appear in the always-visible bottom status bar.
+/// The user picks up to two. Order is preserved (first item on the left).
+enum StatusBarItem: String, Codable, CaseIterable {
+    case fiveHourLimit  // real 5-hour plan-limit usage % (from Claude Code statusLine)
+    case weeklyLimit    // real weekly plan-limit usage %
+    case sessionCost    // estimated current-session $ cost
+
+    var barLabel: String {
+        switch self {
+        case .fiveHourLimit: return "5H"
+        case .weeklyLimit:   return "WK"
+        case .sessionCost:   return "$"
+        }
+    }
+
+    var menuLabel: String {
+        switch self {
+        case .fiveHourLimit: return "5h plan limit"
+        case .weeklyLimit:   return "Weekly plan limit"
+        case .sessionCost:   return "Session cost (estimated $)"
+        }
+    }
 }
 
 enum NotchMode: Equatable {
@@ -439,8 +454,8 @@ final class AppState: ObservableObject {
     // `.estimatedCost` mode. Non-zero enables the bar.
     @Published private(set) var fiveHourCostCap: Double = 5.0
     @Published private(set) var weeklyCostCap: Double = 50.0
-    // What the bottom status bar shows. Persisted.
-    @Published private(set) var statusBarMode: StatusBarMode = .planLimits
+    // Which items appear in the bottom status bar (ordered, max 2). Persisted.
+    @Published private(set) var statusBarItems: [StatusBarItem] = [.fiveHourLimit, .weeklyLimit]
     // Context-window denominator selection (Auto / 200K / 1M). Persisted.
     @Published private(set) var contextWindowMode: ContextWindowMode = .auto
     // Real plan-limit usage (0...1), fed by Claude Code's statusLine input via
@@ -525,7 +540,8 @@ final class AppState: ObservableObject {
             self.enforceBudget = snapshot.enforceBudget ?? false
             self.requireTouchID = snapshot.requireTouchID ?? BiometricAuth.isAvailable
             self.mirrorToNotificationCenter = snapshot.mirrorToNotificationCenter ?? true
-            self.statusBarMode = snapshot.statusBarMode.flatMap(StatusBarMode.init) ?? .planLimits
+            self.statusBarItems = snapshot.statusBarItems?
+                .compactMap(StatusBarItem.init) ?? [.fiveHourLimit, .weeklyLimit]
             self.contextWindowMode = snapshot.contextWindowMode.flatMap(ContextWindowMode.init) ?? .auto
         } else {
             self.requireTouchID = BiometricAuth.isAvailable
@@ -771,8 +787,9 @@ final class AppState: ObservableObject {
         schedulePersist()
     }
 
-    func setStatusBarMode(_ mode: StatusBarMode) {
-        statusBarMode = mode
+    /// Replace the visible status-bar items (max 2, order preserved).
+    func setStatusBarItems(_ items: [StatusBarItem]) {
+        statusBarItems = Array(items.prefix(2))
         schedulePersist()
     }
 
@@ -959,7 +976,7 @@ final class AppState: ObservableObject {
             requireTouchID: requireTouchID,
             mirrorToNotificationCenter: mirrorToNotificationCenter,
             enforceBudget: enforceBudget,
-            statusBarMode: statusBarMode.rawValue,
+            statusBarItems: statusBarItems.map(\.rawValue),
             contextWindowMode: contextWindowMode.rawValue
         ))
     }

@@ -670,20 +670,18 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshCostBudgetMenu()
     }
 
-    @objc private func setFiveHourCapAction(_ sender: NSMenuItem) {
-        state.setFiveHourCostCap(Double(sender.tag))
-        refreshStatusBarMenu()
-    }
-
-    @objc private func setWeeklyCapAction(_ sender: NSMenuItem) {
-        state.setWeeklyCostCap(Double(sender.tag))
-        refreshStatusBarMenu()
-    }
-
-    // Status-bar mode. tag: 0 = plan limits, 1 = estimated $, 2 = off.
-    @objc private func setStatusBarModeAction(_ sender: NSMenuItem) {
-        let mode: StatusBarMode = sender.tag == 1 ? .estimatedCost : (sender.tag == 2 ? .off : .planLimits)
-        state.setStatusBarMode(mode)
+    // Status-bar item toggle. tag maps to StatusBarItem index in CaseIterable order.
+    @objc private func toggleStatusBarItemAction(_ sender: NSMenuItem) {
+        let allItems = StatusBarItem.allCases
+        guard sender.tag < allItems.count else { return }
+        let tapped = allItems[sender.tag]
+        var current = state.statusBarItems
+        if let idx = current.firstIndex(of: tapped) {
+            current.remove(at: idx)
+        } else if current.count < 2 {
+            current.append(tapped)
+        }
+        state.setStatusBarItems(current)
         refreshStatusBarMenu()
     }
 
@@ -732,7 +730,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private func refreshStatusBarMenu() {
         statusBarMenu.removeAllItems()
-        let mn = ClaudeUsageReader.fmtMoney
 
         func header(_ s: String) {
             let mi = NSMenuItem(title: s, action: nil, keyEquivalent: "")
@@ -740,57 +737,34 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             statusBarMenu.addItem(mi)
         }
 
-        // Title reflects the active mode.
-        let modeName: String
-        switch state.statusBarMode {
-        case .planLimits:    modeName = "Plan limits"
-        case .estimatedCost: modeName = "Estimated $"
-        case .off:           modeName = "Off"
-        }
-        statusBarItem.title = "Status Bar: \(modeName)"
+        // Title: show labels of selected items.
+        let selectedLabels = state.statusBarItems.map(\.barLabel)
+        statusBarItem.title = selectedLabels.isEmpty
+            ? "Status Bar: off"
+            : "Status Bar: \(selectedLabels.joined(separator: " · "))"
 
-        header("Bottom bar shows")
-        let modes: [(String, Int, Bool)] = [
-            ("Plan limits (real 5h / weekly usage)", 0, state.statusBarMode == .planLimits),
-            ("Estimated $ spent", 1, state.statusBarMode == .estimatedCost),
-            ("Off", 2, state.statusBarMode == .off),
-        ]
-        for (label, tag, on) in modes {
-            let mi = NSMenuItem(title: label, action: #selector(setStatusBarModeAction(_:)), keyEquivalent: "")
+        // Item checkboxes — max 2 selected. Disable unselected items when full.
+        let selected = state.statusBarItems
+        let full = selected.count >= 2
+        header("Show in bar (pick up to 2)")
+        for (idx, item) in StatusBarItem.allCases.enumerated() {
+            let isOn = selected.contains(item)
+            let mi = NSMenuItem(title: item.menuLabel,
+                                action: #selector(toggleStatusBarItemAction(_:)),
+                                keyEquivalent: "")
             mi.target = self
-            mi.tag = tag
-            mi.state = on ? .on : .off
+            mi.tag = idx
+            mi.state = isOn ? .on : .off
+            mi.isEnabled = isOn || !full   // grey out unchosen items when 2 already selected
             statusBarMenu.addItem(mi)
         }
-        if state.statusBarMode == .planLimits {
-            let note = NSMenuItem(title: "  needs the status-line forwarder (auto-installed)", action: nil, keyEquivalent: "")
+        if selected.contains(.fiveHourLimit) || selected.contains(.weeklyLimit) {
+            let note = NSMenuItem(title: "  plan limits need the status-line forwarder (auto-installed)", action: nil, keyEquivalent: "")
             note.isEnabled = false
             statusBarMenu.addItem(note)
         }
 
-        // $ caps only matter in estimated-cost mode.
-        if state.statusBarMode == .estimatedCost {
-            statusBarMenu.addItem(.separator())
-            func caps(_ title: String, current: Double, action: Selector, presets: [Int]) {
-                header(title)
-                for dollars in [0] + presets {
-                    let mi = NSMenuItem(title: dollars == 0 ? "Off" : "$\(dollars)", action: action, keyEquivalent: "")
-                    mi.target = self
-                    mi.tag = dollars
-                    mi.state = Int(current.rounded()) == dollars ? .on : .off
-                    statusBarMenu.addItem(mi)
-                }
-            }
-            caps("5-hour cap (~\(mn(state.fiveHourCostUSD)) so far)",
-                 current: state.fiveHourCostCap, action: #selector(setFiveHourCapAction(_:)),
-                 presets: [5, 10, 25, 50, 100])
-            statusBarMenu.addItem(.separator())
-            caps("Weekly cap (~\(mn(state.weeklyCostUSD)) so far)",
-                 current: state.weeklyCostCap, action: #selector(setWeeklyCapAction(_:)),
-                 presets: [25, 50, 100, 250, 500])
-        }
-
-        // Context-window denominator override (affects the context bar).
+        // Context-window denominator override (affects the context bar, not the status row).
         statusBarMenu.addItem(.separator())
         header("Context window")
         let windows: [(String, Int, Bool)] = [
