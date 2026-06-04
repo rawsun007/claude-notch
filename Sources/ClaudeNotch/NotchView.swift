@@ -396,17 +396,36 @@ extension NotchView {
 }
 
 
+// MARK: - Claude brand icon
+
+private struct ClaudeIconView: View {
+    var size: CGFloat = 15
+
+    private static let image: NSImage? = {
+        guard let url = Bundle.main.url(forResource: "claude-color", withExtension: "svg"),
+              let img = NSImage(contentsOf: url) else { return nil }
+        return img
+    }()
+
+    var body: some View {
+        if let img = Self.image {
+            Image(nsImage: img)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+        } else {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(Color(red: 0.851, green: 0.467, blue: 0.341))
+                .frame(width: size, height: size)
+        }
+    }
+}
+
 // MARK: - Idle
 
 private struct IdlePill: View {
     @ObservedObject var state: AppState
     @State private var pulsePhase: Double = 0   // 0→2π, used by SessionsList
-
-    private var actionLabel: String {
-        let s = state.claudeActionStatus
-        guard !s.isEmpty else { return "ready" }
-        return s.prefix(1).uppercased() + s.dropFirst()
-    }
 
     private var canExpand: Bool { !state.fullClaudeResponse.isEmpty }
     private var canShowHistory: Bool { !state.history.isEmpty }
@@ -419,10 +438,37 @@ private struct IdlePill: View {
             : AppState.statusEntityName
     }
 
-    private var dotColor: Color {
+    private var statusText: String {
+        if state.claudeActionStatus == "thinking" { return "thinking" }
+        if state.isClaudeWorking { return "running command" }
+        return "ready"
+    }
+
+    private var statusDotColor: Color {
+        if state.isClaudeWorking { return .blue }
         if !state.lastClaudeResponse.isEmpty { return .green }
-        if state.isClaudeWorking             { return .blue }
         return .gray
+    }
+
+    private var isActiveStatus: Bool { state.isClaudeWorking }
+
+    @ViewBuilder
+    private var statusLabelView: some View {
+        if isActiveStatus {
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: false)) { tl in
+                let phase = CGFloat(tl.date.timeIntervalSinceReferenceDate
+                    .truncatingRemainder(dividingBy: 2.5) / 2.5)
+                Text(statusText)
+                    .font(.system(size: 10, design: .rounded))
+                    .foregroundStyle(Self.shimmerGradient(phase: phase))
+                    .lineLimit(1)
+            }
+        } else {
+            Text(statusText)
+                .font(.system(size: 10, design: .rounded))
+                .foregroundColor(.white.opacity(0.38))
+                .lineLimit(1)
+        }
     }
 
     private func parseActivity(_ activity: String) -> (icon: String, text: String) {
@@ -462,14 +508,9 @@ private struct IdlePill: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Row 1 — dot + name + session count + action buttons
-            HStack(spacing: 10) {
-                Circle()
-                    .fill(dotColor)
-                    .frame(width: 8, height: 8)
-                    .opacity(state.isClaudeWorking
-                        ? 0.4 + 0.6 * (0.5 + 0.5 * sin(pulsePhase))
-                        : 1.0)
+            // Row 1 — Claude icon · name · status dot · status label · action buttons
+            HStack(spacing: 6) {
+                ClaudeIconView(size: 15)
                 Text(nameText)
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)
@@ -480,6 +521,13 @@ private struct IdlePill: View {
                         if canShowHistory { state.openHistory() }
                         else if canExpand { state.showResponseDetail() }
                     }
+                Circle()
+                    .fill(statusDotColor)
+                    .frame(width: 5, height: 5)
+                    .opacity(isActiveStatus
+                        ? 0.4 + 0.6 * (0.5 + 0.5 * sin(pulsePhase))
+                        : 1.0)
+                statusLabelView
                 Spacer(minLength: 0)
                 if canShowHistory {
                     Button { state.openHistory() } label: {
@@ -501,27 +549,11 @@ private struct IdlePill: View {
                 }
             }
 
-            // Row 2 — shimmer action label while working; last Claude message when idle.
-            if state.isClaudeWorking {
-                TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: false)) { tl in
-                    let phase = CGFloat(tl.date.timeIntervalSinceReferenceDate
-                        .truncatingRemainder(dividingBy: 2.5) / 2.5)
-                    Text(actionLabel)
-                        .font(.system(size: 10, design: .rounded))
-                        .foregroundStyle(Self.shimmerGradient(phase: phase))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-            } else if !state.lastClaudeResponse.isEmpty {
+            // Row 2 — last Claude message when idle (detail stripped into Row 3 when working)
+            if !state.isClaudeWorking && !state.lastClaudeResponse.isEmpty {
                 Text(state.lastClaudeResponse)
                     .font(.system(size: 10, design: .rounded))
                     .foregroundColor(.white.opacity(0.55))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            } else {
-                Text(actionLabel)
-                    .font(.system(size: 10, design: .rounded))
-                    .foregroundColor(.white.opacity(0.38))
                     .lineLimit(1)
                     .truncationMode(.tail)
             }

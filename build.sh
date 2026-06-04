@@ -28,6 +28,10 @@ fi
 if [ -f assets/menubar.png ]; then
     cp assets/menubar.png "$APP/Contents/Resources/menubar.png"
 fi
+# Claude brand icon used in the idle pill.
+if [ -f assets/claude-color.svg ]; then
+    cp assets/claude-color.svg "$APP/Contents/Resources/claude-color.svg"
+fi
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
