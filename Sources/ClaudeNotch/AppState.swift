@@ -1181,6 +1181,7 @@ final class AppState: ObservableObject {
         case "TaskUpdate":            return "tracking task"
         case "TaskList", "TaskGet":   return "checking tasks"
         case "ExitPlanMode":          return "waiting approval"
+        case "Skill":                 return "loading skill"
         default:
             let clean = tool.trimmingCharacters(in: .whitespacesAndNewlines)
             return clean.isEmpty ? "working" : "using \(clean)"
