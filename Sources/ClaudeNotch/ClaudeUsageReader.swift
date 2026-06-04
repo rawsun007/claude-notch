@@ -1,5 +1,12 @@
 import Foundation
 
+/// How the context bar picks its denominator. `auto` infers the window from the
+/// model (see `ClaudeUsageReader.modelHas1MWindow`); the explicit cases let the
+/// user override when the guess is wrong for their plan.
+enum ContextWindowMode: String, Codable, CaseIterable {
+    case auto, w200k, w1M
+}
+
 /// Reads Claude Code's own transcript files (`~/.claude/projects/**/*.jsonl`)
 /// to total token usage and estimate cost over the last 7 days. This is
 /// Claude's API usage, separate from ClaudeNotch's own action stats (Insights).
@@ -29,6 +36,7 @@ enum ClaudeUsageReader {
 
     struct Usage {
         var today = Tokens()
+        var fiveHour = Tokens()   // rolling last 5 hours
         var week = Tokens()
         var weekByModel: [String: Tokens] = [:]
         var weekByProject: [String: Tokens] = [:]   // keyed by cwd
@@ -127,6 +135,97 @@ enum ClaudeUsageReader {
         return model
     }
 
+    /// Splits a model id like `claude-sonnet-4-6` into a capitalised name
+    /// ("Sonnet") and a dotted version ("4.6"). Returns ("", "") for unknown ids.
+    static func modelNameVersion(_ model: String) -> (name: String, version: String) {
+        let m = model.lowercased()
+        let name: String
+        if m.contains("opus")        { name = "Opus" }
+        else if m.contains("sonnet") { name = "Sonnet" }
+        else if m.contains("haiku")  { name = "Haiku" }
+        else if !model.isEmpty       { name = model }
+        else                         { return ("", "") }
+
+        // Extract first N-M version pair from the id, e.g. "4-6" → "4.6"
+        let pattern = try? NSRegularExpression(pattern: "(\\d+)-(\\d+)")
+        if let match = pattern?.firstMatch(in: m, range: NSRange(m.startIndex..., in: m)),
+           match.numberOfRanges == 3,
+           let r1 = Range(match.range(at: 1), in: m),
+           let r2 = Range(match.range(at: 2), in: m) {
+            return (name, "\(m[r1]).\(m[r2])")
+        }
+        return (name, "")
+    }
+
+    /// Reads the model id from `~/.claude/settings.json`. Returns "" if absent.
+    static func modelFromSettings() -> String {
+        let url = URL(fileURLWithPath: NSHomeDirectory())
+            .appendingPathComponent(".claude/settings.json")
+        guard let data = try? Data(contentsOf: url),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let model = obj["model"] as? String, !model.isEmpty
+        else { return "" }
+        return model
+    }
+
+    /// Reads effort/thinking level from `~/.claude/settings.json`. Falls back
+    /// to "Auto" when the file is absent, unreadable, or has no effort key.
+    static func effortFromSettings() -> String {
+        let url = URL(fileURLWithPath: NSHomeDirectory())
+            .appendingPathComponent(".claude/settings.json")
+        guard let data = try? Data(contentsOf: url),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return "Auto" }
+
+        // Direct "effort" / "effortLevel" string key (Claude Code uses both across versions)
+        if let effort = (obj["effort"] as? String) ?? (obj["effortLevel"] as? String), !effort.isEmpty {
+            return effort.prefix(1).uppercased() + effort.dropFirst()
+        }
+        // "thinking" dict with budget_tokens
+        if let thinking = obj["thinking"] as? [String: Any] {
+            if let budget = thinking["budget_tokens"] as? Int {
+                if budget <= 0    { return "Low" }
+                if budget >= 8000 { return "High" }
+                return "Normal"
+            }
+            if let type_ = thinking["type"] as? String, type_ == "disabled" {
+                return "Low"
+            }
+        }
+        return "Auto"
+    }
+
+    /// Finds the most recently used model id by checking the newest transcript files.
+    /// Reads disk — call off the main thread. Returns "" if nothing found.
+    static func lastUsedModel() -> String {
+        let fm = FileManager.default
+        let projects = fm.homeDirectoryForCurrentUser
+            .appendingPathComponent(".claude/projects", isDirectory: true)
+        guard let en = fm.enumerator(at: projects,
+                                      includingPropertiesForKeys: [.contentModificationDateKey]) else { return "" }
+        var files: [(url: URL, mod: Date)] = []
+        for case let url as URL in en where url.pathExtension == "jsonl" {
+            if let mod = try? url.resourceValues(
+                forKeys: [.contentModificationDateKey]).contentModificationDate {
+                files.append((url, mod))
+            }
+        }
+        files.sort { $0.mod > $1.mod }
+        for (url, _) in files.prefix(3) {
+            guard let data = try? Data(contentsOf: url),
+                  let text = String(data: data, encoding: .utf8) else { continue }
+            for raw in text.split(separator: "\n").reversed() {
+                guard let ld = raw.data(using: .utf8),
+                      let obj = try? JSONSerialization.jsonObject(with: ld) as? [String: Any],
+                      let msg = obj["message"] as? [String: Any],
+                      (msg["role"] as? String) == "assistant",
+                      let model = msg["model"] as? String, !model.isEmpty else { continue }
+                return model
+            }
+        }
+        return ""
+    }
+
     /// Parse recent transcripts. Reads files off disk, so call off the main thread.
     static func compute() -> Usage {
         var usage = Usage()
@@ -134,8 +233,10 @@ enum ClaudeUsageReader {
         let projects = fm.homeDirectoryForCurrentUser.appendingPathComponent(".claude/projects", isDirectory: true)
 
         let cal = Calendar.current
-        let startOfToday = cal.startOfDay(for: Date())
+        let now = Date()
+        let startOfToday = cal.startOfDay(for: now)
         let weekAgo = cal.date(byAdding: .day, value: -7, to: startOfToday) ?? startOfToday
+        let fiveHoursAgo = now.addingTimeInterval(-5 * 3600)
 
         guard let en = fm.enumerator(at: projects, includingPropertiesForKeys: [.contentModificationDateKey]) else {
             return usage
@@ -197,6 +298,9 @@ enum ClaudeUsageReader {
                     usage.today = usage.today + t
                     if let sid { sessionsTodaySet.insert(sid) }
                 }
+                if ts >= fiveHoursAgo {
+                    usage.fiveHour = usage.fiveHour + t
+                }
             }
         }
 
@@ -216,14 +320,39 @@ enum ClaudeUsageReader {
     }
 
     // Standard context window for Opus/Sonnet 4.x. The 1M-token window is a
-    // separate mode the transcript doesn't flag, but a standard session compacts
-    // before it ever exceeds 200k — so if we observe more than that, the session
-    // must be on the 1M window and we switch the denominator accordingly.
+    // separate mode the transcript doesn't flag, so we infer it from the model
+    // (and escalate if we ever observe more than the standard window).
     static let contextWindow = 200_000
     static let contextWindow1M = 1_000_000
 
-    static func contextWindow(forTokens tokens: Int) -> Int {
-        tokens > contextWindow ? contextWindow1M : contextWindow
+    /// True for models whose default window is 1M on the plans this app targets
+    /// (Max). Frontier Sonnet 4.6 / Opus 4.6 / Opus 4.7 ship 1M by default; Haiku
+    /// and older models are 200k. Used only by `.auto` mode — a user on a 200k
+    /// plan can force the denominator via `ContextWindowMode`.
+    static func modelHas1MWindow(_ model: String) -> Bool {
+        let m = model.lowercased()
+        if m.contains("haiku") { return false }
+        return m.contains("sonnet-4-6") || m.contains("opus-4-6") || m.contains("opus-4-7")
+    }
+
+    /// Pick the context-window denominator for a session given the user's mode,
+    /// the model, and the largest occupancy observed (which forces 1M if it ever
+    /// exceeds the standard window, regardless of model guess).
+    static func contextWindow(forModel model: String, tokens: Int, mode: ContextWindowMode) -> Int {
+        switch mode {
+        case .w200k: return contextWindow
+        case .w1M:   return contextWindow1M
+        case .auto:
+            if tokens > contextWindow { return contextWindow1M }
+            return modelHas1MWindow(model) ? contextWindow1M : contextWindow
+        }
+    }
+
+    /// Context occupancy as 0...1 for the given mode/model. Authoritative %
+    /// computation lives here so callers (transcript meter, header mirror) agree.
+    static func contextPercent(tokens: Int, model: String, mode: ContextWindowMode) -> Double {
+        let window = contextWindow(forModel: model, tokens: tokens, mode: mode)
+        return min(1, Double(tokens) / Double(window))
     }
 
     /// Parse ONE session transcript: sum cost across every assistant message and
@@ -245,6 +374,11 @@ enum ClaudeUsageReader {
                   let u = msg["usage"] as? [String: Any]
             else { continue }
 
+            // Sub-agent (Task) turns run in their own small, fresh context. They
+            // share the transcript with `isSidechain: true`; counting them as the
+            // latest turn would crater the main session's occupancy reading.
+            if (obj["isSidechain"] as? Bool) == true { continue }
+
             let model = (msg["model"] as? String) ?? meter.model
             let input = (u["input_tokens"] as? Int) ?? 0
             let output = (u["output_tokens"] as? Int) ?? 0
@@ -259,8 +393,9 @@ enum ClaudeUsageReader {
             meter.contextTokens = input + cacheRead + cacheCreation
         }
         guard sawUsage else { return nil }
-        let window = contextWindow(forTokens: meter.contextTokens)
-        meter.contextPercent = min(1, Double(meter.contextTokens) / Double(window))
+        // Self-consistent default; callers with the user's ContextWindowMode
+        // recompute via `contextPercent(tokens:model:mode:)`.
+        meter.contextPercent = contextPercent(tokens: meter.contextTokens, model: meter.model, mode: .auto)
         return meter
     }
 

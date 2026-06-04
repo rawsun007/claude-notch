@@ -2,6 +2,15 @@ import Foundation
 import AppKit
 import UniformTypeIdentifiers
 
+/// What the always-visible bottom status bar displays.
+/// - `planLimits`: real 5-hour / weekly plan-limit usage from Claude Code's
+///   statusLine feed (requires the statusLine forwarder to be installed).
+/// - `estimatedCost`: estimated $ spend vs user-set caps (works without it).
+/// - `off`: hide the bar.
+enum StatusBarMode: String, Codable, CaseIterable {
+    case planLimits, estimatedCost, off
+}
+
 enum NotchMode: Equatable {
     case idle
     case thinking(label: String)
@@ -61,6 +70,7 @@ struct LiveSession: Identifiable, Equatable {
 
     // Live context + cost meter, parsed from this session's transcript usage.
     var contextPercent: Double = 0   // 0...1 of the context window in use now
+    var contextTokens: Int = 0       // raw input-side tokens (for re-deriving % on override)
     var sessionCostUSD: Double = 0   // cumulative estimated cost so far
     var model: String = ""           // most recent model id (e.g. claude-opus-4-8)
     var isCompacting: Bool = false   // true between PreCompact and the next event
@@ -425,6 +435,18 @@ final class AppState: ObservableObject {
     // sessionCostCap warns on any single session; dailyCostCap on today's total.
     @Published private(set) var sessionCostCap: Double = 0
     @Published private(set) var dailyCostCap: Double = 0
+    // Status-bar caps for the rolling 5-hour and weekly usage bars, used in
+    // `.estimatedCost` mode. Non-zero enables the bar.
+    @Published private(set) var fiveHourCostCap: Double = 5.0
+    @Published private(set) var weeklyCostCap: Double = 50.0
+    // What the bottom status bar shows. Persisted.
+    @Published private(set) var statusBarMode: StatusBarMode = .planLimits
+    // Context-window denominator selection (Auto / 200K / 1M). Persisted.
+    @Published private(set) var contextWindowMode: ContextWindowMode = .auto
+    // Real plan-limit usage (0...1), fed by Claude Code's statusLine input via
+    // the /statusline route. -1 = no data yet (so the UI can show "—").
+    @Published private(set) var fiveHourLimitPercent: Double = -1
+    @Published private(set) var weeklyLimitPercent: Double = -1
     // Hard-stop: when on, a tool request whose session/daily cap is already
     // exceeded is held for a decision (Deny / Allow once / Raise cap) instead
     // of being auto-allowed — even under an allow-rule or auto-approve. Off by
@@ -432,6 +454,11 @@ final class AppState: ObservableObject {
     @Published var enforceBudget: Bool = false
     // Today's total estimated cost across all sessions, pushed from EventServer.
     @Published private(set) var todayCostUSD: Double = 0
+    // Rolling 5-hour and weekly cost totals, recomputed alongside todayCostUSD.
+    @Published private(set) var fiveHourCostUSD: Double = 0
+    @Published private(set) var weeklyCostUSD: Double = 0
+    // Effort level read from ~/.claude/settings.json ("Auto", "Normal", "High", "Low").
+    @Published private(set) var currentEffort: String = "Auto"
     // Debounce warnings so a meter that keeps updating doesn't re-alert. Levels
     // are 0 / 80 / 100; in-memory only (re-arming on restart is fine).
     private var sessionWarnLevel: [String: Int] = [:]
@@ -493,12 +520,21 @@ final class AppState: ObservableObject {
             self.lastDigestDate = snapshot.lastDigestDate
             self.sessionCostCap = snapshot.sessionCostCap ?? 0
             self.dailyCostCap = snapshot.dailyCostCap ?? 0
+            self.fiveHourCostCap = snapshot.fiveHourCostCap ?? 5.0
+            self.weeklyCostCap = snapshot.weeklyCostCap ?? 50.0
             self.enforceBudget = snapshot.enforceBudget ?? false
             self.requireTouchID = snapshot.requireTouchID ?? BiometricAuth.isAvailable
             self.mirrorToNotificationCenter = snapshot.mirrorToNotificationCenter ?? true
+            self.statusBarMode = snapshot.statusBarMode.flatMap(StatusBarMode.init) ?? .planLimits
+            self.contextWindowMode = snapshot.contextWindowMode.flatMap(ContextWindowMode.init) ?? .auto
         } else {
             self.requireTouchID = BiometricAuth.isAvailable
         }
+        // Seed model and effort immediately from settings so Row 2 is visible
+        // before the first hook fires, in both persistent and normal modes.
+        let seededModel = ClaudeUsageReader.modelFromSettings()
+        if !seededModel.isEmpty { self.currentModel = seededModel }
+        self.currentEffort = ClaudeUsageReader.effortFromSettings()
     }
 
     // MARK: - Usage stats
@@ -708,6 +744,72 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Push rolling 5-hour and weekly cost totals for the status bar.
+    func noteRollingCosts(fiveHour: Double, weekly: Double) {
+        fiveHourCostUSD = fiveHour
+        weeklyCostUSD = weekly
+    }
+
+    /// Refresh effort level from ~/.claude/settings.json (cheap file read, call off-thread).
+    func noteEffort(_ effort: String) {
+        currentEffort = effort
+    }
+
+    /// Seed the model from a transcript scan at startup. Only fills in if
+    /// the model is still unknown — a hook-driven update takes precedence.
+    func noteStartupModel(_ model: String) {
+        if currentModel.isEmpty { currentModel = model }
+    }
+
+    func setFiveHourCostCap(_ usd: Double) {
+        fiveHourCostCap = max(0, usd)
+        schedulePersist()
+    }
+
+    func setWeeklyCostCap(_ usd: Double) {
+        weeklyCostCap = max(0, usd)
+        schedulePersist()
+    }
+
+    func setStatusBarMode(_ mode: StatusBarMode) {
+        statusBarMode = mode
+        schedulePersist()
+    }
+
+    func setContextWindowMode(_ mode: ContextWindowMode) {
+        contextWindowMode = mode
+        // Re-derive the visible header % from the last known token count so the
+        // override takes effect immediately, not only on the next turn.
+        if let s = currentSessionId.isEmpty ? nil : sessions[currentSessionId],
+           s.contextTokens > 0 {
+            let pct = ClaudeUsageReader.contextPercent(tokens: s.contextTokens, model: s.model, mode: mode)
+            sessions[currentSessionId]?.contextPercent = pct
+            currentContextPercent = pct
+        }
+        schedulePersist()
+    }
+
+    /// Authoritative usage fed by Claude Code's statusLine command (the only
+    /// local source of real plan-limit %). Percentages arrive as 0...100.
+    func noteStatusLine(sessionId: String, model: String,
+                        contextPct: Double?, fiveHourPct: Double?, sevenDayPct: Double?) {
+        if let p = fiveHourPct { fiveHourLimitPercent = min(1, max(0, p / 100)) }
+        if let p = sevenDayPct { weeklyLimitPercent = min(1, max(0, p / 100)) }
+
+        // Context: Claude Code's own number already accounts for the real window
+        // (1M vs 200K) — prefer it over the transcript estimate for this session.
+        guard let cp = contextPct else { return }
+        let pct = min(1, max(0, cp / 100))
+        upsertSession(id: sessionId, cwd: currentCwd) { s in
+            s.contextPercent = pct
+            if !model.isEmpty { s.model = model }
+        }
+        let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
+        guard isCurrent else { return }
+        currentContextPercent = pct
+        if !model.isEmpty { currentModel = model }
+    }
+
     /// Demo entry point: show the budget alert card exactly as a real
     /// over-budget event renders it.
     func demoBudgetAlert() {
@@ -852,9 +954,13 @@ final class AppState: ObservableObject {
             lastDigestDate: lastDigestDate,
             sessionCostCap: sessionCostCap,
             dailyCostCap: dailyCostCap,
+            fiveHourCostCap: fiveHourCostCap,
+            weeklyCostCap: weeklyCostCap,
             requireTouchID: requireTouchID,
             mirrorToNotificationCenter: mirrorToNotificationCenter,
-            enforceBudget: enforceBudget
+            enforceBudget: enforceBudget,
+            statusBarMode: statusBarMode.rawValue,
+            contextWindowMode: contextWindowMode.rawValue
         ))
     }
 
@@ -918,9 +1024,12 @@ final class AppState: ObservableObject {
     /// session's row always; mirrors to the global header only for the current
     /// session (same gate as noteClaudeResponse, so background sessions can't
     /// thrash the header).
-    func noteSessionMeter(sessionId: String, contextPercent: Double, costUSD: Double, model: String) {
+    func noteSessionMeter(sessionId: String, contextTokens: Int, costUSD: Double, model: String) {
+        let contextPercent = ClaudeUsageReader.contextPercent(
+            tokens: contextTokens, model: model, mode: contextWindowMode)
         upsertSession(id: sessionId, cwd: currentCwd) { s in
             s.contextPercent = contextPercent
+            s.contextTokens = contextTokens
             s.sessionCostUSD = costUSD
             if !model.isEmpty { s.model = model }
             s.isCompacting = false
@@ -950,7 +1059,13 @@ final class AppState: ObservableObject {
     func noteCompacting(sessionId: String = "") {
         upsertSession(id: sessionId, cwd: currentCwd) { s in
             s.isCompacting = true
+            // The pre-compact occupancy is about to be wrong (context shrinks).
+            // Drop it now so the bar doesn't sit stale-high until the next turn.
+            s.contextPercent = 0
+            s.contextTokens = 0
         }
+        let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
+        if isCurrent { currentContextPercent = 0 }
     }
 
     func noteUserPrompt(_ prompt: String, sessionId: String = "") {

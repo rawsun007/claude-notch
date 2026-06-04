@@ -17,6 +17,19 @@ enum HookInstaller {
         (installDir as NSString).appendingPathComponent("claudenotch-hook.sh")
     }()
 
+    /// Installed as Claude Code's `statusLine.command`. Forwards the
+    /// authoritative context-window + plan-limit usage to the app, then chains
+    /// to the user's previous status line (stored in `statusLineInnerCmd`).
+    static let statusLineScript: String = {
+        (installDir as NSString).appendingPathComponent("claudenotch-statusline.sh")
+    }()
+
+    /// Sidecar holding the user's original `statusLine.command` (a shell string)
+    /// so the forwarder can re-emit it and uninstall can restore it.
+    static let statusLineInnerCmd: String = {
+        (installDir as NSString).appendingPathComponent("statusline-inner.cmd")
+    }()
+
     /// True when settings.json references our dispatcher AND the script
     /// actually exists on disk. Either alone isn't enough — a wired entry
     /// pointing at a missing script will just fail silently per-hook.
@@ -25,6 +38,16 @@ enum HookInstaller {
         guard let data = try? Data(contentsOf: URL(fileURLWithPath: settingsPath)),
               let s = String(data: data, encoding: .utf8) else { return false }
         return s.contains("claudenotch-hook.sh")
+    }
+
+    /// True when our statusLine forwarder is wired into settings.json. Lets the
+    /// app auto-migrate already-installed users (whose hooks predate the
+    /// statusLine integration) without a manual reinstall.
+    static var statusLineWired: Bool {
+        guard FileManager.default.fileExists(atPath: statusLineScript) else { return false }
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: settingsPath)),
+              let s = String(data: data, encoding: .utf8) else { return false }
+        return s.contains("claudenotch-statusline.sh")
     }
 
     /// `jq` is required by posttool.sh to forward payload fields to the
@@ -145,12 +168,39 @@ enum HookInstaller {
         appendHook(to: "PreCompact", in: &hooks, matcher: nil)
         settings["hooks"] = hooks
 
+        // StatusLine: the only local source of authoritative context-% and real
+        // 5h/weekly plan-limit usage. We point it at our forwarder, preserving
+        // (chaining to) whatever the user already had so their terminal status
+        // line is unchanged.
+        wireStatusLine(in: &settings)
+
         do {
             let out = try JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .sortedKeys])
             try out.write(to: settingsURL, options: .atomic)
         } catch {
             throw InstallError.settingsWriteFailed(error.localizedDescription)
         }
+    }
+
+    /// Repoint `statusLine.command` at our forwarder, capturing the user's
+    /// previous command into the inner sidecar so it's preserved and restorable.
+    /// Idempotent: re-running won't capture our own forwarder as the "previous".
+    private static func wireStatusLine(in settings: inout [String: Any]) {
+        let existing = (settings["statusLine"] as? [String: Any])
+        let priorCmd = (existing?["command"] as? String) ?? ""
+        let ours = priorCmd.contains("claudenotch-statusline.sh")
+
+        // Only (re)capture when the current command isn't already ours, so a
+        // reinstall doesn't overwrite the saved original with our forwarder.
+        if !ours {
+            let data = priorCmd.data(using: .utf8) ?? Data()
+            try? data.write(to: URL(fileURLWithPath: statusLineInnerCmd), options: .atomic)
+        }
+
+        settings["statusLine"] = [
+            "type": "command",
+            "command": "bash \(shellQuote(statusLineScript))",
+        ]
     }
 
     /// Append our hook into an event's rule list without clobbering anything

@@ -251,6 +251,11 @@ struct NotchView: View {
                                 )
                             }
                         )
+                } else {
+                    // Collapsed idle: show the always-visible status bar row
+                    // centred within the physical-notch height.
+                    StatusBarRow(state: state)
+                        .frame(width: card.width, height: card.height, alignment: .center)
                 }
             }
             // Black fill + clip apply AT the animating frame size, so the
@@ -421,6 +426,81 @@ private struct ClaudeIconView: View {
     }
 }
 
+// MARK: - Status bar row
+
+/// Always-visible compact bar shown in the collapsed notch and appended at the
+/// bottom of the persistent-notch idle view. Shows the rolling 5-hour cost and
+/// weekly cost as labelled mini progress bars relative to their configured caps.
+private struct StatusBarRow: View {
+    @ObservedObject var state: AppState
+
+    // Per-bar fill 0...1, or nil when there's no data to show yet ("—"). In
+    // `.planLimits` mode these are Claude Code's real 5h/weekly usage; in
+    // `.estimatedCost` mode they're $ spent vs the user's caps.
+    private var fiveHourPct: CGFloat? {
+        switch state.statusBarMode {
+        case .planLimits:    return state.fiveHourLimitPercent >= 0 ? CGFloat(state.fiveHourLimitPercent) : nil
+        case .estimatedCost: return state.fiveHourCostCap > 0 ? CGFloat(min(1, max(0, state.fiveHourCostUSD / state.fiveHourCostCap))) : nil
+        case .off:           return nil
+        }
+    }
+    private var weeklyPct: CGFloat? {
+        switch state.statusBarMode {
+        case .planLimits:    return state.weeklyLimitPercent >= 0 ? CGFloat(state.weeklyLimitPercent) : nil
+        case .estimatedCost: return state.weeklyCostCap > 0 ? CGFloat(min(1, max(0, state.weeklyCostUSD / state.weeklyCostCap))) : nil
+        case .off:           return nil
+        }
+    }
+
+    private func tint(for pct: CGFloat) -> Color {
+        switch pct {
+        case ..<0.6:  return Color(red: 0.39, green: 0.70, blue: 0.93)
+        case ..<0.85: return .orange
+        default:      return .red
+        }
+    }
+
+    private struct BarWidget: View {
+        let label: String
+        let pct: CGFloat?       // nil = no data yet ("—")
+        let tint: Color
+
+        var body: some View {
+            HStack(spacing: 5) {
+                Text(label)
+                    .font(.system(size: 9, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.35))
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.10)).frame(width: 52, height: 3)
+                    Capsule().fill(tint.opacity(0.9)).frame(width: 52 * (pct ?? 0), height: 3)
+                }
+                Text(pct.map { "\(Int(($0 * 100).rounded()))%" } ?? "—")
+                    .font(.system(size: 9, weight: .semibold, design: .rounded).monospacedDigit())
+                    .foregroundColor(.white.opacity(0.65))
+            }
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            if state.statusBarMode != .off {
+                BarWidget(label: "5H", pct: fiveHourPct, tint: tint(for: fiveHourPct ?? 0))
+                separator
+                BarWidget(label: "WK", pct: weeklyPct, tint: tint(for: weeklyPct ?? 0))
+            }
+        }
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private var separator: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.10))
+            .frame(width: 1, height: 11)
+            .padding(.horizontal, 14)
+    }
+}
+
 // MARK: - Idle
 
 private struct IdlePill: View {
@@ -550,13 +630,43 @@ private struct IdlePill: View {
                 }
             }
 
-            // Row 2 — last Claude message when idle (detail stripped into Row 3 when working)
-            if !state.isClaudeWorking && !state.lastClaudeResponse.isEmpty {
-                Text(state.lastClaudeResponse)
-                    .font(.system(size: 10, design: .rounded))
-                    .foregroundColor(.white.opacity(0.55))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+            // Row 2 — model · version · effort · context bar (always visible)
+            let (modelName, modelVer) = ClaudeUsageReader.modelNameVersion(state.currentModel)
+            HStack(spacing: 5) {
+                if !modelName.isEmpty {
+                    Text(modelName)
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.65))
+                    if !modelVer.isEmpty {
+                        Text(modelVer)
+                            .font(.system(size: 10, design: .rounded))
+                            .foregroundColor(.white.opacity(0.35))
+                    }
+                    if !state.currentEffort.isEmpty {
+                        Circle()
+                            .fill(Color.white.opacity(0.18))
+                            .frame(width: 2.5, height: 2.5)
+                    }
+                }
+                if !state.currentEffort.isEmpty {
+                    Text("\(state.currentEffort) effort")
+                        .font(.system(size: 10, design: .rounded))
+                        .foregroundColor(.white.opacity(0.35))
+                }
+                Spacer(minLength: 0)
+                // Context window bar — always visible in expanded view
+                let ctxPct = CGFloat(min(1, max(0, state.currentContextPercent)))
+                let ctxTint: Color = ctxPct < 0.6 ? .blue : ctxPct < 0.85 ? .orange : .red
+                Text("CTX")
+                    .font(.system(size: 9, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.35))
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.12)).frame(width: 28, height: 3)
+                    Capsule().fill(ctxTint.opacity(0.9)).frame(width: 28 * ctxPct, height: 3)
+                }
+                Text("\(Int((ctxPct * 100).rounded()))%")
+                    .font(.system(size: 9, design: .rounded).monospacedDigit())
+                    .foregroundColor(.white.opacity(0.45))
             }
 
             // Row 3 — command strip, visible only while Claude is active
@@ -565,17 +675,19 @@ private struct IdlePill: View {
                 CommandLineBlock(icon: parsed.icon, text: parsed.text)
             }
 
-            // Single-session context + cost meter (multi-session shows it per row).
-            if isOpen && !hasMultipleSessions
-                && (state.currentContextPercent > 0 || state.currentCostUSD > 0) {
-                ContextCostBar(percent: state.currentContextPercent,
-                               cost: state.currentCostUSD,
-                               model: state.currentModel,
-                               costCap: state.sessionCostCap)
-            }
-
             if isOpen && hasMultipleSessions {
                 SessionsList(state: state, pulsePhase: pulsePhase)
+            }
+
+            // Persistent notch: append the status bar row so it's visible even
+            // though the collapsed state (where it normally lives) is inactive.
+            if state.persistentNotchDisplay {
+                Rectangle()
+                    .fill(Color.white.opacity(0.06))
+                    .frame(height: 0.5)
+                    .padding(.horizontal, -14)
+                StatusBarRow(state: state)
+                    .padding(.horizontal, -14)
             }
         }
         .onAppear {

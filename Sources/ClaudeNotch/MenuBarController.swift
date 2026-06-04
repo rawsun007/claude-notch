@@ -24,6 +24,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var soundMenu: NSMenu!
     private var costBudgetItem: NSMenuItem!
     private var costBudgetMenu: NSMenu!
+    private var statusBarItem: NSMenuItem!
+    private var statusBarMenu: NSMenu!
     private var touchIDItem: NSMenuItem?   // only when this Mac has biometrics
     private var notifyMirrorItem: NSMenuItem!
     // Keep-open row views for the Sound submenu — clicking these does not
@@ -197,6 +199,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         costBudgetItem = NSMenuItem(title: "Cost Budget", action: nil, keyEquivalent: "")
         costBudgetItem.submenu = costBudgetMenu
         menu.addItem(costBudgetItem)
+
+        // Status Bar submenu: what the bottom bar shows + context-window override.
+        statusBarMenu = NSMenu()
+        statusBarItem = NSMenuItem(title: "Status Bar", action: nil, keyEquivalent: "")
+        statusBarItem.submenu = statusBarMenu
+        menu.addItem(statusBarItem)
 
         menu.addItem(.separator())
 
@@ -662,6 +670,30 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshCostBudgetMenu()
     }
 
+    @objc private func setFiveHourCapAction(_ sender: NSMenuItem) {
+        state.setFiveHourCostCap(Double(sender.tag))
+        refreshStatusBarMenu()
+    }
+
+    @objc private func setWeeklyCapAction(_ sender: NSMenuItem) {
+        state.setWeeklyCostCap(Double(sender.tag))
+        refreshStatusBarMenu()
+    }
+
+    // Status-bar mode. tag: 0 = plan limits, 1 = estimated $, 2 = off.
+    @objc private func setStatusBarModeAction(_ sender: NSMenuItem) {
+        let mode: StatusBarMode = sender.tag == 1 ? .estimatedCost : (sender.tag == 2 ? .off : .planLimits)
+        state.setStatusBarMode(mode)
+        refreshStatusBarMenu()
+    }
+
+    // Context-window override. tag: 0 = auto, 1 = 200K, 2 = 1M.
+    @objc private func setContextWindowModeAction(_ sender: NSMenuItem) {
+        let mode: ContextWindowMode = sender.tag == 1 ? .w200k : (sender.tag == 2 ? .w1M : .auto)
+        state.setContextWindowMode(mode)
+        refreshStatusBarMenu()
+    }
+
     @objc private func togglePersistentNotchDisplay() {
         state.setPersistentNotchDisplay(!state.persistentNotchDisplay)
         refreshPrefs()
@@ -695,6 +727,84 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshSnoozeMenu()
         refreshSoundMenu()
         refreshCostBudgetMenu()
+        refreshStatusBarMenu()
+    }
+
+    private func refreshStatusBarMenu() {
+        statusBarMenu.removeAllItems()
+        let mn = ClaudeUsageReader.fmtMoney
+
+        func header(_ s: String) {
+            let mi = NSMenuItem(title: s, action: nil, keyEquivalent: "")
+            mi.isEnabled = false
+            statusBarMenu.addItem(mi)
+        }
+
+        // Title reflects the active mode.
+        let modeName: String
+        switch state.statusBarMode {
+        case .planLimits:    modeName = "Plan limits"
+        case .estimatedCost: modeName = "Estimated $"
+        case .off:           modeName = "Off"
+        }
+        statusBarItem.title = "Status Bar: \(modeName)"
+
+        header("Bottom bar shows")
+        let modes: [(String, Int, Bool)] = [
+            ("Plan limits (real 5h / weekly usage)", 0, state.statusBarMode == .planLimits),
+            ("Estimated $ spent", 1, state.statusBarMode == .estimatedCost),
+            ("Off", 2, state.statusBarMode == .off),
+        ]
+        for (label, tag, on) in modes {
+            let mi = NSMenuItem(title: label, action: #selector(setStatusBarModeAction(_:)), keyEquivalent: "")
+            mi.target = self
+            mi.tag = tag
+            mi.state = on ? .on : .off
+            statusBarMenu.addItem(mi)
+        }
+        if state.statusBarMode == .planLimits {
+            let note = NSMenuItem(title: "  needs the status-line forwarder (auto-installed)", action: nil, keyEquivalent: "")
+            note.isEnabled = false
+            statusBarMenu.addItem(note)
+        }
+
+        // $ caps only matter in estimated-cost mode.
+        if state.statusBarMode == .estimatedCost {
+            statusBarMenu.addItem(.separator())
+            func caps(_ title: String, current: Double, action: Selector, presets: [Int]) {
+                header(title)
+                for dollars in [0] + presets {
+                    let mi = NSMenuItem(title: dollars == 0 ? "Off" : "$\(dollars)", action: action, keyEquivalent: "")
+                    mi.target = self
+                    mi.tag = dollars
+                    mi.state = Int(current.rounded()) == dollars ? .on : .off
+                    statusBarMenu.addItem(mi)
+                }
+            }
+            caps("5-hour cap (~\(mn(state.fiveHourCostUSD)) so far)",
+                 current: state.fiveHourCostCap, action: #selector(setFiveHourCapAction(_:)),
+                 presets: [5, 10, 25, 50, 100])
+            statusBarMenu.addItem(.separator())
+            caps("Weekly cap (~\(mn(state.weeklyCostUSD)) so far)",
+                 current: state.weeklyCostCap, action: #selector(setWeeklyCapAction(_:)),
+                 presets: [25, 50, 100, 250, 500])
+        }
+
+        // Context-window denominator override (affects the context bar).
+        statusBarMenu.addItem(.separator())
+        header("Context window")
+        let windows: [(String, Int, Bool)] = [
+            ("Auto (detect from model)", 0, state.contextWindowMode == .auto),
+            ("200K", 1, state.contextWindowMode == .w200k),
+            ("1M", 2, state.contextWindowMode == .w1M),
+        ]
+        for (label, tag, on) in windows {
+            let mi = NSMenuItem(title: label, action: #selector(setContextWindowModeAction(_:)), keyEquivalent: "")
+            mi.target = self
+            mi.tag = tag
+            mi.state = on ? .on : .off
+            statusBarMenu.addItem(mi)
+        }
     }
 
     private func refreshCostBudgetMenu() {
