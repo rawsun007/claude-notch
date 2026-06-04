@@ -28,14 +28,19 @@ final class EventServer {
     // Throttle the daily total-cost recompute (parses every recent transcript).
     private var todayCostLastComputed = Date.distantPast
     private let todayCostLock = NSLock()
+    // Steady refresh so the daily figure the budget enforcer reads never goes
+    // stale. Without it, todayCostUSD only updated as a side-effect of Stop /
+    // activity hooks, so right after a relaunch (e.g. an update) it sat at 0
+    // and enforcement was blind until the next turn ended.
+    private var dailyCostTimer: DispatchSourceTimer?
 
     /// Recompute today's total estimated cost across all sessions (heavy: reads
     /// every recent transcript) and push it for the daily budget check. Throttled
     /// to once a minute, off the main thread.
-    private func maybePushTodayCost() {
+    private func maybePushTodayCost(force: Bool = false) {
         let now = Date()
         let go = todayCostLock.withLock { () -> Bool in
-            if now.timeIntervalSince(todayCostLastComputed) < 60 { return false }
+            if !force, now.timeIntervalSince(todayCostLastComputed) < 25 { return false }
             todayCostLastComputed = now
             return true
         }
@@ -159,6 +164,15 @@ final class EventServer {
         l.start(queue: queue)
         listener = l
         NSLog("ClaudeNotch listening on 127.0.0.1:\(port)")
+
+        // Keep today's cost fresh for the budget enforcer even when no hooks are
+        // firing. First tick at +12s (a grace window after launch) then every
+        // 30s; `force` bypasses the recompute throttle.
+        let t = DispatchSource.makeTimerSource(queue: workQueue)
+        t.schedule(deadline: .now() + 12, repeating: 30)
+        t.setEventHandler { [weak self] in self?.maybePushTodayCost(force: true) }
+        t.resume()
+        dailyCostTimer = t
     }
 
     private func accept(_ conn: NWConnection) {
