@@ -48,8 +48,12 @@ final class EventServer {
         workQueue.async { [weak self] in
             guard let self else { return }
             let usage = ClaudeUsageReader.compute()
+            let effort = ClaudeUsageReader.effortFromSettings()
             Task { @MainActor [weak state = self.state] in
                 state?.noteTodayCost(usage.today.costUSD)
+                state?.noteRollingCosts(fiveHour: usage.fiveHour.costUSD,
+                                        weekly: usage.week.costUSD)
+                state?.noteEffort(effort)
             }
         }
     }
@@ -75,7 +79,7 @@ final class EventServer {
             guard let self, let m = ClaudeUsageReader.sessionMeter(transcriptPath: path) else { return }
             Task { @MainActor [weak state = self.state] in
                 state?.noteSessionMeter(sessionId: sessionId,
-                                        contextPercent: m.contextPercent,
+                                        contextTokens: m.contextTokens,
                                         costUSD: m.costUSD,
                                         model: m.model)
             }
@@ -165,6 +169,18 @@ final class EventServer {
         listener = l
         NSLog("ClaudeNotch listening on 127.0.0.1:\(port)")
 
+        // Seed model and effort immediately at launch so Row 2 is populated
+        // before the first hook fires (no wait for the 12-second timer below).
+        workQueue.async { [weak self] in
+            guard let self else { return }
+            let model = ClaudeUsageReader.lastUsedModel()
+            let effort = ClaudeUsageReader.effortFromSettings()
+            Task { @MainActor [weak state = self.state] in
+                if !model.isEmpty { state?.noteStartupModel(model) }
+                state?.noteEffort(effort)
+            }
+        }
+
         // Keep today's cost fresh for the budget enforcer even when no hooks are
         // firing. First tick at +12s (a grace window after launch) then every
         // 30s; `force` bypasses the recompute throttle.
@@ -239,7 +255,9 @@ final class EventServer {
         // Every hook payload tells us about a project (cwd) — record it, except
         // for SessionEnd, which exists only to REMOVE a session (recording it
         // here would just re-add the session we're about to drop).
-        if path != "/sessionend" {
+        // /statusline is a pure data feed (fires on every status render); it must
+        // not drive session lifecycle or it would resurrect ended sessions.
+        if path != "/sessionend", path != "/statusline" {
             recordSessionMetadata(payload: payload)
         }
         let sessionId = (payload["session_id"] as? String) ?? ""
@@ -271,6 +289,9 @@ final class EventServer {
             sendOK(on: conn)
         case "/compact":
             handleCompact(payload: payload)
+            sendOK(on: conn)
+        case "/statusline":
+            handleStatusLine(payload: payload)
             sendOK(on: conn)
         case "/prompt":
             handlePrompt(payload: payload)
@@ -356,6 +377,32 @@ final class EventServer {
             // Refresh the context/cost meter as the turn grows, but not on every
             // tool call — the parse reads the whole transcript.
             pushSessionMeter(transcriptPath: path, sessionId: sessionId, throttle: 4)
+        }
+    }
+
+    /// StatusLine feed: Claude Code passes authoritative context-window and
+    /// plan-limit (5h / weekly) usage percentages to its statusLine command on
+    /// stdin. Our forwarder relays them here — the only local source of real
+    /// plan-limit usage. Numbers arrive as 0...100 (or absent).
+    private func handleStatusLine(payload: [String: Any]) {
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let model = (payload["model"] as? String) ?? ""
+        func num(_ key: String) -> Double? {
+            if let d = payload[key] as? Double { return d }
+            if let i = payload[key] as? Int { return Double(i) }
+            if let s = payload[key] as? String, let d = Double(s) { return d }
+            return nil
+        }
+        let contextPct = num("context_pct")
+        let fiveHourPct = num("five_hour_pct")
+        let sevenDayPct = num("seven_day_pct")
+        // Nothing usable — don't churn the UI.
+        guard contextPct != nil || fiveHourPct != nil || sevenDayPct != nil else { return }
+        Task { @MainActor [weak state] in
+            state?.noteStatusLine(sessionId: sessionId, model: model,
+                                  contextPct: contextPct,
+                                  fiveHourPct: fiveHourPct,
+                                  sevenDayPct: sevenDayPct)
         }
     }
 

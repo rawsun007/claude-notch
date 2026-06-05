@@ -17,9 +17,13 @@ enum Persistence {
         var lastDigestDate: String? = nil
         var sessionCostCap: Double? = nil
         var dailyCostCap: Double? = nil
+        var fiveHourCostCap: Double? = nil
+        var weeklyCostCap: Double? = nil
         var requireTouchID: Bool? = nil
         var mirrorToNotificationCenter: Bool? = nil
         var enforceBudget: Bool? = nil
+        var statusBarItems: [String]? = nil
+        var contextWindowMode: String? = nil
     }
 
     static let storeURL: URL = {
@@ -68,9 +72,13 @@ extension Persistence.Snapshot {
             lastDigestDate: try? c.decode(String.self, forKey: .lastDigestDate),
             sessionCostCap: try? c.decode(Double.self, forKey: .sessionCostCap),
             dailyCostCap: try? c.decode(Double.self, forKey: .dailyCostCap),
+            fiveHourCostCap: try? c.decode(Double.self, forKey: .fiveHourCostCap),
+            weeklyCostCap: try? c.decode(Double.self, forKey: .weeklyCostCap),
             requireTouchID: try? c.decode(Bool.self, forKey: .requireTouchID),
             mirrorToNotificationCenter: try? c.decode(Bool.self, forKey: .mirrorToNotificationCenter),
-            enforceBudget: try? c.decode(Bool.self, forKey: .enforceBudget)
+            enforceBudget: try? c.decode(Bool.self, forKey: .enforceBudget),
+            statusBarItems: try? c.decode([String].self, forKey: .statusBarItems),
+            contextWindowMode: try? c.decode(String.self, forKey: .contextWindowMode)
         )
     }
 }

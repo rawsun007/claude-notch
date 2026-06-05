@@ -48,6 +48,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("ClaudeNotch: failed to start event server: \(error)")
         }
 
+        // Auto-migrate already-installed users to the statusLine forwarder (the
+        // source of authoritative context-% and real 5h/weekly plan-limit usage)
+        // without making them re-run Setup. install() is idempotent, backs up
+        // settings.json, and chains any existing statusLine.
+        if HookInstaller.isInstalled && !HookInstaller.statusLineWired {
+            DispatchQueue.global(qos: .utility).async {
+                try? HookInstaller.install()
+            }
+        }
+
         if OnboardingWindowController.shouldAutoShow {
             // Defer slightly so the menu bar icon appears first — feels less
             // abrupt than the window jumping up at the exact same moment.

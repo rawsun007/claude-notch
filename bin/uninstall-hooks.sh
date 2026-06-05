@@ -10,7 +10,13 @@ TS=$(date +%s)
 BACKUP="$SETTINGS.before-claudenotch-uninstall.$TS"
 cp "$SETTINGS" "$BACKUP"
 
-jq '
+# Restore the user's original statusLine (captured at install time). If there
+# was none, drop our forwarder entry entirely.
+INNER="$HOME/.claudenotch/bin/statusline-inner.cmd"
+PRIOR_STATUSLINE=""
+[ -f "$INNER" ] && PRIOR_STATUSLINE=$(cat "$INNER")
+
+jq --arg prior "$PRIOR_STATUSLINE" '
 def strip_event(arr):
     (arr // []) | map(
         select(
@@ -18,6 +24,13 @@ def strip_event(arr):
               | (contains("claudenotch") or contains(".claudenotch")) | not)
         )
     ) ;
+
+# Restore (or remove) our statusLine forwarder first.
+( if ((.statusLine.command // "") | contains("claudenotch-statusline.sh")) then
+    ( if ($prior | length) > 0
+      then .statusLine = {type: "command", command: $prior}
+      else del(.statusLine) end )
+  else . end ) |
 
 .hooks = (.hooks // {}) |
 .hooks.PreToolUse       = strip_event(.hooks.PreToolUse) |
