@@ -26,6 +26,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var costBudgetMenu: NSMenu!
     private var statusBarItem: NSMenuItem!
     private var statusBarMenu: NSMenu!
+    private var notchTitleItem: NSMenuItem!
+    private var notchTitleMenu: NSMenu!
     private var touchIDItem: NSMenuItem?   // only when this Mac has biometrics
     private var notifyMirrorItem: NSMenuItem!
     // Keep-open row views for the Sound submenu — clicking these does not
@@ -205,6 +207,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         statusBarItem = NSMenuItem(title: "Status Bar", action: nil, keyEquivalent: "")
         statusBarItem.submenu = statusBarMenu
         menu.addItem(statusBarItem)
+
+        // Notch Title submenu: what the first segment of the title shows.
+        notchTitleMenu = NSMenu()
+        notchTitleItem = NSMenuItem(title: "Notch Title", action: nil, keyEquivalent: "")
+        notchTitleItem.submenu = notchTitleMenu
+        menu.addItem(notchTitleItem)
 
         menu.addItem(.separator())
 
@@ -721,11 +729,60 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private func refreshPrefs() {
         persistentNotchItem.state = state.persistentNotchDisplay ? .on : .off
+        refreshNotchTitleMenu()
         refreshAutoApproveMenu()
         refreshSnoozeMenu()
         refreshSoundMenu()
         refreshCostBudgetMenu()
         refreshStatusBarMenu()
+    }
+
+    private func refreshNotchTitleMenu() {
+        notchTitleMenu.removeAllItems()
+        // Submenu title reflects the current choice (and the resolved label).
+        notchTitleItem.title = "Notch Title: \(state.entityName)"
+
+        func row(_ title: String, mode: NotchTitleMode, action: Selector) {
+            let mi = NSMenuItem(title: title, action: action, keyEquivalent: "")
+            mi.target = self
+            mi.state = state.notchTitleMode == mode ? .on : .off
+            notchTitleMenu.addItem(mi)
+        }
+        row("Claude", mode: .claude, action: #selector(setNotchTitleClaude))
+        row("Project name", mode: .project, action: #selector(setNotchTitleProject))
+        let customLabel = state.customNotchTitle.isEmpty
+            ? "Custom…"
+            : "Custom: \(state.customNotchTitle)…"
+        row(customLabel, mode: .custom, action: #selector(setNotchTitleCustom))
+    }
+
+    @objc private func setNotchTitleClaude() {
+        state.setNotchTitleMode(.claude)
+        refreshNotchTitleMenu()
+    }
+
+    @objc private func setNotchTitleProject() {
+        state.setNotchTitleMode(.project)
+        refreshNotchTitleMenu()
+    }
+
+    @objc private func setNotchTitleCustom() {
+        // Accessory apps must activate first or the modal lands behind everything.
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Custom notch title"
+        alert.informativeText = "Shown as the first part of the notch title (for example \"MyApp · ready\"). Leave blank to use \"Claude\"."
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        field.stringValue = state.customNotchTitle
+        field.placeholderString = "Claude"
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        if alert.runModal() == .alertFirstButtonReturn {
+            state.setCustomNotchTitle(field.stringValue)
+        }
+        refreshNotchTitleMenu()
     }
 
     private func refreshStatusBarMenu() {

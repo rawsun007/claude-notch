@@ -24,6 +24,8 @@ enum Persistence {
         var enforceBudget: Bool? = nil
         var statusBarItems: [String]? = nil
         var contextWindowMode: String? = nil
+        var notchTitleMode: String? = nil
+        var customNotchTitle: String? = nil
     }
 
     static let storeURL: URL = {
@@ -78,7 +80,9 @@ extension Persistence.Snapshot {
             mirrorToNotificationCenter: try? c.decode(Bool.self, forKey: .mirrorToNotificationCenter),
             enforceBudget: try? c.decode(Bool.self, forKey: .enforceBudget),
             statusBarItems: try? c.decode([String].self, forKey: .statusBarItems),
-            contextWindowMode: try? c.decode(String.self, forKey: .contextWindowMode)
+            contextWindowMode: try? c.decode(String.self, forKey: .contextWindowMode),
+            notchTitleMode: try? c.decode(String.self, forKey: .notchTitleMode),
+            customNotchTitle: try? c.decode(String.self, forKey: .customNotchTitle)
         )
     }
 }

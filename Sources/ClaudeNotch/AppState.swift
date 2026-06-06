@@ -357,9 +357,48 @@ final class CompletedTask: Identifiable, Equatable {
     }
 }
 
+/// What the first segment of the notch title shows. `.claude` is the default
+/// "Claude"; `.project` tracks the active project name; `.custom` is a
+/// user-typed label.
+enum NotchTitleMode: String, Codable, CaseIterable {
+    case claude, project, custom
+}
+
 @MainActor
 final class AppState: ObservableObject {
     static let statusEntityName = "Claude"
+
+    // Notch title personalisation (issue #6). Persisted.
+    @Published var notchTitleMode: NotchTitleMode = .claude
+    @Published var customNotchTitle: String = ""
+
+    /// The label shown as the first segment of the notch title, resolved from
+    /// the user's preference. Falls back to "Claude" when the chosen source is
+    /// empty (no active project, or a blank custom string).
+    var entityName: String {
+        switch notchTitleMode {
+        case .claude:
+            return Self.statusEntityName
+        case .project:
+            return currentProject.isEmpty ? Self.statusEntityName : currentProject
+        case .custom:
+            let t = customNotchTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            return t.isEmpty ? Self.statusEntityName : t
+        }
+    }
+
+    func setNotchTitleMode(_ mode: NotchTitleMode) {
+        notchTitleMode = mode
+        schedulePersist()
+    }
+
+    /// Set the custom label and switch to custom mode in one step (used by the
+    /// "Custom…" menu input). A blank string reverts to the Claude default.
+    func setCustomNotchTitle(_ s: String) {
+        customNotchTitle = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        notchTitleMode = customNotchTitle.isEmpty ? .claude : .custom
+        schedulePersist()
+    }
 
     @Published private(set) var mode: NotchMode = .idle
     @Published private(set) var permissionQueue: [PermissionRequest] = []
@@ -543,6 +582,8 @@ final class AppState: ObservableObject {
             self.statusBarItems = snapshot.statusBarItems?
                 .compactMap(StatusBarItem.init) ?? [.fiveHourLimit, .weeklyLimit]
             self.contextWindowMode = snapshot.contextWindowMode.flatMap(ContextWindowMode.init) ?? .auto
+            self.notchTitleMode = snapshot.notchTitleMode.flatMap(NotchTitleMode.init) ?? .claude
+            self.customNotchTitle = snapshot.customNotchTitle ?? ""
         } else {
             self.requireTouchID = BiometricAuth.isAvailable
         }
@@ -977,7 +1018,9 @@ final class AppState: ObservableObject {
             mirrorToNotificationCenter: mirrorToNotificationCenter,
             enforceBudget: enforceBudget,
             statusBarItems: statusBarItems.map(\.rawValue),
-            contextWindowMode: contextWindowMode.rawValue
+            contextWindowMode: contextWindowMode.rawValue,
+            notchTitleMode: notchTitleMode.rawValue,
+            customNotchTitle: customNotchTitle
         ))
     }
 
@@ -1207,7 +1250,7 @@ final class AppState: ObservableObject {
     }
 
     var idleTitle: String {
-        "\(Self.statusEntityName) · \(claudeActionStatus)"
+        "\(entityName) · \(claudeActionStatus)"
     }
 
     /// True while Claude is mid-task — drives the pulsing status dot. Idle,

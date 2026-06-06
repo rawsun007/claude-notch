@@ -520,8 +520,8 @@ private struct IdlePill: View {
 
     private var nameText: String {
         hasMultipleSessions
-            ? "\(AppState.statusEntityName) · \(state.activeSessionCount) sessions"
-            : AppState.statusEntityName
+            ? "\(state.entityName) · \(state.activeSessionCount) sessions"
+            : state.entityName
     }
 
     private var statusText: String {
