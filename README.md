@@ -66,6 +66,7 @@ system, and shows no Dock icon — just a small bell in your menu bar.
 | 🕘 **Activity history** | Click the notch for a timeline of everything you've allowed, denied, or answered. |
 | ✅ **Smart always-allow** | Approve a tool for the whole session, or just one exact command. Your rules stick around between launches. |
 | 📁 **Start Claude in any folder** | Launch Claude Code in any project straight from the menu bar, or jump back into a recent one. |
+| 🏷️ **Personalise the notch title** | Pick what the notch calls itself from the **Notch Title** menu — keep **Claude**, track the active **project name**, or type your own **custom** label. It updates live and sticks between launches. |
 
 ---
 
