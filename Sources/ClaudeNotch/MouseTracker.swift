@@ -21,13 +21,13 @@ final class MouseTracker {
     func start() {
         stop()
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved]) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.check() }
+            Task { @MainActor in self?.check() }
         }
         // Backup poll — catches the case where the mouse comes to rest inside
         // the hot zone without further movement, or moves into a region
         // global monitors don't fire for (e.g. while another app is active).
         timer = Timer.scheduledTimer(withTimeInterval: 0.20, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.check() }
+            Task { @MainActor in self?.check() }
         }
         check()
     }

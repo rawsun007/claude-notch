@@ -58,7 +58,7 @@ final class NotificationBridge: NSObject, PermissionMirroring {
         center.setNotificationCategories([safe, danger])
         center.delegate = self
         center.requestAuthorization(options: [.alert, .sound]) { [weak self] granted, _ in
-            Task { @MainActor [weak self] in self?.authorized = granted }
+            Task { @MainActor in self?.authorized = granted }
         }
     }
 
