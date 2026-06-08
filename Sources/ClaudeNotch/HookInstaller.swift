@@ -206,7 +206,8 @@ enum HookInstaller {
     /// Append our hook into an event's rule list without clobbering anything
     /// the user already has there. Idempotent: any previous ClaudeNotch entry
     /// for this event is removed first so reinstalling doesn't duplicate it.
-    private static func appendHook(to eventName: String, in hooks: inout [String: Any], matcher: String?) {
+    /// Internal (not private) so the non-destructive merge is unit-testable.
+    static func appendHook(to eventName: String, in hooks: inout [String: Any], matcher: String?) {
         let cmd: [String: Any] = ["type": "command", "command": shellQuote(hookEntryPoint)]
         var ourRule: [String: Any] = ["hooks": [cmd]]
         if let m = matcher { ourRule["matcher"] = m }
@@ -229,7 +230,7 @@ enum HookInstaller {
     /// Shell-quote a path for embedding in a settings.json command string.
     /// Claude Code executes the value via the user's shell, so unquoted
     /// spaces in $HOME would explode.
-    private static func shellQuote(_ s: String) -> String {
+    static func shellQuote(_ s: String) -> String {
         "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 }
