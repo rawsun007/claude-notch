@@ -101,7 +101,8 @@ final class EventServer {
     /// Best-effort: pull a task id out of TaskCreate's response, which Claude
     /// Code emits as either a dict ({id/taskId/...}) or a free-form string
     /// ("Created task 5: …"). First integer wins for the string case.
-    private func extractTaskId(from response: Any) -> String? {
+    /// Pure (no instance state) and `static` so it's unit-testable.
+    static func extractTaskId(from response: Any) -> String? {
         if let dict = response as? [String: Any] {
             for key in ["taskId", "task_id", "id"] {
                 if let v = dict[key] as? String, !v.isEmpty { return v }
@@ -201,7 +202,7 @@ final class EventServer {
             guard let self else { conn.cancel(); return }
             var buf = buffer
             if let data, !data.isEmpty { buf.append(data) }
-            if let req = self.parseRequest(buf) {
+            if let req = EventServer.parseRequest(buf) {
                 self.handle(req, on: conn)
                 return
             }
@@ -213,13 +214,17 @@ final class EventServer {
         }
     }
 
-    private struct HTTPRequest {
+    struct HTTPRequest {
         let method: String
         let path: String
         let body: Data
     }
 
-    private func parseRequest(_ data: Data) -> HTTPRequest? {
+    /// Parse a raw HTTP/1.1 request off the socket buffer. Returns nil when the
+    /// buffer doesn't yet hold a complete request (no header terminator, or the
+    /// body is shorter than Content-Length) so the caller keeps reading. Pure
+    /// and `static` so the untrusted-byte handling is unit-testable.
+    static func parseRequest(_ data: Data) -> HTTPRequest? {
         let crlfcrlf = Data([13, 10, 13, 10])
         guard let split = data.range(of: crlfcrlf) else { return nil }
         guard let headerString = String(data: data.subdata(in: 0..<split.lowerBound), encoding: .utf8) else { return nil }
@@ -336,7 +341,7 @@ final class EventServer {
             let subject = (input["subject"] as? String) ?? (input["description"] as? String) ?? ""
             var taskId  = (input["taskId"] as? String) ?? ""
             if taskId.isEmpty, let resp = payload["tool_response"], !(resp is NSNull) {
-                taskId = extractTaskId(from: resp) ?? ""
+                taskId = Self.extractTaskId(from: resp) ?? ""
             }
             recordTask(id: taskId, subject: subject)
             if !taskId.isEmpty {
@@ -827,7 +832,7 @@ final class EventServer {
 
 // MARK: - Formatting
 
-private func humanTitle(for tool: String) -> String {
+func humanTitle(for tool: String) -> String {
     switch tool {
     case "Bash":         return "Run shell command"
     case "Write":        return "Write file"
@@ -851,7 +856,7 @@ private func humanTitle(for tool: String) -> String {
     }
 }
 
-private func humanDetail(for tool: String, input: [String: Any]) -> String {
+func humanDetail(for tool: String, input: [String: Any]) -> String {
     switch tool {
     case "Bash":
         return (input["command"] as? String) ?? (input["description"] as? String) ?? ""
@@ -903,7 +908,7 @@ private func humanDetail(for tool: String, input: [String: Any]) -> String {
     }
 }
 
-private func detailFromHookPayload(_ payload: [String: Any]) -> String {
+func detailFromHookPayload(_ payload: [String: Any]) -> String {
     if let cwd = payload["cwd"] as? String, !cwd.isEmpty {
         return (cwd as NSString).lastPathComponent
     }
