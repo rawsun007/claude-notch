@@ -67,7 +67,7 @@ final class OnboardingState: ObservableObject {
         refresh()
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refresh() }
+            Task { @MainActor [weak self] in self?.refresh() }
         }
         // Re-check immediately when the user tabs back from System Settings.
         if activationObserver == nil {
@@ -76,7 +76,7 @@ final class OnboardingState: ObservableObject {
                 object: nil,
                 queue: .main
             ) { [weak self] _ in
-                Task { @MainActor in self?.refresh() }
+                Task { @MainActor [weak self] in self?.refresh() }
             }
         }
     }

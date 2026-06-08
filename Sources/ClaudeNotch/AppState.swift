@@ -992,7 +992,7 @@ final class AppState: ObservableObject {
     fileprivate func schedulePersist() {
         persistTimer?.invalidate()
         persistTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
-            Task { @MainActor in self?.persistNow() }
+            Task { @MainActor [weak self] in self?.persistNow() }
         }
     }
 
