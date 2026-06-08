@@ -74,6 +74,10 @@ struct LiveSession: Identifiable, Equatable {
     var fullResponse: String       // full reply text for the detail view
     var originatorBundleID: String?
     var lastHookAt: Date
+    // When this session first appeared. Stable for the session's lifetime, so
+    // the notch can order rows by it without them reshuffling every time a hook
+    // bumps `lastHookAt` (which happens every second for an active session).
+    var createdAt: Date
     // Task progress for the current task list. Tracked as sets (keyed by task
     // id) so duplicate Created/Completed events dedup themselves. In-memory
     // only — sessions aren't persisted, so no Codable concern.
@@ -1269,12 +1273,19 @@ final class AppState: ObservableObject {
     // MARK: - Live sessions
 
     /// Sessions that have fired a hook recently enough to still be considered
-    /// alive, newest first. Filters out anything past the project-stale window.
+    /// alive. Filters out anything past the project-stale window.
+    ///
+    /// Ordered by `createdAt` (oldest first), NOT `lastHookAt`: liveness is
+    /// gauged by lastHookAt but that field updates on every hook, so sorting by
+    /// it made the rows swap position every second whenever more than one
+    /// session was active. createdAt is fixed for a session's lifetime, so the
+    /// rows stay put and a new session simply appears at the bottom. The `id`
+    /// tiebreaker keeps the order deterministic if two sessions share a tick.
     var activeSessions: [LiveSession] {
         let cutoff = Date().addingTimeInterval(-projectStaleAfter)
         return sessions.values
             .filter { $0.lastHookAt > cutoff }
-            .sorted { $0.lastHookAt > $1.lastHookAt }
+            .sorted { ($0.createdAt, $0.id) < ($1.createdAt, $1.id) }
     }
 
     var activeSessionCount: Int { activeSessions.count }
@@ -1311,7 +1322,8 @@ final class AppState: ObservableObject {
             lastResponse: "",
             fullResponse: "",
             originatorBundleID: nil,
-            lastHookAt: Date()
+            lastHookAt: Date(),
+            createdAt: Date()
         )
         if authoritativeCwd, !normCwd.isEmpty {
             session.cwd = normCwd
