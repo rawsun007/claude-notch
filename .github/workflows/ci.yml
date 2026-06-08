@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Build & test
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      # macOS runners ship full Xcode, so XCTest is available here even though a
+      # Command-Line-Tools-only machine can't run `swift test` locally.
+      - name: Show toolchain
+        run: swift --version
+
+      - name: Build app target
+        run: swift build
+
+      - name: Run tests
+        run: swift test
