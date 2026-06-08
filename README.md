@@ -16,6 +16,7 @@ your editor — no more tabbing back to the terminal every few seconds.
 &nbsp;
 [![Website](https://img.shields.io/badge/Website-1a1a1a?style=for-the-badge)](https://rawsun007.github.io/claude-notch/)
 
+[![CI](https://github.com/rawsun007/claude-notch/actions/workflows/ci.yml/badge.svg)](https://github.com/rawsun007/claude-notch/actions/workflows/ci.yml)
 ![macOS 13+](https://img.shields.io/badge/macOS-13%2B-black?logo=apple)
 ![Apple Silicon + Intel](https://img.shields.io/badge/Apple_Silicon_%2B_Intel-✓-black)
 ![Built with Swift](https://img.shields.io/badge/Built_with-Swift-orange?logo=swift&logoColor=white)
