@@ -22,6 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             reason: "Notch overlay animations"
         )
 
+        installEditMenu()
+
         onboarding.appState = state
 
         notch = NotchWindowController(state: state)
@@ -76,5 +78,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+
+    /// Install a minimal main menu with a standard Edit menu. Without it, this
+    /// accessory (LSUIElement) app has no menu at all, so ⌘X / ⌘C / ⌘V / ⌘A are
+    /// never dispatched to the focused field: typing worked, but pasting into
+    /// the "type your own answer" field, the compose box, and the search field
+    /// did nothing because the key equivalents had no menu item to map them to
+    /// the cut:/copy:/paste:/selectAll: responder actions. The menu bar stays
+    /// hidden for an accessory app; only the key equivalents matter here.
+    private func installEditMenu() {
+        let mainMenu = NSMenu()
+
+        // Conventional first submenu (the app menu). Left empty — we only need
+        // its presence so the Edit menu sits where AppKit expects it.
+        let appItem = NSMenuItem()
+        appItem.submenu = NSMenu()
+        mainMenu.addItem(appItem)
+
+        let editItem = NSMenuItem()
+        let edit = NSMenu(title: "Edit")
+        editItem.submenu = edit
+        mainMenu.addItem(editItem)
+
+        edit.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        let redo = edit.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "z")
+        redo.keyEquivalentModifierMask = [.command, .shift]
+        edit.addItem(.separator())
+        edit.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+
+        NSApp.mainMenu = mainMenu
     }
 }
