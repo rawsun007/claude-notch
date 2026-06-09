@@ -60,7 +60,8 @@ enum ClaudeUsageReader {
             let avg = dailyAverageTokens
             return avg > 0 ? Double(today.total) / Double(avg) : 0
         }
-        var topHours: [Int] { hourCounts.sorted { $0.value > $1.value }.prefix(3).map(\.key) }
+        // Tie-break by hour so equal-count hours don't shuffle which three show.
+        var topHours: [Int] { hourCounts.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }.prefix(3).map(\.key) }
     }
 
     // Public per-million-token pricing (input, output, cacheWrite, cacheRead),

@@ -1047,7 +1047,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         row("Risky commands flagged:  \(s.dangerousFlagged)")
         row("Questions answered:  \(s.questionsAnswered)")
 
-        let top = s.toolCounts.sorted { $0.value > $1.value }.prefix(5)
+        let top = s.toolCounts.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }.prefix(5)
         if !top.isEmpty {
             insightsMenu.addItem(.separator())
             row("Most-used tools")
@@ -1136,7 +1136,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             row("Busiest:  " + u.topHours.map { ClaudeUsageReader.hourLabel($0) }.joined(separator: "  ·  "))
         }
 
-        let byModel = u.weekByModel.sorted { $0.value.total > $1.value.total }
+        let byModel = u.weekByModel.sorted { $0.value.total != $1.value.total ? $0.value.total > $1.value.total : $0.key < $1.key }
         if !byModel.isEmpty {
             claudeUsageMenu.addItem(.separator())
             row("By model (7 days)")
@@ -1147,7 +1147,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         // Sorted by cost (most expensive repos first), since that's what you
         // usually want to know.
-        let byProject = u.weekByProject.sorted { $0.value.costUSD > $1.value.costUSD }.prefix(6)
+        let byProject = u.weekByProject.sorted { $0.value.costUSD != $1.value.costUSD ? $0.value.costUSD > $1.value.costUSD : $0.key < $1.key }.prefix(6)
         if !byProject.isEmpty {
             claudeUsageMenu.addItem(.separator())
             row("Top projects by cost (7 days)")

@@ -1696,7 +1696,10 @@ final class AppState: ObservableObject {
         let currentAlive = (!currentSessionId.isEmpty && sessions[currentSessionId] != nil)
             || (currentSessionId.isEmpty && sessions.values.contains { $0.cwd == currentCwd })
         guard !currentAlive else { return }
-        if let newest = activeSessions.first {
+        // Pick the most-recently-active survivor explicitly by lastHookAt.
+        // (Don't use activeSessions.first — that list is ordered by createdAt for
+        // stable row display, so .first is the oldest session, not the newest.)
+        if let newest = activeSessions.max(by: { $0.lastHookAt < $1.lastHookAt }) {
             currentSessionId = newest.id
             currentCwd = newest.cwd
             currentProject = newest.project
