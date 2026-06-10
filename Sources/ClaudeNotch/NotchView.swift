@@ -327,6 +327,9 @@ struct NotchView: View {
                     onDisableEnforce: { state.disableEnforcementAndAllow() },
                     raiseCapTarget: req.budgetBlock.map { state.raisedCapTarget(for: $0) } ?? 0
                 )
+                // Fresh card per request id so the hold-to-confirm gesture
+                // state (pressing / progress) can't carry over to the next one.
+                .id(req.id)
                 .transition(.opacity)
             } else {
                 NotificationCard(request: req, onOpen: {
@@ -353,6 +356,10 @@ struct NotchView: View {
             }, onCancel: {
                 state.resolveCurrentQuestion(nil)
             })
+            // Key by request id so a queued question (e.g. from another
+            // concurrent session) gets a fresh card: its @State selections /
+            // "Other" text are rebuilt instead of leaking from the prior one.
+            .id(req.id)
             .transition(.opacity)
         case .compose:
             ComposeCard(state: state)
