@@ -99,8 +99,10 @@ case "$decision" in
     *) decision="ask" ;;
 esac
 
-reason=$(printf '%s' "$response" | jq -r '.reason // ""' 2>/dev/null | head -c 200)
-reason_json=$(printf '%s' "$reason" | jq -Rs . 2>/dev/null || printf '""')
+# Slice by Unicode codepoints (jq string slicing), NOT bytes. `head -c 200`
+# could cut a multibyte char in half, producing invalid UTF-8 that made jq -Rs
+# fail and dropped the whole deny reason (reachable for CJK/non-ASCII reasons).
+reason_json=$(printf '%s' "$response" | jq -c '((.reason // "")[0:200])' 2>/dev/null || printf '""')
 
 echo "[$(date '+%H:%M:%S')]   → emit $decision" >> "$LOG"
 
