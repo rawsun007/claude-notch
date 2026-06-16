@@ -49,38 +49,31 @@ TS=$(date +%s)
 BACKUP="$SETTINGS.before-claudenotch.$TS"
 cp "$SETTINGS" "$BACKUP"
 
+# Non-destructive merge (mirrors the in-app HookInstaller): keep whatever hooks
+# the user already has at each event, drop any prior ClaudeNotch entry so a
+# re-run doesn't duplicate it, then append ours. Previously this assigned each
+# event to ONLY our entry, which wiped out the user's existing hooks.
 jq --arg hook "$HOOK_Q" '
+    def add_hook(arr; with_matcher):
+        ((arr // []) | map(select(
+            ((.hooks // []) | map(.command // "") | join(" ")
+              | contains("claudenotch-hook.sh") | not)
+        )))
+        + [ if with_matcher
+            then { "matcher": ".*", "hooks": [{ "type": "command", "command": $hook }] }
+            else { "hooks": [{ "type": "command", "command": $hook }] }
+            end ];
     .hooks = (.hooks // {}) |
-    .hooks.PreToolUse = [
-        { "matcher": ".*", "hooks": [{ "type": "command", "command": $hook }] }
-    ] |
-    .hooks.PermissionRequest = [
-        { "matcher": ".*", "hooks": [{ "type": "command", "command": $hook }] }
-    ] |
-    .hooks.PostToolUse = [
-        { "matcher": ".*", "hooks": [{ "type": "command", "command": $hook }] }
-    ] |
-    .hooks.UserPromptSubmit = [
-        { "hooks": [{ "type": "command", "command": $hook }] }
-    ] |
-    .hooks.Notification = [
-        { "hooks": [{ "type": "command", "command": $hook }] }
-    ] |
-    .hooks.Stop = [
-        { "hooks": [{ "type": "command", "command": $hook }] }
-    ] |
-    .hooks.SessionEnd = [
-        { "matcher": ".*", "hooks": [{ "type": "command", "command": $hook }] }
-    ] |
-    .hooks.TaskCreated = [
-        { "hooks": [{ "type": "command", "command": $hook }] }
-    ] |
-    .hooks.TaskCompleted = [
-        { "hooks": [{ "type": "command", "command": $hook }] }
-    ] |
-    .hooks.PreCompact = [
-        { "hooks": [{ "type": "command", "command": $hook }] }
-    ]
+    .hooks.PreToolUse        = add_hook(.hooks.PreToolUse;        true)  |
+    .hooks.PermissionRequest = add_hook(.hooks.PermissionRequest; true)  |
+    .hooks.PostToolUse       = add_hook(.hooks.PostToolUse;       true)  |
+    .hooks.UserPromptSubmit  = add_hook(.hooks.UserPromptSubmit;  false) |
+    .hooks.Notification      = add_hook(.hooks.Notification;      false) |
+    .hooks.Stop              = add_hook(.hooks.Stop;              false) |
+    .hooks.SessionEnd        = add_hook(.hooks.SessionEnd;        true)  |
+    .hooks.TaskCreated       = add_hook(.hooks.TaskCreated;       false) |
+    .hooks.TaskCompleted     = add_hook(.hooks.TaskCompleted;     false) |
+    .hooks.PreCompact        = add_hook(.hooks.PreCompact;        false)
 ' "$SETTINGS" > "$SETTINGS.new"
 
 mv "$SETTINGS.new" "$SETTINGS"
