@@ -55,9 +55,14 @@ final class MouseTracker {
     /// The screen the notch is actually rendering on right now. Falls back
     /// to NSScreen.main if the window hasn't been placed yet.
     private func notchScreen() -> NSScreen {
+        // Never force-unwrap screens.first: when no display is attached (lid
+        // closed with no external, or mid display-reconfiguration) all of these
+        // are nil/empty and .first! would crash. Fall back to a default
+        // NSScreen like the rest of the app (NotchWindowController) does.
         window?.screen
             ?? NSScreen.main
-            ?? NSScreen.screens.first!
+            ?? NSScreen.screens.first
+            ?? NSScreen()
     }
 
     private func check() {
