@@ -14,7 +14,10 @@ final class HookInstallerMergeTests: XCTestCase {
 
     private func isOurs(_ rule: [String: Any]) -> Bool {
         let subs = (rule["hooks"] as? [[String: Any]]) ?? []
-        return subs.contains { ($0["command"] as? String)?.contains("claudenotch-hook.sh") == true }
+        return subs.contains {
+            ($0["type"] as? String == "http") &&
+            ($0["url"] as? String)?.contains("53127") == true
+        }
     }
 
     func testAppendIntoEmptyCreatesRuleWithMatcher() {
@@ -25,8 +28,9 @@ final class HookInstallerMergeTests: XCTestCase {
         XCTAssertEqual(list.count, 1)
         XCTAssertEqual(list[0]["matcher"] as? String, ".*")
         let subs = (list[0]["hooks"] as? [[String: Any]]) ?? []
-        XCTAssertEqual(subs.first?["type"] as? String, "command")
-        XCTAssertEqual((subs.first?["command"] as? String)?.contains("claudenotch-hook.sh"), true)
+        XCTAssertEqual(subs.first?["type"] as? String, "http")
+        XCTAssertEqual((subs.first?["url"] as? String)?.contains("53127"), true)
+        XCTAssertEqual(subs.first?["timeout"] as? Int, 30)
     }
 
     func testNilMatcherOmitsMatcherKey() {

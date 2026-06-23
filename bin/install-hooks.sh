@@ -37,9 +37,7 @@ case "$INSTALL_DIR" in
     *" "*) echo "WARNING: \$HOME contains spaces ($INSTALL_DIR). The wired command will be quoted." ;;
 esac
 
-HOOK="$INSTALL_DIR/claudenotch-hook.sh"
-quote() { printf '%s' "$1" | sed "s/'/'\\\\''/g; s/^/'/; s/\$/'/"; }
-HOOK_Q=$(quote "$HOOK")
+NOTCH_URL="http://127.0.0.1:53127/hook"
 
 SETTINGS="$HOME/.claude/settings.json"
 mkdir -p "$(dirname "$SETTINGS")"
@@ -50,18 +48,23 @@ BACKUP="$SETTINGS.before-claudenotch.$TS"
 cp "$SETTINGS" "$BACKUP"
 
 # Non-destructive merge (mirrors the in-app HookInstaller): keep whatever hooks
-# the user already has at each event, drop any prior ClaudeNotch entry so a
-# re-run doesn't duplicate it, then append ours. Previously this assigned each
-# event to ONLY our entry, which wiped out the user's existing hooks.
-jq --arg hook "$HOOK_Q" '
+# the user already has at each event, drop any prior ClaudeNotch entry (both
+# legacy command hooks and new HTTP hooks) so a re-run doesn't duplicate it,
+# then append ours. HTTP hooks POST the event JSON directly to the running app —
+# no shell scripts or trust prompts needed.
+jq --arg url "$NOTCH_URL" '
+    def is_ours(sub):
+        (sub.type == "command" and (sub.command // "" | contains("claudenotch-hook.sh")))
+        or
+        (sub.type == "http" and (sub.url // "" | contains("53127")));
+
     def add_hook(arr; with_matcher):
         ((arr // []) | map(select(
-            ((.hooks // []) | map(.command // "") | join(" ")
-              | contains("claudenotch-hook.sh") | not)
+            ((.hooks // []) | map(is_ours(.)) | any | not)
         )))
         + [ if with_matcher
-            then { "matcher": ".*", "hooks": [{ "type": "command", "command": $hook }] }
-            else { "hooks": [{ "type": "command", "command": $hook }] }
+            then { "matcher": ".*", "hooks": [{ "type": "http", "url": $url, "timeout": 30 }] }
+            else { "hooks": [{ "type": "http", "url": $url, "timeout": 30 }] }
             end ];
     .hooks = (.hooks // {}) |
     .hooks.PreToolUse        = add_hook(.hooks.PreToolUse;        true)  |
@@ -77,10 +80,10 @@ jq --arg hook "$HOOK_Q" '
 ' "$SETTINGS" > "$SETTINGS.new"
 
 mv "$SETTINGS.new" "$SETTINGS"
-echo "✓ Wired ClaudeNotch hooks (single-dispatcher) into $SETTINGS"
+echo "✓ Wired ClaudeNotch HTTP hooks into $SETTINGS"
 echo "  (backup: $BACKUP)"
 echo
-echo "  Trust prompt: Claude Code will ask 'trust this hook?' ONCE per project."
-echo "  Click 'Yes, and don't ask again for ... commands in /path/to/project'."
+echo "  HTTP hooks post directly to the running app — no trust prompts."
+echo "  ClaudeNotch must be running when Claude Code fires hooks."
 echo
 echo "  Uninstall: $INSTALL_DIR/uninstall-hooks.sh"

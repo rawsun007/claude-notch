@@ -30,14 +30,14 @@ enum HookInstaller {
         (installDir as NSString).appendingPathComponent("statusline-inner.cmd")
     }()
 
-    /// True when settings.json references our dispatcher AND the script
-    /// actually exists on disk. Either alone isn't enough — a wired entry
-    /// pointing at a missing script will just fail silently per-hook.
+    /// True when settings.json contains our HTTP hook URL (new-style) or our
+    /// dispatcher script (legacy command-hook style). HTTP hooks need no script
+    /// on disk — the server is the entry point.
     static var isInstalled: Bool {
-        guard FileManager.default.fileExists(atPath: hookEntryPoint) else { return false }
         guard let data = try? Data(contentsOf: URL(fileURLWithPath: settingsPath)),
               let s = String(data: data, encoding: .utf8) else { return false }
-        return s.contains("claudenotch-hook.sh")
+        if s.contains("127.0.0.1:53127") { return true }
+        return FileManager.default.fileExists(atPath: hookEntryPoint) && s.contains("claudenotch-hook.sh")
     }
 
     /// True when our statusLine forwarder is wired into settings.json. Lets the
@@ -203,22 +203,26 @@ enum HookInstaller {
         ]
     }
 
-    /// Append our hook into an event's rule list without clobbering anything
+    /// Append our HTTP hook into an event's rule list without clobbering anything
     /// the user already has there. Idempotent: any previous ClaudeNotch entry
-    /// for this event is removed first so reinstalling doesn't duplicate it.
+    /// (either legacy command hook or new HTTP hook) is removed first.
     /// Internal (not private) so the non-destructive merge is unit-testable.
     static func appendHook(to eventName: String, in hooks: inout [String: Any], matcher: String?) {
-        let cmd: [String: Any] = ["type": "command", "command": shellQuote(hookEntryPoint)]
-        var ourRule: [String: Any] = ["hooks": [cmd]]
+        let httpEntry: [String: Any] = ["type": "http", "url": "http://127.0.0.1:53127/hook", "timeout": 30]
+        var ourRule: [String: Any] = ["hooks": [httpEntry]]
         if let m = matcher { ourRule["matcher"] = m }
 
         var existingList = (hooks[eventName] as? [[String: Any]]) ?? []
         existingList.removeAll { rule in
             let subHooks = (rule["hooks"] as? [[String: Any]]) ?? []
             return subHooks.contains { sub in
-                if sub["type"] as? String == "command",
-                   let c = sub["command"] as? String {
-                    return c.contains("claudenotch-hook.sh")
+                if let type_ = sub["type"] as? String {
+                    if type_ == "command", let c = sub["command"] as? String {
+                        return c.contains("claudenotch-hook.sh")
+                    }
+                    if type_ == "http", let u = sub["url"] as? String {
+                        return u.contains("53127")
+                    }
                 }
                 return false
             }

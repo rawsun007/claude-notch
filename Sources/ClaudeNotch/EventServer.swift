@@ -273,6 +273,8 @@ final class EventServer {
         }
 
         switch path {
+        case "/hook":
+            handleUnifiedHook(payload: payload, on: conn)
         case "/permission":
             handleBlockingPermission(payload: payload, on: conn)
         case "/question":
@@ -816,10 +818,193 @@ final class EventServer {
         }
     }
 
+    // MARK: - HTTP hook unified endpoint
+
+    /// Single entry point for native HTTP hooks (`"type": "http"` in settings.json).
+    /// Claude Code POSTs the full event JSON here; we return hookSpecificOutput directly
+    /// instead of relying on the shell-script intermediaries to format it.
+    private func handleUnifiedHook(payload: [String: Any], on conn: NWConnection) {
+        let eventName = (payload["hook_event_name"] as? String) ?? ""
+        let toolName  = (payload["tool_name"] as? String) ?? ""
+
+        switch eventName {
+        case "PreToolUse":
+            switch toolName {
+            case "Grep", "Glob", "LS", "BashOutput", "KillShell":
+                sendHookOutput(["hookSpecificOutput": ["hookEventName": "PreToolUse",
+                                                       "permissionDecision": "ask"]], on: conn)
+            case "AskUserQuestion":
+                handleBlockingQuestionHTTP(payload: payload, on: conn)
+            default:
+                handleBlockingPermissionHTTP(payload: payload, on: conn)
+            }
+        case "PermissionRequest":
+            handleBlockingPermReqHTTP(payload: payload, on: conn)
+        case "PostToolUse":
+            handleActivity(payload: payload)
+            handlePostToolThinking(payload: payload)
+            sendOK(on: conn)
+        case "UserPromptSubmit":
+            handlePrompt(payload: payload)
+            sendOK(on: conn)
+        case "Notification":
+            handleNotification(payload: payload)
+            sendOK(on: conn)
+        case "Stop", "SubagentStop":
+            handleStop(payload: payload)
+            sendOK(on: conn)
+        case "SessionEnd":
+            handleSessionEnd(payload: payload)
+            sendOK(on: conn)
+        case "TaskCreated", "TaskCompleted":
+            var norm = payload
+            let tid = (payload["task_id"] as? String)
+                ?? (payload["taskId"] as? String)
+                ?? (payload["id"] as? String)
+                ?? ""
+            let sub = (payload["task_subject"] as? String)
+                ?? (payload["subject"] as? String)
+                ?? (payload["title"] as? String)
+                ?? (payload["task_description"] as? String)
+                ?? (payload["description"] as? String)
+                ?? ""
+            norm["event"] = eventName
+            norm["task_id"] = tid
+            norm["subject"] = sub
+            handleTask(payload: norm)
+            sendOK(on: conn)
+        case "PreCompact":
+            handleCompact(payload: payload)
+            sendOK(on: conn)
+        default:
+            sendOK(on: conn)
+        }
+    }
+
+    /// Shared wait: enqueue a permission card on the main actor and block on
+    /// workQueue until the user resolves it (or 285 s pass). Must be called
+    /// from workQueue.
+    private func awaitPermissionDecision(toolName: String, toolInput: [String: Any],
+                                         cwd: String) -> (PermissionDecision, String?) {
+        let title   = humanTitle(for: toolName)
+        let detail  = enrichedDetail(for: toolName, input: toolInput)
+        let preview = ToolPreviewParser.preview(for: toolName, input: toolInput)
+        let dangers = ToolPreviewParser.dangerReasons(for: toolName, input: toolInput)
+
+        let sem  = DispatchSemaphore(value: 0)
+        let lock = NSLock()
+        var dec: PermissionDecision = .ask
+        var rsn: String?
+
+        Task { @MainActor [weak state] in
+            guard let state else { sem.signal(); return }
+            let frontBID = Self.capturedOriginator(state: state)
+            state.enqueuePermission(PermissionRequest(
+                kind: .toolUse, title: title, detail: detail, toolName: toolName,
+                source: "Claude Code", cwd: cwd, originatorBundleID: frontBID,
+                preview: preview, dangerReasons: dangers,
+                resolver: { d, r in lock.withLock { dec = d; rsn = r }; sem.signal() }
+            ))
+        }
+        if sem.wait(timeout: .now() + .seconds(285)) == .timedOut { return (.ask, nil) }
+        return lock.withLock { (dec, rsn) }
+    }
+
+    /// PreToolUse via HTTP hook: returns hookSpecificOutput with permissionDecision.
+    private func handleBlockingPermissionHTTP(payload: [String: Any], on conn: NWConnection) {
+        let toolName  = (payload["tool_name"]  as? String)        ?? "tool"
+        let toolInput = (payload["tool_input"] as? [String: Any]) ?? [:]
+        let cwd       = (payload["cwd"]        as? String)        ?? ""
+        workQueue.async { [weak self] in
+            guard let self else { return }
+            let (final, reason) = self.awaitPermissionDecision(toolName: toolName, toolInput: toolInput, cwd: cwd)
+            var inner: [String: Any] = ["hookEventName": "PreToolUse", "permissionDecision": final.rawValue]
+            if final == .deny, let r = reason, !r.isEmpty { inner["permissionDecisionReason"] = String(r.prefix(200)) }
+            self.sendHookOutput(["hookSpecificOutput": inner], on: conn)
+        }
+    }
+
+    /// PermissionRequest via HTTP hook: returns hookSpecificOutput with decision.behavior.
+    private func handleBlockingPermReqHTTP(payload: [String: Any], on conn: NWConnection) {
+        let toolName  = (payload["tool_name"]  as? String)        ?? "tool"
+        let toolInput = (payload["tool_input"] as? [String: Any]) ?? [:]
+        let cwd       = (payload["cwd"]        as? String)        ?? ""
+        workQueue.async { [weak self] in
+            guard let self else { return }
+            let (final, _) = self.awaitPermissionDecision(toolName: toolName, toolInput: toolInput, cwd: cwd)
+            guard final != .ask else { self.sendOK(on: conn); return }
+            let behavior = (final == .allow) ? "allow" : "deny"
+            self.sendHookOutput(["hookSpecificOutput": [
+                "hookEventName": "PermissionRequest",
+                "decision": ["behavior": behavior],
+            ]], on: conn)
+        }
+    }
+
+    /// AskUserQuestion via HTTP hook: returns hookSpecificOutput deny+reason with answers.
+    private func handleBlockingQuestionHTTP(payload: [String: Any], on conn: NWConnection) {
+        let rawQs: [[String: Any]] = {
+            if let qs = payload["questions"] as? [[String: Any]] { return qs }
+            if let ti = payload["tool_input"] as? [String: Any],
+               let qs = ti["questions"] as? [[String: Any]] { return qs }
+            return []
+        }()
+        let cwd = (payload["cwd"] as? String) ?? ""
+        let parsed: [AskQuestion] = rawQs.compactMap { dict in
+            guard let q = dict["question"] as? String else { return nil }
+            let opts: [AskOption] = ((dict["options"] as? [[String: Any]]) ?? []).compactMap {
+                guard let label = $0["label"] as? String else { return nil }
+                return AskOption(label: label, description: ($0["description"] as? String) ?? "")
+            }
+            guard !opts.isEmpty else { return nil }
+            return AskQuestion(header: (dict["header"] as? String) ?? "", text: q,
+                               multiSelect: (dict["multiSelect"] as? Bool) ?? false, options: opts)
+        }
+        guard !parsed.isEmpty else { sendOK(on: conn); return }
+
+        let sem  = DispatchSemaphore(value: 0)
+        let lock = NSLock()
+        var answers: [[String]]?
+
+        Task { @MainActor [weak state] in
+            guard let state else { sem.signal(); return }
+            let frontBID = Self.capturedOriginator(state: state)
+            state.enqueueQuestion(QuestionRequest(
+                questions: parsed, source: "Claude Code", cwd: cwd,
+                originatorBundleID: frontBID,
+                resolver: { ans in lock.withLock { answers = ans }; sem.signal() }
+            ))
+        }
+
+        workQueue.async { [weak self] in
+            guard let self else { return }
+            if sem.wait(timeout: .now() + .seconds(285)) == .timedOut { self.sendOK(on: conn); return }
+            guard let ans = lock.withLock({ answers }) else { self.sendOK(on: conn); return }
+            let lines = zip(parsed, ans).map { q, picks -> String in
+                let h = q.header.isEmpty ? q.text : q.header
+                let picked = picks.filter { !$0.isEmpty }
+                return picked.isEmpty ? "  - \(h): (no preference)" : "  - \(h): \(picked.joined(separator: ", "))"
+            }
+            let reason = "[ClaudeNotch — user replied via the notch]\n\(lines.joined(separator: "\n"))\n\nUse these answers and continue."
+            self.sendHookOutput(["hookSpecificOutput": [
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": String(reason.prefix(2000)),
+            ]], on: conn)
+        }
+    }
+
     // MARK: - Response
 
     private func sendOK(on conn: NWConnection) {
         send(body: "{\"ok\":true}", on: conn)
+    }
+
+    private func sendHookOutput(_ dict: [String: Any], on conn: NWConnection) {
+        let body = (try? JSONSerialization.data(withJSONObject: dict))
+            .flatMap { String(data: $0, encoding: .utf8) }
+            ?? "{\"ok\":true}"
+        send(body: body, on: conn)
     }
 
     private func send(body: String, on conn: NWConnection) {
