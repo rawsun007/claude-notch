@@ -876,6 +876,12 @@ final class EventServer {
         case "PreCompact":
             handleCompact(payload: payload)
             sendOK(on: conn)
+        case "CwdChanged":
+            // recordSessionMetadata (called before routing in handle()) already
+            // invokes noteSession(cwd:sessionId:) with authoritativeCwd:true,
+            // which updates session.cwd, session.project, and currentCwd. No
+            // extra work needed here.
+            sendOK(on: conn)
         default:
             sendOK(on: conn)
         }
