@@ -166,6 +166,9 @@ enum HookInstaller {
         appendHook(to: "TaskCompleted", in: &hooks, matcher: nil)
         // Context compaction cue for the context meter.
         appendHook(to: "PreCompact", in: &hooks, matcher: nil)
+        // Subagent lifecycle: show spawned agents in the activity strip.
+        appendHook(to: "SubagentStart", in: &hooks, matcher: nil)
+        appendHook(to: "SubagentStop", in: &hooks, matcher: nil)
         settings["hooks"] = hooks
 
         // StatusLine: the only local source of authoritative context-% and real

@@ -40,8 +40,36 @@ case "$event" in
     Notification)
         printf '%s' "$input" | exec "$DIR/claudenotch-notify.sh"
         ;;
-    Stop|SubagentStop)
+    Stop)
         printf '%s' "$input" | exec "$DIR/claudenotch-stop.sh"
+        ;;
+    SubagentStart)
+        nc -z 127.0.0.1 53127 2>/dev/null || exit 0
+        command -v jq >/dev/null 2>&1 || exit 0
+        printf '%s' "$input" | jq -c '{
+            agent_type:      (.agent_type      // ""),
+            session_id:      (.session_id      // ""),
+            cwd:             (.cwd             // ""),
+            transcript_path: (.transcript_path // "")
+        }' | curl -s --max-time 2 -X POST \
+               -H 'Content-Type: application/json' \
+               --data-binary @- \
+               http://127.0.0.1:53127/subagentstart >/dev/null 2>&1 || true
+        exit 0
+        ;;
+    SubagentStop)
+        # Parent session is still running — go back to "thinking..." state
+        # instead of triggering a "Claude finished" notification for each agent.
+        nc -z 127.0.0.1 53127 2>/dev/null || exit 0
+        command -v jq >/dev/null 2>&1 || exit 0
+        printf '%s' "$input" | jq -c '{
+            cwd:        (.cwd        // ""),
+            session_id: (.session_id // "")
+        }' | curl -s --max-time 2 -X POST \
+               -H 'Content-Type: application/json' \
+               --data-binary @- \
+               http://127.0.0.1:53127/thinking >/dev/null 2>&1 || true
+        exit 0
         ;;
     SessionEnd)
         printf '%s' "$input" | exec "$DIR/claudenotch-sessionend.sh"

@@ -76,7 +76,9 @@ jq --arg url "$NOTCH_URL" '
     .hooks.SessionEnd        = add_hook(.hooks.SessionEnd;        true)  |
     .hooks.TaskCreated       = add_hook(.hooks.TaskCreated;       false) |
     .hooks.TaskCompleted     = add_hook(.hooks.TaskCompleted;     false) |
-    .hooks.PreCompact        = add_hook(.hooks.PreCompact;        false)
+    .hooks.PreCompact        = add_hook(.hooks.PreCompact;        false) |
+    .hooks.SubagentStart     = add_hook(.hooks.SubagentStart;     false) |
+    .hooks.SubagentStop      = add_hook(.hooks.SubagentStop;      false)
 ' "$SETTINGS" > "$SETTINGS.new"
 
 mv "$SETTINGS.new" "$SETTINGS"
