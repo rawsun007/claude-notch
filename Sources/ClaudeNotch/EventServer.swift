@@ -424,28 +424,22 @@ final class EventServer {
         }
     }
 
-    /// SubagentStart: a subagent was just spawned. Show its type in the
-    /// activity strip so the user knows a parallel agent is running.
+    /// SubagentStart: a subagent was just spawned. Increment the session's
+    /// runningAgentCount so the badge in the row persists through any tool
+    /// activity updates that would otherwise overwrite a plain label.
     private func handleSubagentStart(payload: [String: Any]) {
-        // HTTP hooks put agent_type at top level; legacy command-hook path
-        // shapes it as tool_input.subagent_type for the /subagentstart endpoint.
-        let agentType = (payload["agent_type"] as? String)
-            ?? ((payload["tool_input"] as? [String: Any])?["subagent_type"] as? String)
-            ?? ""
         let sessionId = (payload["session_id"] as? String) ?? ""
-        let label = agentType.isEmpty ? "Running agent" : "Agent: \(agentType)"
         Task { @MainActor [weak state] in
-            state?.noteActivity(String(label.prefix(80)), sessionId: sessionId)
+            state?.noteSubagentStarted(sessionId: sessionId)
         }
     }
 
-    /// SubagentStop: the subagent finished, but the parent session is still
-    /// running. Reset to "thinking..." so the next real activity overwrites
-    /// cleanly instead of leaving a stale agent label up.
+    /// SubagentStop: agent finished, parent session still running. Decrement
+    /// the count so the badge disappears once all agents are done.
     private func handleSubagentStop(payload: [String: Any]) {
         let sessionId = (payload["session_id"] as? String) ?? ""
         Task { @MainActor [weak state] in
-            state?.noteThinkingBetweenTools(sessionId: sessionId)
+            state?.noteSubagentStopped(sessionId: sessionId)
         }
     }
 

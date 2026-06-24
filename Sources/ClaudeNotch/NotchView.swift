@@ -779,6 +779,15 @@ private struct SessionsList: View {
                                 .foregroundColor(.white.opacity(0.9))
                                 .lineLimit(1)
                                 .truncationMode(.tail)
+                            if session.runningAgentCount > 0 {
+                                Text(session.runningAgentCount == 1 ? "1 agent" : "\(session.runningAgentCount) agents")
+                                    .font(.system(size: 9, weight: .medium, design: .rounded))
+                                    .foregroundColor(.purple.opacity(0.95))
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 2)
+                                    .background(Color.purple.opacity(0.18))
+                                    .cornerRadius(4)
+                            }
                             Spacer(minLength: 8)
                             if session.taskTotal > 0 {
                                 TaskMeter(done: session.taskDone, total: session.taskTotal)

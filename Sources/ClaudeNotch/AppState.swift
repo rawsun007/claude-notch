@@ -83,6 +83,10 @@ struct LiveSession: Identifiable, Equatable {
     // only — sessions aren't persisted, so no Codable concern.
     var createdTaskIds: Set<String> = []
     var completedTaskIds: Set<String> = []
+    // Live subagent count: incremented on SubagentStart, decremented on SubagentStop.
+    // Stays > 0 while any agent is still running, so the badge survives tool-activity
+    // updates that would otherwise overwrite a plain activity-label approach.
+    var runningAgentCount: Int = 0
 
     var taskTotal: Int { createdTaskIds.count }
     var taskDone: Int { completedTaskIds.count }
@@ -1120,6 +1124,18 @@ final class AppState: ObservableObject {
 
     /// PreCompact: context is about to be compacted. Flag the session so the UI
     /// can show a "compacting" cue; cleared by the next meter/activity update.
+    func noteSubagentStarted(sessionId: String = "") {
+        upsertSession(id: sessionId, cwd: currentCwd) { s in
+            s.runningAgentCount += 1
+        }
+    }
+
+    func noteSubagentStopped(sessionId: String = "") {
+        upsertSession(id: sessionId, cwd: currentCwd) { s in
+            s.runningAgentCount = max(0, s.runningAgentCount - 1)
+        }
+    }
+
     func noteCompacting(sessionId: String = "") {
         upsertSession(id: sessionId, cwd: currentCwd) { s in
             s.isCompacting = true
