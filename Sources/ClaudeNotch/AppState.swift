@@ -87,6 +87,7 @@ struct LiveSession: Identifiable, Equatable {
     // Stays > 0 while any agent is still running, so the badge survives tool-activity
     // updates that would otherwise overwrite a plain activity-label approach.
     var runningAgentCount: Int = 0
+    var toolCallCount: Int = 0
 
     var taskTotal: Int { createdTaskIds.count }
     var taskDone: Int { completedTaskIds.count }
@@ -121,6 +122,23 @@ struct HistoryEntry: Identifiable, Equatable, Codable {
     enum Outcome: Equatable, Codable {
         case allowed, denied, dismissed, answered(count: Int), info, dangerous
     }
+}
+
+/// Per-session summary archived when a session ends (Stop / SessionEnd / stale).
+/// Persisted so the history panel survives app restarts.
+struct SessionRecord: Identifiable, Codable {
+    var id: UUID = UUID()
+    let sessionKey: String   // session_id or normalized cwd
+    let project: String
+    let cwd: String
+    let startedAt: Date
+    var endedAt: Date?
+    var contextTokens: Int = 0
+    var costUSD: Double = 0
+    var toolCallCount: Int = 0
+    var model: String = ""
+
+    var duration: TimeInterval? { endedAt.map { $0.timeIntervalSince(startedAt) } }
 }
 
 /// Aggregate, all-time usage counters — accumulated locally and persisted to
@@ -341,6 +359,7 @@ final class PermissionRequest: Identifiable, Equatable {
     func mirror(_ req: PermissionRequest)
     func withdraw(_ id: UUID)
     func withdrawAll()
+    func sendCompletion(project: String, snippet: String)
 }
 
 final class CompletedTask: Identifiable, Equatable {
@@ -490,6 +509,7 @@ final class AppState: ObservableObject {
     // Global mirror of the current session's context + cost meter (for the
     // collapsed header). Per-session values live on each LiveSession.
     @Published private(set) var currentContextPercent: Double = 0
+    @Published private(set) var currentContextTokens: Int = 0
     @Published private(set) var currentCostUSD: Double = 0
     @Published private(set) var currentModel: String = ""
 
@@ -557,6 +577,11 @@ final class AppState: ObservableObject {
     @Published private(set) var history: [HistoryEntry] = []
     private let historyMax = 500
 
+    // Completed-session summaries (newest first, ring-buffered).
+    @Published private(set) var sessionHistory: [SessionRecord] = []
+    private let sessionHistoryMax = 200
+    private var archivedSessionKeys: Set<String> = []
+
     // After this many seconds without a hook, drop the activity line.
     private let activityStaleAfter: TimeInterval = 90
     // After this many seconds without a hook, also drop the project name
@@ -571,6 +596,8 @@ final class AppState: ObservableObject {
     init() {
         if let snapshot = Persistence.load() {
             self.history = snapshot.history
+            self.sessionHistory = snapshot.sessionHistory ?? []
+            self.archivedSessionKeys = Set(self.sessionHistory.map(\.sessionKey))
             self.allowRules = snapshot.allowRules
             self.recentProjects = snapshot.recentProjects
             self.autoApprove = snapshot.autoApprove ?? false
@@ -851,6 +878,7 @@ final class AppState: ObservableObject {
             let pct = ClaudeUsageReader.contextPercent(tokens: s.contextTokens, model: s.model, mode: mode)
             sessions[currentSessionId]?.contextPercent = pct
             currentContextPercent = pct
+            currentContextTokens = sessions[currentSessionId]?.contextTokens ?? 0
         }
         schedulePersist()
     }
@@ -862,17 +890,16 @@ final class AppState: ObservableObject {
         if let p = fiveHourPct { fiveHourLimitPercent = min(1, max(0, p / 100)) }
         if let p = sevenDayPct { weeklyLimitPercent = min(1, max(0, p / 100)) }
 
-        // Context: Claude Code's own number already accounts for the real window
-        // (1M vs 200K) — prefer it over the transcript estimate for this session.
-        guard let cp = contextPct else { return }
-        let pct = min(1, max(0, cp / 100))
+        // Model update is independent of contextPct — a status line may carry a
+        // model string but no context percentage (e.g. early in a session).
+        let pct = contextPct.map { min(1, max(0, $0 / 100)) }
         upsertSession(id: sessionId, cwd: currentCwd) { s in
-            s.contextPercent = pct
+            if let pct { s.contextPercent = pct }
             if !model.isEmpty { s.model = model }
         }
         let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
         guard isCurrent else { return }
-        currentContextPercent = pct
+        if let pct { currentContextPercent = pct }
         if !model.isEmpty { currentModel = model }
     }
 
@@ -1007,6 +1034,7 @@ final class AppState: ObservableObject {
     private func persistNow() {
         Persistence.save(.init(
             history: history,
+            sessionHistory: sessionHistory,
             allowRules: allowRules,
             recentProjects: recentProjects,
             // Don't persist a timed auto-approve as a permanent ON — would
@@ -1070,6 +1098,7 @@ final class AppState: ObservableObject {
         upsertSession(id: sessionId, cwd: currentCwd) { s in
             s.activity = label
             s.status = status
+            s.toolCallCount += 1
         }
         ensureStaleTimer()
     }
@@ -1118,6 +1147,7 @@ final class AppState: ObservableObject {
         let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
         guard isCurrent else { return }
         currentContextPercent = contextPercent
+        currentContextTokens = contextTokens
         currentCostUSD = costUSD
         if !model.isEmpty { currentModel = model }
     }
@@ -1145,7 +1175,7 @@ final class AppState: ObservableObject {
             s.contextTokens = 0
         }
         let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
-        if isCurrent { currentContextPercent = 0 }
+        if isCurrent { currentContextPercent = 0; currentContextTokens = 0 }
     }
 
     func noteUserPrompt(_ prompt: String, sessionId: String = "") {
@@ -1210,9 +1240,14 @@ final class AppState: ObservableObject {
     /// stops pulsing) without disturbing the other live sessions.
     func markSessionDone(cwd: String = "", sessionId: String = "") {
         guard !sessionId.isEmpty || !cwd.isEmpty || !currentCwd.isEmpty else { return }
-        upsertSession(id: sessionId, cwd: cwd.isEmpty ? currentCwd : cwd) { s in
+        let resolvedCwd = cwd.isEmpty ? currentCwd : cwd
+        upsertSession(id: sessionId, cwd: resolvedCwd) { s in
             s.status = s.lastResponse.isEmpty ? "done" : "last reply"
         }
+        let key: String
+        if !sessionId.isEmpty { key = sessionId }
+        else { var n = resolvedCwd; while n.count > 1, n.hasSuffix("/") { n.removeLast() }; key = n }
+        if let s = sessions[key] { archiveSession(s) }
     }
 
     // Statuses a session rests in once a turn ends — don't let late transcript
@@ -1305,6 +1340,10 @@ final class AppState: ObservableObject {
     }
 
     var activeSessionCount: Int { activeSessions.count }
+
+    var totalRunningAgentCount: Int {
+        sessions.values.reduce(0) { $0 + $1.runningAgentCount }
+    }
 
     var workingSessionCount: Int {
         activeSessions.filter { Self.isWorking(status: $0.status) }.count
@@ -1684,6 +1723,34 @@ final class AppState: ObservableObject {
         schedulePersist()
     }
 
+    private func archiveSession(_ session: LiveSession) {
+        guard !archivedSessionKeys.contains(session.id) else { return }
+        guard session.toolCallCount > 0 || !session.project.isEmpty else { return }
+        archivedSessionKeys.insert(session.id)
+        let record = SessionRecord(
+            sessionKey: session.id,
+            project: session.project.isEmpty ? "unnamed" : session.project,
+            cwd: session.cwd,
+            startedAt: session.createdAt,
+            endedAt: Date(),
+            contextTokens: session.contextTokens,
+            costUSD: session.sessionCostUSD,
+            toolCallCount: session.toolCallCount,
+            model: session.model
+        )
+        sessionHistory.insert(record, at: 0)
+        if sessionHistory.count > sessionHistoryMax {
+            sessionHistory = Array(sessionHistory.prefix(sessionHistoryMax))
+        }
+        schedulePersist()
+    }
+
+    func clearSessionHistory() {
+        sessionHistory.removeAll()
+        archivedSessionKeys.removeAll()
+        schedulePersist()
+    }
+
     private func ensureStaleTimer() {
         guard staleTimer == nil else { return }
         staleTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
@@ -1724,8 +1791,9 @@ final class AppState: ObservableObject {
             lastClaudeResponse = newest.lastResponse
             fullClaudeResponse = newest.fullResponse
             currentContextPercent = newest.contextPercent
+            currentContextTokens = newest.contextTokens
             currentCostUSD = newest.sessionCostUSD
-            currentModel = newest.model
+            if !newest.model.isEmpty { currentModel = newest.model }
         } else {
             currentSessionId = ""
             currentProject = ""
@@ -1735,6 +1803,7 @@ final class AppState: ObservableObject {
             claudeActionStatus = lastClaudeResponse.isEmpty ? "ready" : "last reply"
             lastHookAt = nil
             currentContextPercent = 0
+            currentContextTokens = 0
             currentCostUSD = 0
             currentModel = ""
         }
@@ -1749,6 +1818,7 @@ final class AppState: ObservableObject {
         while normCwd.count > 1, normCwd.hasSuffix("/") { normCwd.removeLast() }
         if !normCwd.isEmpty, sessions[normCwd] != nil { keys.append(normCwd) }
         guard !keys.isEmpty else { return }
+        for k in keys { if let s = sessions[k] { archiveSession(s) } }
         for k in keys { sessions.removeValue(forKey: k) }
         resyncCurrentSession()
         if sessions.isEmpty {
@@ -1764,6 +1834,7 @@ final class AppState: ObservableObject {
         let sessionCutoff = Date().addingTimeInterval(-projectStaleAfter)
         let dead = sessions.filter { isSessionDead($0.value, cutoff: sessionCutoff) }.map(\.key)
         if !dead.isEmpty {
+            for k in dead { if let s = sessions[k] { archiveSession(s) } }
             for k in dead { sessions.removeValue(forKey: k) }
             resyncCurrentSession()
             if sessions.isEmpty {
@@ -2004,6 +2075,11 @@ final class AppState: ObservableObject {
         ))
         playChime()
         recompute()
+        // Fire a native banner if the user has switched away from the notch.
+        if mirrorToNotificationCenter, !NSApp.isActive {
+            let project = (task.cwd as NSString).lastPathComponent
+            permissionMirror?.sendCompletion(project: project, snippet: task.detail)
+        }
     }
 
     func enqueueQuestion(_ req: QuestionRequest) {
