@@ -251,10 +251,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             .sink { [weak self] _, _, _ in self?.refreshStatusLine() }
             .store(in: &cancellables)
 
+        state.$sessions
+            .throttle(for: .milliseconds(500), scheduler: RunLoop.main, latest: true)
+            .sink { [weak self] _ in self?.refreshBadge() }
+            .store(in: &cancellables)
+
         refreshLoginItem()
         refreshPermissions()
         refreshRecentProjects()
         refreshStatusLine()
+        refreshBadge()
         refreshPrefs()
         refreshInsights()
         refreshClaudeUsage()
@@ -512,6 +518,20 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         } else {
             statusItem.title = "\(project) — \(activity)  (click to clear)"
             statusItem.isEnabled = true
+        }
+    }
+
+    private func refreshBadge() {
+        guard let button = item.button else { return }
+        let count = state.workingSessionCount
+        if count > 0 {
+            let str = NSAttributedString(string: " \(count)", attributes: [
+                .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold),
+                .foregroundColor: NSColor.labelColor
+            ])
+            button.attributedTitle = str
+        } else {
+            button.attributedTitle = NSAttributedString(string: "")
         }
     }
 

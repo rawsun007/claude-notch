@@ -6,6 +6,7 @@ import Foundation
 enum Persistence {
     struct Snapshot: Codable {
         var history: [HistoryEntry]
+        var sessionHistory: [SessionRecord]? = nil
         var allowRules: Set<AllowRule>
         var recentProjects: [String]
         var autoApprove: Bool? = nil
@@ -63,6 +64,7 @@ extension Persistence.Snapshot {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.init(
             history: (try? c.decode([HistoryEntry].self, forKey: .history)) ?? [],
+            sessionHistory: try? c.decode([SessionRecord].self, forKey: .sessionHistory),
             allowRules: (try? c.decode(Set<AllowRule>.self, forKey: .allowRules)) ?? [],
             recentProjects: (try? c.decode([String].self, forKey: .recentProjects)) ?? [],
             autoApprove: try? c.decode(Bool.self, forKey: .autoApprove),

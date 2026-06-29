@@ -115,6 +115,19 @@ final class NotificationBridge: NSObject, PermissionMirroring {
         guard Bundle.main.bundleIdentifier != nil else { return }
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     }
+
+    func sendCompletion(project: String, snippet: String) {
+        guard Bundle.main.bundleIdentifier != nil, authorized else { return }
+        let content = UNMutableNotificationContent()
+        content.title = project.isEmpty ? "Claude finished" : project
+        content.subtitle = project.isEmpty ? "" : "Claude finished"
+        if !snippet.isEmpty { content.body = String(snippet.prefix(200)) }
+        content.sound = .default
+        content.threadIdentifier = "claudenotch-done"
+        let req = UNNotificationRequest(identifier: UUID().uuidString,
+                                        content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(req)
+    }
 }
 
 extension NotificationBridge: UNUserNotificationCenterDelegate {

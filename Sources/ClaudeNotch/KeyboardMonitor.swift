@@ -110,6 +110,20 @@ final class KeyboardMonitor {
         let flags = event.flags
         let hasMods = flags.contains(.maskCommand) || flags.contains(.maskControl) || flags.contains(.maskAlternate)
 
+        // Global shortcut: ⌘⌥Space — toggle history panel from any app.
+        if keyCode == 49,
+           flags.contains(.maskCommand), flags.contains(.maskAlternate),
+           !flags.contains(.maskControl), !flags.contains(.maskShift) {
+            if state.isHistoryOpen {
+                state.closeHistory()
+            } else if !state.history.isEmpty || !state.sessionHistory.isEmpty {
+                state.openHistory()
+            } else {
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            return nil
+        }
+
         switch state.mode {
         case .autoInfo:
             if keyCode == 53 { state.dismissAutoInfo(); return nil }

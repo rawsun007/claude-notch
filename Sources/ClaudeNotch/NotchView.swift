@@ -622,6 +622,16 @@ private struct IdlePill: View {
                         ? 0.4 + 0.6 * (0.5 + 0.5 * sin(pulsePhase))
                         : 1.0)
                 statusLabelView
+                let agentCount = state.totalRunningAgentCount
+                if agentCount > 0 {
+                    Text(agentCount == 1 ? "1 agent" : "\(agentCount) agents")
+                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .foregroundColor(.purple.opacity(0.95))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.purple.opacity(0.18))
+                        .cornerRadius(4)
+                }
                 Spacer(minLength: 0)
                 if canShowHistory {
                     Button { state.openHistory() } label: {
@@ -667,19 +677,12 @@ private struct IdlePill: View {
                         .foregroundColor(.white.opacity(0.35))
                 }
                 Spacer(minLength: 0)
-                // Context window bar — always visible in expanded view
-                let ctxPct = CGFloat(min(1, max(0, state.currentContextPercent)))
-                let ctxTint: Color = ctxPct < 0.6 ? .blue : ctxPct < 0.85 ? .orange : .red
-                Text("CTX")
-                    .font(.system(size: 9, weight: .medium, design: .rounded))
-                    .foregroundColor(.white.opacity(0.35))
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.white.opacity(0.12)).frame(width: 28, height: 3)
-                    Capsule().fill(ctxTint.opacity(0.9)).frame(width: 28 * ctxPct, height: 3)
-                }
-                Text("\(Int((ctxPct * 100).rounded()))%")
-                    .font(.system(size: 9, design: .rounded).monospacedDigit())
-                    .foregroundColor(.white.opacity(0.45))
+                ContextCostBar(
+                    percent: state.currentContextPercent,
+                    cost: state.currentCostUSD,
+                    costCap: state.sessionCostCap,
+                    tokens: state.currentContextTokens
+                )
             }
 
             // Row 3 — command strip, visible only while Claude is active
@@ -807,7 +810,8 @@ private struct SessionsList: View {
                             ContextCostBar(percent: session.contextPercent,
                                            cost: session.sessionCostUSD,
                                            model: session.model,
-                                           costCap: state.sessionCostCap)
+                                           costCap: state.sessionCostCap,
+                                           tokens: session.contextTokens)
                                 .padding(.leading, 14)
                         }
                     }
@@ -865,9 +869,9 @@ struct ContextCostBar: View {
     let cost: Double        // cumulative USD
     var model: String = ""
     var costCap: Double = 0 // session budget; 0 = off. Tints the cost figure.
+    var tokens: Int = 0     // raw token count; 0 = omit token display
 
     private var clamped: CGFloat { min(1, max(0, CGFloat(percent))) }
-    /// Cost text color: warms toward red as the session nears/exceeds the cap.
     private var costColor: Color {
         guard costCap > 0 else { return .white.opacity(0.4) }
         if cost >= costCap { return .red.opacity(0.95) }
@@ -885,6 +889,22 @@ struct ContextCostBar: View {
         let m = ClaudeUsageReader.shortModel(model)
         return m == "unknown" || m.isEmpty ? "" : m
     }
+    private func fmtK(_ n: Int) -> String {
+        n >= 1000 ? "\(n / 1000)k" : "\(n)"
+    }
+    private var maxTokens: Int {
+        ClaudeUsageReader.contextWindow(forModel: model, tokens: tokens, mode: .auto)
+    }
+    private var tokenLabel: String {
+        guard tokens > 0 else { return "" }
+        return "\(fmtK(tokens)) / \(fmtK(maxTokens))"
+    }
+    private var tooltipText: String {
+        let base = "Context \(Int((percent * 100).rounded()))% full"
+        let tok  = tokens > 0 ? " · \(tokens.formatted()) / \(maxTokens.formatted()) tokens" : ""
+        let cost = cost > 0  ? " · est. \(ClaudeUsageReader.fmtMoney(cost)) this session" : ""
+        return base + tok + cost
+    }
 
     var body: some View {
         HStack(spacing: 5) {
@@ -894,19 +914,25 @@ struct ContextCostBar: View {
                     .foregroundColor(.white.opacity(0.4))
             }
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.white.opacity(0.12)).frame(width: 28, height: 3)
-                Capsule().fill(tint.opacity(0.9)).frame(width: 28 * clamped, height: 3)
+                Capsule().fill(Color.white.opacity(0.12)).frame(width: 36, height: 3)
+                Capsule().fill(tint.opacity(0.9)).frame(width: 36 * clamped, height: 3)
             }
-            Text("\(Int((percent * 100).rounded()))%")
-                .font(.system(size: 9, design: .rounded).monospacedDigit())
-                .foregroundColor(.white.opacity(0.45))
+            if !tokenLabel.isEmpty {
+                Text(tokenLabel)
+                    .font(.system(size: 9, design: .rounded).monospacedDigit())
+                    .foregroundColor(tint.opacity(0.85))
+            } else {
+                Text("\(Int((percent * 100).rounded()))%")
+                    .font(.system(size: 9, design: .rounded).monospacedDigit())
+                    .foregroundColor(.white.opacity(0.45))
+            }
             if cost > 0 {
                 Text(ClaudeUsageReader.fmtMoney(cost))
                     .font(.system(size: 9, design: .rounded).monospacedDigit())
                     .foregroundColor(costColor)
             }
         }
-        .help("Context window \(Int((percent * 100).rounded()))% full · est. \(ClaudeUsageReader.fmtMoney(cost)) this session")
+        .help(tooltipText)
     }
 }
 
@@ -1581,15 +1607,32 @@ private enum HistoryFilter: String, CaseIterable, Identifiable {
     }
 }
 
+private enum HistoryTab: String, CaseIterable {
+    case sessions = "Sessions"
+    case projects = "Projects"
+    case events   = "Events"
+}
+
+private struct ProjectStats: Identifiable {
+    let id: String          // project name
+    let project: String
+    let cwd: String
+    let sessionCount: Int
+    let totalCostUSD: Double
+    let totalTokens: Int
+    let totalToolCalls: Int
+    let totalDuration: TimeInterval
+    let lastSessionAt: Date
+}
+
 private struct HistoryCard: View {
     @ObservedObject var state: AppState
+    @State private var tab: HistoryTab = .sessions
     @State private var search = ""
     @State private var filter: HistoryFilter = .all
     @FocusState private var searchFocused: Bool
 
-    /// History narrowed by the active outcome filter + a case-insensitive
-    /// substring search across tool, title, detail, and project.
-    private var filtered: [HistoryEntry] {
+    private var filteredEvents: [HistoryEntry] {
         let q = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return state.history.filter { e in
             guard filter.matches(e) else { return false }
@@ -1601,11 +1644,45 @@ private struct HistoryCard: View {
         }
     }
 
+    private var filteredSessions: [SessionRecord] {
+        let q = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return state.sessionHistory }
+        return state.sessionHistory.filter {
+            $0.project.lowercased().contains(q) || $0.cwd.lowercased().contains(q)
+        }
+    }
+
+    private var allProjectStats: [ProjectStats] {
+        var grouped: [String: [SessionRecord]] = [:]
+        for r in state.sessionHistory { grouped[r.project, default: []].append(r) }
+        return grouped.map { project, records in
+            ProjectStats(
+                id: project,
+                project: project,
+                cwd: records.first?.cwd ?? "",
+                sessionCount: records.count,
+                totalCostUSD: records.reduce(0) { $0 + $1.costUSD },
+                totalTokens: records.reduce(0) { $0 + $1.contextTokens },
+                totalToolCalls: records.reduce(0) { $0 + $1.toolCallCount },
+                totalDuration: records.compactMap(\.duration).reduce(0, +),
+                lastSessionAt: records.map(\.startedAt).max() ?? .distantPast
+            )
+        }
+        .sorted { $0.lastSessionAt > $1.lastSessionAt }
+    }
+
+    private var filteredProjects: [ProjectStats] {
+        let q = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return allProjectStats }
+        return allProjectStats.filter { $0.project.lowercased().contains(q) }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
+            tabPicker
             searchField
-            filterChips
+            if tab == .events { filterChips }
             list
             footer
         }
@@ -1614,10 +1691,10 @@ private struct HistoryCard: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Image(systemName: "clock.arrow.circlepath")
+            Image(systemName: tabIcon)
                 .foregroundColor(.white.opacity(0.85))
                 .font(.system(size: 13, weight: .semibold))
-            Text("Activity")
+            Text(tabTitle)
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundColor(.white.opacity(0.9))
                 .textCase(.uppercase)
@@ -1626,27 +1703,77 @@ private struct HistoryCard: View {
                 .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundColor(.white.opacity(0.5))
             Spacer()
-            Button("Export") { state.exportHistory() }
-                .buttonStyle(.plain)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(.white.opacity(0.55))
-                .disabled(state.history.isEmpty)
-            Text("·").foregroundColor(.white.opacity(0.2))
-            Button("Clear") { state.clearHistory() }
-                .buttonStyle(.plain)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(.white.opacity(0.55))
-                .disabled(state.history.isEmpty)
+            if tab == .sessions {
+                Button("Clear") { state.clearSessionHistory() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.55))
+                    .disabled(state.sessionHistory.isEmpty)
+            } else if tab == .events {
+                Button("Export") { state.exportHistory() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.55))
+                    .disabled(state.history.isEmpty)
+                Text("·").foregroundColor(.white.opacity(0.2))
+                Button("Clear") { state.clearHistory() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.55))
+                    .disabled(state.history.isEmpty)
+            }
+        }
+    }
+
+    private var tabIcon: String {
+        switch tab {
+        case .sessions: return "list.bullet.rectangle.portrait"
+        case .projects: return "chart.bar.fill"
+        case .events:   return "clock.arrow.circlepath"
+        }
+    }
+    private var tabTitle: String {
+        switch tab {
+        case .sessions: return "Sessions"
+        case .projects: return "Projects"
+        case .events:   return "Activity"
         }
     }
 
     private var countLabel: String {
-        let total = state.history.count
-        let shown = filtered.count
-        if shown == total {
-            return "\(total) event\(total == 1 ? "" : "s")"
+        switch tab {
+        case .sessions:
+            let n = filteredSessions.count
+            return "\(n) session\(n == 1 ? "" : "s")"
+        case .projects:
+            let n = filteredProjects.count
+            return "\(n) project\(n == 1 ? "" : "s")"
+        case .events:
+            let total = state.history.count
+            let shown = filteredEvents.count
+            return shown == total ? "\(total) event\(total == 1 ? "" : "s")" : "\(shown) of \(total)"
         }
-        return "\(shown) of \(total)"
+    }
+
+    private var tabPicker: some View {
+        HStack(spacing: 6) {
+            ForEach(HistoryTab.allCases, id: \.rawValue) { t in
+                Button { tab = t } label: {
+                    Text(t.rawValue)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundColor(tab == t ? .black : .white.opacity(0.7))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule().fill(tab == t
+                                ? Color.white.opacity(0.9)
+                                : Color.white.opacity(0.08))
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer(minLength: 0)
+        }
     }
 
     private var searchField: some View {
@@ -1654,7 +1781,7 @@ private struct HistoryCard: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(.white.opacity(0.4))
-            TextField("Search tool, command, project…", text: $search)
+            TextField(tab == .events ? "Search tool, command, project…" : "Search project…", text: $search)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
                 .foregroundColor(.white)
@@ -1699,24 +1826,52 @@ private struct HistoryCard: View {
 
     @ViewBuilder
     private var list: some View {
-        if filtered.isEmpty {
-            Text(state.history.isEmpty
-                 ? "Nothing yet — permissions and questions you resolve will show up here."
-                 : "No events match your search.")
-                .font(.system(size: 12))
-                .foregroundColor(.white.opacity(0.55))
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                .multilineTextAlignment(.center)
-        } else {
-            ScrollView {
-                VStack(spacing: 4) {
-                    ForEach(filtered) { entry in
-                        HistoryRow(entry: entry)
+        switch tab {
+        case .sessions:
+            if filteredSessions.isEmpty {
+                emptyLabel(state.sessionHistory.isEmpty
+                    ? "No sessions yet — completed sessions will appear here."
+                    : "No sessions match your search.")
+            } else {
+                ScrollView {
+                    VStack(spacing: 4) { ForEach(filteredSessions) { SessionHistoryRow(record: $0) } }
+                }
+                .frame(maxHeight: .infinity)
+            }
+        case .projects:
+            if filteredProjects.isEmpty {
+                emptyLabel(state.sessionHistory.isEmpty
+                    ? "No sessions yet — run some Claude sessions to see per-project stats."
+                    : "No projects match your search.")
+            } else {
+                let maxCost = filteredProjects.map(\.totalCostUSD).max() ?? 0
+                ScrollView {
+                    VStack(spacing: 4) {
+                        ForEach(filteredProjects) { ProjectStatsRow(stats: $0, maxCost: maxCost) }
                     }
                 }
+                .frame(maxHeight: .infinity)
             }
-            .frame(maxHeight: .infinity)
+        case .events:
+            if filteredEvents.isEmpty {
+                emptyLabel(state.history.isEmpty
+                    ? "Nothing yet — permissions and questions you resolve will show up here."
+                    : "No events match your search.")
+            } else {
+                ScrollView {
+                    VStack(spacing: 4) { ForEach(filteredEvents) { HistoryRow(entry: $0) } }
+                }
+                .frame(maxHeight: .infinity)
+            }
         }
+    }
+
+    private func emptyLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 12))
+            .foregroundColor(.white.opacity(0.55))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .multilineTextAlignment(.center)
     }
 
     private var footer: some View {
@@ -1727,6 +1882,174 @@ private struct HistoryCard: View {
             }
         }
         .padding(.top, 18)
+    }
+}
+
+// MARK: - Session history row
+
+private struct SessionHistoryRow: View {
+    let record: SessionRecord
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(Color.blue.opacity(0.15))
+                    .frame(width: 22, height: 22)
+                Image(systemName: "folder.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.blue.opacity(0.8))
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(record.project)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.9))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
+                    Text(timeAgo(record.startedAt))
+                        .font(.system(size: 10, design: .rounded))
+                        .foregroundColor(.white.opacity(0.4))
+                }
+                HStack(spacing: 8) {
+                    if let dur = record.duration {
+                        label(fmtDuration(dur), icon: "clock")
+                    }
+                    if record.contextTokens > 0 {
+                        label(fmtK(record.contextTokens) + " tok", icon: "text.alignleft")
+                    }
+                    if record.costUSD > 0 {
+                        label(ClaudeUsageReader.fmtMoney(record.costUSD), icon: "dollarsign")
+                    }
+                    if record.toolCallCount > 0 {
+                        label("\(record.toolCallCount) tools", icon: "wrench.and.screwdriver")
+                    }
+                }
+                if !record.model.isEmpty {
+                    let m = ClaudeUsageReader.shortModel(record.model)
+                    if !m.isEmpty, m != "unknown" {
+                        Text(m)
+                            .font(.system(size: 9, design: .rounded))
+                            .foregroundColor(.white.opacity(0.3))
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.white.opacity(0.04))
+        )
+        .help(record.cwd)
+    }
+
+    private func label(_ text: String, icon: String) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: icon)
+                .font(.system(size: 8, weight: .medium))
+                .foregroundColor(.white.opacity(0.3))
+            Text(text)
+                .font(.system(size: 10, design: .rounded).monospacedDigit())
+                .foregroundColor(.white.opacity(0.55))
+        }
+    }
+
+    private func fmtK(_ n: Int) -> String { n >= 1000 ? "\(n / 1000)k" : "\(n)" }
+
+    private func fmtDuration(_ t: TimeInterval) -> String {
+        let s = Int(t)
+        if s < 60 { return "\(s)s" }
+        let m = s / 60; let rem = s % 60
+        if m < 60 { return rem > 0 ? "\(m)m \(rem)s" : "\(m)m" }
+        let h = m / 60; let rm = m % 60
+        return rm > 0 ? "\(h)h \(rm)m" : "\(h)h"
+    }
+}
+
+// MARK: - Project stats row
+
+private struct ProjectStatsRow: View {
+    let stats: ProjectStats
+    let maxCost: Double
+
+    private func fmtK(_ n: Int) -> String { n >= 1000 ? "\(n / 1000)k" : "\(n)" }
+
+    private func fmtDuration(_ t: TimeInterval) -> String {
+        let s = Int(t)
+        if s < 60 { return "\(s)s" }
+        let m = s / 60
+        if m < 60 { return "\(m)m" }
+        let h = m / 60; let rm = m % 60
+        return rm > 0 ? "\(h)h \(rm)m" : "\(h)h"
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(Color.green.opacity(0.15))
+                    .frame(width: 22, height: 22)
+                Image(systemName: "chart.bar.fill")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(.green.opacity(0.8))
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(stats.project)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.9))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
+                    Text("\(stats.sessionCount) session\(stats.sessionCount == 1 ? "" : "s")")
+                        .font(.system(size: 10, design: .rounded))
+                        .foregroundColor(.white.opacity(0.4))
+                }
+                HStack(spacing: 8) {
+                    statChip(fmtDuration(stats.totalDuration), icon: "clock")
+                    if stats.totalTokens > 0 {
+                        statChip(fmtK(stats.totalTokens) + " tok", icon: "text.alignleft")
+                    }
+                    if stats.totalCostUSD > 0 {
+                        statChip(ClaudeUsageReader.fmtMoney(stats.totalCostUSD), icon: "dollarsign")
+                    }
+                    if stats.totalToolCalls > 0 {
+                        statChip("\(stats.totalToolCalls) tools", icon: "wrench.and.screwdriver")
+                    }
+                }
+                if maxCost > 0, stats.totalCostUSD > 0 {
+                    let frac = CGFloat(min(1, stats.totalCostUSD / maxCost))
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.white.opacity(0.08))
+                            Capsule().fill(Color.green.opacity(0.6))
+                                .frame(width: geo.size.width * frac)
+                        }
+                    }
+                    .frame(height: 3)
+                }
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.white.opacity(0.04))
+        )
+        .help(stats.cwd)
+    }
+
+    private func statChip(_ text: String, icon: String) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: icon)
+                .font(.system(size: 8, weight: .medium))
+                .foregroundColor(.white.opacity(0.3))
+            Text(text)
+                .font(.system(size: 10, design: .rounded).monospacedDigit())
+                .foregroundColor(.white.opacity(0.55))
+        }
     }
 }
 
