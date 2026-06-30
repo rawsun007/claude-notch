@@ -471,6 +471,7 @@ final class AppState: ObservableObject {
     // (the OS suppresses banners during Do Not Disturb). Persisted; on by
     // default. The concrete bridge is wired in by AppDelegate at launch.
     @Published var mirrorToNotificationCenter: Bool = true
+    @Published var completionNotificationsEnabled: Bool = false
     weak var permissionMirror: PermissionMirroring?
 
     // Daily digest tracking — only shown once per day.
@@ -614,6 +615,7 @@ final class AppState: ObservableObject {
             self.enforceBudget = snapshot.enforceBudget ?? false
             self.requireTouchID = snapshot.requireTouchID ?? BiometricAuth.isAvailable
             self.mirrorToNotificationCenter = snapshot.mirrorToNotificationCenter ?? true
+            self.completionNotificationsEnabled = snapshot.completionNotificationsEnabled ?? false
             self.statusBarItems = snapshot.statusBarItems?
                 .compactMap(StatusBarItem.init) ?? [.fiveHourLimit, .weeklyLimit]
             self.contextWindowMode = snapshot.contextWindowMode.flatMap(ContextWindowMode.init) ?? .auto
@@ -772,6 +774,11 @@ final class AppState: ObservableObject {
         } else {
             permissionMirror?.withdrawAll()
         }
+        schedulePersist()
+    }
+
+    func setCompletionNotificationsEnabled(_ on: Bool) {
+        completionNotificationsEnabled = on
         schedulePersist()
     }
 
@@ -1052,6 +1059,7 @@ final class AppState: ObservableObject {
             weeklyCostCap: weeklyCostCap,
             requireTouchID: requireTouchID,
             mirrorToNotificationCenter: mirrorToNotificationCenter,
+            completionNotificationsEnabled: completionNotificationsEnabled,
             enforceBudget: enforceBudget,
             statusBarItems: statusBarItems.map(\.rawValue),
             contextWindowMode: contextWindowMode.rawValue,
@@ -2076,7 +2084,7 @@ final class AppState: ObservableObject {
         playChime()
         recompute()
         // Fire a native banner if the user has switched away from the notch.
-        if mirrorToNotificationCenter, !NSApp.isActive {
+        if completionNotificationsEnabled, !NSApp.isActive {
             let project = (task.cwd as NSString).lastPathComponent
             permissionMirror?.sendCompletion(project: project, snippet: task.detail)
         }

@@ -30,6 +30,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var notchTitleMenu: NSMenu!
     private var touchIDItem: NSMenuItem?   // only when this Mac has biometrics
     private var notifyMirrorItem: NSMenuItem!
+    private var completionNotifItem: NSMenuItem!
     // Keep-open row views for the Sound submenu — clicking these does not
     // dismiss the menu, so the user can preview multiple sounds.
     private var soundRowViews: [String: KeepOpenRowView] = [:]
@@ -166,6 +167,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         notifyMirrorItem.toolTip = "Also send blocking permission prompts to Notification Center so you can Allow or Deny from the lock screen or another Space. Respects Do Not Disturb."
         notifyMirrorItem.state = state.mirrorToNotificationCenter ? .on : .off
         permsMenu.addItem(notifyMirrorItem)
+
+        completionNotifItem = NSMenuItem(title: "Notify When Claude Finishes",
+                                         action: #selector(toggleCompletionNotifications), keyEquivalent: "")
+        completionNotifItem.target = self
+        completionNotifItem.toolTip = "Send a native notification when a Claude task completes and you are in another app. Off by default."
+        completionNotifItem.state = state.completionNotificationsEnabled ? .on : .off
+        permsMenu.addItem(completionNotifItem)
 
         let permsItem = NSMenuItem(title: "Permissions", action: nil, keyEquivalent: "")
         permsItem.submenu = permsMenu
@@ -333,6 +341,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
 
         notifyMirrorItem?.state = state.mirrorToNotificationCenter ? .on : .off
+        completionNotifItem?.state = state.completionNotificationsEnabled ? .on : .off
     }
 
     @objc private func promptAccessibility() {
@@ -733,6 +742,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func toggleNotificationMirror() {
         state.setMirrorToNotificationCenter(!state.mirrorToNotificationCenter)
         notifyMirrorItem?.state = state.mirrorToNotificationCenter ? .on : .off
+    }
+
+    @objc private func toggleCompletionNotifications() {
+        state.setCompletionNotificationsEnabled(!state.completionNotificationsEnabled)
+        completionNotifItem?.state = state.completionNotificationsEnabled ? .on : .off
     }
 
     @objc private func toggleEnforceBudget() {
