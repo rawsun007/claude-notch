@@ -128,6 +128,23 @@ final class NotificationBridge: NSObject, PermissionMirroring {
                                         content: content, trigger: nil)
         UNUserNotificationCenter.current().add(req)
     }
+
+    func sendDigest(_ summary: DailySpendSummary) {
+        guard Bundle.main.bundleIdentifier != nil, authorized else { return }
+        let content = UNMutableNotificationContent()
+        let cost = String(format: "$%.2f", summary.costUSD)
+        let sessions = summary.sessionCount == 1 ? "1 session" : "\(summary.sessionCount) sessions"
+        content.title = "Yesterday: \(cost) · \(sessions)"
+        if !summary.topProject.isEmpty { content.subtitle = "Top project: \(summary.topProject)" }
+        if summary.totalTokens > 0 {
+            let k = summary.totalTokens >= 1000 ? "\(summary.totalTokens / 1000)k tokens" : "\(summary.totalTokens) tokens"
+            content.body = k
+        }
+        content.threadIdentifier = "claudenotch-digest"
+        let req = UNNotificationRequest(identifier: "digest-\(AppState.dayKey(Date()))",
+                                        content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(req)
+    }
 }
 
 extension NotificationBridge: UNUserNotificationCenterDelegate {

@@ -355,11 +355,19 @@ final class PermissionRequest: Identifiable, Equatable {
 /// Bridge for mirroring blocking permission cards to native notifications.
 /// AppState only knows this interface; the concrete UserNotifications wiring
 /// lives in NotificationBridge so AppState stays UI-framework-light.
+struct DailySpendSummary {
+    var costUSD: Double
+    var sessionCount: Int
+    var topProject: String
+    var totalTokens: Int
+}
+
 @MainActor protocol PermissionMirroring: AnyObject {
     func mirror(_ req: PermissionRequest)
     func withdraw(_ id: UUID)
     func withdrawAll()
     func sendCompletion(project: String, snippet: String)
+    func sendDigest(_ summary: DailySpendSummary)
 }
 
 final class CompletedTask: Identifiable, Equatable {
@@ -472,6 +480,7 @@ final class AppState: ObservableObject {
     // default. The concrete bridge is wired in by AppDelegate at launch.
     @Published var mirrorToNotificationCenter: Bool = true
     @Published var completionNotificationsEnabled: Bool = false
+    @Published var digestNotificationsEnabled: Bool = false
     weak var permissionMirror: PermissionMirroring?
 
     // Daily digest tracking — only shown once per day.
@@ -616,6 +625,7 @@ final class AppState: ObservableObject {
             self.requireTouchID = snapshot.requireTouchID ?? BiometricAuth.isAvailable
             self.mirrorToNotificationCenter = snapshot.mirrorToNotificationCenter ?? true
             self.completionNotificationsEnabled = snapshot.completionNotificationsEnabled ?? false
+            self.digestNotificationsEnabled = snapshot.digestNotificationsEnabled ?? false
             self.statusBarItems = snapshot.statusBarItems?
                 .compactMap(StatusBarItem.init) ?? [.fiveHourLimit, .weeklyLimit]
             self.contextWindowMode = snapshot.contextWindowMode.flatMap(ContextWindowMode.init) ?? .auto
@@ -780,6 +790,34 @@ final class AppState: ObservableObject {
     func setCompletionNotificationsEnabled(_ on: Bool) {
         completionNotificationsEnabled = on
         schedulePersist()
+    }
+
+    func setDigestNotificationsEnabled(_ on: Bool) {
+        digestNotificationsEnabled = on
+        schedulePersist()
+    }
+
+    /// Yesterday's spend aggregated from session history.
+    var yesterdaySpend: DailySpendSummary? {
+        let cal = Calendar.current
+        let todayStart = cal.startOfDay(for: Date())
+        guard let yesterdayStart = cal.date(byAdding: .day, value: -1, to: todayStart) else { return nil }
+        let sessions = sessionHistory.filter { $0.startedAt >= yesterdayStart && $0.startedAt < todayStart }
+        guard !sessions.isEmpty else { return nil }
+        let cost = sessions.reduce(0.0) { $0 + $1.costUSD }
+        let tokens = sessions.reduce(0) { $0 + $1.contextTokens }
+        let topProject = Dictionary(grouping: sessions, by: { ($0.project as NSString).lastPathComponent })
+            .max(by: { $0.value.count < $1.value.count })?.key ?? ""
+        return DailySpendSummary(costUSD: cost, sessionCount: sessions.count,
+                                 topProject: topProject, totalTokens: tokens)
+    }
+
+    /// Fire the daily spend digest notification if enabled and not yet shown today.
+    func fireDigestIfNeeded() {
+        guard digestNotificationsEnabled, shouldShowDigest,
+              let spend = yesterdaySpend else { return }
+        permissionMirror?.sendDigest(spend)
+        markDigestShown()
     }
 
     // MARK: - Cost budgets
@@ -1060,6 +1098,7 @@ final class AppState: ObservableObject {
             requireTouchID: requireTouchID,
             mirrorToNotificationCenter: mirrorToNotificationCenter,
             completionNotificationsEnabled: completionNotificationsEnabled,
+            digestNotificationsEnabled: digestNotificationsEnabled,
             enforceBudget: enforceBudget,
             statusBarItems: statusBarItems.map(\.rawValue),
             contextWindowMode: contextWindowMode.rawValue,

@@ -31,6 +31,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var touchIDItem: NSMenuItem?   // only when this Mac has biometrics
     private var notifyMirrorItem: NSMenuItem!
     private var completionNotifItem: NSMenuItem!
+    private var digestNotifItem: NSMenuItem!
     // Keep-open row views for the Sound submenu — clicking these does not
     // dismiss the menu, so the user can preview multiple sounds.
     private var soundRowViews: [String: KeepOpenRowView] = [:]
@@ -174,6 +175,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         completionNotifItem.toolTip = "Send a native notification when a Claude task completes and you are in another app. Off by default."
         completionNotifItem.state = state.completionNotificationsEnabled ? .on : .off
         permsMenu.addItem(completionNotifItem)
+
+        digestNotifItem = NSMenuItem(title: "Daily Spend Digest",
+                                     action: #selector(toggleDigestNotifications), keyEquivalent: "")
+        digestNotifItem.target = self
+        digestNotifItem.toolTip = "Send a morning notification with yesterday's cost, session count, and top project. Off by default."
+        digestNotifItem.state = state.digestNotificationsEnabled ? .on : .off
+        permsMenu.addItem(digestNotifItem)
 
         let permsItem = NSMenuItem(title: "Permissions", action: nil, keyEquivalent: "")
         permsItem.submenu = permsMenu
@@ -342,6 +350,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         notifyMirrorItem?.state = state.mirrorToNotificationCenter ? .on : .off
         completionNotifItem?.state = state.completionNotificationsEnabled ? .on : .off
+        digestNotifItem?.state = state.digestNotificationsEnabled ? .on : .off
     }
 
     @objc private func promptAccessibility() {
@@ -749,6 +758,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         completionNotifItem?.state = state.completionNotificationsEnabled ? .on : .off
     }
 
+    @objc private func toggleDigestNotifications() {
+        state.setDigestNotificationsEnabled(!state.digestNotificationsEnabled)
+        digestNotifItem?.state = state.digestNotificationsEnabled ? .on : .off
+    }
+
     @objc private func toggleEnforceBudget() {
         state.setEnforceBudget(!state.enforceBudget)
         refreshCostBudgetMenu()
@@ -1061,8 +1075,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
 
         // Daily digest — shown once per day when yesterday had activity.
-        if state.shouldShowDigest, let y = state.yesterdayCounts {
-            row("🌙  Yesterday: \(y.tools) tools  ·  \(y.allowed) allowed  ·  \(y.denied) denied  ·  \(y.dangerousFlagged) risky")
+        if state.shouldShowDigest {
+            if let spend = state.yesterdaySpend {
+                let cost = String(format: "$%.2f", spend.costUSD)
+                let sessions = spend.sessionCount == 1 ? "1 session" : "\(spend.sessionCount) sessions"
+                var line = "🌙  Yesterday: \(cost)  ·  \(sessions)"
+                if !spend.topProject.isEmpty { line += "  ·  \(spend.topProject)" }
+                row(line)
+            } else if let y = state.yesterdayCounts {
+                row("🌙  Yesterday: \(y.tools) tools  ·  \(y.allowed) allowed  ·  \(y.denied) denied")
+            }
             let dismiss = NSMenuItem(title: "Dismiss digest", action: #selector(dismissDigest), keyEquivalent: "")
             dismiss.target = self
             insightsMenu.addItem(dismiss)

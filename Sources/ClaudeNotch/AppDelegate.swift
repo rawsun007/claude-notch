@@ -42,6 +42,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         notifications.state = state
         state.permissionMirror = notifications
         notifications.start()
+        // Fire the daily spend digest notification (if enabled) shortly after
+        // launch so the notification bridge has time to get authorized.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+            self?.state.fireDigestIfNeeded()
+        }
 
         server = EventServer(port: 53127, state: state)
         do {
