@@ -1297,6 +1297,33 @@ final class AppState: ObservableObject {
         if let s = sessions[key] { archiveSession(s) }
     }
 
+    /// A turn died from an API-level failure (StopFailure hook: rate limit,
+    /// overloaded, billing…). Shows a blocking alert card + native banner so a
+    /// long task never dies silently while the user is away.
+    func noteStopFailure(title: String, detail: String, cwd: String, sessionId: String) {
+        markSessionDone(cwd: cwd, sessionId: sessionId)
+        upsertSession(id: sessionId, cwd: cwd) { s in
+            s.status = "error"
+        }
+        let req = PermissionRequest(
+            kind: .notification,
+            title: "⚠️ \(title)",
+            detail: detail,
+            toolName: "StopFailure",
+            source: "Claude Code",
+            cwd: cwd,
+            originatorBundleID: nil,
+            resolver: { _, _ in }
+        )
+        enqueuePermission(req)
+        if mirrorToNotificationCenter, !NSApp.isActive {
+            let project = (cwd as NSString).lastPathComponent
+            permissionMirror?.sendCompletion(
+                project: project.isEmpty ? title : "\(project) — \(title)",
+                snippet: detail.isEmpty ? title : detail)
+        }
+    }
+
     // Statuses a session rests in once a turn ends — don't let late transcript
     // polling drag a finished session back into a pulsing "replying" state.
     private static let terminalSessionStatuses: Set<String> = ["done", "last reply", "ready"]

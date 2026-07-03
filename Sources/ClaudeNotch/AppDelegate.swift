@@ -59,7 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // source of authoritative context-% and real 5h/weekly plan-limit usage)
         // without making them re-run Setup. install() is idempotent, backs up
         // settings.json, and chains any existing statusLine.
-        if HookInstaller.isInstalled && !HookInstaller.statusLineWired {
+        if HookInstaller.isInstalled && (!HookInstaller.statusLineWired || !HookInstaller.hooksCurrent) {
             DispatchQueue.global(qos: .utility).async {
                 try? HookInstaller.install()
             }

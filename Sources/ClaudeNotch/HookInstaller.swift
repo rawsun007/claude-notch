@@ -50,6 +50,15 @@ enum HookInstaller {
         return s.contains("claudenotch-statusline.sh")
     }
 
+    /// True when settings.json already registers the hook events added in
+    /// recent releases. Lets the app auto-migrate existing installs when an
+    /// update starts listening to new events, without a manual reinstall.
+    static var hooksCurrent: Bool {
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: settingsPath)),
+              let s = String(data: data, encoding: .utf8) else { return false }
+        return s.contains("\"StopFailure\"")
+    }
+
     /// `jq` is required by posttool.sh to forward payload fields to the
     /// notch. Without it, PostToolUse forwarding silently no-ops.
     static var hasJq: Bool {
@@ -159,6 +168,9 @@ enum HookInstaller {
         appendHook(to: "UserPromptSubmit", in: &hooks, matcher: nil)
         appendHook(to: "Notification", in: &hooks, matcher: nil)
         appendHook(to: "Stop", in: &hooks, matcher: nil)
+        // Session died from an API-level failure (rate limit, overloaded,
+        // billing…) — surfaced as a red alert card so it never dies silently.
+        appendHook(to: "StopFailure", in: &hooks, matcher: nil)
         appendHook(to: "SessionEnd", in: &hooks, matcher: ".*")
         // Task lifecycle drives the per-session progress meter. These events
         // take no matcher (they always fire on every occurrence).
