@@ -104,6 +104,9 @@ struct LiveSession: Identifiable, Equatable {
     var permissionMode: String = ""
     // Session title from the SessionStart hook, when the user has set one.
     var title: String = ""
+    // Files Claude edited or wrote this session (ordered, unique, newest
+    // last, capped). Drives the "N files" chip + Files Touched menu.
+    var touchedFiles: [String] = []
 
     var hasMeter: Bool { contextPercent > 0 || sessionCostUSD > 0 }
 }
@@ -1327,6 +1330,27 @@ final class AppState: ObservableObject {
         }
         let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
         if isCurrent, !model.isEmpty { currentModel = model }
+    }
+
+    /// A file was edited/written by Claude (PostToolUse for Edit / Write /
+    /// MultiEdit / NotebookEdit). Kept unique and ordered, newest last.
+    func noteFileTouched(_ path: String, sessionId: String, cwd: String) {
+        guard !path.isEmpty else { return }
+        upsertSession(id: sessionId, cwd: cwd) { s in
+            if let i = s.touchedFiles.firstIndex(of: path) {
+                s.touchedFiles.remove(at: i)      // re-touch moves to the end
+            }
+            s.touchedFiles.append(path)
+            if s.touchedFiles.count > 50 { s.touchedFiles.removeFirst() }
+        }
+    }
+
+    /// Files touched by the session the notch header is currently showing.
+    var currentTouchedFiles: [String] {
+        if !currentSessionId.isEmpty, let s = sessions[currentSessionId] {
+            return s.touchedFiles
+        }
+        return sessions.values.max(by: { $0.lastHookAt < $1.lastHookAt })?.touchedFiles ?? []
     }
 
     /// Record the permission mode carried on every hook payload. Cheap no-op

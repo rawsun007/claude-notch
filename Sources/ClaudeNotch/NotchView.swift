@@ -642,6 +642,17 @@ private struct IdlePill: View {
                         .cornerRadius(4)
                         .help(badge.help)
                 }
+                let fileCount = state.currentTouchedFiles.count
+                if fileCount > 0 {
+                    Text(fileCount == 1 ? "1 file" : "\(fileCount) files")
+                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .foregroundColor(.cyan.opacity(0.95))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.cyan.opacity(0.15))
+                        .cornerRadius(4)
+                        .help("Files Claude edited this session — full list in the menu bar")
+                }
                 Spacer(minLength: 0)
                 if canShowHistory {
                     Button { state.openHistory() } label: {

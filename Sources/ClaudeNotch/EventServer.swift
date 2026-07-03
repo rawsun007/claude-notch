@@ -377,6 +377,19 @@ final class EventServer {
             }
         }
 
+        // Track files Claude edits so the notch can list what changed.
+        if ["Edit", "Write", "MultiEdit", "NotebookEdit"].contains(tool) {
+            let path = (input["file_path"] as? String)
+                ?? (input["notebook_path"] as? String)
+                ?? ""
+            if !path.isEmpty {
+                let cwd = (payload["cwd"] as? String) ?? ""
+                Task { @MainActor [weak state] in
+                    state?.noteFileTouched(path, sessionId: sessionId, cwd: cwd)
+                }
+            }
+        }
+
         Task { @MainActor [weak state] in
             guard let state else { return }
             guard !tool.isEmpty else { return }

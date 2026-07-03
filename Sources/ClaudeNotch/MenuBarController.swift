@@ -33,6 +33,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var completionNotifItem: NSMenuItem!
     private var digestNotifItem: NSMenuItem!
     private var screenCaptureItem: NSMenuItem!
+    private var touchedFilesMenu: NSMenu!
+    private var touchedFilesItem: NSMenuItem!
     // Keep-open row views for the Sound submenu — clicking these does not
     // dismiss the menu, so the user can preview multiple sounds.
     private var soundRowViews: [String: KeepOpenRowView] = [:]
@@ -91,6 +93,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         recentProjectsItem = NSMenuItem(title: "Recent Projects", action: nil, keyEquivalent: "")
         recentProjectsItem.submenu = recentProjectsMenu
         menu.addItem(recentProjectsItem)
+
+        // Files Claude edited this session (populated dynamically); click to open.
+        touchedFilesMenu = NSMenu()
+        touchedFilesItem = NSMenuItem(title: "Files Touched", action: nil, keyEquivalent: "")
+        touchedFilesItem.submenu = touchedFilesMenu
+        touchedFilesItem.isHidden = true
+        menu.addItem(touchedFilesItem)
 
         // Send message to current Claude session
         let sendMsg = NSMenuItem(title: "Send Message to Claude…", action: #selector(sendMessagePrompt), keyEquivalent: "m")
@@ -323,6 +332,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             self.refreshPermissions()
             self.refreshStatusLine()
             self.refreshRecentProjects()
+            self.refreshTouchedFiles()
             self.refreshPrefs()
             self.refreshInsights()
             self.refreshClaudeUsage()
@@ -775,6 +785,40 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func toggleScreenCapture() {
         state.setHideFromScreenCapture(!state.hideFromScreenCapture)
         screenCaptureItem?.state = state.hideFromScreenCapture ? .on : .off
+    }
+
+    /// Rebuild the Files Touched submenu from the current session — newest
+    /// first, basename shown, full path in the tooltip, click opens the file.
+    private func refreshTouchedFiles() {
+        let files = state.currentTouchedFiles
+        touchedFilesItem.isHidden = files.isEmpty
+        guard !files.isEmpty else { return }
+        touchedFilesItem.title = "Files Touched (\(files.count))"
+        touchedFilesMenu.removeAllItems()
+        for path in files.reversed() {
+            let item = NSMenuItem(title: (path as NSString).lastPathComponent,
+                                  action: #selector(openTouchedFile(_:)), keyEquivalent: "")
+            item.target = self
+            item.toolTip = path
+            item.representedObject = path
+            touchedFilesMenu.addItem(item)
+        }
+        touchedFilesMenu.addItem(.separator())
+        let reveal = NSMenuItem(title: "Reveal All in Finder",
+                                action: #selector(revealTouchedFiles), keyEquivalent: "")
+        reveal.target = self
+        touchedFilesMenu.addItem(reveal)
+    }
+
+    @objc private func openTouchedFile(_ sender: NSMenuItem) {
+        guard let path = sender.representedObject as? String else { return }
+        NSWorkspace.shared.open(URL(fileURLWithPath: path))
+    }
+
+    @objc private func revealTouchedFiles() {
+        let urls = state.currentTouchedFiles.map { URL(fileURLWithPath: $0) }
+        guard !urls.isEmpty else { return }
+        NSWorkspace.shared.activateFileViewerSelecting(urls)
     }
 
     @objc private func toggleEnforceBudget() {
