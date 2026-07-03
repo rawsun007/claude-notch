@@ -505,6 +505,10 @@ final class AppState: ObservableObject {
     // Daily digest tracking — only shown once per day.
     @Published private(set) var lastDigestDate: String? = nil
 
+    // Update-available notch card: shown once per discovered version, so the
+    // daily poll doesn't re-card users who chose to ignore an update.
+    private var lastUpdateCardVersion: String? = nil
+
     /// Transient "live activity" card shown after an auto-approved action —
     /// shows WHAT changed, no buttons, auto-dismisses.
     @Published private(set) var autoInfo: PermissionRequest? = nil
@@ -637,6 +641,7 @@ final class AppState: ObservableObject {
             self.perToolSounds = snapshot.perToolSounds ?? false
             self.persistentNotchDisplay = snapshot.persistentNotchDisplay ?? false
             self.lastDigestDate = snapshot.lastDigestDate
+            self.lastUpdateCardVersion = snapshot.lastUpdateCardVersion
             self.sessionCostCap = snapshot.sessionCostCap ?? 0
             self.dailyCostCap = snapshot.dailyCostCap ?? 0
             self.fiveHourCostCap = snapshot.fiveHourCostCap ?? 5.0
@@ -855,6 +860,25 @@ final class AppState: ObservableObject {
             .max(by: { $0.value.count < $1.value.count })?.key ?? ""
         return DailySpendSummary(costUSD: cost, sessionCount: sessions.count,
                                  topProject: topProject, totalTokens: tokens)
+    }
+
+    /// Show a one-time notch card when the daily update poll finds a newer
+    /// release. Once per version — ignoring an update stays ignored until the
+    /// next one ships. (The manual "Check for Updates…" flow shows an alert
+    /// instead; this is only for the background poll most users rely on.)
+    func showUpdateCard(version: String) {
+        guard lastUpdateCardVersion != version else { return }
+        lastUpdateCardVersion = version
+        schedulePersist()
+        enqueuePermission(PermissionRequest(
+            kind: .notification,
+            title: "Update available: v\(version)",
+            detail: "You're on v\(UpdateChecker.shared.currentVersion). Download via the menu bar icon → \"Update available\".",
+            toolName: "Update",
+            source: "ClaudeNotch",
+            cwd: "",
+            resolver: { _, _ in }
+        ))
     }
 
     /// Fire the daily spend digest notification if enabled and not yet shown today.
@@ -1136,6 +1160,7 @@ final class AppState: ObservableObject {
             perToolSounds: perToolSounds,
             persistentNotchDisplay: persistentNotchDisplay,
             lastDigestDate: lastDigestDate,
+            lastUpdateCardVersion: lastUpdateCardVersion,
             sessionCostCap: sessionCostCap,
             dailyCostCap: dailyCostCap,
             fiveHourCostCap: fiveHourCostCap,

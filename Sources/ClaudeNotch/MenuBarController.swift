@@ -655,7 +655,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         updateItem.isHidden = false
         checkUpdateItem.title = "Check for Updates…"
         checkUpdateItem.isEnabled = true
-        guard userInitiated else { return }
+        guard userInitiated else {
+            // Background poll: most users never open this menu, so also show a
+            // one-time notch card (deduped per version inside showUpdateCard).
+            state.showUpdateCard(version: version)
+            return
+        }
         // Bring the alert to the front — accessory apps need to activate first
         // or the alert ends up behind everything.
         NSApp.activate(ignoringOtherApps: true)
