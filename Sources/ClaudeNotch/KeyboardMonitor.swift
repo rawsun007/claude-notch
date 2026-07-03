@@ -134,6 +134,16 @@ final class KeyboardMonitor {
             // in whatever app they're in.
             if keyCode == 53 && !hasMods { handleKey(53, command: false); return nil }
             if (keyCode == 36 || keyCode == 76) && !hasMods { handleKey(36, command: false); return nil }
+            // ⌘C while the reply detail card is open copies the full reply —
+            // the card has no text field, so plain ⌘C would otherwise go to
+            // (and possibly beep in) whatever app is frontmost.
+            if case .responseDetail = state.mode,
+               keyCode == 8, flags.contains(.maskCommand),
+               !flags.contains(.maskAlternate), !flags.contains(.maskControl),
+               !flags.contains(.maskShift) {
+                state.copyDetailResponse()
+                return nil
+            }
             return Unmanaged.passUnretained(event)
         default:
             // .compose is handled by the local monitor (typing must reach the
