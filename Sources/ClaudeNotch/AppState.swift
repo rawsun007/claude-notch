@@ -1762,6 +1762,56 @@ final class AppState: ObservableObject {
         return lines.joined(separator: "\n").data(using: .utf8) ?? Data()
     }
 
+    /// Save the session history to a user-chosen file. CSV when the chosen
+    /// name ends in `.csv`, otherwise pretty JSON — same pattern as
+    /// exportHistory above.
+    func exportSessionHistory() {
+        guard !sessionHistory.isEmpty else { return }
+        let panel = NSSavePanel()
+        panel.title = "Export Session History"
+        panel.nameFieldStringValue = "claudenotch-sessions.csv"
+        panel.allowedContentTypes = [.commaSeparatedText, .json]
+        panel.canCreateDirectories = true
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else {
+            returnKeyboardToTerminal()
+            return
+        }
+        let json = url.pathExtension.lowercased() == "json"
+        let data = json ? Self.sessionsJSON(sessionHistory) : Self.sessionsCSV(sessionHistory)
+        try? data.write(to: url, options: .atomic)
+        returnKeyboardToTerminal()
+    }
+
+    private static func sessionsJSON(_ records: [SessionRecord]) -> Data {
+        let enc = JSONEncoder()
+        enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+        enc.dateEncodingStrategy = .iso8601
+        return (try? enc.encode(records)) ?? Data()
+    }
+
+    private static func sessionsCSV(_ records: [SessionRecord]) -> Data {
+        let iso = ISO8601DateFormatter()
+        func esc(_ s: String) -> String {
+            guard s.contains(",") || s.contains("\"") || s.contains("\n") else { return s }
+            return "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+        }
+        var lines = ["started,ended,project,cwd,duration_s,tokens,cost_usd,tool_calls,model"]
+        for r in records {
+            lines.append([
+                iso.string(from: r.startedAt),
+                r.endedAt.map(iso.string(from:)) ?? "",
+                r.project, r.cwd,
+                r.duration.map { String(Int($0)) } ?? "",
+                String(r.contextTokens),
+                String(format: "%.4f", r.costUSD),
+                String(r.toolCallCount),
+                r.model,
+            ].map(esc).joined(separator: ","))
+        }
+        return lines.joined(separator: "\n").data(using: .utf8) ?? Data()
+    }
+
     fileprivate func appendHistory(_ entry: HistoryEntry) {
         history.insert(entry, at: 0)
         if history.count > historyMax {

@@ -1714,6 +1714,12 @@ private struct HistoryCard: View {
                 .foregroundColor(.white.opacity(0.5))
             Spacer()
             if tab == .sessions {
+                Button("Export") { state.exportSessionHistory() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.55))
+                    .disabled(state.sessionHistory.isEmpty)
+                Text("·").foregroundColor(.white.opacity(0.2))
                 Button("Clear") { state.clearSessionHistory() }
                     .buttonStyle(.plain)
                     .font(.system(size: 11, weight: .medium))
