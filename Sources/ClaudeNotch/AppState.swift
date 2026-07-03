@@ -375,7 +375,8 @@ struct DailySpendSummary {
     func mirror(_ req: PermissionRequest)
     func withdraw(_ id: UUID)
     func withdrawAll()
-    func sendCompletion(project: String, snippet: String)
+    func sendCompletion(project: String, snippet: String,
+                        cwd: String, originatorBundleID: String?)
     func sendDigest(_ summary: DailySpendSummary)
 }
 
@@ -1387,7 +1388,8 @@ final class AppState: ObservableObject {
             let project = (cwd as NSString).lastPathComponent
             permissionMirror?.sendCompletion(
                 project: project.isEmpty ? title : "\(project) — \(title)",
-                snippet: detail.isEmpty ? title : detail)
+                snippet: detail.isEmpty ? title : detail,
+                cwd: "", originatorBundleID: nil)   // failures aren't replyable
         }
     }
 
@@ -1696,6 +1698,23 @@ final class AppState: ObservableObject {
         TerminalAutomator.sendText(text, toBundleID: bid)
         playSound("Tink")
         cancelCompose()
+    }
+
+    /// Send a reply typed into a completion notification's text field. Same
+    /// routing as beginReply: type into the terminal that ran the session when
+    /// it's still running, else open a fresh terminal in the project folder.
+    func sendNotificationReply(_ text: String, cwd: String, originatorBundleID: String?) {
+        let msg = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !msg.isEmpty else { return }
+        if let bid = originatorBundleID, !bid.isEmpty,
+           !NSRunningApplication.runningApplications(withBundleIdentifier: bid).isEmpty,
+           TerminalAutomator.isAccessibilityTrusted {
+            TerminalAutomator.sendText(msg, toBundleID: bid)
+            playSound("Tink")
+        } else if !cwd.isEmpty {
+            TerminalAutomator.startClaude(in: cwd, message: msg)
+            playSound("Tink")
+        }
     }
 
     /// Pop the macOS Accessibility prompt and jump to the right Settings pane.
@@ -2278,7 +2297,9 @@ final class AppState: ObservableObject {
         // Fire a native banner if the user has switched away from the notch.
         if completionNotificationsEnabled, !NSApp.isActive {
             let project = (task.cwd as NSString).lastPathComponent
-            permissionMirror?.sendCompletion(project: project, snippet: task.detail)
+            permissionMirror?.sendCompletion(project: project, snippet: task.detail,
+                                             cwd: task.cwd,
+                                             originatorBundleID: task.originatorBundleID)
         }
     }
 

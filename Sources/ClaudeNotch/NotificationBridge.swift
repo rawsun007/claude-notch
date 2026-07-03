@@ -22,9 +22,11 @@ final class NotificationBridge: NSObject, PermissionMirroring {
     // string in didReceive.
     private static let catSafe = "CN_PERMISSION"
     private static let catDanger = "CN_PERMISSION_DANGER"
+    private static let catDone = "CN_DONE"
     private static let actAllow = "CN_ALLOW"
     private static let actDeny = "CN_DENY"
     private static let actDenyReason = "CN_DENY_REASON"
+    private static let actReply = "CN_REPLY"
 
     private var authorized = false
 
@@ -54,8 +56,18 @@ final class NotificationBridge: NSObject, PermissionMirroring {
                                             actions: [deny, denyReason],
                                             intentIdentifiers: [], options: [])
 
+        // Completion banners: reply straight from the notification — the text
+        // lands in the terminal that ran the session (or a fresh one).
+        let reply = UNTextInputNotificationAction(
+            identifier: Self.actReply, title: "Reply…",
+            options: [], textInputButtonTitle: "Send",
+            textInputPlaceholder: "Tell Claude what to do next")
+        let done = UNNotificationCategory(identifier: Self.catDone,
+                                          actions: [reply],
+                                          intentIdentifiers: [], options: [])
+
         let center = UNUserNotificationCenter.current()
-        center.setNotificationCategories([safe, danger])
+        center.setNotificationCategories([safe, danger, done])
         center.delegate = self
         center.requestAuthorization(options: [.alert, .sound]) { [weak self] granted, _ in
             Task { @MainActor in self?.authorized = granted }
@@ -116,7 +128,8 @@ final class NotificationBridge: NSObject, PermissionMirroring {
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     }
 
-    func sendCompletion(project: String, snippet: String) {
+    func sendCompletion(project: String, snippet: String,
+                        cwd: String, originatorBundleID: String?) {
         guard Bundle.main.bundleIdentifier != nil, authorized else { return }
         let content = UNMutableNotificationContent()
         content.title = project.isEmpty ? "Claude finished" : project
@@ -124,6 +137,14 @@ final class NotificationBridge: NSObject, PermissionMirroring {
         if !snippet.isEmpty { content.body = String(snippet.prefix(200)) }
         content.sound = .default
         content.threadIdentifier = "claudenotch-done"
+        // Replyable when we know where the reply should land.
+        if !cwd.isEmpty || (originatorBundleID?.isEmpty == false) {
+            content.categoryIdentifier = Self.catDone
+            var info: [String: String] = [:]
+            if !cwd.isEmpty { info["cwd"] = cwd }
+            if let bid = originatorBundleID, !bid.isEmpty { info["bid"] = bid }
+            content.userInfo = info
+        }
         let req = UNNotificationRequest(identifier: UUID().uuidString,
                                         content: content, trigger: nil)
         UNUserNotificationCenter.current().add(req)
@@ -167,8 +188,18 @@ extension NotificationBridge: UNUserNotificationCenterDelegate {
         let id = response.notification.request.identifier
         let action = response.actionIdentifier
         let reason = (response as? UNTextInputNotificationResponse)?.userText
+        let userInfo = response.notification.request.content.userInfo
+        let replyCwd = (userInfo["cwd"] as? String) ?? ""
+        let replyBid = userInfo["bid"] as? String
         Task { @MainActor [weak self] in
-            self?.handle(id: id, action: action, reason: reason)
+            if action == Self.actReply {
+                if let text = reason, !text.isEmpty {
+                    self?.state?.sendNotificationReply(text, cwd: replyCwd,
+                                                       originatorBundleID: replyBid)
+                }
+            } else {
+                self?.handle(id: id, action: action, reason: reason)
+            }
             completionHandler()
         }
     }
