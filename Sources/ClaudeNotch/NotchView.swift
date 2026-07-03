@@ -697,6 +697,20 @@ private struct IdlePill: View {
                         .font(.system(size: 10, design: .rounded))
                         .foregroundColor(.white.opacity(0.35))
                 }
+                if !state.currentGitBranch.isEmpty {
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.triangle.branch")
+                            .font(.system(size: 8, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.3))
+                        Text(state.currentGitBranch)
+                            .font(.system(size: 10, design: .rounded))
+                            .foregroundColor(.white.opacity(0.45))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .frame(maxWidth: 110)
+                    }
+                    .help("Checked-out git branch")
+                }
                 Spacer(minLength: 0)
                 ContextCostBar(
                     percent: state.currentContextPercent,
@@ -806,6 +820,18 @@ private struct SessionsList: View {
                                 .truncationMode(.tail)
                                 .help(session.title.isEmpty ? session.cwd
                                       : "\(session.project) — \(session.cwd)")
+                            if !session.gitBranch.isEmpty {
+                                HStack(spacing: 2) {
+                                    Image(systemName: "arrow.triangle.branch")
+                                        .font(.system(size: 7, weight: .semibold))
+                                    Text(session.gitBranch)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                        .frame(maxWidth: 90)
+                                }
+                                .font(.system(size: 9, design: .rounded))
+                                .foregroundColor(.white.opacity(0.4))
+                            }
                             if let waitStart = state.pendingWaitStart(forCwd: session.cwd) {
                                 TimelineView(.periodic(from: .now, by: 15)) { _ in
                                     Text("⏳ \(waitElapsed(waitStart))")

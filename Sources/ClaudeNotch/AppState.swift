@@ -107,6 +107,9 @@ struct LiveSession: Identifiable, Equatable {
     // Files Claude edited or wrote this session (ordered, unique, newest
     // last, capped). Drives the "N files" chip + Files Touched menu.
     var touchedFiles: [String] = []
+    // Checked-out git branch of cwd (read from .git/HEAD, cached). Empty when
+    // not a repo.
+    var gitBranch: String = ""
 
     var hasMeter: Bool { contextPercent > 0 || sessionCostUSD > 0 }
 }
@@ -1155,7 +1158,54 @@ final class AppState: ObservableObject {
         upsertSession(id: sessionId, cwd: c, authoritativeCwd: true, create: true) { s in
             if let bid { s.originatorBundleID = bid }
         }
+        refreshGitBranch(cwd: c, sessionId: sessionId)
         ensureStaleTimer()
+    }
+
+    // MARK: - Git branch
+
+    // Branch per cwd, re-read at most every 15 s — the file is tiny but hooks
+    // arrive every second for an active session.
+    private var branchCache: [String: (branch: String, readAt: Date)] = [:]
+
+    private func refreshGitBranch(cwd: String, sessionId: String) {
+        let now = Date()
+        if let hit = branchCache[cwd], now.timeIntervalSince(hit.readAt) < 15 {
+            upsertSession(id: sessionId, cwd: cwd) { s in
+                if s.gitBranch != hit.branch { s.gitBranch = hit.branch }
+            }
+            return
+        }
+        let branch = Self.readGitBranch(cwd: cwd)
+        branchCache[cwd] = (branch, now)
+        upsertSession(id: sessionId, cwd: cwd) { s in
+            if s.gitBranch != branch { s.gitBranch = branch }
+        }
+    }
+
+    /// Read the checked-out branch from `.git/HEAD` without running git.
+    /// Handles worktrees (`.git` is a file pointing at the real gitdir) and
+    /// detached HEADs (short hash). Empty when cwd isn't a repo.
+    static func readGitBranch(cwd: String) -> String {
+        var gitDir = (cwd as NSString).appendingPathComponent(".git")
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: gitDir, isDirectory: &isDir) else { return "" }
+        if !isDir.boolValue {
+            // Worktree/submodule: ".git" is a file — "gitdir: /path/to/gitdir"
+            guard let content = try? String(contentsOfFile: gitDir, encoding: .utf8),
+                  let path = content.split(separator: "\n").first?
+                      .replacingOccurrences(of: "gitdir:", with: "")
+                      .trimmingCharacters(in: .whitespaces), !path.isEmpty else { return "" }
+            gitDir = path.hasPrefix("/") ? path : (cwd as NSString).appendingPathComponent(path)
+        }
+        let headPath = (gitDir as NSString).appendingPathComponent("HEAD")
+        guard let head = try? String(contentsOfFile: headPath, encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines) else { return "" }
+        if head.hasPrefix("ref: refs/heads/") {
+            return String(head.dropFirst("ref: refs/heads/".count))
+        }
+        // Detached HEAD: show a short hash.
+        return head.count >= 7 ? String(head.prefix(7)) : head
     }
 
     func noteActivity(_ label: String, sessionId: String = "") {
@@ -1352,6 +1402,14 @@ final class AppState: ObservableObject {
             return s.touchedFiles
         }
         return sessions.values.max(by: { $0.lastHookAt < $1.lastHookAt })?.touchedFiles ?? []
+    }
+
+    /// Git branch of the session the notch header is currently showing.
+    var currentGitBranch: String {
+        if !currentSessionId.isEmpty, let s = sessions[currentSessionId] {
+            return s.gitBranch
+        }
+        return sessions.values.max(by: { $0.lastHookAt < $1.lastHookAt })?.gitBranch ?? ""
     }
 
     /// Record the permission mode carried on every hook payload. Cheap no-op
