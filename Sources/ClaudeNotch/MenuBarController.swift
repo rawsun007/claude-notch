@@ -35,6 +35,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var screenCaptureItem: NSMenuItem!
     private var touchedFilesMenu: NSMenu!
     private var touchedFilesItem: NSMenuItem!
+    private var menuSpendItem: NSMenuItem!
     // Keep-open row views for the Sound submenu — clicking these does not
     // dismiss the menu, so the user can preview multiple sounds.
     private var soundRowViews: [String: KeepOpenRowView] = [:]
@@ -210,6 +211,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         persistentNotchItem = NSMenuItem(title: "Persistent Notch Display", action: #selector(togglePersistentNotchDisplay), keyEquivalent: "")
         persistentNotchItem.target = self
         menu.addItem(persistentNotchItem)
+
+        menuSpendItem = NSMenuItem(title: "Show Today's Spend in Menu Bar",
+                                   action: #selector(toggleMenuSpend), keyEquivalent: "")
+        menuSpendItem.target = self
+        menuSpendItem.toolTip = "Append today's estimated cost next to the menu bar icon, live."
+        menuSpendItem.state = state.showSpendInMenuBar ? .on : .off
+        menu.addItem(menuSpendItem)
 
         // Auto-Approve submenu: permanent toggle + timed windows.
         autoApproveMenu = NSMenu()
@@ -561,14 +569,20 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func refreshBadge() {
         guard let button = item.button else { return }
         let count = state.workingSessionCount
-        if count > 0 {
-            let str = NSAttributedString(string: " \(count)", attributes: [
+        var parts: [String] = []
+        if count > 0 { parts.append("\(count)") }
+        if state.showSpendInMenuBar {
+            let spend = state.todaySpendUSD
+            if spend >= 0.005 { parts.append(String(format: "$%.2f", spend)) }
+        }
+        if parts.isEmpty {
+            button.attributedTitle = NSAttributedString(string: "")
+        } else {
+            let str = NSAttributedString(string: " " + parts.joined(separator: " · "), attributes: [
                 .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold),
                 .foregroundColor: NSColor.labelColor
             ])
             button.attributedTitle = str
-        } else {
-            button.attributedTitle = NSAttributedString(string: "")
         }
     }
 
@@ -785,6 +799,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func toggleScreenCapture() {
         state.setHideFromScreenCapture(!state.hideFromScreenCapture)
         screenCaptureItem?.state = state.hideFromScreenCapture ? .on : .off
+    }
+
+    @objc private func toggleMenuSpend() {
+        state.setShowSpendInMenuBar(!state.showSpendInMenuBar)
+        menuSpendItem?.state = state.showSpendInMenuBar ? .on : .off
+        refreshBadge()
     }
 
     /// Rebuild the Files Touched submenu from the current session — newest

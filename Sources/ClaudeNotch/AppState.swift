@@ -498,6 +498,8 @@ final class AppState: ObservableObject {
     // other apps' screenshots). The notch shows commands, file paths, and
     // code snippets — none of which belong in a Zoom call. Default on.
     @Published var hideFromScreenCapture: Bool = true
+    // Append today's estimated spend to the menu bar icon. Off by default.
+    @Published var showSpendInMenuBar: Bool = false
     weak var permissionMirror: PermissionMirroring?
 
     // Daily digest tracking — only shown once per day.
@@ -645,6 +647,7 @@ final class AppState: ObservableObject {
             self.completionNotificationsEnabled = snapshot.completionNotificationsEnabled ?? false
             self.digestNotificationsEnabled = snapshot.digestNotificationsEnabled ?? false
             self.hideFromScreenCapture = snapshot.hideFromScreenCapture ?? true
+            self.showSpendInMenuBar = snapshot.showSpendInMenuBar ?? false
             self.statusBarItems = snapshot.statusBarItems?
                 .compactMap(StatusBarItem.init) ?? [.fiveHourLimit, .weeklyLimit]
             self.contextWindowMode = snapshot.contextWindowMode.flatMap(ContextWindowMode.init) ?? .auto
@@ -819,6 +822,24 @@ final class AppState: ObservableObject {
     func setHideFromScreenCapture(_ on: Bool) {
         hideFromScreenCapture = on
         schedulePersist()
+    }
+
+    func setShowSpendInMenuBar(_ on: Bool) {
+        showSpendInMenuBar = on
+        schedulePersist()
+    }
+
+    /// Estimated spend so far today: live sessions' running cost + archived
+    /// sessions that started today and are no longer live (a live session's
+    /// archived record would double-count, so those are skipped).
+    var todaySpendUSD: Double {
+        let todayStart = Calendar.current.startOfDay(for: Date())
+        let liveKeys = Set(sessions.keys)
+        let archived = sessionHistory
+            .filter { $0.startedAt >= todayStart && !liveKeys.contains($0.sessionKey) }
+            .reduce(0.0) { $0 + $1.costUSD }
+        let live = sessions.values.reduce(0.0) { $0 + $1.sessionCostUSD }
+        return archived + live
     }
 
     /// Yesterday's spend aggregated from session history.
@@ -1124,6 +1145,7 @@ final class AppState: ObservableObject {
             completionNotificationsEnabled: completionNotificationsEnabled,
             digestNotificationsEnabled: digestNotificationsEnabled,
             hideFromScreenCapture: hideFromScreenCapture,
+            showSpendInMenuBar: showSpendInMenuBar,
             enforceBudget: enforceBudget,
             statusBarItems: statusBarItems.map(\.rawValue),
             contextWindowMode: contextWindowMode.rawValue,
