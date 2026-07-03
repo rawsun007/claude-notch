@@ -1850,7 +1850,11 @@ private struct HistoryCard: View {
                     : "No sessions match your search.")
             } else {
                 ScrollView {
-                    VStack(spacing: 4) { ForEach(filteredSessions) { SessionHistoryRow(record: $0) } }
+                    VStack(spacing: 4) {
+                        ForEach(filteredSessions) { record in
+                            SessionHistoryRow(record: record, onResume: { resume(in: record.cwd) })
+                        }
+                    }
                 }
                 .frame(maxHeight: .infinity)
             }
@@ -1863,7 +1867,10 @@ private struct HistoryCard: View {
                 let maxCost = filteredProjects.map(\.totalCostUSD).max() ?? 0
                 ScrollView {
                     VStack(spacing: 4) {
-                        ForEach(filteredProjects) { ProjectStatsRow(stats: $0, maxCost: maxCost) }
+                        ForEach(filteredProjects) { stats in
+                            ProjectStatsRow(stats: stats, maxCost: maxCost,
+                                            onResume: { resume(in: stats.cwd) })
+                        }
                     }
                 }
                 .frame(maxHeight: .infinity)
@@ -1890,6 +1897,13 @@ private struct HistoryCard: View {
             .multilineTextAlignment(.center)
     }
 
+    /// Start a fresh Claude session in the given directory and close the panel.
+    private func resume(in cwd: String) {
+        guard !cwd.isEmpty else { return }
+        state.closeHistory()
+        TerminalAutomator.startClaude(in: cwd)
+    }
+
     private var footer: some View {
         HStack {
             Spacer()
@@ -1905,6 +1919,8 @@ private struct HistoryCard: View {
 
 private struct SessionHistoryRow: View {
     let record: SessionRecord
+    var onResume: (() -> Void)? = nil
+    @State private var hovering = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -1924,9 +1940,23 @@ private struct SessionHistoryRow: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                     Spacer()
-                    Text(timeAgo(record.startedAt))
-                        .font(.system(size: 10, design: .rounded))
-                        .foregroundColor(.white.opacity(0.4))
+                    if hovering, let onResume, !record.cwd.isEmpty {
+                        Button(action: onResume) {
+                            HStack(spacing: 3) {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 8, weight: .semibold))
+                                Text("Resume")
+                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            }
+                            .foregroundColor(.green.opacity(0.9))
+                        }
+                        .buttonStyle(.plain)
+                        .help("Start Claude in \(record.cwd)")
+                    } else {
+                        Text(timeAgo(record.startedAt))
+                            .font(.system(size: 10, design: .rounded))
+                            .foregroundColor(.white.opacity(0.4))
+                    }
                 }
                 HStack(spacing: 8) {
                     if let dur = record.duration {
@@ -1956,8 +1986,9 @@ private struct SessionHistoryRow: View {
         .padding(.vertical, 7)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.white.opacity(0.04))
+                .fill(Color.white.opacity(hovering ? 0.07 : 0.04))
         )
+        .onHover { hovering = $0 }
         .help(record.cwd)
     }
 
@@ -1989,6 +2020,8 @@ private struct SessionHistoryRow: View {
 private struct ProjectStatsRow: View {
     let stats: ProjectStats
     let maxCost: Double
+    var onResume: (() -> Void)? = nil
+    @State private var hovering = false
 
     private func fmtK(_ n: Int) -> String { n >= 1000 ? "\(n / 1000)k" : "\(n)" }
 
@@ -2019,9 +2052,23 @@ private struct ProjectStatsRow: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                     Spacer()
-                    Text("\(stats.sessionCount) session\(stats.sessionCount == 1 ? "" : "s")")
-                        .font(.system(size: 10, design: .rounded))
-                        .foregroundColor(.white.opacity(0.4))
+                    if hovering, let onResume, !stats.cwd.isEmpty {
+                        Button(action: onResume) {
+                            HStack(spacing: 3) {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 8, weight: .semibold))
+                                Text("Resume")
+                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            }
+                            .foregroundColor(.green.opacity(0.9))
+                        }
+                        .buttonStyle(.plain)
+                        .help("Start Claude in \(stats.cwd)")
+                    } else {
+                        Text("\(stats.sessionCount) session\(stats.sessionCount == 1 ? "" : "s")")
+                            .font(.system(size: 10, design: .rounded))
+                            .foregroundColor(.white.opacity(0.4))
+                    }
                 }
                 HStack(spacing: 8) {
                     statChip(fmtDuration(stats.totalDuration), icon: "clock")
@@ -2052,8 +2099,9 @@ private struct ProjectStatsRow: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.white.opacity(0.04))
+                .fill(Color.white.opacity(hovering ? 0.07 : 0.04))
         )
+        .onHover { hovering = $0 }
         .help(stats.cwd)
     }
 
