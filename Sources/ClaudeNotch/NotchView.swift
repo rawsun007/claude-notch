@@ -795,6 +795,18 @@ private struct SessionsList: View {
                                 .truncationMode(.tail)
                                 .help(session.title.isEmpty ? session.cwd
                                       : "\(session.project) — \(session.cwd)")
+                            if let waitStart = state.pendingWaitStart(forCwd: session.cwd) {
+                                TimelineView(.periodic(from: .now, by: 15)) { _ in
+                                    Text("⏳ \(waitElapsed(waitStart))")
+                                        .font(.system(size: 9, weight: .semibold, design: .rounded))
+                                        .foregroundColor(.orange.opacity(0.95))
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 2)
+                                        .background(Color.orange.opacity(0.18))
+                                        .cornerRadius(4)
+                                }
+                                .help("Waiting for your answer")
+                            }
                             if session.runningAgentCount > 0 {
                                 Text(session.runningAgentCount == 1 ? "1 agent" : "\(session.runningAgentCount) agents")
                                     .font(.system(size: 9, weight: .medium, design: .rounded))
@@ -1218,6 +1230,15 @@ private struct PermissionCard: View {
                 Text(request.toolName)
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.55))
+                // Show how long this card has been waiting once it passes a
+                // minute — a quiet cue that Claude has been blocked a while.
+                TimelineView(.periodic(from: .now, by: 15)) { _ in
+                    if Date().timeIntervalSince(request.receivedAt) >= 60 {
+                        Text("⏳ waiting \(waitElapsed(request.receivedAt))")
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundColor(.orange.opacity(0.9))
+                    }
+                }
                 Spacer()
                 if !request.cwd.isEmpty {
                     Text((request.cwd as NSString).lastPathComponent)
@@ -2857,6 +2878,16 @@ private func timeAgo(_ date: Date) -> String {
     if m < 60 { return "\(m)m ago" }
     let h = m / 60
     return "\(h)h ago"
+}
+
+/// Compact elapsed-wait label: "45s", "3m", "1h 20m".
+private func waitElapsed(_ since: Date) -> String {
+    let s = Int(Date().timeIntervalSince(since))
+    if s < 60 { return "\(s)s" }
+    let m = s / 60
+    if m < 60 { return "\(m)m" }
+    let h = m / 60; let rm = m % 60
+    return rm > 0 ? "\(h)h \(rm)m" : "\(h)h"
 }
 
 /// Badge for non-default Claude Code permission modes. `default` (and empty)

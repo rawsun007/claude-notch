@@ -2529,6 +2529,62 @@ final class AppState: ObservableObject {
         if next != mode {
             mode = next
         }
+        updateReAlertTimer()
+    }
+
+    // MARK: - Waiting-on-you re-alert
+
+    // One missed chime shouldn't cost 20 minutes: while a blocking card sits
+    // unanswered, nudge once more after `reAlertAfter` — replay the sound and
+    // re-post the native notification (same identifier, so it replaces rather
+    // than stacks). One nudge per request, never a nag loop.
+    static let reAlertAfter: TimeInterval = 180
+    private var reAlertTimer: Timer?
+    private var reAlertedIds: Set<UUID> = []
+
+    private func updateReAlertTimer() {
+        let hasPending = permissionQueue.contains { $0.kind == .toolUse } || !questionQueue.isEmpty
+        if hasPending, reAlertTimer == nil {
+            reAlertTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+                Task { @MainActor in self?.checkReAlert() }
+            }
+        } else if !hasPending, reAlertTimer != nil {
+            reAlertTimer?.invalidate(); reAlertTimer = nil
+            reAlertedIds.removeAll()
+        }
+    }
+
+    private func checkReAlert() {
+        let now = Date()
+        for req in permissionQueue where req.kind == .toolUse {
+            guard !reAlertedIds.contains(req.id),
+                  now.timeIntervalSince(req.receivedAt) >= Self.reAlertAfter else { continue }
+            reAlertedIds.insert(req.id)
+            playAlert(toolName: req.toolName)
+            if mirrorToNotificationCenter { permissionMirror?.mirror(req) }
+            return   // one nudge per tick
+        }
+        for q in questionQueue {
+            guard !reAlertedIds.contains(q.id),
+                  now.timeIntervalSince(q.receivedAt) >= Self.reAlertAfter else { continue }
+            reAlertedIds.insert(q.id)
+            playAlert()
+            return
+        }
+    }
+
+    /// Oldest unanswered blocking request for a session (matched by cwd) —
+    /// drives the "waiting Xm" chip on multi-session rows.
+    func pendingWaitStart(forCwd cwd: String) -> Date? {
+        guard !cwd.isEmpty else { return nil }
+        let perm = permissionQueue.first { $0.kind == .toolUse && $0.cwd == cwd }?.receivedAt
+        let ques = questionQueue.first { $0.cwd == cwd }?.receivedAt
+        switch (perm, ques) {
+        case let (p?, q?): return min(p, q)
+        case let (p?, nil): return p
+        case let (nil, q?): return q
+        default: return nil
+        }
     }
 }
 
