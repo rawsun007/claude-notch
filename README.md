@@ -95,12 +95,21 @@ system, and shows no Dock icon — just a small bell in your menu bar.
 
 ### With Homebrew
 
-Run **both** lines — the tap has to come before install:
+One line:
+
+```bash
+brew install --cask rawsun007/tap/claudenotch
+```
+
+<details>
+<summary>Alternative: tap this repo directly</summary>
 
 ```bash
 brew tap rawsun007/claudenotch https://github.com/rawsun007/claude-notch
 brew install --cask claudenotch
 ```
+
+</details>
 
 ### Build from source (for developers)
 

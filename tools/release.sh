@@ -115,6 +115,10 @@ else
     echo "     (the cask expects releases/download/v${VERSION}/ClaudeNotch.dmg)"
 fi
 
+
+# Keep the Homebrew tap serving the new version.
+"$(dirname "$0")/push-cask-to-tap.sh" || true
+
 echo
 echo "Next: add a v${VERSION} entry to app/changelog/releases.ts on the website,"
 echo "then rebuild it and copy out/ into docs/ so the changelog page updates."
