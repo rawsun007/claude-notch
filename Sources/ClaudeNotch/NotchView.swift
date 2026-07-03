@@ -1687,6 +1687,58 @@ private struct HistoryCard: View {
         return allProjectStats.filter { $0.project.lowercased().contains(q) }
     }
 
+    /// Cost per day for the trailing week (oldest first) + totals, from
+    /// session history. Powers the mini trend header on the Projects tab.
+    private var weekSpend: (total: Double, sessions: Int, daily: [Double]) {
+        let cal = Calendar.current
+        let todayStart = cal.startOfDay(for: Date())
+        var daily = [Double](repeating: 0, count: 7)
+        var total = 0.0, count = 0
+        for r in state.sessionHistory {
+            let dayStart = cal.startOfDay(for: r.startedAt)
+            guard let days = cal.dateComponents([.day], from: dayStart, to: todayStart).day,
+                  (0..<7).contains(days) else { continue }
+            daily[6 - days] += r.costUSD
+            total += r.costUSD
+            count += 1
+        }
+        return (total, count, daily)
+    }
+
+    @ViewBuilder
+    private var weekSpendHeader: some View {
+        let w = weekSpend
+        if w.sessions > 0 {
+            HStack(spacing: 10) {
+                // Mini 7-day bar chart, today rightmost.
+                let peak = w.daily.max() ?? 0
+                HStack(alignment: .bottom, spacing: 2) {
+                    ForEach(0..<7, id: \.self) { i in
+                        RoundedRectangle(cornerRadius: 1, style: .continuous)
+                            .fill(i == 6 ? Color.green.opacity(0.9) : Color.green.opacity(0.45))
+                            .frame(width: 5,
+                                   height: peak > 0 ? max(2, 16 * w.daily[i] / peak) : 2)
+                    }
+                }
+                .frame(height: 16, alignment: .bottom)
+                Text("Last 7 days: \(ClaudeUsageReader.fmtMoney(w.total))")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white.opacity(0.85))
+                Text("·").foregroundColor(.white.opacity(0.3))
+                Text("\(w.sessions) session\(w.sessions == 1 ? "" : "s")")
+                    .font(.system(size: 11, design: .rounded))
+                    .foregroundColor(.white.opacity(0.5))
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.green.opacity(0.08))
+            )
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
@@ -1865,11 +1917,14 @@ private struct HistoryCard: View {
                     : "No projects match your search.")
             } else {
                 let maxCost = filteredProjects.map(\.totalCostUSD).max() ?? 0
-                ScrollView {
-                    VStack(spacing: 4) {
-                        ForEach(filteredProjects) { stats in
-                            ProjectStatsRow(stats: stats, maxCost: maxCost,
-                                            onResume: { resume(in: stats.cwd) })
+                VStack(spacing: 6) {
+                    weekSpendHeader
+                    ScrollView {
+                        VStack(spacing: 4) {
+                            ForEach(filteredProjects) { stats in
+                                ProjectStatsRow(stats: stats, maxCost: maxCost,
+                                                onResume: { resume(in: stats.cwd) })
+                            }
                         }
                     }
                 }
