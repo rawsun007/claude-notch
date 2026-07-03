@@ -1083,6 +1083,14 @@ private struct ComposeCard: View {
 
 private struct ResponseDetailCard: View {
     @ObservedObject var state: AppState
+    @State private var copied = false
+
+    private func copyReply() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(state.detailResponseText, forType: .string)
+        copied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { copied = false }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1120,6 +1128,8 @@ private struct ResponseDetailCard: View {
 
             HStack {
                 Spacer()
+                NotchButton(label: copied ? "Copied ✓" : "Copy",
+                            style: .secondary, action: copyReply)
                 NotchButton(label: "Close", style: .primary, shortcut: "⏎") {
                     state.closeResponseDetail()
                 }
