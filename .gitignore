@@ -10,6 +10,7 @@ ClaudeNotch.app/
 
 # Distributable artifacts (regenerate via tools/build-dmg.sh)
 dist/
+ClaudeNotch.dmg
 assets/AppIcon.iconset/
 
 # macOS junk
