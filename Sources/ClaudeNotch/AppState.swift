@@ -509,6 +509,12 @@ final class AppState: ObservableObject {
     // daily poll doesn't re-card users who chose to ignore an update.
     private var lastUpdateCardVersion: String? = nil
 
+    // Version the user last ran — drives the one-time What's New card after
+    // an update. Maintained per release alongside the changelog.
+    private var lastSeenVersion: String? = nil
+    static let whatsNewHighlights =
+        "Reply to Claude from the notification banner · git branch shown per session · optional today-spend readout in the menu bar"
+
     /// Transient "live activity" card shown after an auto-approved action —
     /// shows WHAT changed, no buttons, auto-dismisses.
     @Published private(set) var autoInfo: PermissionRequest? = nil
@@ -642,6 +648,7 @@ final class AppState: ObservableObject {
             self.persistentNotchDisplay = snapshot.persistentNotchDisplay ?? false
             self.lastDigestDate = snapshot.lastDigestDate
             self.lastUpdateCardVersion = snapshot.lastUpdateCardVersion
+            self.lastSeenVersion = snapshot.lastSeenVersion
             self.sessionCostCap = snapshot.sessionCostCap ?? 0
             self.dailyCostCap = snapshot.dailyCostCap ?? 0
             self.fiveHourCostCap = snapshot.fiveHourCostCap ?? 5.0
@@ -666,6 +673,35 @@ final class AppState: ObservableObject {
         let seededModel = ClaudeUsageReader.modelFromSettings()
         if !seededModel.isEmpty { self.currentModel = seededModel }
         self.currentEffort = ClaudeUsageReader.effortFromSettings()
+
+        // What's New: first launch on a new version shows the highlights once.
+        // A nil lastSeenVersion means fresh install — onboarding covers that.
+        let current = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? ""
+        let previous = lastSeenVersion
+        if !current.isEmpty, current != previous {
+            lastSeenVersion = current
+            schedulePersist()
+            if let prev = previous, prev != current {
+                // Delay so the notch window exists and the card animates in
+                // instead of appearing mid-launch.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
+                    self?.showWhatsNewCard(version: current)
+                }
+            }
+        }
+    }
+
+    /// One-time post-update card: "Updated to vX — <highlights>".
+    private func showWhatsNewCard(version: String) {
+        enqueuePermission(PermissionRequest(
+            kind: .notification,
+            title: "Updated to v\(version)",
+            detail: Self.whatsNewHighlights,
+            toolName: "WhatsNew",
+            source: "ClaudeNotch",
+            cwd: "",
+            resolver: { _, _ in }
+        ))
     }
 
     // MARK: - Usage stats
@@ -1161,6 +1197,7 @@ final class AppState: ObservableObject {
             persistentNotchDisplay: persistentNotchDisplay,
             lastDigestDate: lastDigestDate,
             lastUpdateCardVersion: lastUpdateCardVersion,
+            lastSeenVersion: lastSeenVersion,
             sessionCostCap: sessionCostCap,
             dailyCostCap: dailyCostCap,
             fiveHourCostCap: fiveHourCostCap,

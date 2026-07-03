@@ -17,6 +17,7 @@ enum Persistence {
         var persistentNotchDisplay: Bool? = nil
         var lastDigestDate: String? = nil
         var lastUpdateCardVersion: String? = nil
+        var lastSeenVersion: String? = nil
         var sessionCostCap: Double? = nil
         var dailyCostCap: Double? = nil
         var fiveHourCostCap: Double? = nil
@@ -80,6 +81,7 @@ extension Persistence.Snapshot {
             persistentNotchDisplay: try? c.decode(Bool.self, forKey: .persistentNotchDisplay),
             lastDigestDate: try? c.decode(String.self, forKey: .lastDigestDate),
             lastUpdateCardVersion: try? c.decode(String.self, forKey: .lastUpdateCardVersion),
+            lastSeenVersion: try? c.decode(String.self, forKey: .lastSeenVersion),
             sessionCostCap: try? c.decode(Double.self, forKey: .sessionCostCap),
             dailyCostCap: try? c.decode(Double.self, forKey: .dailyCostCap),
             fiveHourCostCap: try? c.decode(Double.self, forKey: .fiveHourCostCap),
