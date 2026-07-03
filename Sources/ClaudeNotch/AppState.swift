@@ -98,6 +98,10 @@ struct LiveSession: Identifiable, Equatable {
     var sessionCostUSD: Double = 0   // cumulative estimated cost so far
     var model: String = ""           // most recent model id (e.g. claude-opus-4-8)
     var isCompacting: Bool = false   // true between PreCompact and the next event
+    // Claude Code permission mode from hook payloads (default / plan /
+    // acceptEdits / auto / dontAsk / bypassPermissions). Non-default modes get
+    // a badge in the notch so a bypass session is never invisible.
+    var permissionMode: String = ""
 
     var hasMeter: Bool { contextPercent > 0 || sessionCostUSD > 0 }
 }
@@ -522,6 +526,7 @@ final class AppState: ObservableObject {
     @Published private(set) var currentContextTokens: Int = 0
     @Published private(set) var currentCostUSD: Double = 0
     @Published private(set) var currentModel: String = ""
+    @Published private(set) var currentPermissionMode: String = ""
 
     // Cost budgets (USD, estimated from public pricing). 0 = off. Persisted.
     // sessionCostCap warns on any single session; dailyCostCap on today's total.
@@ -1297,6 +1302,17 @@ final class AppState: ObservableObject {
         if let s = sessions[key] { archiveSession(s) }
     }
 
+    /// Record the permission mode carried on every hook payload. Cheap no-op
+    /// when unchanged; drives the BYPASS / PLAN / AUTO badge in the notch.
+    func notePermissionMode(_ mode: String, sessionId: String, cwd: String) {
+        guard !mode.isEmpty else { return }
+        upsertSession(id: sessionId, cwd: cwd) { s in
+            if s.permissionMode != mode { s.permissionMode = mode }
+        }
+        let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
+        if isCurrent, currentPermissionMode != mode { currentPermissionMode = mode }
+    }
+
     /// A turn died from an API-level failure (StopFailure hook: rate limit,
     /// overloaded, billing…). Shows a blocking alert card + native banner so a
     /// long task never dies silently while the user is away.
@@ -1925,6 +1941,7 @@ final class AppState: ObservableObject {
             currentContextTokens = newest.contextTokens
             currentCostUSD = newest.sessionCostUSD
             if !newest.model.isEmpty { currentModel = newest.model }
+            currentPermissionMode = newest.permissionMode
         } else {
             currentSessionId = ""
             currentProject = ""
@@ -1937,6 +1954,7 @@ final class AppState: ObservableObject {
             currentContextTokens = 0
             currentCostUSD = 0
             currentModel = ""
+            currentPermissionMode = ""
         }
     }
 

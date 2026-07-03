@@ -329,9 +329,13 @@ final class EventServer {
         let cwd = (payload["cwd"] as? String) ?? ""
         guard !cwd.isEmpty else { return }
         let sessionId = (payload["session_id"] as? String) ?? ""
+        let permissionMode = (payload["permission_mode"] as? String) ?? ""
         Task { @MainActor [weak state] in
             let frontBID = Self.capturedOriginator(state: state)
             state?.noteSession(cwd: cwd, sessionId: sessionId, originatorBundleID: frontBID)
+            if !permissionMode.isEmpty {
+                state?.notePermissionMode(permissionMode, sessionId: sessionId, cwd: cwd)
+            }
         }
     }
 

@@ -632,6 +632,16 @@ private struct IdlePill: View {
                         .background(Color.purple.opacity(0.18))
                         .cornerRadius(4)
                 }
+                if let badge = permissionModeBadge(state.currentPermissionMode) {
+                    Text(badge.label)
+                        .font(.system(size: 9, weight: .semibold, design: .rounded))
+                        .foregroundColor(badge.color.opacity(0.95))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(badge.color.opacity(0.18))
+                        .cornerRadius(4)
+                        .help(badge.help)
+                }
                 Spacer(minLength: 0)
                 if canShowHistory {
                     Button { state.openHistory() } label: {
@@ -2844,4 +2854,24 @@ private func timeAgo(_ date: Date) -> String {
     if m < 60 { return "\(m)m ago" }
     let h = m / 60
     return "\(h)h ago"
+}
+
+/// Badge for non-default Claude Code permission modes. `default` (and empty)
+/// return nil — no badge for the normal case. bypassPermissions is the loud
+/// one: every action runs unchecked, so it's red and impossible to miss.
+func permissionModeBadge(_ mode: String) -> (label: String, color: Color, help: String)? {
+    switch mode {
+    case "bypassPermissions":
+        return ("BYPASS", .red, "Permissions are bypassed — every action runs without asking")
+    case "plan":
+        return ("PLAN", .blue, "Plan mode — Claude is planning, not editing")
+    case "acceptEdits":
+        return ("EDITS", .orange, "Auto-accepting file edits")
+    case "auto":
+        return ("AUTO", .teal, "Auto mode — background safety checks approve safe actions")
+    case "dontAsk":
+        return ("DON'T ASK", .orange, "Don't-ask mode — most actions run without prompting")
+    default:
+        return nil
+    }
 }
