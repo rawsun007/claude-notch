@@ -24,6 +24,7 @@ enum Persistence {
         var mirrorToNotificationCenter: Bool? = nil
         var completionNotificationsEnabled: Bool? = nil
         var digestNotificationsEnabled: Bool? = nil
+        var hideFromScreenCapture: Bool? = nil
         var enforceBudget: Bool? = nil
         var statusBarItems: [String]? = nil
         var contextWindowMode: String? = nil
@@ -84,6 +85,7 @@ extension Persistence.Snapshot {
             mirrorToNotificationCenter: try? c.decode(Bool.self, forKey: .mirrorToNotificationCenter),
             completionNotificationsEnabled: try? c.decode(Bool.self, forKey: .completionNotificationsEnabled),
             digestNotificationsEnabled: try? c.decode(Bool.self, forKey: .digestNotificationsEnabled),
+            hideFromScreenCapture: try? c.decode(Bool.self, forKey: .hideFromScreenCapture),
             enforceBudget: try? c.decode(Bool.self, forKey: .enforceBudget),
             statusBarItems: try? c.decode([String].self, forKey: .statusBarItems),
             contextWindowMode: try? c.decode(String.self, forKey: .contextWindowMode),

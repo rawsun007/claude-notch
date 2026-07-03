@@ -487,6 +487,10 @@ final class AppState: ObservableObject {
     @Published var mirrorToNotificationCenter: Bool = true
     @Published var completionNotificationsEnabled: Bool = false
     @Published var digestNotificationsEnabled: Bool = false
+    // Exclude the notch window from screen captures (shares, recordings,
+    // other apps' screenshots). The notch shows commands, file paths, and
+    // code snippets — none of which belong in a Zoom call. Default on.
+    @Published var hideFromScreenCapture: Bool = true
     weak var permissionMirror: PermissionMirroring?
 
     // Daily digest tracking — only shown once per day.
@@ -633,6 +637,7 @@ final class AppState: ObservableObject {
             self.mirrorToNotificationCenter = snapshot.mirrorToNotificationCenter ?? true
             self.completionNotificationsEnabled = snapshot.completionNotificationsEnabled ?? false
             self.digestNotificationsEnabled = snapshot.digestNotificationsEnabled ?? false
+            self.hideFromScreenCapture = snapshot.hideFromScreenCapture ?? true
             self.statusBarItems = snapshot.statusBarItems?
                 .compactMap(StatusBarItem.init) ?? [.fiveHourLimit, .weeklyLimit]
             self.contextWindowMode = snapshot.contextWindowMode.flatMap(ContextWindowMode.init) ?? .auto
@@ -801,6 +806,11 @@ final class AppState: ObservableObject {
 
     func setDigestNotificationsEnabled(_ on: Bool) {
         digestNotificationsEnabled = on
+        schedulePersist()
+    }
+
+    func setHideFromScreenCapture(_ on: Bool) {
+        hideFromScreenCapture = on
         schedulePersist()
     }
 
@@ -1106,6 +1116,7 @@ final class AppState: ObservableObject {
             mirrorToNotificationCenter: mirrorToNotificationCenter,
             completionNotificationsEnabled: completionNotificationsEnabled,
             digestNotificationsEnabled: digestNotificationsEnabled,
+            hideFromScreenCapture: hideFromScreenCapture,
             enforceBudget: enforceBudget,
             statusBarItems: statusBarItems.map(\.rawValue),
             contextWindowMode: contextWindowMode.rawValue,

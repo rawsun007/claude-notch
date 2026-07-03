@@ -32,6 +32,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var notifyMirrorItem: NSMenuItem!
     private var completionNotifItem: NSMenuItem!
     private var digestNotifItem: NSMenuItem!
+    private var screenCaptureItem: NSMenuItem!
     // Keep-open row views for the Sound submenu — clicking these does not
     // dismiss the menu, so the user can preview multiple sounds.
     private var soundRowViews: [String: KeepOpenRowView] = [:]
@@ -182,6 +183,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         digestNotifItem.toolTip = "Send a morning notification with yesterday's cost, session count, and top project. Off by default."
         digestNotifItem.state = state.digestNotificationsEnabled ? .on : .off
         permsMenu.addItem(digestNotifItem)
+
+        permsMenu.addItem(.separator())
+        screenCaptureItem = NSMenuItem(title: "Hide from Screen Recordings",
+                                       action: #selector(toggleScreenCapture), keyEquivalent: "")
+        screenCaptureItem.target = self
+        screenCaptureItem.toolTip = "Keep the notch out of screen shares, recordings, and other apps' screenshots. You still see it live; viewers don't. On by default."
+        screenCaptureItem.state = state.hideFromScreenCapture ? .on : .off
+        permsMenu.addItem(screenCaptureItem)
 
         let permsItem = NSMenuItem(title: "Permissions", action: nil, keyEquivalent: "")
         permsItem.submenu = permsMenu
@@ -761,6 +770,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func toggleDigestNotifications() {
         state.setDigestNotificationsEnabled(!state.digestNotificationsEnabled)
         digestNotifItem?.state = state.digestNotificationsEnabled ? .on : .off
+    }
+
+    @objc private func toggleScreenCapture() {
+        state.setHideFromScreenCapture(!state.hideFromScreenCapture)
+        screenCaptureItem?.state = state.hideFromScreenCapture ? .on : .off
     }
 
     @objc private func toggleEnforceBudget() {

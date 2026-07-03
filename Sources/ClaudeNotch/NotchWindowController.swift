@@ -43,6 +43,7 @@ final class NotchWindowController {
     let window: NotchPanel
     private let host: PassThroughHostingView
     private var cancellable: AnyCancellable?
+    private var captureCancellable: AnyCancellable?
 
     init(state: AppState) {
         self.state = state
@@ -65,6 +66,10 @@ final class NotchWindowController {
         panel.becomesKeyOnlyIfNeeded = false
         panel.hidesOnDeactivate = false
         panel.worksWhenModal = true
+        // Keep the notch out of screen shares / recordings / other apps'
+        // screenshots — it renders commands, file paths, and code snippets.
+        // .none excludes the window from capture; the user still sees it live.
+        panel.sharingType = state.hideFromScreenCapture ? .none : .readOnly
 
         let host = PassThroughHostingView(rootView: NotchView(state: state))
         host.appState = state
@@ -99,6 +104,12 @@ final class NotchWindowController {
                 default:
                     break
                 }
+            }
+
+        captureCancellable = state.$hideFromScreenCapture
+            .receive(on: RunLoop.main)
+            .sink { [weak self] hide in
+                self?.window.sharingType = hide ? .none : .readOnly
             }
     }
 
