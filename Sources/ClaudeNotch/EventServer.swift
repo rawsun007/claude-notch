@@ -575,6 +575,22 @@ final class EventServer {
         }
     }
 
+    /// SessionStart hook: a session opened (startup / resume / clear /
+    /// compact). recordSessionMetadata already created the LiveSession; this
+    /// adds what only SessionStart knows — the model id before any transcript
+    /// exists, and the session title if one is set.
+    private func handleSessionStart(payload: [String: Any]) {
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let cwd = (payload["cwd"] as? String) ?? ""
+        let model = (payload["model"] as? String) ?? ""
+        let title = (payload["session_title"] as? String) ?? ""
+        let source = (payload["source"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.noteSessionStart(sessionId: sessionId, cwd: cwd,
+                                    model: model, title: title, source: source)
+        }
+    }
+
     /// SessionEnd hook (Ctrl+C / Ctrl+D / exit): the session is gone, so stop
     /// polling its transcript and drop it from the notch immediately.
     private func handleSessionEnd(payload: [String: Any]) {
@@ -921,6 +937,9 @@ final class EventServer {
             sendOK(on: conn)
         case "SubagentStop":
             handleSubagentStop(payload: payload)
+            sendOK(on: conn)
+        case "SessionStart":
+            handleSessionStart(payload: payload)
             sendOK(on: conn)
         case "SessionEnd":
             handleSessionEnd(payload: payload)

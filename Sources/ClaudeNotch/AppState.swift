@@ -102,6 +102,8 @@ struct LiveSession: Identifiable, Equatable {
     // acceptEdits / auto / dontAsk / bypassPermissions). Non-default modes get
     // a badge in the notch so a bypass session is never invisible.
     var permissionMode: String = ""
+    // Session title from the SessionStart hook, when the user has set one.
+    var title: String = ""
 
     var hasMeter: Bool { contextPercent > 0 || sessionCostUSD > 0 }
 }
@@ -1300,6 +1302,20 @@ final class AppState: ObservableObject {
         if !sessionId.isEmpty { key = sessionId }
         else { var n = resolvedCwd; while n.count > 1, n.hasSuffix("/") { n.removeLast() }; key = n }
         if let s = sessions[key] { archiveSession(s) }
+    }
+
+    /// SessionStart hook: the session just opened. Sets the model id straight
+    /// from the payload — the only pre-transcript source — so the notch shows
+    /// the right model from the first second instead of waiting for the first
+    /// transcript read or status line. Also captures the session title.
+    func noteSessionStart(sessionId: String, cwd: String,
+                          model: String, title: String, source: String) {
+        upsertSession(id: sessionId, cwd: cwd) { s in
+            if !model.isEmpty { s.model = model }
+            if !title.isEmpty { s.title = title }
+        }
+        let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
+        if isCurrent, !model.isEmpty { currentModel = model }
     }
 
     /// Record the permission mode carried on every hook payload. Cheap no-op

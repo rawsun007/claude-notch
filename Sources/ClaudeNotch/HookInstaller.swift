@@ -56,7 +56,7 @@ enum HookInstaller {
     static var hooksCurrent: Bool {
         guard let data = try? Data(contentsOf: URL(fileURLWithPath: settingsPath)),
               let s = String(data: data, encoding: .utf8) else { return false }
-        return s.contains("\"StopFailure\"")
+        return s.contains("\"StopFailure\"") && s.contains("\"SessionStart\"")
     }
 
     /// `jq` is required by posttool.sh to forward payload fields to the
@@ -171,6 +171,9 @@ enum HookInstaller {
         // Session died from an API-level failure (rate limit, overloaded,
         // billing…) — surfaced as a red alert card so it never dies silently.
         appendHook(to: "StopFailure", in: &hooks, matcher: nil)
+        // SessionStart: the session appears in the notch the moment it opens,
+        // with the model name from the payload (before any transcript exists).
+        appendHook(to: "SessionStart", in: &hooks, matcher: nil)
         appendHook(to: "SessionEnd", in: &hooks, matcher: ".*")
         // Task lifecycle drives the per-session progress meter. These events
         // take no matcher (they always fire on every occurrence).

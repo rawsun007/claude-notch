@@ -787,11 +787,14 @@ private struct SessionsList: View {
                                 .fill(working ? Color.blue : Color.green)
                                 .frame(width: 6, height: 6)
                                 .opacity(working ? 0.4 + 0.6 * (0.5 + 0.5 * sin(pulsePhase)) : 1.0)
-                            Text(session.project.isEmpty ? "session" : session.project)
+                            Text(!session.title.isEmpty ? session.title
+                                 : session.project.isEmpty ? "session" : session.project)
                                 .font(.system(size: 11, weight: .medium, design: .rounded))
                                 .foregroundColor(.white.opacity(0.9))
                                 .lineLimit(1)
                                 .truncationMode(.tail)
+                                .help(session.title.isEmpty ? session.cwd
+                                      : "\(session.project) — \(session.cwd)")
                             if session.runningAgentCount > 0 {
                                 Text(session.runningAgentCount == 1 ? "1 agent" : "\(session.runningAgentCount) agents")
                                     .font(.system(size: 9, weight: .medium, design: .rounded))
