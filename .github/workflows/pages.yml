@@ -1,0 +1,61 @@
+# Deploys the website (docs/) to GitHub Pages.
+#
+# We use a custom workflow instead of the legacy deploy-from-branch path
+# because GitHub's internal "pages build and deployment" deploy step failed
+# intermittently (~50%) with "Deployment failed, try again later" on every
+# busy release day, emailing a failure for pushes whose content was fine.
+# Owning the workflow lets us retry the deploy in-run.
+name: Deploy website
+
+on:
+  push:
+    branches: [main]
+    paths: ['docs/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; queued pushes supersede rather than race.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url || steps.retry1.outputs.page_url || steps.retry2.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        if: steps.deploy.outcome == 'failure'
+        run: sleep 30
+
+      - name: Retry deploy (1)
+        id: retry1
+        if: steps.deploy.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Wait before second retry
+        if: steps.deploy.outcome == 'failure' && steps.retry1.outcome == 'failure'
+        run: sleep 60
+
+      - name: Retry deploy (2)
+        id: retry2
+        if: steps.deploy.outcome == 'failure' && steps.retry1.outcome == 'failure'
+        uses: actions/deploy-pages@v4
