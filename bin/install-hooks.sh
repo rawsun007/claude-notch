@@ -58,13 +58,17 @@ jq --arg url "$NOTCH_URL" '
         or
         (sub.type == "http" and (sub.url // "" | contains("53127")));
 
+    # 290s: must exceed the apps own 285s decision-wait window (EventServer,
+    # matching the 3-minute waiting-on-you nudge), or Claude Code gives up on
+    # the HTTP request and falls back to its own terminal prompt while the
+    # notch card sits there unable to reply to anything.
     def add_hook(arr; with_matcher):
         ((arr // []) | map(select(
             ((.hooks // []) | map(is_ours(.)) | any | not)
         )))
         + [ if with_matcher
-            then { "matcher": ".*", "hooks": [{ "type": "http", "url": $url, "timeout": 30 }] }
-            else { "hooks": [{ "type": "http", "url": $url, "timeout": 30 }] }
+            then { "matcher": ".*", "hooks": [{ "type": "http", "url": $url, "timeout": 290 }] }
+            else { "hooks": [{ "type": "http", "url": $url, "timeout": 290 }] }
             end ];
     .hooks = (.hooks // {}) |
     .hooks.PreToolUse        = add_hook(.hooks.PreToolUse;        true)  |

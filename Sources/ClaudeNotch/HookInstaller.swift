@@ -226,7 +226,11 @@ enum HookInstaller {
     /// (either legacy command hook or new HTTP hook) is removed first.
     /// Internal (not private) so the non-destructive merge is unit-testable.
     static func appendHook(to eventName: String, in hooks: inout [String: Any], matcher: String?) {
-        let httpEntry: [String: Any] = ["type": "http", "url": "http://127.0.0.1:53127/hook", "timeout": 30]
+        // Must exceed the app's own decision-wait window (285s in EventServer,
+        // matching the 3-minute "waiting-on-you" nudge) — otherwise Claude Code
+        // gives up on the HTTP request and falls back to its own terminal
+        // prompt while the notch card sits there unable to reply to anything.
+        let httpEntry: [String: Any] = ["type": "http", "url": "http://127.0.0.1:53127/hook", "timeout": 290]
         var ourRule: [String: Any] = ["hooks": [httpEntry]]
         if let m = matcher { ourRule["matcher"] = m }
 

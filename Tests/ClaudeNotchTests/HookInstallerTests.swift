@@ -30,7 +30,7 @@ final class HookInstallerMergeTests: XCTestCase {
         let subs = (list[0]["hooks"] as? [[String: Any]]) ?? []
         XCTAssertEqual(subs.first?["type"] as? String, "http")
         XCTAssertEqual((subs.first?["url"] as? String)?.contains("53127"), true)
-        XCTAssertEqual(subs.first?["timeout"] as? Int, 30)
+        XCTAssertEqual(subs.first?["timeout"] as? Int, 290)
     }
 
     func testNilMatcherOmitsMatcherKey() {
