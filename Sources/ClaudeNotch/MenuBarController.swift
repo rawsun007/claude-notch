@@ -9,6 +9,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     let state: AppState
 
     private var allowlistItem: NSMenuItem!
+    private var allowlistMenu: NSMenu!
     private var loginItem: NSMenuItem!
     private var accessibilityItem: NSMenuItem!
     private var inputMonitoringItem: NSMenuItem!
@@ -156,8 +157,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         permsMenu.addItem(.separator())
 
-        allowlistItem = NSMenuItem(title: "Always-Allow Rules: —", action: #selector(clearAllowlist), keyEquivalent: "")
-        allowlistItem.target = self
+        allowlistMenu = NSMenu()
+        allowlistItem = NSMenuItem(title: "Always-Allow Rules: —", action: nil, keyEquivalent: "")
+        allowlistItem.submenu = allowlistMenu
         permsMenu.addItem(allowlistItem)
 
         // Touch ID / Face ID confirmation for destructive commands — only offered
@@ -398,16 +400,26 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     private func refreshAllowlist(_ rules: Set<AllowRule>) {
+        allowlistMenu.removeAllItems()
         if rules.isEmpty {
             allowlistItem.title = "Always-Allow Rules: —"
             allowlistItem.isEnabled = false
-        } else {
-            let labels = rules.map(\.displayLabel).sorted()
-            let preview = labels.prefix(3).joined(separator: ", ")
-            let more = labels.count > 3 ? " +\(labels.count - 3) more" : ""
-            allowlistItem.title = "Always-Allow: \(preview)\(more)  —  Click to Clear All"
-            allowlistItem.isEnabled = true
+            return
         }
+        allowlistItem.isEnabled = true
+        allowlistItem.title = "Always-Allow Rules (\(rules.count))"
+        let sorted = rules.sorted { $0.displayLabel < $1.displayLabel }
+        for rule in sorted {
+            let ruleItem = NSMenuItem(title: rule.displayLabel, action: #selector(removeOneAllowRule(_:)), keyEquivalent: "")
+            ruleItem.target = self
+            ruleItem.toolTip = "Click to remove this rule — matching prompts will ask again."
+            ruleItem.representedObject = rule
+            allowlistMenu.addItem(ruleItem)
+        }
+        allowlistMenu.addItem(.separator())
+        let clearItem = NSMenuItem(title: "Clear All", action: #selector(clearAllowlist), keyEquivalent: "")
+        clearItem.target = self
+        allowlistMenu.addItem(clearItem)
     }
 
     private func refreshLoginItem() {
@@ -549,6 +561,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func clearAllowlist() {
         state.clearAllowlist()
+    }
+
+    @objc private func removeOneAllowRule(_ sender: NSMenuItem) {
+        guard let rule = sender.representedObject as? AllowRule else { return }
+        state.removeAllowRule(rule)
     }
 
     private func refreshStatusLine() {

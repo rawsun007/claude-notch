@@ -2255,9 +2255,11 @@ final class AppState: ObservableObject {
             return
         }
 
-        if !bypassRules, let matched = allowRules.first(where: { $0.matches(req) }) {
+        if !bypassRules, !req.isDangerous, let matched = allowRules.first(where: { $0.matches(req) }) {
             // Auto-allowed by a rule the user installed earlier. Still
             // log it to history so they can see what we approved silently.
+            // Dangerous commands are exempt — even a tool-wide always-allow
+            // rule must not skip the hold-to-confirm / Touch ID guardrail.
             appendHistory(HistoryEntry(
                 timestamp: Date(),
                 kind: req.kind == .notification ? .notification : .permission,
