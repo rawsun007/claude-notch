@@ -87,8 +87,10 @@ system, and shows no Dock icon — just a small bell in your menu bar.
    wire up the Claude Code hooks. Done!
 
 > 💡 **Skip the warning entirely:** install with **Homebrew** (see below).
-> `brew install --cask` strips macOS's quarantine attribute, so the app
-> launches with no warning at all.
+> ClaudeNotch is ad-hoc signed (no Apple Developer ID at all), which macOS
+> treats more leniently than an unnotarized Developer ID app — Homebrew
+> casks in that tier launch straight away with no Gatekeeper prompt,
+> confirmed on a clean install with Gatekeeper and SIP both enabled.
 
 > **Tip:** To launch automatically on startup, click the menu-bar bell →
 > *Launch at Login*.

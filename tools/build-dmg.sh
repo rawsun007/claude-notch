@@ -51,7 +51,9 @@ Tip:  press  Opt-Cmd-N  anywhere to type a message straight to Claude.
 Skip this warning entirely: install with Homebrew instead.
    brew tap rawsun007/claudenotch https://github.com/rawsun007/claude-notch
    brew install --cask claudenotch
-Homebrew strips the quarantine attribute, so no warning.
+ClaudeNotch is ad-hoc signed (no Developer ID), a tier macOS treats more
+leniently than an unnotarized Developer ID app, so the Homebrew install
+launches with no Gatekeeper prompt.
 TXT
 
 # Brand the disk image with our icon (instead of the generic .dmg icon).
