@@ -103,7 +103,10 @@ struct NotchView: View {
         switch mode {
         case .idle:
             return hovering
-                ? CGSize(width: 320, height: inset + 64)   // was 36 → curve had nowhere to go
+                // 320 → 380: row 2 packs model/version/effort/branch + the
+                // context%/cost bar all at once while hovering: 320 wasn't
+                // enough room and kept truncating one piece or another.
+                ? CGSize(width: 380, height: inset + 64)   // was 36 → curve had nowhere to go
                 : collapsedSize(on: s)
         case .thinking:
             return CGSize(width: 340, height: inset + 64)
@@ -694,6 +697,8 @@ private struct IdlePill: View {
                             Text(modelVer)
                                 .font(.system(size: 10, design: .rounded))
                                 .foregroundColor(.white.opacity(0.35))
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
                         }
                         if !state.currentEffort.isEmpty {
                             Circle()
@@ -707,6 +712,8 @@ private struct IdlePill: View {
                         Text("\(state.currentEffort) effort")
                             .font(.system(size: 10, design: .rounded))
                             .foregroundColor(.white.opacity(0.35))
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
                     }
                     if !state.currentGitBranch.isEmpty {
                         HStack(spacing: 3) {
