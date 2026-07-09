@@ -622,16 +622,6 @@ private struct IdlePill: View {
                         ? 0.4 + 0.6 * (0.5 + 0.5 * sin(pulsePhase))
                         : 1.0)
                 statusLabelView
-                let agentCount = state.totalRunningAgentCount
-                if agentCount > 0 {
-                    Text(agentCount == 1 ? "1 agent" : "\(agentCount) agents")
-                        .font(.system(size: 9, weight: .medium, design: .rounded))
-                        .foregroundColor(.purple.opacity(0.95))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Color.purple.opacity(0.18))
-                        .cornerRadius(4)
-                }
                 if let badge = permissionModeBadge(state.currentPermissionMode) {
                     Text(badge.label)
                         .font(.system(size: 9, weight: .semibold, design: .rounded))
@@ -642,16 +632,31 @@ private struct IdlePill: View {
                         .cornerRadius(4)
                         .help(badge.help)
                 }
-                let fileCount = state.currentTouchedFiles.count
-                if fileCount > 0 {
-                    Text(fileCount == 1 ? "1 file" : "\(fileCount) files")
-                        .font(.system(size: 9, weight: .medium, design: .rounded))
-                        .foregroundColor(.cyan.opacity(0.95))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Color.cyan.opacity(0.15))
-                        .cornerRadius(4)
-                        .help("Files Claude edited this session — full list in the menu bar")
+                // Secondary counts — real noise, low urgency. Only worth the
+                // pixels when the cursor is actually on the notch (not just
+                // when persistentNotchDisplay keeps the card open ambiently).
+                if state.isHovering {
+                    let agentCount = state.totalRunningAgentCount
+                    if agentCount > 0 {
+                        Text(agentCount == 1 ? "1 agent" : "\(agentCount) agents")
+                            .font(.system(size: 9, weight: .medium, design: .rounded))
+                            .foregroundColor(.purple.opacity(0.95))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.purple.opacity(0.18))
+                            .cornerRadius(4)
+                    }
+                    let fileCount = state.currentTouchedFiles.count
+                    if fileCount > 0 {
+                        Text(fileCount == 1 ? "1 file" : "\(fileCount) files")
+                            .font(.system(size: 9, weight: .medium, design: .rounded))
+                            .foregroundColor(.cyan.opacity(0.95))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.cyan.opacity(0.15))
+                            .cornerRadius(4)
+                            .help("Files Claude edited this session — full list in the menu bar")
+                    }
                 }
                 Spacer(minLength: 0)
                 if canShowHistory {
@@ -674,42 +679,49 @@ private struct IdlePill: View {
                 }
             }
 
-            // Row 2 — model · version · effort · context bar (always visible)
+            // Row 2 — model name always shown; version/effort/branch are detail
+            // that only earns its space while the cursor is actually here.
+            // Context % and cost stay always-visible — the numbers people
+            // actually glance at mid-session.
             let (modelName, modelVer) = ClaudeUsageReader.modelNameVersion(state.currentModel)
             HStack(spacing: 5) {
                 if !modelName.isEmpty {
                     Text(modelName)
                         .font(.system(size: 10, weight: .semibold, design: .rounded))
                         .foregroundColor(.white.opacity(0.65))
-                    if !modelVer.isEmpty {
-                        Text(modelVer)
+                    if state.isHovering {
+                        if !modelVer.isEmpty {
+                            Text(modelVer)
+                                .font(.system(size: 10, design: .rounded))
+                                .foregroundColor(.white.opacity(0.35))
+                        }
+                        if !state.currentEffort.isEmpty {
+                            Circle()
+                                .fill(Color.white.opacity(0.18))
+                                .frame(width: 2.5, height: 2.5)
+                        }
+                    }
+                }
+                if state.isHovering {
+                    if !state.currentEffort.isEmpty {
+                        Text("\(state.currentEffort) effort")
                             .font(.system(size: 10, design: .rounded))
                             .foregroundColor(.white.opacity(0.35))
                     }
-                    if !state.currentEffort.isEmpty {
-                        Circle()
-                            .fill(Color.white.opacity(0.18))
-                            .frame(width: 2.5, height: 2.5)
+                    if !state.currentGitBranch.isEmpty {
+                        HStack(spacing: 3) {
+                            Image(systemName: "arrow.triangle.branch")
+                                .font(.system(size: 8, weight: .semibold))
+                                .foregroundColor(.white.opacity(0.3))
+                            Text(state.currentGitBranch)
+                                .font(.system(size: 10, design: .rounded))
+                                .foregroundColor(.white.opacity(0.45))
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .frame(maxWidth: 110)
+                        }
+                        .help("Checked-out git branch")
                     }
-                }
-                if !state.currentEffort.isEmpty {
-                    Text("\(state.currentEffort) effort")
-                        .font(.system(size: 10, design: .rounded))
-                        .foregroundColor(.white.opacity(0.35))
-                }
-                if !state.currentGitBranch.isEmpty {
-                    HStack(spacing: 3) {
-                        Image(systemName: "arrow.triangle.branch")
-                            .font(.system(size: 8, weight: .semibold))
-                            .foregroundColor(.white.opacity(0.3))
-                        Text(state.currentGitBranch)
-                            .font(.system(size: 10, design: .rounded))
-                            .foregroundColor(.white.opacity(0.45))
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                            .frame(maxWidth: 110)
-                    }
-                    .help("Checked-out git branch")
                 }
                 Spacer(minLength: 0)
                 ContextCostBar(
