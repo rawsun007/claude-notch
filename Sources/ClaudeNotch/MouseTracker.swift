@@ -85,7 +85,7 @@ final class MouseTracker {
     private func keepRegion(for state: AppState) -> NSRect {
         let screen = notchScreen()
         let s = screen.frame
-        let target = NotchView.size(for: state.mode, hovering: true, on: screen)
+        let target = NotchView.size(for: state.mode, hovering: true, on: screen, state: state)
         let centerX: CGFloat = {
             if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
                 return (left.maxX + right.minX) / 2

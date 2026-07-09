@@ -94,7 +94,76 @@ struct NotchView: View {
         return screen.safeAreaInsets.top
     }
 
-    static func size(for mode: NotchMode, hovering: Bool = false, on screen: NSScreen? = nil) -> CGSize {
+    /// Rendered width of a string in the given font — used to size the idle
+    /// card to what it's actually showing instead of a fixed width. A fixed
+    /// width either left a big dead gap for a sparse session (no model/
+    /// branch/cost yet) or truncated a busy one.
+    private static func textWidth(_ text: String, size: CGFloat, weight: NSFont.Weight = .regular) -> CGFloat {
+        guard !text.isEmpty else { return 0 }
+        var font = NSFont.systemFont(ofSize: size, weight: weight)
+        if let rounded = font.fontDescriptor.withDesign(.rounded) {
+            font = NSFont(descriptor: rounded, size: size) ?? font
+        }
+        return ceil((text as NSString).size(withAttributes: [.font: font]).width)
+    }
+
+    /// Estimated natural width of the idle card's row 1 + row 2 content.
+    /// Mirrors the fields actually rendered in `IdlePill.body` — keep in
+    /// sync if that layout changes.
+    private static func idleContentWidth(for state: AppState, hovering: Bool) -> CGFloat {
+        let spacing: CGFloat = 6
+        var row1: [CGFloat] = [15]   // Claude icon
+        row1.append(textWidth(state.entityName, size: 12, weight: .semibold))
+        row1.append(5)   // status dot
+        let statusText = state.claudeActionStatus == "thinking" ? "Thinking"
+            : state.isClaudeWorking ? "Running command" : "Ready"
+        row1.append(textWidth(statusText, size: 10))
+        if let badge = permissionModeBadge(state.currentPermissionMode) {
+            row1.append(textWidth(badge.label, size: 9, weight: .semibold) + 10)
+        }
+        if hovering {
+            let agentCount = state.totalRunningAgentCount
+            if agentCount > 0 {
+                row1.append(textWidth(agentCount == 1 ? "1 agent" : "\(agentCount) agents", size: 9, weight: .medium) + 10)
+            }
+            let fileCount = state.currentTouchedFiles.count
+            if fileCount > 0 {
+                row1.append(textWidth(fileCount == 1 ? "1 file" : "\(fileCount) files", size: 9, weight: .medium) + 10)
+            }
+        }
+        row1.append(34)   // trailing history/expand icon buttons
+        let row1Width = row1.reduce(0, +) + CGFloat(row1.count - 1) * spacing
+
+        let (modelName, modelVer) = ClaudeUsageReader.modelNameVersion(state.currentModel)
+        var row2: [CGFloat] = []
+        if !modelName.isEmpty {
+            row2.append(textWidth(modelName, size: 10, weight: .semibold))
+            if hovering {
+                if !modelVer.isEmpty { row2.append(textWidth(modelVer, size: 10)) }
+                if !state.currentEffort.isEmpty { row2.append(2.5) }
+            }
+        }
+        if hovering {
+            if !state.currentEffort.isEmpty {
+                row2.append(textWidth("\(state.currentEffort) effort", size: 10))
+            }
+            if !state.currentGitBranch.isEmpty {
+                row2.append(min(110, 11 + textWidth(state.currentGitBranch, size: 10)))
+            }
+        }
+        var bar: [CGFloat] = [36]   // context capsule
+        let percentText = "\(Int((state.currentContextPercent * 100).rounded()))%"
+        bar.append(textWidth(percentText, size: 9))
+        if state.currentCostUSD > 0 {
+            bar.append(textWidth(ClaudeUsageReader.fmtMoney(state.currentCostUSD), size: 9))
+        }
+        row2.append(bar.reduce(0, +) + CGFloat(bar.count - 1) * 5)
+        let row2Width = row2.reduce(0, +) + CGFloat(max(0, row2.count - 1)) * 5
+
+        return max(row1Width, row2Width)
+    }
+
+    static func size(for mode: NotchMode, hovering: Bool = false, on screen: NSScreen? = nil, state: AppState? = nil) -> CGSize {
         let s = screen ?? NSScreen.main
         let inset = notchInset(on: s)
         // Rule of thumb: visible-height must be >= 2 * cornerRadius so the bottom
@@ -102,12 +171,13 @@ struct NotchView: View {
         // curve dominates the whole visible area and looks like a wedge).
         switch mode {
         case .idle:
-            return hovering
-                // 320 → 380: row 2 packs model/version/effort/branch + the
-                // context%/cost bar all at once while hovering: 320 wasn't
-                // enough room and kept truncating one piece or another.
-                ? CGSize(width: 380, height: inset + 64)   // was 36 → curve had nowhere to go
-                : collapsedSize(on: s)
+            guard hovering else { return collapsedSize(on: s) }
+            // 28pt horizontal padding each side (contentHorizontalPadding),
+            // clamped so a sparse session doesn't get the old fixed 380 of
+            // mostly empty space, and a busy one still gets enough room.
+            guard let state else { return CGSize(width: 380, height: inset + 64) }
+            let width = min(380, max(230, idleContentWidth(for: state, hovering: true) + 56))
+            return CGSize(width: width, height: inset + 64)
         case .thinking:
             return CGSize(width: 340, height: inset + 64)
         case .permission(let req):
@@ -206,7 +276,7 @@ struct NotchView: View {
         // window itself never resizes, which is what makes the motion smooth
         // (no AppKit frame animation fighting SwiftUI) and kills the
         // "pops twice" double-relayout entirely.
-        let card = NotchView.size(for: state.mode, hovering: isIdleOpen, on: NSScreen.main)
+        let card = NotchView.size(for: state.mode, hovering: isIdleOpen, on: NSScreen.main, state: state)
         let collapsed = isCollapsedIdle
         let shape = NotchShape(topCornerRadius: notchTopRadius,
                                bottomCornerRadius: notchBottomRadius)
