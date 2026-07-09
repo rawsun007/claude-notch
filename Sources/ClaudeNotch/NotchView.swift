@@ -724,12 +724,17 @@ private struct IdlePill: View {
                     }
                 }
                 Spacer(minLength: 0)
+                // Highest layout priority in the row — context% and cost are
+                // the numbers people actually check mid-session, so they must
+                // never be the ones that get squeezed down to "8…" / "$…"
+                // when the hover-only detail (version/effort/branch) is showing.
                 ContextCostBar(
                     percent: state.currentContextPercent,
                     cost: state.currentCostUSD,
                     costCap: state.sessionCostCap,
                     tokens: state.currentContextTokens
                 )
+                .layoutPriority(1)
             }
 
             // Row 3 — command strip, visible only while Claude is active
