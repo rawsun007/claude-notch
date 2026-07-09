@@ -176,7 +176,10 @@ struct NotchView: View {
             // clamped so a sparse session doesn't get the old fixed 380 of
             // mostly empty space, and a busy one still gets enough room.
             guard let state else { return CGSize(width: 380, height: inset + 64) }
-            let width = min(380, max(230, idleContentWidth(for: state, hovering: true) + 56))
+            // +12 slack on top of the 56pt content padding — NSFont measuring
+            // and SwiftUI's actual Text layout don't agree to the pixel, and
+            // running short here is what truncates the model name.
+            let width = min(380, max(230, idleContentWidth(for: state, hovering: true) + 56 + 12))
             return CGSize(width: width, height: inset + 64)
         case .thinking:
             return CGSize(width: 340, height: inset + 64)
@@ -762,6 +765,8 @@ private struct IdlePill: View {
                     Text(modelName)
                         .font(.system(size: 10, weight: .semibold, design: .rounded))
                         .foregroundColor(.white.opacity(0.65))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                     if state.isHovering {
                         if !modelVer.isEmpty {
                             Text(modelVer)
