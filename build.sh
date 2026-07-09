@@ -32,6 +32,10 @@ fi
 if [ -f assets/claude-color.svg ]; then
     cp assets/claude-color.svg "$APP/Contents/Resources/claude-color.svg"
 fi
+# Pet mode mascot (Claude Code CLI's pixel-art crab).
+if [ -f assets/claude-pet.png ]; then
+    cp assets/claude-pet.png "$APP/Contents/Resources/claude-pet.png"
+fi
 
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>

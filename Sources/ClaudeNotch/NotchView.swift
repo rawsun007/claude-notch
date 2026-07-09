@@ -171,7 +171,15 @@ struct NotchView: View {
         // curve dominates the whole visible area and looks like a wedge).
         switch mode {
         case .idle:
-            guard hovering else { return collapsedSize(on: s) }
+            guard hovering else {
+                let base = collapsedSize(on: s)
+                // Pet mode: the mascot pops straight down out of the physical
+                // notch on its own every so often — same width as the notch
+                // cutout (it's not "opening," just poking its head out), just
+                // taller so there's room for it below.
+                guard state?.petPeeking == true else { return base }
+                return CGSize(width: base.width, height: inset + 50)
+            }
             // 28pt horizontal padding each side (contentHorizontalPadding),
             // clamped so a sparse session doesn't get the old fixed 380 of
             // mostly empty space, and a busy one still gets enough room.
@@ -327,6 +335,10 @@ struct NotchView: View {
                                 )
                             }
                         )
+                } else if isPetPeeking {
+                    // The mascot's unprompted "I'm alive" moment.
+                    PetPeekView()
+                        .frame(width: card.width, height: card.height, alignment: .center)
                 } else {
                     // Collapsed idle: show the always-visible status bar row
                     // centred within the physical-notch height.
@@ -357,6 +369,11 @@ struct NotchView: View {
 
     private var isCollapsedIdle: Bool {
         if case .idle = state.mode, !isIdleOpen { return true }
+        return false
+    }
+
+    private var isPetPeeking: Bool {
+        if case .idle = state.mode, !isIdleOpen, state.petPeeking { return true }
         return false
     }
 
@@ -486,25 +503,71 @@ extension NotchView {
 
 // MARK: - Claude brand icon
 
-private struct ClaudeIconView: View {
-    var size: CGFloat = 15
+/// Bare mascot artwork (the Claude Code CLI's pixel-art crab). Bob/scale
+/// animation is layered on by callers — this just draws the sprite, falling
+/// back to the plain brand mark if the asset didn't ship for some reason.
+private struct PetSprite: View {
+    var size: CGFloat
 
-    private static let image: NSImage? = {
+    private static let pet: NSImage? = {
+        guard let url = Bundle.main.url(forResource: "claude-pet", withExtension: "png"),
+              let img = NSImage(contentsOf: url) else { return nil }
+        return img
+    }()
+
+    private static let fallback: NSImage? = {
         guard let url = Bundle.main.url(forResource: "claude-color", withExtension: "svg"),
               let img = NSImage(contentsOf: url) else { return nil }
         return img
     }()
 
     var body: some View {
-        if let img = Self.image {
+        if let img = Self.pet ?? Self.fallback {
             Image(nsImage: img)
                 .resizable()
+                .interpolation(.none)   // keep the pixel art crisp when scaled
                 .scaledToFit()
                 .frame(width: size, height: size)
         } else {
             RoundedRectangle(cornerRadius: 3)
                 .fill(Color(red: 0.851, green: 0.467, blue: 0.341))
                 .frame(width: size, height: size)
+        }
+    }
+}
+
+/// Row 1's icon — the mascot with a small continuous idle bob, quicker while
+/// Claude is actually working so it visibly reflects what's happening.
+private struct ClaudeIconView: View {
+    var size: CGFloat = 15
+    var working: Bool = false
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: false)) { tl in
+            let period: Double = working ? 0.7 : 1.8
+            let phase = tl.date.timeIntervalSinceReferenceDate
+                .truncatingRemainder(dividingBy: period) / period
+            let bob = sin(phase * 2 * .pi) * (working ? 1.6 : 0.9)
+            PetSprite(size: size)
+                .offset(y: bob)
+        }
+    }
+}
+
+/// The mascot's unprompted peek out of the notch — replaces the collapsed
+/// status bar for a couple of seconds every so often while genuinely idle
+/// (see AppState.triggerPetPeek). Bigger and bobbier than the Row 1 icon
+/// since it's the whole point of the moment, not a decoration.
+private struct PetPeekView: View {
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: false)) { tl in
+            let phase = tl.date.timeIntervalSinceReferenceDate
+                .truncatingRemainder(dividingBy: 1.3) / 1.3
+            let bob = sin(phase * 2 * .pi) * 3
+            PetSprite(size: 32)
+                .offset(y: bob)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .padding(.bottom, 8)
         }
     }
 }
@@ -680,7 +743,7 @@ private struct IdlePill: View {
         VStack(alignment: .leading, spacing: 10) {
             // Row 1 — Claude icon · name · status dot · status label · action buttons
             HStack(spacing: 6) {
-                ClaudeIconView(size: 15)
+                ClaudeIconView(size: 15, working: state.isClaudeWorking)
                 Text(nameText)
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)

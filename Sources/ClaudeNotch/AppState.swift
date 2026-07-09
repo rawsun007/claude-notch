@@ -483,6 +483,11 @@ final class AppState: ObservableObject {
     @Published var alertSound: String = "Funk"
     @Published var perToolSounds: Bool = false
     @Published var persistentNotchDisplay: Bool = false
+    // Pet mode: the idle icon is the animated Claude Code mascot, and it
+    // occasionally pops out of the notch on its own while idle. On by
+    // default; not persisted yet (no settings toggle exists for it).
+    @Published var petPeeking: Bool = false
+    private var petPeekTimer: Timer?
     // Require Touch ID / Face ID to confirm a dangerous command (instead of
     // press-and-hold). Defaults on when the Mac has biometrics. Persisted.
     @Published var requireTouchID: Bool = false
@@ -688,6 +693,33 @@ final class AppState: ObservableObject {
                     self?.showWhatsNewCard(version: current)
                 }
             }
+        }
+        schedulePetPeek()
+    }
+
+    /// Queues the mascot's next unprompted peek out of the notch. Re-armed
+    /// after every peek (and after every skipped attempt) so it keeps
+    /// happening for the life of the app, not just once.
+    private func schedulePetPeek() {
+        petPeekTimer?.invalidate()
+        let delay = Double.random(in: 20...45)
+        petPeekTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.triggerPetPeek() }
+        }
+    }
+
+    /// Only peek while genuinely at rest — never over an active session, a
+    /// card the user is already looking at, or an already-open notch (that'd
+    /// just be a jarring flicker on top of real content).
+    private func triggerPetPeek() {
+        guard case .idle = mode, !isHovering, !persistentNotchDisplay, !isClaudeWorking else {
+            schedulePetPeek()
+            return
+        }
+        petPeeking = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) { [weak self] in
+            self?.petPeeking = false
+            self?.schedulePetPeek()
         }
     }
 
