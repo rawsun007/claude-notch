@@ -85,6 +85,7 @@ final class MouseTracker {
     private func updatePetCursor(state: AppState, mouse: NSPoint, screen: NSScreen) {
         guard state.petEnabled, state.petActivity != .tucked else {
             if state.petCursorX != 0 { state.petCursorX = 0 }
+            if state.petPetting { state.petPetting = false }
             return
         }
         let s = screen.frame
@@ -97,8 +98,15 @@ final class MouseTracker {
         let reach: CGFloat = 220
         let dx = mouse.x - centerX
         let nearVertically = mouse.y > s.maxY - 140
-        let value = (nearVertically && abs(dx) < reach) ? Double(dx) : 0
+        let near = nearVertically && abs(dx) < reach
+        let value = near ? Double(dx) : 0
         if abs(state.petCursorX - value) > 0.5 { state.petCursorX = value }
+        // Petting freezes the pet's timeline, so a stuck `petPetting` pins it
+        // out of the notch forever. SwiftUI's hover-ended doesn't always fire
+        // (a menu or another window can take the mouse mid-hover), so the
+        // cursor's actual position is the authority: nowhere near it, not
+        // petting it.
+        if !near, state.petPetting { state.petPetting = false }
     }
 
     /// The "stay-expanded" region. Derived from the TARGET size for the

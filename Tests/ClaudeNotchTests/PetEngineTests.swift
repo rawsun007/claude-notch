@@ -105,6 +105,39 @@ final class PetEngineTests: XCTestCase {
         XCTAssertEqual(PetEngine.duration(of: .boop, using: &fixed), 0.85)
     }
 
+    /// The pet is ambient. It shipped visible about a quarter of every idle
+    /// minute (a 14s nap could be followed by a 40s gap), which reads as the pet
+    /// constantly coming back rather than as something you catch now and then.
+    /// Every activity must buy a silence proportional to its own length.
+    func testAnActivityBuysASilenceProportionalToItsLength() {
+        var rng = SeededRNG(seed: 8)
+        for mood in [PetMood.curious, .calm, .sleepy] {
+            for activity in [PetActivity.peek, .stroll, .sleep, .lookAround] {
+                let duration = PetEngine.duration(of: activity, using: &rng)
+                let gap = PetEngine.nextDelay(mood: mood, after: activity,
+                                              lasting: duration, using: &rng)
+                XCTAssertGreaterThanOrEqual(gap, duration * PetEngine.dutyCycle - 0.001,
+                                            "\(activity) in \(mood) is on screen too much of the time")
+            }
+        }
+    }
+
+    func testTheLongestNapStillLeavesTheNotchAloneForMinutes() {
+        var rng = SeededRNG(seed: 2)
+        // Worst case: the longest possible nap, in the mood with the shortest
+        // delay range that can pick it.
+        let gap = PetEngine.nextDelay(mood: .calm, after: .sleep, lasting: 14, using: &rng)
+        XCTAssertGreaterThanOrEqual(gap, 14 * PetEngine.dutyCycle - 0.001)
+        XCTAssertGreaterThan(gap, 120)
+    }
+
+    func testABoopDoesNotEarnSilenceBecauseTheUserAskedForIt() {
+        var rng = SeededRNG(seed: 4)
+        var plain = SeededRNG(seed: 4)
+        XCTAssertEqual(PetEngine.nextDelay(mood: .curious, after: .boop, lasting: 0.85, using: &rng),
+                       PetEngine.nextDelay(mood: .curious, using: &plain), accuracy: 0.0001)
+    }
+
     func testSleepyPetPestersLeastCuriousPetPestersMost() {
         // Sample the same seed per mood so the comparison is about the range,
         // not about where in the stream the draw landed.

@@ -822,7 +822,10 @@ final class AppState: ObservableObject {
         }
         guard ctx.allowsAutonomy, !ctx.isWorking, !ctx.isThinking else {
             // Not the moment. Check back soon rather than burning the slot.
-            petNextActionAt = now.addingTimeInterval(PetEngine.nextDelay(mood: PetEngine.mood(for: ctx), using: &petRNG))
+            // Not the moment (hovering, a card is open, Claude is busy). Check
+            // back shortly rather than burning the slot on a full-length delay,
+            // which would make the pet vanish for minutes after every hover.
+            petNextActionAt = now.addingTimeInterval(5)
             return
         }
         let activity = PetEngine.pickActivity(mood: PetEngine.mood(for: ctx), using: &petRNG)
@@ -842,6 +845,10 @@ final class AppState: ObservableObject {
     }
 
     private func endPetActivity() {
+        // Read these before they're reset: the next silence is proportional to
+        // the performance that just ended.
+        let finished = petActivity
+        let lasted = petActivityDuration
         petDemoing = false
         petDemoQueue.removeAll()
         petInterrupted = nil
@@ -850,7 +857,9 @@ final class AppState: ObservableObject {
         petHeldSeconds = 0
         petPettingSince = nil
         petPetting = false
-        petNextActionAt = Date().addingTimeInterval(PetEngine.nextDelay(mood: petMood, using: &petRNG))
+        petNextActionAt = Date().addingTimeInterval(
+            PetEngine.nextDelay(mood: petMood, after: finished, lasting: lasted, using: &petRNG)
+        )
     }
 
     /// The user clicked the pet (or the bare notch). Always answers — a pet

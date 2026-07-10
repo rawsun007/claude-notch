@@ -275,17 +275,39 @@ enum PetEngine {
         }
     }
 
-    /// Gap before the next unprompted performance. A curious pet pesters you;
-    /// a sleepy one barely stirs.
+    /// Gap before the next unprompted performance, measured from the end of the
+    /// last one. A curious pet checks in on you; a sleepy one barely stirs.
+    ///
+    /// These are deliberately long. The pet is ambient — something you catch out
+    /// of the corner of your eye now and then, not a thing that keeps walking
+    /// across the notch you're trying to work under. The first cut of this had
+    /// the pet visible about a quarter of every idle minute, which is charming
+    /// for ten minutes and maddening for an afternoon.
     static func nextDelay(mood: PetMood, using rng: inout some RandomNumberGenerator) -> Double {
         switch mood {
-        case .curious:     return Double.random(in: 12...26, using: &rng)
-        case .calm:        return Double.random(in: 22...48, using: &rng)
-        case .sleepy:      return Double.random(in: 40...90, using: &rng)
+        case .curious:     return Double.random(in: 45...100, using: &rng)
+        case .calm:        return Double.random(in: 90...200, using: &rng)
+        case .sleepy:      return Double.random(in: 240...480, using: &rng)
         case .working,
              .thinking:    return Double.random(in: 8...14, using: &rng)   // re-check soon
         case .celebrating: return 6
         }
+    }
+
+    /// The gap that actually gets used: never less than `dutyCycle` times as
+    /// long as the performance that just ended. This is the guarantee the plain
+    /// ranges can't give on their own — a 14-second nap must buy a proportionally
+    /// long silence afterwards, or a mood whose delay range happens to be short
+    /// leaves the pet on screen a third of the time.
+    static let dutyCycle: Double = 11
+
+    static func nextDelay(mood: PetMood, after activity: PetActivity,
+                          lasting duration: Double,
+                          using rng: inout some RandomNumberGenerator) -> Double {
+        let base = nextDelay(mood: mood, using: &rng)
+        // A boop is the user's doing, not the pet's, so it doesn't earn silence.
+        guard activity != .boop, activity != .spin else { return base }
+        return max(base, duration * dutyCycle)
     }
 
     // MARK: Pose
