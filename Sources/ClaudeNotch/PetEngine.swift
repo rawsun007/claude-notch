@@ -50,45 +50,75 @@ enum PetActivity: String, CaseIterable, Equatable {
     case boop         // squash-and-pop reaction to a click
     case spin         // booped several times in a row: a delighted backflip
 
+    /// Sprite size in points. Big enough to read as a creature at arm's length
+    /// from the screen, not a favicon: the mascot is the feature, and the notch
+    /// is the only thing near it for scale.
+    var spriteSize: Double {
+        switch self {
+        case .tucked:    return 26
+        case .sleep:     return 38
+        case .celebrate,
+             .spin:      return 44
+        default:         return 42
+        }
+    }
+
+    /// Gap between the sprite and the notch's bottom lip. The pet must clear
+    /// the lip completely — the hardware notch physically covers anything above
+    /// it, so a sprite whose head pokes up there gets its head cut off.
+    var lipClearance: Double {
+        switch self {
+        // Hanging is the exception: the paws grip the lip, so the sprite is
+        // *meant* to start right at it.
+        case .hangLeft, .hangRight: return 0
+        default:                    return 5
+        }
+    }
+
+    /// Vertical room the activity needs above its resting position — a hop, a
+    /// flip, a bob. Added to the stage so the pet never leaves the black plate.
+    var headroom: Double {
+        switch self {
+        case .celebrate: return 17
+        case .spin:      return 18
+        case .peek,
+             .lookAround,
+             .boop:      return 6
+        case .stroll:    return 5
+        default:         return 2
+        }
+    }
+
+    /// Where the sprite's centre rests, measured down from the card's top edge.
+    /// Derived from the sprite rather than picked by hand, so growing the pet
+    /// can never push its head back behind the notch.
+    func restCentreY(notchInset: Double) -> Double {
+        notchInset + lipClearance + spriteSize / 2
+    }
+
     /// Extra pixels the notch card grows *below* the physical notch to give
     /// this activity room. `tucked` adds none, which keeps the collapsed notch
     /// exactly the size of the hardware cutout.
     var stageDrop: Double {
-        switch self {
-        case .tucked:     return 0
-        case .peek:       return 46
-        case .lookAround: return 44
-        case .hangLeft,
-             .hangRight:  return 46
-        case .stroll:     return 42
-        case .sleep:      return 34
-        case .celebrate:  return 58
-        case .boop:       return 50
-        case .spin:       return 60
-        }
+        guard self != .tucked else { return 0 }
+        // Enough for the sprite at rest, plus the slack its motion needs, plus
+        // a little breathing room above the card's bottom curve.
+        return lipClearance + spriteSize + headroom + 6
     }
 
-    /// Extra pixels of card width, split evenly left/right. Only the activities
-    /// that travel sideways need it; the rest stay inside the cutout so the
-    /// card reads as "the notch itself," not a panel.
+    /// Extra pixels of card width, split evenly left/right. Every visible
+    /// activity gets some: a card exactly as wide as the hardware cutout leaves
+    /// the pet nowhere to stand near the edges, and reads as a sprite jammed in
+    /// a slot rather than one living on the notch.
     var stageWidthPad: Double {
         switch self {
-        case .stroll:    return 64
-        case .celebrate: return 24
-        case .spin:      return 20
-        default:         return 0
-        }
-    }
-
-    /// Sprite size in points. The peeking pet is deliberately bigger than the
-    /// 15pt Row-1 icon — it's the whole point of the moment.
-    var spriteSize: Double {
-        switch self {
-        case .tucked:    return 22
-        case .sleep:     return 30
+        case .tucked:    return 0
+        case .stroll:    return 96
         case .celebrate,
-             .spin:      return 34
-        default:         return 32
+             .spin:      return 44
+        case .hangLeft,
+             .hangRight: return 40
+        default:         return 28
         }
     }
 
@@ -281,7 +311,7 @@ enum PetEngine {
             // Parked behind the physical notch: still rendered (so the sprite
             // is warm and the transition has something to spring from), just
             // never visible.
-            return PetPose(x: 0, y: stage.notchInset * 0.35, opacity: 0)
+            return PetPose(x: 0, y: hiddenCentreY(for: .tucked, notchInset: stage.notchInset), opacity: 0)
         }
 
         // Drop envelope: springy on the way out, clean on the way back. While
@@ -291,12 +321,12 @@ enum PetEngine {
         let retract = easeInCubic(exitT)
         let envelope = enter * (1 - retract)
 
-        let depth = activity.stageDrop
-        // Sprite centre sits a little above the bottom of its stage so there's
-        // breathing room against the card's bottom curve.
-        let restY = stage.notchInset + depth * 0.42
+        let restY = activity.restCentreY(notchInset: stage.notchInset)
+        // Fully behind the hardware notch when hidden — the whole sprite, not
+        // just its middle, or the pet's head shows above the lip at rest.
+        let hiddenY = hiddenCentreY(for: activity, notchInset: stage.notchInset)
         var pose = PetPose()
-        pose.y = stage.notchInset * 0.35 + (restY - stage.notchInset * 0.35) * envelope
+        pose.y = hiddenY + (restY - hiddenY) * envelope
         pose.opacity = min(1, envelope * 2.2)
 
         // Vertical velocity of the envelope drives squash & stretch — the pet
@@ -340,7 +370,8 @@ enum PetEngine {
             // the card and gets sliced off by the clip.
             let wall = activity.maxCentreOffset(halfWidth: stage.halfWidth)
             pose.x = clampMag(side * wall * envelope, wall)
-            pose.y = stage.notchInset * 0.35 + (stage.notchInset + depth * 0.34 - stage.notchInset * 0.35) * envelope
+            // Paws on the lip: the sprite hangs from the notch's bottom edge.
+            pose.y = hiddenY + (stage.notchInset + activity.spriteSize * 0.42 - hiddenY) * envelope
             pose.rotation = side * 24 + swing
             pose.flipped = side < 0
             pose.scaleY = 1 + stretch * 0.5
@@ -416,6 +447,12 @@ enum PetEngine {
             pose.x += clampMag(stage.cursorX * 0.08, 4)
         }
         return pose
+    }
+
+    /// Where the sprite's centre sits while it's hiding: high enough that its
+    /// bottom edge is still above the notch's lip.
+    static func hiddenCentreY(for activity: PetActivity, notchInset: Double) -> Double {
+        notchInset - activity.spriteSize / 2 - 2
     }
 
     /// The drop envelope alone — used to finite-difference vertical velocity

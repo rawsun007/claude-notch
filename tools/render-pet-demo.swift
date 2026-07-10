@@ -29,8 +29,8 @@ enum PetDemo {
             exit(1)
         }
 
-        let cellW = baseWidth + 64 + cellPad * 2      // widest stage + padding
-        let cellH = inset + 60 + cellPad * 2
+        let cellW = baseWidth + 100 + cellPad * 2      // widest stage + padding
+        let cellH = inset + 80 + cellPad * 2
         let width = labelWidth + cellW * Double(samples.count)
         let height = cellH * Double(activities.count)
 
