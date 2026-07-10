@@ -1522,6 +1522,9 @@ final class AppState: ObservableObject {
     }
 
     func noteActivity(_ label: String, sessionId: String = "") {
+        // A tool is starting: the turn is live again, so late hooks from the
+        // previous turn stop being ignored.
+        turnGate.workStarted(TurnGate.key(sessionId: sessionId, cwd: currentCwd))
         lastActivity = label
         let status = Self.statusLabel(fromActivity: label)
         claudeActionStatus = status
@@ -1538,7 +1541,12 @@ final class AppState: ObservableObject {
     /// Called after a tool completes (PostToolUse) to show Claude is reasoning
     /// before the next tool call. Clears the command strip and sets status to
     /// "thinking" — persists until the next noteActivity call.
+    ///
+    /// Ignored outright once the turn has ended. A backgrounded Bash reports its
+    /// PostToolUse after Stop, and honouring it would strand the notch on
+    /// "thinking" with no further hook coming to clear it.
     func noteThinkingBetweenTools(sessionId: String = "") {
+        guard !turnGate.isLate(TurnGate.key(sessionId: sessionId, cwd: currentCwd)) else { return }
         claudeActionStatus = "thinking"
         lastActivity = ""
         lastHookAt = Date()
@@ -1611,6 +1619,8 @@ final class AppState: ObservableObject {
     }
 
     func noteUserPrompt(_ prompt: String, sessionId: String = "") {
+        // A new turn: whatever was in flight for the last one is now irrelevant.
+        turnGate.workStarted(TurnGate.key(sessionId: sessionId, cwd: currentCwd))
         lastUserPrompt = String(prompt.prefix(140))
         lastClaudeResponse = ""
         fullClaudeResponse = ""
@@ -1677,9 +1687,9 @@ final class AppState: ObservableObject {
             s.status = s.lastResponse.isEmpty ? "done" : "last reply"
         }
         petCelebrate()
-        let key: String
-        if !sessionId.isEmpty { key = sessionId }
-        else { var n = resolvedCwd; while n.count > 1, n.hasSuffix("/") { n.removeLast() }; key = n }
+        let key = TurnGate.key(sessionId: sessionId, cwd: resolvedCwd)
+        // The turn is over: ignore hooks that were already in flight for it.
+        turnGate.turnEnded(key)
         if let s = sessions[key] { archiveSession(s) }
     }
 
@@ -1769,6 +1779,9 @@ final class AppState: ObservableObject {
     // polling drag a finished session back into a pulsing "replying" state.
     private static let terminalSessionStatuses: Set<String> = ["done", "last reply", "ready"]
 
+    /// Drops hooks that arrive after their turn already ended — see TurnGate.
+    private var turnGate = TurnGate()
+
     /// Manually wipe the live session info — useful when you closed the
     /// terminal and want the notch to forget what was running there.
     func clearSession() {
@@ -1780,6 +1793,7 @@ final class AppState: ObservableObject {
         claudeActionStatus = "ready"
         lastHookAt = nil
         sessions.removeAll()
+        turnGate.reset()
     }
 
     func noteClaudeResponse(_ text: String, sessionId: String = "") {
