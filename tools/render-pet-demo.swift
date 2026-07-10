@@ -101,7 +101,12 @@ enum PetDemo {
             part.height = max(0, leg.height - rig.legTuck[i])
             guard part.height > 0.01 else { continue }
             let lift = rig.legLift[i] + rig.legTuck[i]
-            NSBezierPath(rect: rect(part, dx: rig.legSwing[i], dy: -lift + rig.legTuck[i])).fill()
+            if rig.legsUp {
+                part.y = PetBody.bodyTop + PetBody.legOverlap - part.height
+                NSBezierPath(rect: rect(part, dx: rig.legSwing[i], dy: -rig.legLift[i])).fill()
+            } else {
+                NSBezierPath(rect: rect(part, dx: rig.legSwing[i], dy: -lift + rig.legTuck[i])).fill()
+            }
         }
 
         func arm(_ p: PetPart, pivotCell: PetPart, angle: Double) {

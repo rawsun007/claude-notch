@@ -528,12 +528,20 @@ private struct PetSprite: View {
             // swinging arm or a dangling leg stays attached to it instead of
             // opening a gap where it meets the shoulder or hip.
             for (i, leg) in PetBody.legs.enumerated() {
-                let lift = rig.legLift[i] + rig.legTuck[i]
                 var part = leg
                 part.height = max(0, leg.height - rig.legTuck[i])
                 guard part.height > 0.01 else { continue }
-                ctx.fill(Path(rect(part, dx: rig.legSwing[i], dy: -lift + rig.legTuck[i])),
-                         with: .color(Self.colour))
+                let lift = rig.legLift[i] + rig.legTuck[i]
+                if rig.legsUp {
+                    // Belly-up: the leg grows out of the TOP of the body. Its
+                    // hip stays buried by `legOverlap`, same as standing.
+                    part.y = PetBody.bodyTop + PetBody.legOverlap - part.height
+                    ctx.fill(Path(rect(part, dx: rig.legSwing[i], dy: -rig.legLift[i])),
+                             with: .color(Self.colour))
+                } else {
+                    ctx.fill(Path(rect(part, dx: rig.legSwing[i], dy: -lift + rig.legTuck[i])),
+                             with: .color(Self.colour))
+                }
             }
 
             // Arms pivot at the shoulder — a cell inside the torso, so no angle
