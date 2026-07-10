@@ -483,11 +483,34 @@ final class AppState: ObservableObject {
     @Published var alertSound: String = "Funk"
     @Published var perToolSounds: Bool = false
     @Published var persistentNotchDisplay: Bool = false
-    // Pet mode: the idle icon is the animated Claude Code mascot, and it
-    // occasionally pops out of the notch on its own while idle. On by
-    // default; not persisted yet (no settings toggle exists for it).
-    @Published var petPeeking: Bool = false
-    private var petPeekTimer: Timer?
+    // Pet mode: the idle icon is the animated Claude Code mascot, and it lives
+    // its own little life in and around the notch while the notch is at rest.
+    // Behaviour and pose come from PetEngine; this class only owns the clock,
+    // the interaction inputs, and the gate that keeps the pet out of the way.
+    @Published var petEnabled: Bool = true
+    @Published private(set) var petActivity: PetActivity = .tucked
+    /// Cursor offset from the notch's centre in points, clamped by MouseTracker.
+    /// Drives the pet's lean and which way it faces.
+    @Published var petCursorX: Double = 0
+    /// The cursor is resting on the pet: hold it out and give it a heart.
+    @Published var petPetting: Bool = false {
+        didSet { if petPetting, !oldValue { petPettingSince = Date() } }
+    }
+    /// A finished task makes the pet celebrate — but only briefly, so a task
+    /// that finished ten minutes ago doesn't leave it hopping forever.
+    private var petCelebrateUntil: Date = .distantPast
+    private var petActivityStart: Date = .distantPast
+    private var petActivityDuration: Double = 0
+    /// Seconds the current activity spent frozen under the user's cursor.
+    /// Subtracted from elapsed time so petting genuinely pauses the timeline.
+    private var petHeldSeconds: Double = 0
+    private var petPettingSince: Date?
+    /// When the pet is next allowed to do something unprompted.
+    private var petNextActionAt: Date = .distantPast
+    /// A boop interrupts whatever was happening; this is what to go back to.
+    private var petInterrupted: (activity: PetActivity, elapsed: Double)?
+    private var petTimer: Timer?
+    private var petRNG = SeededRNG(seed: UInt64(Date().timeIntervalSince1970.bitPattern))
     // Require Touch ID / Face ID to confirm a dangerous command (instead of
     // press-and-hold). Defaults on when the Mac has biometrics. Persisted.
     @Published var requireTouchID: Bool = false
@@ -651,6 +674,7 @@ final class AppState: ObservableObject {
             self.alertSound = snapshot.alertSound ?? "Funk"
             self.perToolSounds = snapshot.perToolSounds ?? false
             self.persistentNotchDisplay = snapshot.persistentNotchDisplay ?? false
+            self.petEnabled = snapshot.petEnabled ?? true
             self.lastDigestDate = snapshot.lastDigestDate
             self.lastUpdateCardVersion = snapshot.lastUpdateCardVersion
             self.lastSeenVersion = snapshot.lastSeenVersion
@@ -694,33 +718,143 @@ final class AppState: ObservableObject {
                 }
             }
         }
-        schedulePetPeek()
+        startPetDriver()
     }
 
-    /// Queues the mascot's next unprompted peek out of the notch. Re-armed
-    /// after every peek (and after every skipped attempt) so it keeps
-    /// happening for the life of the app, not just once.
-    private func schedulePetPeek() {
-        petPeekTimer?.invalidate()
-        let delay = Double.random(in: 20...45)
-        petPeekTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.triggerPetPeek() }
+    // MARK: - Pet mode
+
+    /// What PetEngine is allowed to know about the app right now.
+    var petContext: PetEngine.Context {
+        var ctx = PetEngine.Context()
+        if case .idle = mode { ctx.isIdleMode = true } else { ctx.isIdleMode = false }
+        ctx.isHovering = isHovering
+        ctx.persistentDisplay = persistentNotchDisplay
+        ctx.isWorking = isClaudeWorking && claudeActionStatus != "thinking"
+        ctx.isThinking = claudeActionStatus == "thinking"
+        ctx.justFinished = Date() < petCelebrateUntil
+        ctx.secondsSinceActivity = lastHookAt.map { Date().timeIntervalSince($0) } ?? PetEngine.sleepAfter
+        return ctx
+    }
+
+    var petMood: PetMood { PetEngine.mood(for: petContext) }
+
+    /// 0...1 across the current activity. Frozen while the user is petting, so
+    /// scratching the pet's head genuinely stops the clock on its retreat.
+    func petProgress(at date: Date = Date()) -> Double {
+        guard petActivityDuration > 0 else { return 0 }
+        var held = petHeldSeconds
+        if let since = petPettingSince { held += date.timeIntervalSince(since) }
+        let elapsed = date.timeIntervalSince(petActivityStart) - held
+        return min(1, max(0, elapsed / petActivityDuration))
+    }
+
+    /// One 4 Hz heartbeat drives everything: it retires finished activities,
+    /// tucks the pet away the moment the notch stops being at rest, and starts
+    /// the next unprompted performance when its turn comes round. A single
+    /// timer (rather than a chain of one-shots) means the pet can always be
+    /// interrupted on the very next tick, whatever it was doing.
+    private func startPetDriver() {
+        petTimer?.invalidate()
+        petNextActionAt = Date().addingTimeInterval(PetEngine.nextDelay(mood: .calm, using: &petRNG))
+        let t = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.petTick() }
         }
+        RunLoop.main.add(t, forMode: .common)
+        petTimer = t
     }
 
-    /// Only peek while genuinely at rest — never over an active session, a
-    /// card the user is already looking at, or an already-open notch (that'd
-    /// just be a jarring flicker on top of real content).
-    private func triggerPetPeek() {
-        guard case .idle = mode, !isHovering, !persistentNotchDisplay, !isClaudeWorking else {
-            schedulePetPeek()
+    private func petTick() {
+        guard petEnabled else {
+            if petActivity != .tucked { endPetActivity() }
             return
         }
-        petPeeking = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) { [weak self] in
-            self?.petPeeking = false
-            self?.schedulePetPeek()
+        let now = Date()
+        let ctx = petContext
+
+        // A card opened / Claude started working while the cursor sat on the
+        // pet: the pet loses, real content wins. Checked before the petting
+        // freeze below, or it would never run.
+        if petActivity != .tucked, !ctx.allowsAutonomy || ctx.isWorking || ctx.isThinking {
+            endPetActivity()
+            return
         }
+        // Being petted freezes the timeline — bank the held time and stop here
+        // so nothing else can yank the pet away mid-scratch.
+        if petPetting { return }
+        if let since = petPettingSince {
+            petHeldSeconds += now.timeIntervalSince(since)
+            petPettingSince = nil
+        }
+
+        if petActivity != .tucked {
+            guard petProgress(at: now) >= 1 else { return }
+            // A boop interrupted something — put the pet back where it was,
+            // at the point in the performance it had reached.
+            if let resume = petInterrupted {
+                petInterrupted = nil
+                beginPetActivity(resume.activity, elapsed: resume.elapsed)
+                return
+            }
+            endPetActivity()
+            return
+        }
+
+        guard now >= petNextActionAt else { return }
+        guard ctx.allowsAutonomy, !ctx.isWorking, !ctx.isThinking else {
+            // Not the moment. Check back soon rather than burning the slot.
+            petNextActionAt = now.addingTimeInterval(PetEngine.nextDelay(mood: PetEngine.mood(for: ctx), using: &petRNG))
+            return
+        }
+        let activity = PetEngine.pickActivity(mood: PetEngine.mood(for: ctx), using: &petRNG)
+        guard activity != .tucked else {
+            petNextActionAt = now.addingTimeInterval(4)
+            return
+        }
+        beginPetActivity(activity)
+    }
+
+    private func beginPetActivity(_ activity: PetActivity, elapsed: Double = 0) {
+        petActivityDuration = PetEngine.duration(of: activity, using: &petRNG)
+        petActivityStart = Date().addingTimeInterval(-elapsed)
+        petHeldSeconds = 0
+        petPettingSince = petPetting ? Date() : nil
+        petActivity = activity
+    }
+
+    private func endPetActivity() {
+        petInterrupted = nil
+        petActivity = .tucked
+        petActivityDuration = 0
+        petHeldSeconds = 0
+        petPettingSince = nil
+        petPetting = false
+        petNextActionAt = Date().addingTimeInterval(PetEngine.nextDelay(mood: petMood, using: &petRNG))
+    }
+
+    /// The user clicked the pet (or the bare notch). Always answers — a pet
+    /// that ignores a poke isn't a pet. Whatever it was doing is resumed
+    /// afterwards from the same point, so a boop feels like an interruption
+    /// rather than a reset.
+    func petBoop() {
+        guard petEnabled else { return }
+        if petActivity != .tucked, petActivity != .boop, petActivity != .celebrate {
+            petInterrupted = (petActivity, petProgress() * petActivityDuration)
+        }
+        beginPetActivity(.boop)
+    }
+
+    /// A turn just finished: give the pet a couple of seconds to notice and
+    /// hop about it, once the notch settles back to idle.
+    func petCelebrate() {
+        guard petEnabled else { return }
+        petCelebrateUntil = Date().addingTimeInterval(8)
+        petNextActionAt = Date().addingTimeInterval(1.2)
+    }
+
+    func setPetEnabled(_ on: Bool) {
+        petEnabled = on
+        if !on { endPetActivity() }
+        schedulePersist()
     }
 
     /// One-time post-update card: "Updated to vX — <highlights>".
@@ -1227,6 +1361,7 @@ final class AppState: ObservableObject {
             alertSound: alertSound,
             perToolSounds: perToolSounds,
             persistentNotchDisplay: persistentNotchDisplay,
+            petEnabled: petEnabled,
             lastDigestDate: lastDigestDate,
             lastUpdateCardVersion: lastUpdateCardVersion,
             lastSeenVersion: lastSeenVersion,
@@ -1479,6 +1614,7 @@ final class AppState: ObservableObject {
         upsertSession(id: sessionId, cwd: resolvedCwd) { s in
             s.status = s.lastResponse.isEmpty ? "done" : "last reply"
         }
+        petCelebrate()
         let key: String
         if !sessionId.isEmpty { key = sessionId }
         else { var n = resolvedCwd; while n.count > 1, n.hasSuffix("/") { n.removeLast() }; key = n }

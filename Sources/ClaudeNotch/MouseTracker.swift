@@ -76,6 +76,29 @@ final class MouseTracker {
             inside = Self.triggerZone(on: screen).contains(mouse)
         }
         state.setHovering(inside)
+        updatePetCursor(state: state, mouse: mouse, screen: screen)
+    }
+
+    /// Tell the pet roughly where the cursor is so it can look at it. Only
+    /// meaningful within a hand's reach of the notch — further out and the pet
+    /// should just face front rather than staring off-screen.
+    private func updatePetCursor(state: AppState, mouse: NSPoint, screen: NSScreen) {
+        guard state.petEnabled, state.petActivity != .tucked else {
+            if state.petCursorX != 0 { state.petCursorX = 0 }
+            return
+        }
+        let s = screen.frame
+        let centerX: CGFloat = {
+            if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
+                return (left.maxX + right.minX) / 2
+            }
+            return s.midX
+        }()
+        let reach: CGFloat = 220
+        let dx = mouse.x - centerX
+        let nearVertically = mouse.y > s.maxY - 140
+        let value = (nearVertically && abs(dx) < reach) ? Double(dx) : 0
+        if abs(state.petCursorX - value) > 0.5 { state.petCursorX = value }
     }
 
     /// The "stay-expanded" region. Derived from the TARGET size for the

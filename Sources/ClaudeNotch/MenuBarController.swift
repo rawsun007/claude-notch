@@ -17,6 +17,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var recentProjectsMenu: NSMenu!
     private var statusItem: NSMenuItem!
     private var persistentNotchItem: NSMenuItem!
+    private var petModeItem: NSMenuItem!
     private var autoApproveItem: NSMenuItem!
     private var autoApproveMenu: NSMenu!
     private var snoozeItem: NSMenuItem!
@@ -213,6 +214,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         persistentNotchItem = NSMenuItem(title: "Persistent Notch Display", action: #selector(togglePersistentNotchDisplay), keyEquivalent: "")
         persistentNotchItem.target = self
         menu.addItem(persistentNotchItem)
+
+        petModeItem = NSMenuItem(title: "Pet Mode", action: #selector(togglePetMode), keyEquivalent: "")
+        petModeItem.target = self
+        petModeItem.toolTip = "Let the Claude mascot live in the notch: it peeks, strolls, hangs off the edge, naps, and celebrates finished tasks. Click it to boop it."
+        menu.addItem(petModeItem)
 
         menuSpendItem = NSMenuItem(title: "Show Today's Spend in Menu Bar",
                                    action: #selector(toggleMenuSpend), keyEquivalent: "")
@@ -798,6 +804,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshPrefs()
     }
 
+    @objc private func togglePetMode() {
+        state.setPetEnabled(!state.petEnabled)
+        refreshPrefs()
+    }
+
     @objc private func toggleTouchID() {
         state.setRequireTouchID(!state.requireTouchID)
         touchIDItem?.state = state.requireTouchID ? .on : .off
@@ -877,6 +888,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private func refreshPrefs() {
         persistentNotchItem.state = state.persistentNotchDisplay ? .on : .off
+        petModeItem.state = state.petEnabled ? .on : .off
         refreshNotchTitleMenu()
         refreshAutoApproveMenu()
         refreshSnoozeMenu()

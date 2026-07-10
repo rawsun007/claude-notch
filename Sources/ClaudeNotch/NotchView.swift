@@ -173,12 +173,12 @@ struct NotchView: View {
         case .idle:
             guard hovering else {
                 let base = collapsedSize(on: s)
-                // Pet mode: the mascot pops straight down out of the physical
-                // notch on its own every so often — same width as the notch
-                // cutout (it's not "opening," just poking its head out), just
-                // taller so there's room for it below.
-                guard state?.petPeeking == true else { return base }
-                return CGSize(width: base.width, height: inset + 50)
+                // Pet mode: the card grows just enough to be the stage for
+                // whatever the pet is currently doing. It's not "opening" —
+                // the notch swells a little and the mascot moves in it.
+                guard let activity = state?.petActivity, activity != .tucked else { return base }
+                return CGSize(width: base.width + activity.stageWidthPad,
+                              height: inset + activity.stageDrop)
             }
             // 28pt horizontal padding each side (contentHorizontalPadding),
             // clamped so a sparse session doesn't get the old fixed 380 of
@@ -335,15 +335,18 @@ struct NotchView: View {
                                 )
                             }
                         )
-                } else if isPetPeeking {
-                    // The mascot's unprompted "I'm alive" moment.
-                    PetPeekView()
-                        .frame(width: card.width, height: card.height, alignment: .center)
+                } else if isPetOut {
+                    // The mascot living its own life on the notch's lip.
+                    PetStageView(state: state, stageWidth: card.width, notchInset: state.notchTopInset)
+                        .frame(width: card.width, height: card.height, alignment: .top)
                 } else {
                     // Collapsed idle: show the always-visible status bar row
-                    // centred within the physical-notch height.
+                    // centred within the physical-notch height. Clicking the
+                    // bare notch wakes the pet — the notch is where it lives.
                     StatusBarRow(state: state)
                         .frame(width: card.width, height: card.height, alignment: .center)
+                        .contentShape(Rectangle())
+                        .onTapGesture { state.petBoop() }
                 }
             }
             // Black fill + clip apply AT the animating frame size, so the
@@ -372,8 +375,8 @@ struct NotchView: View {
         return false
     }
 
-    private var isPetPeeking: Bool {
-        if case .idle = state.mode, !isIdleOpen, state.petPeeking { return true }
+    private var isPetOut: Bool {
+        if case .idle = state.mode, !isIdleOpen, state.petActivity != .tucked { return true }
         return false
     }
 
@@ -554,20 +557,90 @@ private struct ClaudeIconView: View {
     }
 }
 
-/// The mascot's unprompted peek out of the notch — replaces the collapsed
-/// status bar for a couple of seconds every so often while genuinely idle
-/// (see AppState.triggerPetPeek). Bigger and bobbier than the Row 1 icon
-/// since it's the whole point of the moment, not a decoration.
-private struct PetPeekView: View {
+/// The little glyph beside the pet — asleep, being petted, celebrating.
+private struct PetEmoteView: View {
+    let emote: PetEmote
+    let scale: Double
+
+    private var symbol: String {
+        switch emote {
+        case .zzz:     return "zzz"
+        case .heart:   return "heart.fill"
+        case .sparkle: return "sparkles"
+        case .bang:    return "exclamationmark"
+        case .dots:    return "ellipsis"
+        }
+    }
+
+    private var tint: Color {
+        switch emote {
+        case .heart:   return Color(red: 1.0, green: 0.42, blue: 0.55)
+        case .sparkle: return Color(red: 1.0, green: 0.80, blue: 0.35)
+        default:       return .white.opacity(0.55)
+        }
+    }
+
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: false)) { tl in
-            let phase = tl.date.timeIntervalSinceReferenceDate
-                .truncatingRemainder(dividingBy: 1.3) / 1.3
-            let bob = sin(phase * 2 * .pi) * 3
-            PetSprite(size: 32)
-                .offset(y: bob)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                .padding(.bottom, 8)
+        Image(systemName: symbol)
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundColor(tint)
+            .scaleEffect(max(0.01, scale))
+            .shadow(color: tint.opacity(0.5), radius: 3)
+    }
+}
+
+/// The stage the pet performs on: the collapsed notch card, grown by however
+/// much room the current activity needs. Every frame asks PetEngine for a pose
+/// and applies it — no SwiftUI implicit animations anywhere, because the pose
+/// *is* the animation and mixing the two would double-interpolate it.
+private struct PetStageView: View {
+    @ObservedObject var state: AppState
+    let stageWidth: CGFloat
+    let notchInset: CGFloat
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { tl in
+            let activity = state.petActivity
+            let stage = PetEngine.Stage(
+                notchInset: Double(notchInset),
+                halfWidth: Double(stageWidth / 2),
+                cursorX: state.petCursorX,
+                petting: state.petPetting
+            )
+            let pose = PetEngine.pose(for: activity, progress: state.petProgress(at: tl.date), stage: stage)
+            let sprite = CGFloat(activity.spriteSize)
+            // Hanging pivots from the paws (top); everything else pivots from
+            // the feet, so a squash flattens the pet onto the surface instead
+            // of shrinking it in mid-air.
+            let anchor: UnitPoint = (activity == .hangLeft || activity == .hangRight) ? .top : .bottom
+
+            ZStack(alignment: .top) {
+                Color.clear
+                PetSprite(size: sprite)
+                    .scaleEffect(x: pose.flipped ? -pose.scaleX : pose.scaleX, y: pose.scaleY, anchor: anchor)
+                    .rotationEffect(.degrees(pose.rotation), anchor: anchor)
+                    .opacity(pose.opacity)
+                    .offset(x: pose.x, y: pose.y - sprite / 2)
+                if let emote = pose.emote {
+                    PetEmoteView(emote: emote, scale: pose.emoteScale)
+                        .opacity(pose.opacity)
+                        .offset(x: pose.x + sprite * 0.52, y: pose.y - sprite * 0.72)
+                }
+            }
+            .frame(width: stageWidth, alignment: .top)
+            .contentShape(Rectangle())
+            // Hovering the pet holds it in place (it can't run off mid-scratch)
+            // and tells it where your hand is; clicking it boops it.
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let p):
+                    state.petCursorX = Double(p.x - stageWidth / 2)
+                    if activity.isPettable, !state.petPetting { state.petPetting = true }
+                case .ended:
+                    if state.petPetting { state.petPetting = false }
+                }
+            }
+            .onTapGesture { state.petBoop() }
         }
     }
 }
