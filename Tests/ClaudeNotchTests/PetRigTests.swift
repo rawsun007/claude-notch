@@ -87,10 +87,11 @@ final class PetRigTests: XCTestCase {
     }
 
     func testBlinkTakesUpOnlyASliverOfTheTime() {
-        let samples = stride(from: 0.0, to: 34.0, by: 0.01)
+        // Array, not the lazy Stride: on Swift 6 `.count` on a Sequence is
+        // ambiguous with `count(where:)`.
+        let samples = Array(stride(from: 0.0, to: 34.0, by: 0.01))
         let shut = samples.filter { PetRigging.blink(at: $0) < 0.5 }.count
-        let total = samples.count
-        XCTAssertLessThan(Double(shut) / Double(total), 0.03, "the pet is not drowsy, it blinks")
+        XCTAssertLessThan(Double(shut) / Double(samples.count), 0.03, "the pet is not drowsy, it blinks")
     }
 
     func testEyesFollowTheCursorButOnlyALittle() {
