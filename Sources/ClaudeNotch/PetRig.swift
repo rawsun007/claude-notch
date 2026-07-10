@@ -38,7 +38,9 @@ struct PetRig: Equatable {
     var legSwing: [Double] = [0, 0, 0, 0]
     /// How far each leg is tucked up into the body (sleeping, flipping).
     var legTuck: [Double] = [0, 0, 0, 0]
-    var armLeftAngle: Double = 0     // degrees, negative = raised
+    /// Degrees, positive = raised. Mirrored: both arms raise at +45, which is
+    /// what lets an activity say "arms up" without caring about left and right.
+    var armLeftAngle: Double = 0
     var armRightAngle: Double = 0
     /// 1 = wide open, 0 = shut. Drives both blinking and sleeping.
     var eyeOpen: Double = 1
@@ -58,20 +60,39 @@ enum PetBody {
         PetPart(x: 2, y: 9, width: 12, height: 2),   // belly
     ]
 
-    static let armLeft = PetPart(x: 0, y: 7, width: 2, height: 2)
-    static let armRight = PetPart(x: 14, y: 7, width: 2, height: 2)
+    /// Arms run *into* the torso rather than butting against it. Rotating a
+    /// rectangle about its inner edge swings its corners away from the body and
+    /// opens a wedge-shaped gap; overlapping two cells (and drawing the arms
+    /// behind the torso) keeps the shoulder joint covered at every angle.
+    static let armOverlap: Double = 2
+    static let armLeft = PetPart(x: 0, y: 7, width: 2 + armOverlap, height: 2)
+    static let armRight = PetPart(x: 14 - armOverlap, y: 7, width: 2 + armOverlap, height: 2)
+
+    /// The shoulder each arm turns about: the torso's edge. The arm's buried
+    /// half never leaves the body (it stays within `armOverlap` of the pivot,
+    /// and the torso extends further than that in every direction), while the
+    /// visible half swings the same two cells it always stuck out by.
+    static let shoulderLeft = PetPart(x: 2, y: 7, width: 0, height: 2)
+    static let shoulderRight = PetPart(x: 14, y: 7, width: 0, height: 2)
 
     /// Eye holes. One cell wide, two tall.
     static let eyeLeft = PetPart(x: 4, y: 5, width: 1, height: 2)
     static let eyeRight = PetPart(x: 11, y: 5, width: 1, height: 2)
 
-    /// Four legs, left pair then right pair, outer-to-inner in drawing order.
+    /// Four legs, left pair then right pair. Each starts a cell *above* the
+    /// belly's bottom edge and is drawn behind the torso, so a leg that swings,
+    /// lifts, or dangles still has its hip buried in the body instead of
+    /// floating below it with daylight in between.
+    static let legOverlap: Double = 1
     static let legs: [PetPart] = [
-        PetPart(x: 3, y: 11, width: 1, height: 2),
-        PetPart(x: 5, y: 11, width: 1, height: 2),
-        PetPart(x: 10, y: 11, width: 1, height: 2),
-        PetPart(x: 12, y: 11, width: 1, height: 2),
+        PetPart(x: 3, y: 11 - legOverlap, width: 1, height: 2 + legOverlap),
+        PetPart(x: 5, y: 11 - legOverlap, width: 1, height: 2 + legOverlap),
+        PetPart(x: 10, y: 11 - legOverlap, width: 1, height: 2 + legOverlap),
+        PetPart(x: 12, y: 11 - legOverlap, width: 1, height: 2 + legOverlap),
     ]
+
+    /// How far a leg may dangle below its rest before its hip clears the belly.
+    static let maxDangle: Double = legOverlap
 
     /// Diagonal gait: legs 0 and 3 swing together, 1 and 2 answer them. Real
     /// four-legged walks are diagonal pairs, and using it here is the single
@@ -140,12 +161,12 @@ enum PetRigging {
             // Arms counter-swing with the diagonal pairs, like shoulders do.
             let armSwing = cos(cycle * 2 * .pi) * 14
             rig.armLeftAngle = armSwing
-            rig.armRightAngle = -armSwing
+            rig.armRightAngle = -armSwing   // one arm up while the other is down
 
         case .hangLeft, .hangRight:
             // Both arms up gripping the lip; legs dangle and swing with the body.
-            rig.armLeftAngle = -55
-            rig.armRightAngle = -55
+            rig.armLeftAngle = 55
+            rig.armRightAngle = 55
             let dangle = sin(t * 2 * .pi * 0.9 + 0.6) * 0.35
             for i in 0..<4 {
                 rig.legSwing[i] = dangle * (1 + Double(i % 2) * 0.4)
@@ -157,8 +178,8 @@ enum PetRigging {
             // Legs folded under, arms slack.
             rig.legTuck = [1.4, 1.4, 1.4, 1.4]
             let breath = sin(time * 0.9) * 0.05
-            rig.armLeftAngle = 8 + breath * 20
-            rig.armRightAngle = -8 - breath * 20
+            rig.armLeftAngle = -8 + breath * 20    // arms slack, hanging low
+            rig.armRightAngle = -8 + breath * 20
 
         case .celebrate:
             // Legs splay on the way up, gather on the way down — the shape of
@@ -166,7 +187,7 @@ enum PetRigging {
             let hop = abs(sin(t * 3 * .pi))
             rig.legSwing = [-hop * 0.8, -hop * 0.3, hop * 0.3, hop * 0.8]
             rig.legLift = [hop * 0.5, hop * 0.35, hop * 0.35, hop * 0.5]
-            rig.armLeftAngle = -70 * hop
+            rig.armLeftAngle = 70 * hop     // both arms thrown up
             rig.armRightAngle = 70 * hop
             rig.eyeOpen = 1
 
@@ -174,8 +195,8 @@ enum PetRigging {
             // Tucked into the flip, like anything that's ever done one.
             let air = sin(PetEngine.clamp01(t) * .pi)
             rig.legTuck = Array(repeating: air * 1.6, count: 4)
-            rig.armLeftAngle = 40 * air
-            rig.armRightAngle = -40 * air
+            rig.armLeftAngle = 40 * air     // pulled in tight
+            rig.armRightAngle = 40 * air
         }
         return rig
     }

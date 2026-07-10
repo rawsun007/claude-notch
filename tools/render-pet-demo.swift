@@ -103,11 +103,11 @@ enum PetDemo {
             let lift = rig.legLift[i] + rig.legTuck[i]
             NSBezierPath(rect: rect(part, dx: rig.legSwing[i], dy: -lift + rig.legTuck[i])).fill()
         }
-        for slab in PetBody.torso { NSBezierPath(rect: rect(slab)).fill() }
 
-        func arm(_ p: PetPart, angle: Double, pivotAtRightEdge: Bool) {
+        func arm(_ p: PetPart, pivotCell: PetPart, angle: Double) {
             let r = rect(p)
-            let pivot = NSPoint(x: pivotAtRightEdge ? r.maxX : r.minX, y: r.midY)
+            let pivot = NSPoint(x: -size/2 + pivotCell.x * cell,
+                                y: -size/2 + (pivotCell.y + pivotCell.height / 2) * cell)
             NSGraphicsContext.saveGraphicsState()
             let tf = NSAffineTransform()
             tf.translateX(by: pivot.x, yBy: pivot.y)
@@ -118,8 +118,12 @@ enum PetDemo {
             NSBezierPath(rect: r).fill()
             NSGraphicsContext.restoreGraphicsState()
         }
-        arm(PetBody.armLeft, angle: rig.armLeftAngle, pivotAtRightEdge: true)
-        arm(PetBody.armRight, angle: -rig.armRightAngle, pivotAtRightEdge: false)
+        // Mirrored: a positive rig angle raises either arm.
+        arm(PetBody.armLeft, pivotCell: PetBody.shoulderLeft, angle: rig.armLeftAngle)
+        arm(PetBody.armRight, pivotCell: PetBody.shoulderRight, angle: -rig.armRightAngle)
+
+        // Torso last: it covers every shoulder and hip joint.
+        for slab in PetBody.torso { NSBezierPath(rect: rect(slab)).fill() }
 
         // Eyes are holes; the plate behind the pet is black, so paint black.
         NSColor.black.setFill()

@@ -119,9 +119,24 @@ final class PetRigTests: XCTestCase {
 
     func testHangingPetGripsWithBothArmsUpAndDanglesItsLegs() {
         let r = rig(.hangLeft, t: 0.3)
-        XCTAssertLessThan(r.armLeftAngle, -30)
-        XCTAssertLessThan(r.armRightAngle, -30)
+        XCTAssertGreaterThan(r.armLeftAngle, 30)    // positive = raised, both arms
+        XCTAssertGreaterThan(r.armRightAngle, 30)
         for lift in r.legLift { XCTAssertLessThan(lift, 0) }   // stretched downward
+    }
+
+    /// A dangling leg must keep its hip inside the belly, or it detaches and
+    /// floats below the body with daylight in between. Same for a swinging arm
+    /// at its shoulder — that's what `armOverlap` and `legOverlap` are for.
+    func testNoLimbEverLeavesTheBody() {
+        for activity in PetActivity.allCases {
+            for i in 0...40 {
+                let r = rig(activity, t: Double(i) / 40, time: Double(i) * 0.03)
+                for lift in r.legLift {
+                    XCTAssertGreaterThanOrEqual(lift, -PetBody.maxDangle,
+                                                "\(activity): a leg dangled its hip out of the belly")
+                }
+            }
+        }
     }
 
     func testFlippingPetTucksItsLimbsInAtTheApex() {
@@ -136,8 +151,17 @@ final class PetRigTests: XCTestCase {
         let apex = rig(.celebrate, t: 1.0 / 6.0)   // top of the first of three hops
         XCTAssertLessThan(apex.legSwing[0], -0.5)  // outer legs kick outward
         XCTAssertGreaterThan(apex.legSwing[3], 0.5)
-        XCTAssertLessThan(apex.armLeftAngle, -50)  // arms up
+        XCTAssertGreaterThan(apex.armLeftAngle, 50)   // both arms thrown up
         XCTAssertGreaterThan(apex.armRightAngle, 50)
+    }
+
+    func testArmAnglesAreMirrored() {
+        // "Arms up" must not mean "left arm up, right arm down". Every activity
+        // that raises both arms says so with two positive angles.
+        for activity in [PetActivity.hangLeft, .hangRight, .celebrate, .spin] {
+            let r = rig(activity, t: 0.5)
+            XCTAssertEqual(r.armLeftAngle.sign, r.armRightAngle.sign, "\(activity)")
+        }
     }
 
     func testTuckedPetIsCompletelyStill() {
@@ -157,12 +181,25 @@ final class PetRigTests: XCTestCase {
         XCTAssertEqual(PetBody.gaitPhase.count, 4)
         XCTAssertEqual(PetBody.eyeLeft.width, 1)
         XCTAssertEqual(PetBody.eyeLeft.height, 2)
-        // Arms sit at the body's vertical middle, flush to its sides.
         XCTAssertEqual(PetBody.armLeft.y, PetBody.armRight.y)
-        XCTAssertEqual(PetBody.armLeft.x + PetBody.armLeft.width, PetBody.torso[1].x)
-        XCTAssertEqual(PetBody.armRight.x, PetBody.torso[1].x + PetBody.torso[1].width)
-        // Legs hang off the bottom of the belly, not floating below it.
+
+        // Limbs run INTO the torso and are drawn behind it, so no rotation or
+        // swing can open a gap at the joint. The arm reaches `armOverlap` past
+        // the torso's edge; the leg starts `legOverlap` above the belly's base.
+        let torsoLeft = PetBody.torso[1].x
+        let torsoRight = PetBody.torso[1].x + PetBody.torso[1].width
+        XCTAssertEqual(PetBody.armLeft.x + PetBody.armLeft.width, torsoLeft + PetBody.armOverlap)
+        XCTAssertEqual(PetBody.armRight.x, torsoRight - PetBody.armOverlap)
+        // Each arm turns about the torso's edge, so its buried half stays within
+        // `armOverlap` of the pivot and the torso is always big enough to cover it.
+        XCTAssertEqual(PetBody.shoulderLeft.x, torsoLeft)
+        XCTAssertEqual(PetBody.shoulderRight.x, torsoRight)
+        XCTAssertLessThan(PetBody.armOverlap, PetBody.torso[1].height + PetBody.torso[0].height)
+
         let bellyBottom = PetBody.torso[2].y + PetBody.torso[2].height
-        for leg in PetBody.legs { XCTAssertEqual(leg.y, bellyBottom) }
+        for leg in PetBody.legs {
+            XCTAssertEqual(leg.y, bellyBottom - PetBody.legOverlap)
+            XCTAssertGreaterThan(leg.y + leg.height, bellyBottom)   // still has a foot
+        }
     }
 }

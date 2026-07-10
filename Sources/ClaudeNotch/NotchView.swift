@@ -524,8 +524,9 @@ private struct PetSprite: View {
                        width: p.width * cell, height: p.height * cell)
             }
 
-            // Legs first, so the belly overlaps their tops and a tucked or
-            // lifted leg disappears into the body instead of floating.
+            // Limbs first, torso last: the body then covers every joint, so a
+            // swinging arm or a dangling leg stays attached to it instead of
+            // opening a gap where it meets the shoulder or hip.
             for (i, leg) in PetBody.legs.enumerated() {
                 let lift = rig.legLift[i] + rig.legTuck[i]
                 var part = leg
@@ -535,14 +536,11 @@ private struct PetSprite: View {
                          with: .color(Self.colour))
             }
 
-            for slab in PetBody.torso {
-                ctx.fill(Path(rect(slab)), with: .color(Self.colour))
-            }
-
-            // Arms pivot at the shoulder — the edge where they meet the torso.
-            func arm(_ p: PetPart, angle: Double, pivotAtRightEdge: Bool) {
+            // Arms pivot at the shoulder — a cell inside the torso, so no angle
+            // can lever their inner corner out into the open.
+            func arm(_ p: PetPart, pivotCell: PetPart, angle: Double) {
                 let r = rect(p)
-                let pivot = CGPoint(x: pivotAtRightEdge ? r.maxX : r.minX, y: r.midY)
+                let pivot = CGPoint(x: pivotCell.x * cell, y: (pivotCell.y + pivotCell.height / 2) * cell)
                 ctx.drawLayer { layer in
                     layer.translateBy(x: pivot.x, y: pivot.y)
                     layer.rotate(by: .degrees(angle))
@@ -550,8 +548,14 @@ private struct PetSprite: View {
                     layer.fill(Path(r), with: .color(Self.colour))
                 }
             }
-            arm(PetBody.armLeft, angle: rig.armLeftAngle, pivotAtRightEdge: true)
-            arm(PetBody.armRight, angle: -rig.armRightAngle, pivotAtRightEdge: false)
+            // Mirrored: a positive rig angle raises either arm, so the left one
+            // turns the opposite way on screen from the right one.
+            arm(PetBody.armLeft, pivotCell: PetBody.shoulderLeft, angle: rig.armLeftAngle)
+            arm(PetBody.armRight, pivotCell: PetBody.shoulderRight, angle: -rig.armRightAngle)
+
+            for slab in PetBody.torso {
+                ctx.fill(Path(rect(slab)), with: .color(Self.colour))
+            }
 
             // Eyes are holes punched back out of the body, so they show whatever
             // is behind the pet (the notch's black) rather than being painted on.
