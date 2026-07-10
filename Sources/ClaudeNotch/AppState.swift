@@ -513,6 +513,10 @@ final class AppState: ObservableObject {
     private var petBoopStreak = 0
     private var petLastBoopAt: Date = .distantPast
     private var petTimer: Timer?
+    /// Demo mode: an activity was requested from the Demos menu, so it plays
+    /// even while Claude is busy (the whole point is to watch it on demand).
+    private var petDemoing = false
+    private var petDemoQueue: [PetActivity] = []
     private var petRNG = SeededRNG(seed: UInt64(Date().timeIntervalSince1970.bitPattern))
     // Require Touch ID / Face ID to confirm a dangerous command (instead of
     // press-and-hold). Defaults on when the Mac has biometrics. Persisted.
@@ -777,8 +781,9 @@ final class AppState: ObservableObject {
 
         // A card opened / Claude started working while the cursor sat on the
         // pet: the pet loses, real content wins. Checked before the petting
-        // freeze below, or it would never run.
-        if petActivity != .tucked, !ctx.allowsAutonomy || ctx.isWorking || ctx.isThinking {
+        // freeze below, or it would never run. A demo is exempt — it was asked
+        // for explicitly, and it's the only way to watch a rare activity.
+        if petActivity != .tucked, !petDemoing, !ctx.allowsAutonomy || ctx.isWorking || ctx.isThinking {
             endPetActivity()
             return
         }
@@ -792,6 +797,11 @@ final class AppState: ObservableObject {
 
         if petActivity != .tucked {
             guard petProgress(at: now) >= 1 else { return }
+            // Walking the Demos menu's "Play All" list, one activity per turn.
+            if petDemoing, !petDemoQueue.isEmpty {
+                beginPetActivity(petDemoQueue.removeFirst())
+                return
+            }
             // A boop interrupted something — put the pet back where it was,
             // at the point in the performance it had reached.
             if let resume = petInterrupted {
@@ -832,6 +842,8 @@ final class AppState: ObservableObject {
     }
 
     private func endPetActivity() {
+        petDemoing = false
+        petDemoQueue.removeAll()
         petInterrupted = nil
         petActivity = .tucked
         petActivityDuration = 0
@@ -870,6 +882,22 @@ final class AppState: ObservableObject {
         guard petEnabled else { return }
         petCelebrateUntil = Date().addingTimeInterval(8)
         petNextActionAt = Date().addingTimeInterval(1.2)
+    }
+
+    /// Demos menu: perform these activities back to back, right now, whatever
+    /// else is going on. Turns Pet Mode on if it was off — you asked to see the
+    /// pet, so here is the pet.
+    func demoPet(_ activities: [PetActivity]) {
+        guard let first = activities.first else { return }
+        if !petEnabled { setPetEnabled(true) }
+        petDemoQueue = Array(activities.dropFirst())
+        petDemoing = true
+        petInterrupted = nil
+        // Let the menu finish closing, or the pet performs behind it.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            guard let self, self.petDemoing else { return }
+            self.beginPetActivity(first)
+        }
     }
 
     func setPetEnabled(_ on: Bool) {

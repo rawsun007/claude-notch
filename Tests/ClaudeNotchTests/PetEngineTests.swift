@@ -246,6 +246,15 @@ final class PetEngineTests: XCTestCase {
         }
     }
 
+    func testEveryActivityIsReachableFromTheDemosMenu() {
+        // The Demos > Pet submenu is built from `allCases`, so a new activity
+        // shows up there for free — but only if it stays in the enum rather
+        // than being special-cased somewhere. Pin the one thing the menu skips.
+        let demoable = PetActivity.allCases.filter { $0 != .tucked }
+        XCTAssertEqual(demoable.count, PetActivity.allCases.count - 1)
+        XCTAssertFalse(demoable.contains(.tucked))
+    }
+
     func testPivotsMatchWhatTheActivityIsStandingOn() {
         XCTAssertEqual(PetActivity.hangLeft.pivot, .paws)
         XCTAssertEqual(PetActivity.hangRight.pivot, .paws)

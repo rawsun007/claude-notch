@@ -128,6 +128,27 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         addDemo("Thinking Pulse",       #selector(triggerDemoThinking),   "t")
         addDemo("Cost Budget Alert",    #selector(triggerDemoBudget),     "")
         addDemo("Budget Hard-Stop",     #selector(triggerDemoBudgetBlock), "")
+
+        // Pet Mode's activities fire on their own schedule, so some are rare
+        // and none are reproducible on demand. This plays any of them now —
+        // for showing the thing off, and for eyeballing the pose math.
+        demosMenu.addItem(.separator())
+        let petMenu = NSMenu()
+        let playAll = NSMenuItem(title: "Play All", action: #selector(triggerDemoPetAll), keyEquivalent: "")
+        playAll.target = self
+        petMenu.addItem(playAll)
+        petMenu.addItem(.separator())
+        for activity in PetActivity.allCases where activity != .tucked {
+            let mi = NSMenuItem(title: MenuBarController.petDemoTitle(activity),
+                                action: #selector(triggerDemoPetActivity(_:)), keyEquivalent: "")
+            mi.target = self
+            mi.representedObject = activity.rawValue
+            petMenu.addItem(mi)
+        }
+        let petItem = NSMenuItem(title: "Pet", action: nil, keyEquivalent: "")
+        petItem.submenu = petMenu
+        demosMenu.addItem(petItem)
+
         let demosItem = NSMenuItem(title: "Demos", action: nil, keyEquivalent: "")
         demosItem.submenu = demosMenu
         menu.addItem(demosItem)
@@ -563,6 +584,33 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func triggerDemoBudgetBlock() {
         state.demoBudgetBlock()
+    }
+
+    /// Human-readable name for a pet activity. Not derived from the raw value:
+    /// "hangLeft" is a fine identifier and a poor menu item.
+    private static func petDemoTitle(_ activity: PetActivity) -> String {
+        switch activity {
+        case .tucked:     return "Tucked"
+        case .peek:       return "Peek"
+        case .lookAround: return "Look Around"
+        case .hangLeft:   return "Hang Off Left Corner"
+        case .hangRight:  return "Hang Off Right Corner"
+        case .stroll:     return "Stroll"
+        case .sleep:      return "Sleep"
+        case .celebrate:  return "Celebrate"
+        case .boop:       return "Boop"
+        case .spin:       return "Backflip"
+        }
+    }
+
+    @objc private func triggerDemoPetActivity(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let activity = PetActivity(rawValue: raw) else { return }
+        state.demoPet([activity])
+    }
+
+    @objc private func triggerDemoPetAll() {
+        state.demoPet(PetActivity.allCases.filter { $0 != .tucked })
     }
 
     @objc private func clearAllowlist() {
