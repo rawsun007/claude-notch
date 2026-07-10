@@ -3235,14 +3235,16 @@ private func waitElapsed(_ since: Date) -> String {
 /// Badge for non-default Claude Code permission modes. `default` (and empty)
 /// return nil — no badge for the normal case. bypassPermissions is the loud
 /// one: every action runs unchecked, so it's red and impossible to miss.
+///
+/// `acceptEdits` gets no badge either: auto-accepting file edits is a normal
+/// way to work rather than something you need warning about, and the badge sat
+/// in the notch permanently for anyone who works that way.
 func permissionModeBadge(_ mode: String) -> (label: String, color: Color, help: String)? {
     switch mode {
     case "bypassPermissions":
         return ("BYPASS", .red, "Permissions are bypassed — every action runs without asking")
     case "plan":
         return ("PLAN", .blue, "Plan mode — Claude is planning, not editing")
-    case "acceptEdits":
-        return ("EDITS", .orange, "Auto-accepting file edits")
     case "auto":
         return ("AUTO", .teal, "Auto mode — background safety checks approve safe actions")
     case "dontAsk":
