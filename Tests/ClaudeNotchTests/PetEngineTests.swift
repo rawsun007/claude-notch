@@ -198,6 +198,50 @@ final class PetEngineTests: XCTestCase {
                    flipped: false, opacity: 1, emote: .sparkle)
     }
 
+    func testSpinIsEarnedNotScheduled() {
+        for mood in PetMood.allCases {
+            XCTAssertFalse(PetEngine.weights(for: mood).map(\.0).contains(.spin),
+                           "\(mood) must never schedule the backflip — it's a reward for booping")
+        }
+    }
+
+    func testSpinTurnsTwiceInOneDirectionAndLandsSquashed() {
+        var previous = 0.0
+        for i in 0...200 {
+            let r = PetEngine.pose(for: .spin, progress: Double(i) / 200, stage: stage).rotation
+            XCTAssertLessThanOrEqual(r, previous + 1e-9, "the flip must never rewind")
+            previous = r
+        }
+        XCTAssertEqual(previous, -720, accuracy: 0.0001)   // exactly two turns
+        assertPose(.spin, 0.5, x: 0, y: 37.2, rot: -630, sx: 0.92, sy: 1.12,
+                   flipped: false, opacity: 1, emote: .sparkle)
+        let landing = PetEngine.pose(for: .spin, progress: 1.0, stage: stage)
+        XCTAssertLessThan(landing.scaleY, 0.8)
+        XCTAssertGreaterThan(landing.scaleX, 1.15)
+    }
+
+    func testEveryActivityHasAStageBigEnoughForItsSprite() {
+        for activity in PetActivity.allCases where activity != .tucked {
+            XCTAssertGreaterThan(activity.stageDrop, activity.spriteSize * 0.5,
+                                 "\(activity) would clip its own sprite")
+        }
+        XCTAssertEqual(PetActivity.tucked.stageDrop, 0)
+        XCTAssertEqual(PetActivity.tucked.stageWidthPad, 0)
+    }
+
+    func testNoActivityDrawsOutsideItsStage() {
+        // The card is only as tall as `stageDrop` below the notch; a pose that
+        // exceeds it gets clipped at the bottom edge and the pet loses its feet.
+        for activity in PetActivity.allCases where activity != .tucked {
+            let bottom = stage.notchInset + activity.stageDrop
+            for i in 0...100 {
+                let p = PetEngine.pose(for: activity, progress: Double(i) / 100, stage: stage)
+                let feet = p.y + activity.spriteSize / 2
+                XCTAssertLessThanOrEqual(feet, bottom + 0.001, "\(activity) at t=\(Double(i) / 100)")
+            }
+        }
+    }
+
     func testTuckedIsInvisibleAndBehindTheNotch() {
         let p = PetEngine.pose(for: .tucked, progress: 0.5, stage: stage)
         XCTAssertEqual(p.opacity, 0)

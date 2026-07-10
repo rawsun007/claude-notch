@@ -539,20 +539,35 @@ private struct PetSprite: View {
     }
 }
 
-/// Row 1's icon — the mascot with a small continuous idle bob, quicker while
-/// Claude is actually working so it visibly reflects what's happening.
+/// Row 1's icon — the same mascot, breathing at whatever tempo its mood calls
+/// for, so a glance at the notch tells you what Claude is up to before you've
+/// read a word of the status text. `mood` is nil when Pet Mode is off, which
+/// leaves a gentle default bob rather than a dead sprite.
 private struct ClaudeIconView: View {
     var size: CGFloat = 15
-    var working: Bool = false
+    var mood: PetMood? = nil
+
+    /// Bob period (seconds) and amplitude (points) per mood.
+    private var beat: (period: Double, amplitude: Double) {
+        switch mood {
+        case .working:     return (0.7, 1.6)    // busy, quick
+        case .thinking:    return (1.1, 1.2)
+        case .celebrating: return (0.45, 2.4)   // bouncing
+        case .sleepy:      return (3.2, 0.5)    // barely breathing
+        case .curious:     return (1.5, 1.0)
+        case .calm, .none: return (1.8, 0.9)
+        }
+    }
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: false)) { tl in
-            let period: Double = working ? 0.7 : 1.8
+            let (period, amplitude) = beat
             let phase = tl.date.timeIntervalSinceReferenceDate
                 .truncatingRemainder(dividingBy: period) / period
-            let bob = sin(phase * 2 * .pi) * (working ? 1.6 : 0.9)
+            // Celebrating hops (always up, never down) instead of bobbing.
+            let wave = mood == .celebrating ? -abs(sin(phase * .pi * 2)) : sin(phase * 2 * .pi)
             PetSprite(size: size)
-                .offset(y: bob)
+                .offset(y: wave * amplitude)
         }
     }
 }
@@ -617,6 +632,7 @@ private struct PetStageView: View {
             ZStack(alignment: .top) {
                 Color.clear
                 PetSprite(size: sprite)
+                    .shadow(color: .black.opacity(0.55), radius: 4, y: 1)
                     .scaleEffect(x: pose.flipped ? -pose.scaleX : pose.scaleX, y: pose.scaleY, anchor: anchor)
                     .rotationEffect(.degrees(pose.rotation), anchor: anchor)
                     .opacity(pose.opacity)
@@ -816,7 +832,7 @@ private struct IdlePill: View {
         VStack(alignment: .leading, spacing: 10) {
             // Row 1 — Claude icon · name · status dot · status label · action buttons
             HStack(spacing: 6) {
-                ClaudeIconView(size: 15, working: state.isClaudeWorking)
+                ClaudeIconView(size: 15, mood: state.petEnabled ? state.petMood : nil)
                 Text(nameText)
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)

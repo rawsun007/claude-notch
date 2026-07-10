@@ -48,6 +48,7 @@ enum PetActivity: String, CaseIterable, Equatable {
     case sleep        // lies on the notch's lip, Zzz
     case celebrate    // triple hop with sparkles
     case boop         // squash-and-pop reaction to a click
+    case spin         // booped several times in a row: a delighted backflip
 
     /// Extra pixels the notch card grows *below* the physical notch to give
     /// this activity room. `tucked` adds none, which keeps the collapsed notch
@@ -63,6 +64,7 @@ enum PetActivity: String, CaseIterable, Equatable {
         case .sleep:      return 34
         case .celebrate:  return 58
         case .boop:       return 50
+        case .spin:       return 60
         }
     }
 
@@ -73,6 +75,7 @@ enum PetActivity: String, CaseIterable, Equatable {
         switch self {
         case .stroll:    return 64
         case .celebrate: return 24
+        case .spin:      return 20
         default:         return 0
         }
     }
@@ -83,7 +86,8 @@ enum PetActivity: String, CaseIterable, Equatable {
         switch self {
         case .tucked:    return 22
         case .sleep:     return 30
-        case .celebrate: return 34
+        case .celebrate,
+             .spin:      return 34
         default:         return 32
         }
     }
@@ -210,6 +214,7 @@ enum PetEngine {
         case .sleep:      return Double.random(in: 8.0...14.0, using: &rng)
         case .celebrate:  return 2.4
         case .boop:       return 0.85
+        case .spin:       return 1.5
         }
     }
 
@@ -352,6 +357,19 @@ enum PetEngine {
             pose.emote = .sparkle
             pose.emoteScale = 0.6 + hop * 0.6
 
+        case .spin:
+            // Earned, not scheduled: boop the pet a few times in a row and it
+            // backflips. Two full turns, launched on the first and landing
+            // squashed on the last.
+            let air = sin(clamp01(t) * .pi)
+            pose.y -= air * 20 * envelope
+            pose.rotation = -720 * easeOutCubicSpin(t)
+            let land = t > 0.92 ? (t - 0.92) / 0.08 : 0
+            pose.scaleY = 1 + air * 0.12 - land * 0.24
+            pose.scaleX = 1 - air * 0.08 + land * 0.20
+            pose.emote = .sparkle
+            pose.emoteScale = 0.5 + air * 0.7
+
         case .boop:
             // Squash on contact, overshoot back out, settle. Short and snappy —
             // the whole point is that it answers the click immediately. A boop
@@ -394,4 +412,11 @@ enum PetEngine {
     }
 
     static func easeInCubic(_ t: Double) -> Double { t * t * t }
+
+    /// The flip decelerates into its landing rather than stopping dead —
+    /// otherwise the last quarter-turn reads as a dropped frame.
+    static func easeOutCubicSpin(_ t: Double) -> Double {
+        let p = 1 - clamp01(t)
+        return 1 - p * p * p
+    }
 }

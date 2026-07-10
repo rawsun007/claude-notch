@@ -509,6 +509,9 @@ final class AppState: ObservableObject {
     private var petNextActionAt: Date = .distantPast
     /// A boop interrupts whatever was happening; this is what to go back to.
     private var petInterrupted: (activity: PetActivity, elapsed: Double)?
+    /// Boops landed in quick succession. Enough of them and the pet backflips.
+    private var petBoopStreak = 0
+    private var petLastBoopAt: Date = .distantPast
     private var petTimer: Timer?
     private var petRNG = SeededRNG(seed: UInt64(Date().timeIntervalSince1970.bitPattern))
     // Require Touch ID / Face ID to confirm a dangerous command (instead of
@@ -754,6 +757,7 @@ final class AppState: ObservableObject {
     /// timer (rather than a chain of one-shots) means the pet can always be
     /// interrupted on the very next tick, whatever it was doing.
     private func startPetDriver() {
+        guard petEnabled else { return }
         petTimer?.invalidate()
         petNextActionAt = Date().addingTimeInterval(PetEngine.nextDelay(mood: .calm, using: &petRNG))
         let t = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
@@ -800,6 +804,12 @@ final class AppState: ObservableObject {
         }
 
         guard now >= petNextActionAt else { return }
+        // "Reduce motion" means the pet stops moving on its own. It still
+        // answers a boop — that motion is one the user just asked for.
+        guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+            petNextActionAt = now.addingTimeInterval(30)
+            return
+        }
         guard ctx.allowsAutonomy, !ctx.isWorking, !ctx.isThinking else {
             // Not the moment. Check back soon rather than burning the slot.
             petNextActionAt = now.addingTimeInterval(PetEngine.nextDelay(mood: PetEngine.mood(for: ctx), using: &petRNG))
@@ -837,10 +847,21 @@ final class AppState: ObservableObject {
     /// rather than a reset.
     func petBoop() {
         guard petEnabled else { return }
-        if petActivity != .tucked, petActivity != .boop, petActivity != .celebrate {
+        let now = Date()
+        // Boops within a couple of seconds of each other build a streak; the
+        // fifth one tips the pet into a backflip. Pause and the streak resets.
+        petBoopStreak = now.timeIntervalSince(petLastBoopAt) < 2.0 ? petBoopStreak + 1 : 1
+        petLastBoopAt = now
+        if petActivity != .tucked, petActivity != .boop, petActivity != .spin, petActivity != .celebrate {
             petInterrupted = (petActivity, petProgress() * petActivityDuration)
         }
-        beginPetActivity(.boop)
+        if petBoopStreak >= 5 {
+            petBoopStreak = 0
+            petInterrupted = nil
+            beginPetActivity(.spin)
+        } else {
+            beginPetActivity(.boop)
+        }
     }
 
     /// A turn just finished: give the pet a couple of seconds to notice and
@@ -853,7 +874,13 @@ final class AppState: ObservableObject {
 
     func setPetEnabled(_ on: Bool) {
         petEnabled = on
-        if !on { endPetActivity() }
+        if on {
+            startPetDriver()
+        } else {
+            petTimer?.invalidate()
+            petTimer = nil
+            endPetActivity()
+        }
         schedulePersist()
     }
 
