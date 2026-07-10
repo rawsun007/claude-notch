@@ -106,24 +106,10 @@ final class PetRigTests: XCTestCase {
 
     // MARK: - Per-activity poses
 
-    func testSleepingPetLiesOnItsBackWithItsLegsUp() {
-        let r = rig(.sleep, time: 2)
+    func testSleepingPetShutsItsEyesAndFoldsItsLegs() {
+        let r = rig(.sleep)
         XCTAssertEqual(r.eyeOpen, PetRigging.sleepingEyes)
-        XCTAssertTrue(r.legsUp)
-        // Legs half-bent, not folded away — a sleeping animal's legs are visible.
-        for tuck in r.legTuck {
-            XCTAssertGreaterThan(tuck, 0)
-            XCTAssertLessThan(tuck, 1)
-        }
-        // And splayed: the outer legs flop further out than the inner ones.
-        XCTAssertLessThan(r.legSwing[0], r.legSwing[1])
-        XCTAssertGreaterThan(r.legSwing[3], r.legSwing[2])
-    }
-
-    func testOnlySleepingPutsThePetOnItsBack() {
-        for activity in PetActivity.allCases where activity != .sleep {
-            XCTAssertFalse(rig(activity, time: 1).legsUp, "\(activity) is not lying down")
-        }
+        for tuck in r.legTuck { XCTAssertGreaterThan(tuck, 1) }
     }
 
     /// The eyes are holes punched out of the body, so `eyeOpen = 0` doesn't

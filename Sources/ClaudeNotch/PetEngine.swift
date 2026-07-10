@@ -418,16 +418,12 @@ enum PetEngine {
             pose.emote = stage.petting ? .heart : nil
 
         case .sleep:
-            // Lying on its back on the notch's lip, face to the ceiling, seen
-            // from in front and a little above. Squashing the body vertically
-            // and widening it is what a flat-on-its-back creature looks like
-            // from that angle: the length you'd see standing is foreshortened
-            // away, and the tilt is the pet lying at an angle to you rather
-            // than square on.
+            // A gentle lean, not a face-plant: the notch sits above eye level,
+            // so the flatter the pet lies the less of its face you can see.
             pose.x = 2
-            pose.rotation = -10
-            pose.scaleY = 0.78 + sin(t * 2 * .pi * 0.6) * 0.03   // breathing
-            pose.scaleX = 1.08 - sin(t * 2 * .pi * 0.6) * 0.03
+            pose.rotation = -5
+            pose.scaleY = 0.95 + sin(t * 2 * .pi * 0.6) * 0.03   // breathing
+            pose.scaleX = 1.03 - sin(t * 2 * .pi * 0.6) * 0.03
             pose.y += sin(t * 2 * .pi * 0.6) * 0.8 * envelope
             pose.emote = stage.petting ? .heart : .zzz
             pose.emoteScale = 0.85 + sin(t * 2 * .pi * 0.6) * 0.15

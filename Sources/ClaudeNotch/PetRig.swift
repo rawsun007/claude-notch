@@ -38,11 +38,6 @@ struct PetRig: Equatable {
     var legSwing: [Double] = [0, 0, 0, 0]
     /// How far each leg is tucked up into the body (sleeping, flipping).
     var legTuck: [Double] = [0, 0, 0, 0]
-    /// The pet is on its back: legs stick up out of the top of the body instead
-    /// of down out of the bottom. Nothing else about the drawing changes — a
-    /// creature seen belly-up from a low angle is the same silhouette with its
-    /// legs on the other side.
-    var legsUp: Bool = false
     /// Degrees, positive = raised. Mirrored: both arms raise at +45, which is
     /// what lets an activity say "arms up" without caring about left and right.
     var armLeftAngle: Double = 0
@@ -106,7 +101,6 @@ enum PetBody {
     /// relative to the pet (an emote, say) must measure from the body, not from
     /// the box, or it floats off into the empty space above it.
     static var bodyTop: Double { torso[0].y }              // 3 cells of headroom
-    static var bodyBottom: Double { torso[2].y + torso[2].height }
     static var bodyRight: Double { armRight.x + armRight.width }
 
     /// Offsets, as a fraction of the sprite's size, from the sprite's centre to
@@ -199,17 +193,12 @@ enum PetRigging {
             }
 
         case .sleep:
-            // Flat on its back on the notch's lip, face to the ceiling. The
-            // legs point up out of the belly and splay outward, the way a
-            // sleeping animal's do; the body is foreshortened by the pose.
             rig.eyeOpen = sleepingEyes
-            rig.legsUp = true
+            // Legs folded under, arms slack.
+            rig.legTuck = [1.4, 1.4, 1.4, 1.4]
             let breath = sin(time * 0.9) * 0.05
-            rig.legSwing = [-0.8, -0.25, 0.25, 0.8]
-            // Slack, half-bent legs that rise and fall a little as it breathes.
-            rig.legTuck = [0.2, 0.45, 0.45, 0.2].map { $0 - breath }
-            rig.armLeftAngle = -22 + breath * 18   // arms flopped out to the sides
-            rig.armRightAngle = -22 + breath * 18
+            rig.armLeftAngle = -8 + breath * 20    // arms slack, hanging low
+            rig.armRightAngle = -8 + breath * 20
 
         case .celebrate:
             // Legs splay on the way up, gather on the way down — the shape of
