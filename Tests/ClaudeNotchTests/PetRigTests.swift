@@ -173,6 +173,20 @@ final class PetRigTests: XCTestCase {
 
     // MARK: - Body
 
+    /// Anything hung off the pet (the Zzz, the heart, the sparkles) is placed
+    /// relative to its body. Measuring from the sprite's box instead leaves it
+    /// floating in the three empty rows above the pet's head.
+    func testBodyLandmarksMeasureFromTheCreatureNotItsBox() {
+        XCTAssertEqual(PetBody.bodyTop, 3)
+        XCTAssertEqual(PetBody.bodyRight, 16)
+        // Head top is above the sprite's centre, and well inside the box's top.
+        XCTAssertLessThan(PetBody.headTopFraction, 0)
+        XCTAssertGreaterThan(PetBody.headTopFraction, -0.5)
+        XCTAssertEqual(PetBody.headTopFraction, 3.0 / 16 - 0.5, accuracy: 0.0001)
+        // The arms reach the very edge of the box.
+        XCTAssertEqual(PetBody.shoulderRightFraction, 0.5, accuracy: 0.0001)
+    }
+
     func testTheBodyMatchesTheArtwork() {
         // Sanity on the grid the sprite is reconstructed from: if these drift,
         // the drawn pet stops being the pet in assets/claude-pet.png.

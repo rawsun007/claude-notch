@@ -94,6 +94,18 @@ enum PetBody {
     /// How far a leg may dangle below its rest before its hip clears the belly.
     static let maxDangle: Double = legOverlap
 
+    /// The drawn creature doesn't fill its 16x16 box: three empty rows sit above
+    /// its head and two empty columns beyond each arm. Anything positioned
+    /// relative to the pet (an emote, say) must measure from the body, not from
+    /// the box, or it floats off into the empty space above it.
+    static var bodyTop: Double { torso[0].y }              // 3 cells of headroom
+    static var bodyRight: Double { armRight.x + armRight.width }
+
+    /// Offsets, as a fraction of the sprite's size, from the sprite's centre to
+    /// just above the pet's head and just past its right arm.
+    static var headTopFraction: Double { bodyTop / grid - 0.5 }
+    static var shoulderRightFraction: Double { bodyRight / grid - 0.5 }
+
     /// Diagonal gait: legs 0 and 3 swing together, 1 and 2 answer them. Real
     /// four-legged walks are diagonal pairs, and using it here is the single
     /// thing that stops the walk reading as a shuffle.

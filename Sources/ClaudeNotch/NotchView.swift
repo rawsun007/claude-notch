@@ -687,9 +687,14 @@ private struct PetStageView: View {
                     .opacity(pose.opacity)
                     .offset(x: pose.x, y: pose.y - sprite / 2)
                 if let emote = pose.emote {
+                    // Anchored to the pet's head, not to the top of its sprite
+                    // box — the artwork leaves three empty rows up there, and
+                    // measuring from the box floated the emote far above it.
+                    let headTop = pose.y + sprite * CGFloat(PetBody.headTopFraction)
+                    let shoulder = pose.x + sprite * CGFloat(PetBody.shoulderRightFraction)
                     PetEmoteView(emote: emote, scale: pose.emoteScale)
                         .opacity(pose.opacity)
-                        .offset(x: pose.x + sprite * 0.52, y: pose.y - sprite * 0.72)
+                        .offset(x: shoulder - 2, y: headTop - 7)
                 }
             }
             .frame(width: stageWidth, alignment: .top)
