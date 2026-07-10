@@ -624,10 +624,13 @@ private struct PetStageView: View {
             )
             let pose = PetEngine.pose(for: activity, progress: state.petProgress(at: tl.date), stage: stage)
             let sprite = CGFloat(activity.spriteSize)
-            // Hanging pivots from the paws (top); everything else pivots from
-            // the feet, so a squash flattens the pet onto the surface instead
-            // of shrinking it in mid-air.
-            let anchor: UnitPoint = (activity == .hangLeft || activity == .hangRight) ? .top : .bottom
+            let anchor: UnitPoint = {
+                switch activity.pivot {
+                case .feet:   return .bottom
+                case .paws:   return .top
+                case .centre: return .center
+                }
+            }()
 
             ZStack(alignment: .top) {
                 Color.clear

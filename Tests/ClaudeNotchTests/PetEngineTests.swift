@@ -152,7 +152,7 @@ final class PetEngineTests: XCTestCase {
     }
 
     func testHangLeftClingsToTheLeftWall() {
-        assertPose(.hangLeft, 0.5, x: -80, y: 47.64, rot: -22.1459,
+        assertPose(.hangLeft, 0.5, x: -82, y: 47.64, rot: -22.1459,
                    sx: 1, sy: 1, flipped: true, opacity: 1, emote: nil)
         // Mirror image on the right, minus the swing phase.
         let l = PetEngine.pose(for: .hangLeft, progress: 0.5, stage: stage)
@@ -171,7 +171,7 @@ final class PetEngineTests: XCTestCase {
         // Never walks through the wall.
         for i in 0...100 {
             let p = PetEngine.pose(for: .stroll, progress: Double(i) / 100, stage: stage)
-            XCTAssertLessThanOrEqual(abs(p.x), stage.halfWidth - 22 + 0.001)
+            XCTAssertLessThanOrEqual(abs(p.x), PetActivity.stroll.maxCentreOffset(halfWidth: stage.halfWidth))
         }
     }
 
@@ -213,7 +213,7 @@ final class PetEngineTests: XCTestCase {
             previous = r
         }
         XCTAssertEqual(previous, -720, accuracy: 0.0001)   // exactly two turns
-        assertPose(.spin, 0.5, x: 0, y: 37.2, rot: -630, sx: 0.92, sy: 1.12,
+        assertPose(.spin, 0.5, x: 0, y: 41.2, rot: -630, sx: 0.92, sy: 1.12,
                    flipped: false, opacity: 1, emote: .sparkle)
         let landing = PetEngine.pose(for: .spin, progress: 1.0, stage: stage)
         XCTAssertLessThan(landing.scaleY, 0.8)
@@ -230,16 +230,28 @@ final class PetEngineTests: XCTestCase {
     }
 
     func testNoActivityDrawsOutsideItsStage() {
-        // The card is only as tall as `stageDrop` below the notch; a pose that
-        // exceeds it gets clipped at the bottom edge and the pet loses its feet.
+        // The card clips to its own bounds, so a pose that leaves them doesn't
+        // overflow — it loses whatever hung over the edge. The pet's feet below
+        // the bottom, or half its body past a side wall, both look like a bug.
+        // `tools/render-pet-demo.swift` is how these two were caught.
         for activity in PetActivity.allCases where activity != .tucked {
             let bottom = stage.notchInset + activity.stageDrop
             for i in 0...100 {
                 let p = PetEngine.pose(for: activity, progress: Double(i) / 100, stage: stage)
-                let feet = p.y + activity.spriteSize / 2
-                XCTAssertLessThanOrEqual(feet, bottom + 0.001, "\(activity) at t=\(Double(i) / 100)")
+                XCTAssertLessThanOrEqual(p.y + activity.spriteSize / 2, bottom + 0.001,
+                                         "\(activity) clips its feet at t=\(Double(i) / 100)")
+                XCTAssertLessThanOrEqual(abs(p.x) + activity.spriteSize / 2, stage.halfWidth + 0.001,
+                                         "\(activity) clips through the wall at t=\(Double(i) / 100)")
             }
         }
+    }
+
+    func testPivotsMatchWhatTheActivityIsStandingOn() {
+        XCTAssertEqual(PetActivity.hangLeft.pivot, .paws)
+        XCTAssertEqual(PetActivity.hangRight.pivot, .paws)
+        XCTAssertEqual(PetActivity.spin.pivot, .centre)   // a flip pivots at the belly
+        XCTAssertEqual(PetActivity.peek.pivot, .feet)
+        XCTAssertEqual(PetActivity.stroll.pivot, .feet)
     }
 
     func testTuckedIsInvisibleAndBehindTheNotch() {

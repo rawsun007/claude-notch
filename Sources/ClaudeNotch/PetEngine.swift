@@ -95,6 +95,31 @@ enum PetActivity: String, CaseIterable, Equatable {
     /// Whether hovering the pet should hold it in place instead of letting the
     /// timeline run out. You can't pet a pet that runs away mid-scratch.
     var isPettable: Bool { self != .tucked }
+
+    /// What the sprite turns and squashes around. Feet for anything standing
+    /// (a squash should flatten it onto the surface, not shrink it in mid-air),
+    /// paws for hanging, and the body's centre for the backflip — pivoting a
+    /// flip at the feet swings the pet straight down through the card.
+    var pivot: PetPivot {
+        switch self {
+        case .hangLeft, .hangRight: return .paws
+        case .spin:                 return .centre
+        default:                    return .feet
+        }
+    }
+
+    /// How close the sprite's *centre* may get to the card's side wall before
+    /// half of it hangs outside the black plate and gets clipped.
+    func maxCentreOffset(halfWidth: Double) -> Double {
+        max(0, halfWidth - spriteSize / 2 - 2)
+    }
+}
+
+/// Where a pose's rotation and scale are applied from.
+enum PetPivot: Equatable {
+    case feet
+    case paws
+    case centre
 }
 
 // MARK: - Emotes
@@ -310,9 +335,10 @@ enum PetEngine {
             let side: Double = activity == .hangLeft ? -1 : 1
             let swing = sin(t * 2 * .pi * 0.9) * 6
             // Clamp against the wall: the entry envelope overshoots past 1
-            // (that's the springy pop), and unclamped that would slide the pet
-            // out through the side of the card.
-            let wall = stage.halfWidth - 20
+            // (that's the springy pop), and half a sprite hangs either side of
+            // its centre — unclamped, the pet slides out through the side of
+            // the card and gets sliced off by the clip.
+            let wall = activity.maxCentreOffset(halfWidth: stage.halfWidth)
             pose.x = clampMag(side * wall * envelope, wall)
             pose.y = stage.notchInset * 0.35 + (stage.notchInset + depth * 0.34 - stage.notchInset * 0.35) * envelope
             pose.rotation = side * 24 + swing
@@ -324,7 +350,7 @@ enum PetEngine {
         case .stroll:
             // Out from the left wall, across, and back — with a walk bounce and
             // a beat of hesitation at the far end where it turns around.
-            let travel = stage.halfWidth - 22
+            let travel = activity.maxCentreOffset(halfWidth: stage.halfWidth) - 4
             let path = sin(t * 2 * .pi * 0.5 - .pi / 2)   // -1 → 1 → -1
             pose.x = clampMag(path * travel * envelope, travel)
             let facingRight = cos(t * 2 * .pi * 0.5 - .pi / 2) >= 0
@@ -362,7 +388,7 @@ enum PetEngine {
             // backflips. Two full turns, launched on the first and landing
             // squashed on the last.
             let air = sin(clamp01(t) * .pi)
-            pose.y -= air * 20 * envelope
+            pose.y -= air * 16 * envelope
             pose.rotation = -720 * easeOutCubicSpin(t)
             let land = t > 0.92 ? (t - 0.92) / 0.08 : 0
             pose.scaleY = 1 + air * 0.12 - land * 0.24
