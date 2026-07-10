@@ -75,8 +75,9 @@ enum PetActivity: String, CaseIterable, Equatable {
         }
     }
 
-    /// Vertical room the activity needs above its resting position — a hop, a
-    /// flip, a bob. Added to the stage so the pet never leaves the black plate.
+    /// Vertical room the activity needs *above* its resting position — a hop,
+    /// a flip, a bob. The pet rests this much lower so the top of its arc still
+    /// clears the notch lip, and the stage grows to match.
     var headroom: Double {
         switch self {
         case .celebrate: return 17
@@ -90,10 +91,11 @@ enum PetActivity: String, CaseIterable, Equatable {
     }
 
     /// Where the sprite's centre rests, measured down from the card's top edge.
-    /// Derived from the sprite rather than picked by hand, so growing the pet
-    /// can never push its head back behind the notch.
+    /// Derived from the sprite and the activity's upward travel rather than
+    /// picked by hand: a celebrating pet hops 15pt, so resting it 5pt below the
+    /// lip means the hardware notch shears the top off every hop.
     func restCentreY(notchInset: Double) -> Double {
-        notchInset + lipClearance + spriteSize / 2
+        notchInset + lipClearance + headroom + spriteSize / 2
     }
 
     /// Extra pixels the notch card grows *below* the physical notch to give
@@ -440,6 +442,11 @@ enum PetEngine {
             pose.emote = t < 0.6 ? .sparkle : (stage.petting ? .heart : nil)
             pose.emoteScale = 1 - t * 0.4
         }
+
+        // Hard floor: the entry envelope deliberately overshoots (that's the
+        // springy pop), and on a tall activity that overshoot is enough to push
+        // the pet's feet past the bottom of the card, where they get clipped.
+        pose.y = min(pose.y, stage.notchInset + activity.stageDrop - activity.spriteSize / 2)
 
         // Petting always wins on the emote, and nudges the pet toward the hand.
         if stage.petting {

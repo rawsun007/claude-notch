@@ -138,16 +138,16 @@ final class PetEngineTests: XCTestCase {
     func testPeekPoseGolden() {
         assertPose(.peek, 0.0, x: 0, y: 9, rot: 0, sx: 1, sy: 1,
                    flipped: false, opacity: 0, emote: nil)
-        assertPose(.peek, 0.5, x: 0, y: 59.5217, rot: 0, sx: 1, sy: 1,
+        assertPose(.peek, 0.5, x: 0, y: 65.5217, rot: 0, sx: 1, sy: 1,
                    flipped: false, opacity: 1, emote: .dots)
         assertPose(.peek, 1.0, x: 0, y: 9, rot: 0, sx: 1.1120, sy: 0.84,
                    flipped: false, opacity: 0, emote: nil)
     }
 
     func testLookAroundSweepsBothWays() {
-        assertPose(.lookAround, 0.25, x: 6.4656, y: 58.3708, rot: -4.1145,
+        assertPose(.lookAround, 0.25, x: 6.4656, y: 64.3708, rot: -4.1145,
                    sx: 1, sy: 1, flipped: false, opacity: 1, emote: nil)
-        assertPose(.lookAround, 0.5, x: -10.4616, y: 57.0292, rot: 6.6574,
+        assertPose(.lookAround, 0.5, x: -10.4616, y: 63.0292, rot: 6.6574,
                    sx: 1, sy: 1, flipped: true, opacity: 1, emote: nil)
     }
 
@@ -164,9 +164,9 @@ final class PetEngineTests: XCTestCase {
     }
 
     func testStrollCrossesAndComesBack() {
-        assertPose(.stroll, 0.25, x: -51.6188, y: 55.4, rot: 4,
+        assertPose(.stroll, 0.25, x: -51.6188, y: 60.4, rot: 4,
                    sx: 0.97, sy: 1.05, flipped: false, opacity: 1, emote: nil)
-        assertPose(.stroll, 0.92, x: 61.8682, y: 50.5378, rot: 2.3511,
+        assertPose(.stroll, 0.92, x: 61.8682, y: 54.9128, rot: 2.3511,
                    sx: 0.9968, sy: 1.0077, flipped: false, opacity: 1, emote: nil)
         // Never walks through the wall.
         for i in 0...100 {
@@ -176,12 +176,12 @@ final class PetEngineTests: XCTestCase {
     }
 
     func testSleepBreathesAndSaysZzz() {
-        assertPose(.sleep, 0.25, x: -2, y: 56.6472, rot: 8, sx: 1.0357, sy: 0.9243,
+        assertPose(.sleep, 0.25, x: -2, y: 58.6472, rot: 8, sx: 1.0357, sy: 0.9243,
                    flipped: false, opacity: 1, emote: .zzz)
     }
 
     func testCelebrateHopsThreeTimes() {
-        assertPose(.celebrate, 0.5, x: 0, y: 44, rot: 0, sx: 0.88, sy: 1.072,
+        assertPose(.celebrate, 0.5, x: 0, y: 61, rot: 0, sx: 0.88, sy: 1.072,
                    flipped: false, opacity: 1, emote: .sparkle)
         // Three peaks: the sprite is at its highest three times across the run.
         let ys = (0...300).map { PetEngine.pose(for: .celebrate, progress: Double($0) / 300, stage: stage).y }
@@ -194,7 +194,7 @@ final class PetEngineTests: XCTestCase {
         XCTAssertLessThan(hit.scaleY, 0.8)       // squashed flat
         XCTAssertGreaterThan(hit.scaleX, 1.15)   // and wide
         XCTAssertEqual(hit.emote, .sparkle)
-        assertPose(.boop, 0.5, x: 0, y: 57.8389, rot: -0.2014, sx: 0.9927, sy: 1.0089,
+        assertPose(.boop, 0.5, x: 0, y: 63.8389, rot: -0.2014, sx: 0.9927, sy: 1.0089,
                    flipped: false, opacity: 1, emote: .sparkle)
     }
 
@@ -213,7 +213,7 @@ final class PetEngineTests: XCTestCase {
             previous = r
         }
         XCTAssertEqual(previous, -720, accuracy: 0.0001)   // exactly two turns
-        assertPose(.spin, 0.5, x: 0, y: 43, rot: -630, sx: 0.92, sy: 1.12,
+        assertPose(.spin, 0.5, x: 0, y: 61, rot: -630, sx: 0.92, sy: 1.12,
                    flipped: false, opacity: 1, emote: .sparkle)
         let landing = PetEngine.pose(for: .spin, progress: 1.0, stage: stage)
         XCTAssertLessThan(landing.scaleY, 0.8)
@@ -232,23 +232,37 @@ final class PetEngineTests: XCTestCase {
     }
 
     /// The physical notch covers everything above the lip, so a sprite whose
-    /// head pokes up there is a sprite with its head cut off — which is exactly
-    /// what shipped when the rest height was a hand-tuned fraction of the stage
-    /// instead of being derived from the sprite.
-    func testPetRestsFullyBelowTheNotchLipAndHidesFullyBehindIt() {
+    /// head pokes up there is a sprite with its head cut off. Twice now: once
+    /// because the rest height was a hand-tuned fraction of the stage, and once
+    /// because it ignored that a celebrating pet hops 15pt off its rest.
+    ///
+    /// So this checks the whole hold phase, not just the rest pose. Entry and
+    /// exit are exempt: the pet is behind the lip then on purpose, that's what
+    /// "coming out of the notch" means.
+    func testPetStaysBelowTheNotchLipForEveryFrameItIsOut() {
         for activity in PetActivity.allCases where activity != .tucked {
-            let top = activity.restCentreY(notchInset: stage.notchInset) - activity.spriteSize / 2
-            if activity == .hangLeft || activity == .hangRight {
-                continue   // paws grip the lip: meant to straddle it
+            // Paws grip the lip — hanging is meant to straddle it.
+            if activity == .hangLeft || activity == .hangRight { continue }
+            for i in 30...75 {
+                let p = PetEngine.pose(for: activity, progress: Double(i) / 100, stage: stage)
+                XCTAssertGreaterThanOrEqual(p.y - activity.spriteSize / 2, stage.notchInset,
+                                            "\(activity) loses its head at t=\(Double(i) / 100)")
             }
-            XCTAssertGreaterThanOrEqual(top, stage.notchInset,
-                                        "\(activity) rests with its head behind the notch")
         }
         for activity in PetActivity.allCases {
             let hidden = PetEngine.hiddenCentreY(for: activity, notchInset: stage.notchInset)
             XCTAssertLessThanOrEqual(hidden + activity.spriteSize / 2, stage.notchInset,
                                      "\(activity) peeks out while it's supposed to be hidden")
         }
+    }
+
+    func testUpwardTravelIsBuiltIntoTheRestingHeight() {
+        // A pet that hops 15pt must rest at least 15pt lower than one that
+        // doesn't, or the hop goes behind the notch.
+        XCTAssertGreaterThan(PetActivity.celebrate.restCentreY(notchInset: 32),
+                             PetActivity.peek.restCentreY(notchInset: 32) + 10)
+        XCTAssertGreaterThanOrEqual(PetActivity.celebrate.headroom, 15)
+        XCTAssertGreaterThanOrEqual(PetActivity.spin.headroom, 16)
     }
 
     func testNoActivityDrawsOutsideItsStage() {
