@@ -132,18 +132,24 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         // Pet Mode's activities fire on their own schedule, so some are rare
         // and none are reproducible on demand. This plays any of them now —
         // for showing the thing off, and for eyeballing the pose math.
+        //
+        // Keep-open rows (as the sound previews use): you almost never want to
+        // watch exactly one activity, and reopening the menu and walking back
+        // down to Demos > Pet between each is the whole friction.
         demosMenu.addItem(.separator())
         let petMenu = NSMenu()
-        let playAll = NSMenuItem(title: "Play All", action: #selector(triggerDemoPetAll), keyEquivalent: "")
-        playAll.target = self
-        petMenu.addItem(playAll)
+        func addPetRow(_ title: String, _ activities: @escaping () -> [PetActivity]) {
+            let row = KeepOpenRowView(title: title, checked: false, width: 200)
+            row.handler = { [weak self] in self?.state.demoPet(activities()) }
+            let holder = NSMenuItem()
+            holder.view = row
+            petMenu.addItem(holder)
+        }
+        let demoable = PetActivity.allCases.filter { $0 != .tucked }
+        addPetRow("Play All") { demoable }
         petMenu.addItem(.separator())
-        for activity in PetActivity.allCases where activity != .tucked {
-            let mi = NSMenuItem(title: MenuBarController.petDemoTitle(activity),
-                                action: #selector(triggerDemoPetActivity(_:)), keyEquivalent: "")
-            mi.target = self
-            mi.representedObject = activity.rawValue
-            petMenu.addItem(mi)
+        for activity in demoable {
+            addPetRow(MenuBarController.petDemoTitle(activity)) { [activity] }
         }
         let petItem = NSMenuItem(title: "Pet", action: nil, keyEquivalent: "")
         petItem.submenu = petMenu
@@ -603,15 +609,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
     }
 
-    @objc private func triggerDemoPetActivity(_ sender: NSMenuItem) {
-        guard let raw = sender.representedObject as? String,
-              let activity = PetActivity(rawValue: raw) else { return }
-        state.demoPet([activity])
-    }
-
-    @objc private func triggerDemoPetAll() {
-        state.demoPet(PetActivity.allCases.filter { $0 != .tucked })
-    }
 
     @objc private func clearAllowlist() {
         state.clearAllowlist()

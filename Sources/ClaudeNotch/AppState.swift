@@ -893,11 +893,9 @@ final class AppState: ObservableObject {
         petDemoQueue = Array(activities.dropFirst())
         petDemoing = true
         petInterrupted = nil
-        // Let the menu finish closing, or the pet performs behind it.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-            guard let self, self.petDemoing else { return }
-            self.beginPetActivity(first)
-        }
+        // Starts on the spot: the Demos > Pet rows keep the menu open, so the
+        // pet performs in the notch while you pick the next one.
+        beginPetActivity(first)
     }
 
     func setPetEnabled(_ on: Bool) {
