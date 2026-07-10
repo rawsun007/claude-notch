@@ -511,31 +511,65 @@ extension NotchView {
 /// back to the plain brand mark if the asset didn't ship for some reason.
 private struct PetSprite: View {
     var size: CGFloat
+    /// Nil renders the pet standing at rest. Everything animated passes a rig.
+    var rig: PetRig = PetRig()
 
-    private static let pet: NSImage? = {
-        guard let url = Bundle.main.url(forResource: "claude-pet", withExtension: "png"),
-              let img = NSImage(contentsOf: url) else { return nil }
-        return img
-    }()
-
-    private static let fallback: NSImage? = {
-        guard let url = Bundle.main.url(forResource: "claude-color", withExtension: "svg"),
-              let img = NSImage(contentsOf: url) else { return nil }
-        return img
-    }()
+    static let colour = Color(red: 217.0 / 255, green: 119.0 / 255, blue: 87.0 / 255)
 
     var body: some View {
-        if let img = Self.pet ?? Self.fallback {
-            Image(nsImage: img)
-                .resizable()
-                .interpolation(.none)   // keep the pixel art crisp when scaled
-                .scaledToFit()
-                .frame(width: size, height: size)
-        } else {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(Color(red: 0.851, green: 0.467, blue: 0.341))
-                .frame(width: size, height: size)
+        Canvas(rendersAsynchronously: false) { ctx, canvasSize in
+            let cell = min(canvasSize.width, canvasSize.height) / PetBody.grid
+            func rect(_ p: PetPart, dx: Double = 0, dy: Double = 0) -> CGRect {
+                CGRect(x: (p.x + dx) * cell, y: (p.y + dy) * cell,
+                       width: p.width * cell, height: p.height * cell)
+            }
+
+            // Legs first, so the belly overlaps their tops and a tucked or
+            // lifted leg disappears into the body instead of floating.
+            for (i, leg) in PetBody.legs.enumerated() {
+                let lift = rig.legLift[i] + rig.legTuck[i]
+                var part = leg
+                part.height = max(0, leg.height - rig.legTuck[i])
+                guard part.height > 0.01 else { continue }
+                ctx.fill(Path(rect(part, dx: rig.legSwing[i], dy: -lift + rig.legTuck[i])),
+                         with: .color(Self.colour))
+            }
+
+            for slab in PetBody.torso {
+                ctx.fill(Path(rect(slab)), with: .color(Self.colour))
+            }
+
+            // Arms pivot at the shoulder — the edge where they meet the torso.
+            func arm(_ p: PetPart, angle: Double, pivotAtRightEdge: Bool) {
+                let r = rect(p)
+                let pivot = CGPoint(x: pivotAtRightEdge ? r.maxX : r.minX, y: r.midY)
+                ctx.drawLayer { layer in
+                    layer.translateBy(x: pivot.x, y: pivot.y)
+                    layer.rotate(by: .degrees(angle))
+                    layer.translateBy(x: -pivot.x, y: -pivot.y)
+                    layer.fill(Path(r), with: .color(Self.colour))
+                }
+            }
+            arm(PetBody.armLeft, angle: rig.armLeftAngle, pivotAtRightEdge: true)
+            arm(PetBody.armRight, angle: -rig.armRightAngle, pivotAtRightEdge: false)
+
+            // Eyes are holes punched back out of the body, so they show whatever
+            // is behind the pet (the notch's black) rather than being painted on.
+            // A blink shrinks the hole from the top, like a lid coming down.
+            ctx.blendMode = .destinationOut
+            for eye in [PetBody.eyeLeft, PetBody.eyeRight] {
+                let open = max(0, rig.eyeOpen)
+                guard open > 0.02 else { continue }
+                var lid = eye
+                lid.height = eye.height * open
+                let dy = eye.height - lid.height
+                ctx.fill(Path(rect(lid, dx: rig.eyeShift, dy: dy)), with: .color(.black))
+            }
         }
+        .frame(width: size, height: size)
+        // destinationOut needs its own layer, or it punches through the card.
+        .compositingGroup()
+        .drawingGroup()
     }
 }
 
@@ -566,7 +600,11 @@ private struct ClaudeIconView: View {
                 .truncatingRemainder(dividingBy: period) / period
             // Celebrating hops (always up, never down) instead of bobbing.
             let wave = mood == .celebrating ? -abs(sin(phase * .pi * 2)) : sin(phase * 2 * .pi)
-            PetSprite(size: size)
+            let clock = tl.date.timeIntervalSinceReferenceDate
+            // Even at 15pt the pet blinks, and sleeps with its eyes shut.
+            let rig = PetRigging.rig(for: mood == .sleepy ? .sleep : .peek,
+                                     progress: 0.5, time: clock)
+            PetSprite(size: size, rig: rig)
                 .offset(y: wave * amplitude)
         }
     }
@@ -622,7 +660,11 @@ private struct PetStageView: View {
                 cursorX: state.petCursorX,
                 petting: state.petPetting
             )
-            let pose = PetEngine.pose(for: activity, progress: state.petProgress(at: tl.date), stage: stage)
+            let progress = state.petProgress(at: tl.date)
+            let pose = PetEngine.pose(for: activity, progress: progress, stage: stage)
+            let clock = tl.date.timeIntervalSinceReferenceDate
+            let rig = PetRigging.rig(for: activity, progress: progress, time: clock,
+                                     cursorX: state.petCursorX)
             let sprite = CGFloat(activity.spriteSize)
             let anchor: UnitPoint = {
                 switch activity.pivot {
@@ -634,7 +676,7 @@ private struct PetStageView: View {
 
             ZStack(alignment: .top) {
                 Color.clear
-                PetSprite(size: sprite)
+                PetSprite(size: sprite, rig: rig)
                     .shadow(color: .black.opacity(0.55), radius: 4, y: 1)
                     .scaleEffect(x: pose.flipped ? -pose.scaleX : pose.scaleX, y: pose.scaleY, anchor: anchor)
                     .rotationEffect(.degrees(pose.rotation), anchor: anchor)

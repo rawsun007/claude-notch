@@ -2,7 +2,7 @@
 // timeline, to a PNG — offscreen, so the pet's motion can be reviewed without
 // a screen recording (and diffed when the pose math is retuned).
 //
-//   swiftc -O tools/render-pet-demo.swift Sources/ClaudeNotch/PetEngine.swift -o /tmp/petdemo && /tmp/petdemo [out.png]
+//   swiftc -O tools/render-pet-demo.swift Sources/ClaudeNotch/PetEngine.swift Sources/ClaudeNotch/PetRig.swift -o /tmp/petdemo && /tmp/petdemo [out.png]
 //
 // Each row is one activity; each column is a moment in it. The black plate is
 // the notch card at exactly the size that activity asks for, so a sprite that
@@ -23,11 +23,6 @@ enum PetDemo {
         let out = CommandLine.arguments.count > 1
             ? URL(fileURLWithPath: CommandLine.arguments[1])
             : URL(fileURLWithPath: "pet-demo.png")
-
-        guard let sprite = NSImage(contentsOf: URL(fileURLWithPath: "assets/claude-pet.png")) else {
-            FileHandle.standardError.write(Data("missing assets/claude-pet.png\n".utf8))
-            exit(1)
-        }
 
         let cellW = baseWidth + 100 + cellPad * 2      // widest stage + padding
         let cellH = inset + 80 + cellPad * 2
@@ -69,7 +64,9 @@ enum PetDemo {
 
                 NSGraphicsContext.saveGraphicsState()
                 NSBezierPath(roundedRect: plate, xRadius: 12, yRadius: 12).addClip()
-                draw(sprite: sprite, size: activity.spriteSize, pose: pose,
+                // Sample the gait clock at the same instant the app would.
+                let rig = PetRigging.rig(for: activity, progress: t, time: t * 2.4)
+                draw(size: activity.spriteSize, pose: pose, rig: rig,
                      pivot: activity.pivot,
                      centre: NSPoint(x: plateX + stageWidth / 2, y: plateY))
                 NSGraphicsContext.restoreGraphicsState()
@@ -90,7 +87,52 @@ enum PetDemo {
     /// Applies a pose the same way NotchView does: scale and rotate about the
     /// feet (or the paws, when hanging), then place the sprite's centre at
     /// (pose.x, pose.y) measured from the card's top-centre.
-    private static func draw(sprite: NSImage, size: Double, pose: PetPose, pivot: PetPivot, centre: NSPoint) {
+    /// Draws the pet's parts from the rig, mirroring PetSprite's Canvas.
+    private static func drawBody(size: Double, rig: PetRig) {
+        let cell = size / PetBody.grid
+        let colour = NSColor(calibratedRed: 217/255, green: 119/255, blue: 87/255, alpha: 1)
+        colour.setFill()
+        func rect(_ p: PetPart, dx: Double = 0, dy: Double = 0) -> NSRect {
+            NSRect(x: -size/2 + (p.x + dx) * cell, y: -size/2 + (p.y + dy) * cell,
+                   width: p.width * cell, height: p.height * cell)
+        }
+        for (i, leg) in PetBody.legs.enumerated() {
+            var part = leg
+            part.height = max(0, leg.height - rig.legTuck[i])
+            guard part.height > 0.01 else { continue }
+            let lift = rig.legLift[i] + rig.legTuck[i]
+            NSBezierPath(rect: rect(part, dx: rig.legSwing[i], dy: -lift + rig.legTuck[i])).fill()
+        }
+        for slab in PetBody.torso { NSBezierPath(rect: rect(slab)).fill() }
+
+        func arm(_ p: PetPart, angle: Double, pivotAtRightEdge: Bool) {
+            let r = rect(p)
+            let pivot = NSPoint(x: pivotAtRightEdge ? r.maxX : r.minX, y: r.midY)
+            NSGraphicsContext.saveGraphicsState()
+            let tf = NSAffineTransform()
+            tf.translateX(by: pivot.x, yBy: pivot.y)
+            tf.rotate(byDegrees: CGFloat(angle))
+            tf.translateX(by: -pivot.x, yBy: -pivot.y)
+            tf.concat()
+            colour.setFill()
+            NSBezierPath(rect: r).fill()
+            NSGraphicsContext.restoreGraphicsState()
+        }
+        arm(PetBody.armLeft, angle: rig.armLeftAngle, pivotAtRightEdge: true)
+        arm(PetBody.armRight, angle: -rig.armRightAngle, pivotAtRightEdge: false)
+
+        // Eyes are holes; the plate behind the pet is black, so paint black.
+        NSColor.black.setFill()
+        for eye in [PetBody.eyeLeft, PetBody.eyeRight] {
+            let open = max(0, rig.eyeOpen)
+            guard open > 0.02 else { continue }
+            var lid = eye
+            lid.height = eye.height * open
+            NSBezierPath(rect: rect(lid, dx: rig.eyeShift, dy: eye.height - lid.height)).fill()
+        }
+    }
+
+    private static func draw(size: Double, pose: PetPose, rig: PetRig, pivot: PetPivot, centre: NSPoint) {
         let transform = NSAffineTransform()
         transform.translateX(by: CGFloat(centre.x + pose.x), yBy: CGFloat(centre.y + pose.y))
         let anchorOffset: CGFloat = {
@@ -107,9 +149,7 @@ enum PetDemo {
 
         NSGraphicsContext.saveGraphicsState()
         transform.concat()
-        NSGraphicsContext.current?.imageInterpolation = .none
-        sprite.draw(in: NSRect(x: -size / 2, y: -size / 2, width: size, height: size),
-                    from: .zero, operation: .sourceOver, fraction: CGFloat(pose.opacity))
+        drawBody(size: size, rig: rig)
         NSGraphicsContext.restoreGraphicsState()
 
         if let emote = pose.emote {
