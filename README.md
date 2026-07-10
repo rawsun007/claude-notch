@@ -67,6 +67,7 @@ system, and shows no Dock icon — just a small bell in your menu bar.
 | 🕘 **Activity history** | Click the notch for a timeline of everything you've allowed, denied, or answered. |
 | ✅ **Smart always-allow** | Approve a tool for the whole session, or just one exact command. Your rules stick around between launches. |
 | 📁 **Start Claude in any folder** | Launch Claude Code in any project straight from the menu bar, or jump back into a recent one. |
+| 🐾 **Pet Mode** | The Claude mascot lives in your notch. While nothing is happening it peeks out, looks around, hangs off the corner, strolls along the edge, and naps after a quiet spell — then hops with sparkles when a task finishes. It watches your cursor and leans toward it, holds still to be petted, and boops when you click it. Boop it five times fast. It never appears over an active session or a card you're reading, it respects **Reduce Motion**, and the **Pet Mode** menu item turns it off. |
 | 🏷️ **Personalise the notch title** | Pick what the notch calls itself from the **Notch Title** menu — keep **Claude**, track the active **project name**, or type your own **custom** label. It updates live and sticks between launches. |
 
 ---
