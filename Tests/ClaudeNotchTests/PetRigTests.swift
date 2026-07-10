@@ -108,13 +108,23 @@ final class PetRigTests: XCTestCase {
 
     func testSleepingPetShutsItsEyesAndFoldsItsLegs() {
         let r = rig(.sleep)
-        XCTAssertEqual(r.eyeOpen, 0)
+        XCTAssertEqual(r.eyeOpen, PetRigging.sleepingEyes)
         for tuck in r.legTuck { XCTAssertGreaterThan(tuck, 1) }
+    }
+
+    /// The eyes are holes punched out of the body, so `eyeOpen = 0` doesn't
+    /// draw a shut eye — it erases the face entirely, and the sleeping pet
+    /// became a featureless slab. A shut eye must still be a visible sliver.
+    func testASleepingPetStillHasAFace() {
+        let r = rig(.sleep)
+        XCTAssertGreaterThan(r.eyeOpen, 0.1, "you must be able to see it sleeping")
+        XCTAssertLessThan(r.eyeOpen, 0.5, "but the lids are down")
     }
 
     func testSleepingPetNeverBlinksBecauseItsEyesAreAlreadyShut() {
         // `time` lands mid-blink; sleep must still win.
-        XCTAssertEqual(PetRigging.rig(for: .sleep, progress: 0.5, time: 0.07).eyeOpen, 0)
+        XCTAssertEqual(PetRigging.rig(for: .sleep, progress: 0.5, time: 0.07).eyeOpen,
+                       PetRigging.sleepingEyes)
     }
 
     func testHangingPetGripsWithBothArmsUpAndDanglesItsLegs() {

@@ -42,7 +42,9 @@ struct PetRig: Equatable {
     /// what lets an activity say "arms up" without caring about left and right.
     var armLeftAngle: Double = 0
     var armRightAngle: Double = 0
-    /// 1 = wide open, 0 = shut. Drives both blinking and sleeping.
+    /// 1 = wide open, 0 = no eye at all. The eyes are holes in the body, so 0
+    /// doesn't draw a shut eye — it erases the face. A sleeping pet uses
+    /// `PetRigging.sleepingEyes`, a sliver that reads as a closed lid.
     var eyeOpen: Double = 1
     /// Eye shift, in cells — the pupils are holes, so sliding them reads as
     /// looking. Positive = toward +x.
@@ -118,6 +120,11 @@ enum PetRigging {
     private static let stride: Double = 0.55
     private static let lift: Double = 0.7
 
+    /// A shut eye still has to be visible. The eye is a hole punched out of the
+    /// body and drawn from the bottom up, so a thin remainder reads as a lid
+    /// closed over it — while zero reads as a pet with no face.
+    static let sleepingEyes: Double = 0.28
+
     /// Blinks are driven by the wall clock rather than the activity's progress,
     /// so the pet keeps blinking while it holds still under your cursor.
     /// Roughly one blink every 3.4s, lasting ~0.14s — a real blink is quick,
@@ -186,7 +193,7 @@ enum PetRigging {
             }
 
         case .sleep:
-            rig.eyeOpen = 0
+            rig.eyeOpen = sleepingEyes
             // Legs folded under, arms slack.
             rig.legTuck = [1.4, 1.4, 1.4, 1.4]
             let breath = sin(time * 0.9) * 0.05

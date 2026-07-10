@@ -209,14 +209,16 @@ final class PetEngineTests: XCTestCase {
     }
 
     func testSleepBreathesAndSaysZzz() {
-        assertPose(.sleep, 0.25, x: 2, y: 58.6472, rot: -8, sx: 1.0357, sy: 0.9243,
+        assertPose(.sleep, 0.25, x: 2, y: 58.6472, rot: -5, sx: 1.0057, sy: 0.9743,
                    flipped: false, opacity: 1, emote: .zzz)
     }
 
-    func testSleepingPetLeansHeadUp() {
-        // Seen from below (the notch sits above eye level), a positive rotation
-        // tips the pet's head away from you. It should lean back, toward you.
-        XCTAssertLessThan(PetEngine.pose(for: .sleep, progress: 0.5, stage: stage).rotation, 0)
+    func testSleepingPetLeansGentlyEnoughToSeeItsFace() {
+        // The notch sits above eye level, so the flatter the pet lies the less
+        // of its face you can see. A gentle lean, not a face-plant.
+        let r = PetEngine.pose(for: .sleep, progress: 0.5, stage: stage).rotation
+        XCTAssertLessThan(r, 0)
+        XCTAssertGreaterThan(r, -10)
     }
 
     func testCelebrateHopsThreeTimes() {

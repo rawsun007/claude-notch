@@ -418,12 +418,12 @@ enum PetEngine {
             pose.emote = stage.petting ? .heart : nil
 
         case .sleep:
-            // Leaning head-up, not face-down: the notch is above eye level, so
-            // a pet tipped the other way is a pet you're looking at the back of.
+            // A gentle lean, not a face-plant: the notch sits above eye level,
+            // so the flatter the pet lies the less of its face you can see.
             pose.x = 2
-            pose.rotation = -8
-            pose.scaleY = 0.90 + sin(t * 2 * .pi * 0.6) * 0.03   // breathing
-            pose.scaleX = 1.06 - sin(t * 2 * .pi * 0.6) * 0.03
+            pose.rotation = -5
+            pose.scaleY = 0.95 + sin(t * 2 * .pi * 0.6) * 0.03   // breathing
+            pose.scaleX = 1.03 - sin(t * 2 * .pi * 0.6) * 0.03
             pose.y += sin(t * 2 * .pi * 0.6) * 0.8 * envelope
             pose.emote = stage.petting ? .heart : .zzz
             pose.emoteScale = 0.85 + sin(t * 2 * .pi * 0.6) * 0.15
