@@ -486,19 +486,23 @@ enum PetEngine {
             pose.emoteScale = 1 - t * 0.4
 
         case .rope:
-            // A pendulum. The rope pivots from the notch's lip; the pet hangs at
-            // the end and swings, its body tilting along the line. The swing is
-            // wide early and calms as the rope loses energy (a real pendulum
-            // bleeds amplitude). The rope itself is drawn by the renderer from
+            // A pendulum on an elastic rope. The pet drops out of the notch, the
+            // rope snaps taut with a decaying vertical recoil (a real rope
+            // stretches and rebounds when a weight hits the end), and the whole
+            // thing swings side to side, bleeding amplitude the way a real
+            // pendulum loses energy. The rope line is drawn by the renderer from
             // the same anchor, using this rotation.
             let anchor = stage.notchInset
             let radius = activity.ropeLength + activity.spriteSize / 2
-            let maxAngle = 22.0 * .pi / 180
-            let amplitude = maxAngle * (0.55 + 0.45 * (1 - t))   // bleeds off
-            let theta = amplitude * sin(t * 2 * .pi * 1.4 + 0.4)
+            let maxAngle = 24.0 * .pi / 180
+            let amplitude = maxAngle * (0.5 + 0.5 * (1 - t))     // bleeds off
+            let theta = amplitude * sin(t * 2 * .pi * 1.5 + 0.4)
+            // Rope elasticity: a quick vertical bounce as it goes taut, fading
+            // fast. Scaled by envelope so it only rings once the pet is out.
+            let recoil = sin(t * 2 * .pi * 3.2) * exp(-t * 5) * 3.5
             let hiddenY = hiddenCentreY(for: .rope, notchInset: anchor)
             let targetX = sin(theta) * radius
-            let targetY = anchor + cos(theta) * radius
+            let targetY = anchor + cos(theta) * radius + recoil
             pose.x = targetX * envelope
             pose.y = hiddenY + (targetY - hiddenY) * envelope
             pose.rotation = theta * 180 / .pi

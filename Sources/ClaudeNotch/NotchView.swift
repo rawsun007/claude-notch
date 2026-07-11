@@ -715,8 +715,14 @@ private struct PetStageView: View {
                 // swing, so the line and the creature stay joined at every angle.
                 if activity == .rope {
                     let theta: Double = pose.rotation * .pi / 180
-                    let topX = CGFloat(pose.x) - CGFloat(sin(theta)) * sprite / 2
-                    let topY = CGFloat(pose.y) - CGFloat(cos(theta)) * sprite / 2
+                    // Attach to the pet's HEAD (where the paws grip), not the top
+                    // of the sprite box — the artwork leaves three empty rows up
+                    // there, and measuring to the box left a gap between the rope
+                    // and the creature. Overlap a hair into the head so there's
+                    // never a seam.
+                    let grip = CGFloat(-PetBody.headTopFraction + 0.04) * sprite
+                    let topX = CGFloat(pose.x) - CGFloat(sin(theta)) * grip
+                    let topY = CGFloat(pose.y) - CGFloat(cos(theta)) * grip
                     Canvas { ctx, canvasSize in
                         var path = Path()
                         path.move(to: CGPoint(x: canvasSize.width / 2, y: notchInset))
