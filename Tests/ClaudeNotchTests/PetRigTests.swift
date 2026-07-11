@@ -127,6 +127,52 @@ final class PetRigTests: XCTestCase {
                        PetRigging.sleepingEyes)
     }
 
+    // MARK: - Dance (task-complete card)
+
+    func testDanceRunsAllFourBeats() {
+        // Beat 1: bounce peak lifts the body, both arms pump up.
+        let bounce = PetRigging.dance(progress: 0.075, time: 0)
+        XCTAssertGreaterThan(bounce.offsetY, 0.1)
+        XCTAssertGreaterThan(bounce.rig.armLeftAngle, 50)
+        XCTAssertGreaterThan(bounce.rig.armRightAngle, 50)
+
+        // Beat 2: shimmy peak pushes sideways and leans.
+        let shimmy = PetRigging.dance(progress: 0.3625, time: 0)
+        XCTAssertGreaterThan(abs(shimmy.offsetX), 0.1)
+        XCTAssertNotEqual(shimmy.rotation, 0, accuracy: 0.001)
+
+        // Beat 3: a full turn, arms tucked in.
+        let spin = PetRigging.dance(progress: 0.79, time: 0)
+        XCTAssertEqual(spin.rotation, 360, accuracy: 1)
+        XCTAssertLessThan(spin.rig.armLeftAngle, 30)
+
+        // Beat 4: the finish jump, arms flung wide.
+        let finish = PetRigging.dance(progress: 0.9, time: 0)
+        XCTAssertGreaterThan(finish.offsetY, 0.3)
+        XCTAssertGreaterThan(finish.rig.armLeftAngle, 70)
+    }
+
+    func testDanceSpinOnlyTurnsForward() {
+        // Within the spin beat the rotation must never rewind, or it reads as a
+        // dropped frame. (The beat boundaries themselves reset — that's a new
+        // move, not a rewind.)
+        var previous = -1.0
+        for i in 0...100 {
+            let t = 0.55 + 0.249 * Double(i) / 100
+            let r = PetRigging.dance(progress: t, time: 0).rotation
+            XCTAssertGreaterThanOrEqual(r, previous - 0.001)
+            previous = r
+        }
+    }
+
+    func testDanceStartsCentredAndBlinks() {
+        let start = PetRigging.dance(progress: 0, time: 0)
+        XCTAssertEqual(start.offsetX, 0, accuracy: 0.001)
+        // Eyes are driven by the wall clock, so a dancing pet still blinks.
+        XCTAssertEqual(PetRigging.dance(progress: 0.5, time: 0.07).rig.eyeOpen,
+                       PetRigging.blink(at: 0.07), accuracy: 0.0001)
+    }
+
     func testHangingPetGripsWithBothArmsUpAndDanglesItsLegs() {
         let r = rig(.hangLeft, t: 0.3)
         XCTAssertGreaterThan(r.armLeftAngle, 30)    // positive = raised, both arms

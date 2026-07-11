@@ -219,4 +219,68 @@ enum PetRigging {
         }
         return rig
     }
+
+    // MARK: - Dance
+
+    /// One frame of a full dance routine, for the task-complete card. A plain
+    /// hop says "done"; a routine says "nailed it". Card-only, so it carries its
+    /// own whole-body move (offset + spin) rather than leaning on PetEngine's
+    /// notch geometry. `offsetX/Y` are fractions of the sprite size, `rotation`
+    /// in degrees; `offsetY` positive is up.
+    struct DanceFrame: Equatable {
+        var rig: PetRig
+        var offsetX: Double = 0
+        var offsetY: Double = 0
+        var rotation: Double = 0
+    }
+
+    /// Four beats over one loop: bounce with arm pumps, side-to-side shimmy,
+    /// a full spin flourish, then a big finish hop.
+    static func dance(progress t: Double, time: Double) -> DanceFrame {
+        var rig = PetRig()
+        rig.eyeOpen = blink(at: time)
+        var frame = DanceFrame(rig: rig)
+
+        switch t {
+        case ..<0.30:
+            // Beat 1 — two bounces, both arms pumping up on each.
+            let p = t / 0.30
+            let bounce = abs(sin(p * 2 * .pi))
+            frame.offsetY = bounce * 0.30
+            frame.rig.armLeftAngle = 40 + 45 * bounce
+            frame.rig.armRightAngle = 40 + 45 * bounce
+            frame.rig.legSwing = [-0.2, -0.1, 0.1, 0.2]
+
+        case ..<0.55:
+            // Beat 2 — shimmy left and right, leaning in, arms alternating.
+            let p = (t - 0.30) / 0.25
+            let sway = sin(p * 2 * .pi)
+            frame.offsetX = sway * 0.22
+            frame.rotation = -sway * 12
+            frame.rig.armLeftAngle = 30 + sway * 55    // reaches up on the way right
+            frame.rig.armRightAngle = 30 - sway * 55
+            frame.rig.legSwing = [sway * 0.4, sway * 0.2, sway * 0.2, sway * 0.4]
+
+        case ..<0.80:
+            // Beat 3 — a full spin, arms tucked in, up on the toes.
+            let p = (t - 0.55) / 0.25
+            frame.rotation = 360 * PetEngine.easeOutCubicSpin(p)
+            frame.offsetY = sin(p * .pi) * 0.18
+            let tuck = sin(p * .pi)
+            frame.rig.armLeftAngle = 25 * tuck
+            frame.rig.armRightAngle = 25 * tuck
+            frame.rig.legTuck = Array(repeating: tuck * 0.5, count: 4)
+
+        default:
+            // Beat 4 — the finish: one big jump, arms flung wide open.
+            let p = (t - 0.80) / 0.20
+            let jump = sin(p * .pi)
+            frame.offsetY = jump * 0.42
+            frame.rig.armLeftAngle = 85 * jump
+            frame.rig.armRightAngle = 85 * jump
+            frame.rig.legSwing = [-jump * 0.9, -jump * 0.35, jump * 0.35, jump * 0.9]
+            frame.rig.legLift = [jump * 0.4, jump * 0.3, jump * 0.3, jump * 0.4]
+        }
+        return frame
+    }
 }

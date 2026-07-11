@@ -2708,34 +2708,44 @@ private struct PetCardBadge: View {
     var loop: Double = 2.4          // seconds per cycle
     var emote: PetEmote? = nil      // a glyph beside the head (e.g. a startled !)
     var jitter: Bool = false        // a fast nervous shake, for the danger card
+    var dance: Bool = false         // the full four-beat routine (task-complete card)
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { tl in
             let clock = tl.date.timeIntervalSinceReferenceDate
             let t = clock.truncatingRemainder(dividingBy: loop) / loop
-            let rig = PetRigging.rig(for: activity, progress: t, time: clock)
-            // The rig handles the limbs; the whole-body hop/bob is card-local so
-            // it doesn't drag in PetEngine's notch geometry.
-            let lift: CGFloat = {
-                switch activity {
-                case .celebrate: return CGFloat(abs(sin(t * 3 * .pi))) * size * 0.28
-                case .peek, .lookAround: return CGFloat(sin(t * 2 * .pi)) * size * 0.04
-                default: return 0
+            if dance {
+                let f = PetRigging.dance(progress: t, time: clock)
+                PetSprite(size: size, rig: f.rig)
+                    .rotationEffect(.degrees(f.rotation))
+                    .offset(x: CGFloat(f.offsetX) * size, y: CGFloat(-f.offsetY) * size)
+                    .frame(width: size, height: size, alignment: .bottom)
+            } else {
+                let rig = PetRigging.rig(for: activity, progress: t, time: clock)
+                // The rig handles the limbs; the whole-body hop/bob is card-local
+                // so it doesn't drag in PetEngine's notch geometry.
+                let lift: CGFloat = {
+                    switch activity {
+                    case .celebrate: return CGFloat(abs(sin(t * 3 * .pi))) * size * 0.28
+                    case .peek, .lookAround: return CGFloat(sin(t * 2 * .pi)) * size * 0.04
+                    default: return 0
+                    }
+                }()
+                let shake: CGFloat = jitter ? CGFloat(sin(clock * 22)) * size * 0.045 : 0
+                ZStack {
+                    PetSprite(size: size, rig: rig)
+                        .offset(x: shake, y: -lift)
+                    if let emote {
+                        // Above and just past the right of the head — same
+                        // landmarks the notch emote uses, so it sits on the
+                        // creature and not the empty box around it.
+                        PetEmoteView(emote: emote, scale: 1)
+                            .offset(x: shake + size * CGFloat(PetBody.shoulderRightFraction) - 2,
+                                    y: -lift + size * CGFloat(PetBody.headTopFraction) - 3)
+                    }
                 }
-            }()
-            let shake: CGFloat = jitter ? CGFloat(sin(clock * 22)) * size * 0.045 : 0
-            ZStack {
-                PetSprite(size: size, rig: rig)
-                    .offset(x: shake, y: -lift)
-                if let emote {
-                    // Above and just past the right of the head — same landmarks
-                    // the notch emote uses, so it sits on the creature not the box.
-                    PetEmoteView(emote: emote, scale: 1)
-                        .offset(x: shake + size * CGFloat(PetBody.shoulderRightFraction) - 2,
-                                y: -lift + size * CGFloat(PetBody.headTopFraction) - 3)
-                }
+                .frame(width: size, height: size, alignment: .bottom)
             }
-            .frame(width: size, height: size, alignment: .bottom)
         }
     }
 }
@@ -2765,10 +2775,10 @@ private struct CompletedCard: View {
                         .foregroundColor(.white.opacity(0.45))
                 }
                 Spacer(minLength: 0)
-                // The pet turns up to celebrate a finished task.
+                // The pet turns up to dance out a finished task.
                 if showPet {
-                    PetCardBadge(size: 30, activity: .celebrate)
-                        .frame(width: 30, height: 30)
+                    PetCardBadge(size: 32, loop: 3.4, dance: true)
+                        .frame(width: 32, height: 32)
                 }
             }
 
