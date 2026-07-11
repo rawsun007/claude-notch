@@ -171,21 +171,21 @@ final class PetEngineTests: XCTestCase {
     func testPeekPoseGolden() {
         assertPose(.peek, 0.0, x: 0, y: 9, rot: 0, sx: 1, sy: 1,
                    flipped: false, opacity: 0, emote: nil)
-        assertPose(.peek, 0.5, x: 0, y: 65.5217, rot: 0, sx: 1, sy: 1,
+        assertPose(.peek, 0.5, x: 0, y: 65.5206, rot: 0, sx: 1, sy: 1,
                    flipped: false, opacity: 1, emote: .dots)
-        assertPose(.peek, 1.0, x: 0, y: 9, rot: 0, sx: 1.1120, sy: 0.84,
+        assertPose(.peek, 1.0, x: 0, y: 9, rot: 0, sx: 1, sy: 1,
                    flipped: false, opacity: 0, emote: nil)
     }
 
     func testLookAroundSweepsBothWays() {
-        assertPose(.lookAround, 0.25, x: 6.4656, y: 64.3708, rot: -4.1145,
-                   sx: 1, sy: 1, flipped: false, opacity: 1, emote: nil)
-        assertPose(.lookAround, 0.5, x: -10.4616, y: 63.0292, rot: 6.6574,
+        assertPose(.lookAround, 0.25, x: 6.4936, y: 64.6104, rot: -4.1145,
+                   sx: 1.0006, sy: 0.9991, flipped: false, opacity: 1, emote: nil)
+        assertPose(.lookAround, 0.5, x: -10.4614, y: 63.0282, rot: 6.6574,
                    sx: 1, sy: 1, flipped: true, opacity: 1, emote: nil)
     }
 
     func testHangLeftClingsToTheLeftWall() {
-        assertPose(.hangLeft, 0.5, x: -77, y: 49.64, rot: -22.1459,
+        assertPose(.hangLeft, 0.5, x: -76.9986, y: 49.6392, rot: -22.1459,
                    sx: 1, sy: 1, flipped: true, opacity: 1, emote: nil)
         // Mirror image on the right, minus the swing phase.
         let l = PetEngine.pose(for: .hangLeft, progress: 0.5, stage: stage)
@@ -197,10 +197,10 @@ final class PetEngineTests: XCTestCase {
     }
 
     func testStrollCrossesAndComesBack() {
-        assertPose(.stroll, 0.25, x: -51.6188, y: 60.4, rot: 4,
-                   sx: 0.97, sy: 1.05, flipped: false, opacity: 1, emote: nil)
+        assertPose(.stroll, 0.25, x: -51.8422, y: 60.6224, rot: 4,
+                   sx: 0.9703, sy: 1.0495, flipped: false, opacity: 1, emote: nil)
         assertPose(.stroll, 0.92, x: 61.8682, y: 54.9128, rot: 2.3511,
-                   sx: 0.9968, sy: 1.0077, flipped: false, opacity: 1, emote: nil)
+                   sx: 0.9824, sy: 1.0294, flipped: false, opacity: 1, emote: nil)
         // Never walks through the wall.
         for i in 0...100 {
             let p = PetEngine.pose(for: .stroll, progress: Double(i) / 100, stage: stage)
@@ -209,7 +209,7 @@ final class PetEngineTests: XCTestCase {
     }
 
     func testSleepBreathesAndSaysZzz() {
-        assertPose(.sleep, 0.25, x: 2, y: 58.6472, rot: -5, sx: 1.0057, sy: 0.9743,
+        assertPose(.sleep, 0.25, x: 2, y: 58.8534, rot: -5, sx: 1.0057, sy: 0.9743,
                    flipped: false, opacity: 1, emote: .zzz)
     }
 
@@ -221,8 +221,52 @@ final class PetEngineTests: XCTestCase {
         XCTAssertGreaterThan(r, -10)
     }
 
+    // MARK: - Physics
+
+    func testSpringOvershootsThenSettlesToRest() {
+        // An under-damped spring passes its target, comes back, and rings down
+        // to exactly 1 — that overshoot is what reads as weight.
+        var peak = 0.0
+        for i in 0...400 {
+            let v = PetEngine.springStep(Double(i) / 40, omega: 7, zeta: 0.5).value
+            peak = max(peak, v)
+        }
+        XCTAssertGreaterThan(peak, 1.05, "must overshoot the target")
+        XCTAssertLessThan(peak, 1.4, "but not fly off")
+        XCTAssertEqual(PetEngine.springStep(6, omega: 7, zeta: 0.5).value, 1, accuracy: 0.001)
+    }
+
+    func testSpringStartsAtRestWithZeroVelocity() {
+        let s0 = PetEngine.springStep(0, omega: 7, zeta: 0.5)
+        XCTAssertEqual(s0.value, 0)
+        XCTAssertEqual(s0.velocity, 0)
+        XCTAssertEqual(PetEngine.springStep(-1, omega: 7, zeta: 0.5).value, 0)
+    }
+
+    func testSpringVelocityMatchesTheCurve() {
+        // Diving out: velocity positive early (heading down). The analytic
+        // velocity the squash reads must match a finite difference of position.
+        func vAt(_ t: Double) -> Double { PetEngine.springStep(t, omega: 7, zeta: 0.5).velocity }
+        func numeric(_ t: Double) -> Double {
+            let h = 1e-5
+            return (PetEngine.springStep(t + h, omega: 7, zeta: 0.5).value
+                  - PetEngine.springStep(t - h, omega: 7, zeta: 0.5).value) / (2 * h)
+        }
+        XCTAssertGreaterThan(vAt(0.05), 0)
+        for t in stride(from: 0.02, to: 1.0, by: 0.05) {
+            XCTAssertEqual(vAt(t), numeric(t), accuracy: 0.02, "at t=\(t)")
+        }
+    }
+
+    func testCriticallyDampedSpringNeverOvershoots() {
+        for i in 0...200 {
+            let v = PetEngine.springStep(Double(i) / 40, omega: 7, zeta: 1.0).value
+            XCTAssertLessThanOrEqual(v, 1.0001)
+        }
+    }
+
     func testCelebrateHopsThreeTimes() {
-        assertPose(.celebrate, 0.5, x: 0, y: 61, rot: 0, sx: 0.88, sy: 1.072,
+        assertPose(.celebrate, 0.5, x: 0, y: 60.999, rot: 0, sx: 0.88, sy: 1.072,
                    flipped: false, opacity: 1, emote: .sparkle)
         // Three peaks: the sprite is at its highest three times across the run.
         let ys = (0...300).map { PetEngine.pose(for: .celebrate, progress: Double($0) / 300, stage: stage).y }
@@ -235,7 +279,7 @@ final class PetEngineTests: XCTestCase {
         XCTAssertLessThan(hit.scaleY, 0.8)       // squashed flat
         XCTAssertGreaterThan(hit.scaleX, 1.15)   // and wide
         XCTAssertEqual(hit.emote, .sparkle)
-        assertPose(.boop, 0.5, x: 0, y: 63.8389, rot: -0.2014, sx: 0.9927, sy: 1.0089,
+        assertPose(.boop, 0.5, x: 0, y: 63.8379, rot: -0.2014, sx: 0.9927, sy: 1.0089,
                    flipped: false, opacity: 1, emote: .sparkle)
     }
 
@@ -254,7 +298,7 @@ final class PetEngineTests: XCTestCase {
             previous = r
         }
         XCTAssertEqual(previous, -720, accuracy: 0.0001)   // exactly two turns
-        assertPose(.spin, 0.5, x: 0, y: 61, rot: -630, sx: 0.92, sy: 1.12,
+        assertPose(.spin, 0.5, x: 0, y: 60.999, rot: -630, sx: 0.92, sy: 1.12,
                    flipped: false, opacity: 1, emote: .sparkle)
         let landing = PetEngine.pose(for: .spin, progress: 1.0, stage: stage)
         XCTAssertLessThan(landing.scaleY, 0.8)

@@ -338,9 +338,11 @@ enum PetEngine {
             return PetPose(x: 0, y: hiddenCentreY(for: .tucked, notchInset: stage.notchInset), opacity: 0)
         }
 
-        // Drop envelope: springy on the way out, clean on the way back. While
-        // being petted the retract never starts — the pet stays down for you.
-        let enter = easeOutBack(clamp01(t / 0.16))
+        // Drop-out on a real spring: it dives, overshoots the ground, and
+        // settles with a bounce. While being petted the retract never starts —
+        // the pet stays down for you.
+        let spring = springStep(t / entryWindow, omega: entryOmega, zeta: entryZeta)
+        let enter = spring.value
         let exitT = stage.petting ? 0 : clamp01((t - 0.84) / 0.16)
         let retract = easeInCubic(exitT)
         let envelope = enter * (1 - retract)
@@ -353,11 +355,14 @@ enum PetEngine {
         pose.y = hiddenY + (restY - hiddenY) * envelope
         pose.opacity = min(1, envelope * 2.2)
 
-        // Vertical velocity of the envelope drives squash & stretch — the pet
-        // stretches as it dives out and squashes when it lands. This is what
-        // separates "sprite moving" from "creature moving."
-        let vel = (envelope - envelopeValue(activity: activity, t: max(0, t - 0.02), stage: stage)) / 0.02
-        let stretch = clampMag(vel * 0.010, 0.16)
+        // Squash & stretch straight off the spring's analytic velocity: the pet
+        // stretches thin as it dives (fast, downward) and squashes wide as the
+        // spring reverses at the bottom (the impact). Real motion, exact — no
+        // finite-difference approximation. Muted by the retract so it doesn't
+        // twitch on the way back in.
+        let dropSpan = restY - hiddenY
+        let vVel = spring.velocity / entryWindow * dropSpan * (1 - retract)
+        let stretch = clampMag(vVel * 0.0016, 0.18)
         pose.scaleY = 1 + stretch
         pose.scaleX = 1 - stretch * 0.7
 
@@ -486,13 +491,55 @@ enum PetEngine {
         notchInset - activity.spriteSize / 2 - 2
     }
 
-    /// The drop envelope alone — used to finite-difference vertical velocity
-    /// for squash & stretch without duplicating the easing curves.
+    /// The drop-out envelope alone (spring in, ease out). Used by the hanging
+    /// pose, which rides the same entry as everything else.
     private static func envelopeValue(activity: PetActivity, t: Double, stage: Stage) -> Double {
-        let enter = easeOutBack(clamp01(t / 0.16))
+        let enter = springStep(t / entryWindow, omega: entryOmega, zeta: entryZeta).value
         let exitT = stage.petting ? 0 : clamp01((t - 0.84) / 0.16)
         return enter * (1 - easeInCubic(exitT))
     }
+
+    // MARK: Physics
+
+    /// The pet moves on real springs, not scripted curves.
+    ///
+    /// `springStep` is the closed-form step response of an under-damped
+    /// second-order system — a mass on a spring pulled to a target and let go.
+    /// It overshoots and settles with a decaying bounce, which is what gives the
+    /// pet weight; a hand-drawn ease can fake the overshoot but not the way a
+    /// heavier thing rings longer. Being a closed form (not an integrator) keeps
+    /// it a pure function of time, so the whole pose stays golden-testable.
+    ///
+    /// Returns the normalised position (0 at rest, →1 settled) and its exact
+    /// analytic velocity, which the squash-and-stretch reads directly instead of
+    /// finite-differencing — so the pet stretches on the dive and squashes on
+    /// impact from the true motion, not an approximation of it.
+    ///
+    /// `omega` is the natural frequency (how snappy), `zeta` the damping ratio
+    /// (< 1 is bouncy, 1 is a dead stop). Time is in the same units the caller
+    /// samples in.
+    static func springStep(_ t: Double, omega: Double, zeta: Double) -> (value: Double, velocity: Double) {
+        guard t > 0 else { return (0, 0) }
+        guard zeta < 1 else {
+            // Critically/over-damped: no bounce, just a firm settle.
+            let e = exp(-omega * t)
+            return (1 - e * (1 + omega * t), omega * omega * t * e)
+        }
+        let wd = omega * (1 - zeta * zeta).squareRoot()   // damped frequency
+        let e = exp(-zeta * omega * t)
+        let value = 1 - e * (cos(wd * t) + (zeta * omega / wd) * sin(wd * t))
+        // d/dt of the step response collapses to this single sine term.
+        let velocity = e * (omega * omega / wd) * sin(wd * t)
+        return (value, velocity)
+    }
+
+    /// The entry spring shared by the drop-out envelope and its velocity read.
+    /// Tuned for one clear bounce inside the entry window: snappy enough to land
+    /// fast, loose enough to feel like it has mass.
+    static let entryOmega: Double = 7
+    static let entryZeta: Double = 0.5
+    /// Fraction of the activity the drop occupies (spring time = t / this).
+    static let entryWindow: Double = 0.16
 
     // MARK: Easing
 
