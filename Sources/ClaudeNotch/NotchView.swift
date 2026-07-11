@@ -3280,6 +3280,12 @@ struct MarkdownBlockView: View {
     }
 }
 
+private let timeAgoDateFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.dateFormat = "d MMM"   // "9 Jul"
+    return f
+}()
+
 private func timeAgo(_ date: Date) -> String {
     let s = Int(Date().timeIntervalSince(date))
     if s < 5 { return "just now" }
@@ -3287,7 +3293,12 @@ private func timeAgo(_ date: Date) -> String {
     let m = s / 60
     if m < 60 { return "\(m)m ago" }
     let h = m / 60
-    return "\(h)h ago"
+    if h < 24 { return "\(h)h ago" }
+    let d = h / 24
+    // Past a week "312h ago" / even "13d ago" stops meaning anything — show the
+    // actual date instead.
+    if d <= 7 { return "\(d)d ago" }
+    return timeAgoDateFormatter.string(from: date)
 }
 
 /// Compact elapsed-wait label: "45s", "3m", "1h 20m".
