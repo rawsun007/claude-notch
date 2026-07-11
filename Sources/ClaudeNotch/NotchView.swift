@@ -437,7 +437,7 @@ struct NotchView: View {
                 .transition(.opacity)
             }
         case .completed(let task):
-            CompletedCard(task: task, onReply: {
+            CompletedCard(task: task, showPet: state.petEnabled, onReply: {
                 state.beginReply(to: task)
             }, onOpen: {
                 state.openOriginator(task.originatorBundleID)
@@ -2688,8 +2688,38 @@ private struct NotificationCard: View {
 
 // MARK: - Completed
 
+/// A small pet, looping one activity, for use inside a card (not the notch, so
+/// no drop-out-of-the-lip envelope — it just stands there and performs). Purely
+/// decorative: nothing depends on it, so a card reads fine with Pet Mode off.
+private struct PetCardBadge: View {
+    var size: CGFloat = 34
+    var activity: PetActivity = .celebrate
+    var loop: Double = 2.4   // seconds per cycle
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { tl in
+            let clock = tl.date.timeIntervalSinceReferenceDate
+            let t = clock.truncatingRemainder(dividingBy: loop) / loop
+            let rig = PetRigging.rig(for: activity, progress: t, time: clock)
+            // The rig handles the limbs; the whole-body hop/bob is card-local so
+            // it doesn't drag in PetEngine's notch geometry.
+            let lift: CGFloat = {
+                switch activity {
+                case .celebrate: return CGFloat(abs(sin(t * 3 * .pi))) * size * 0.28
+                case .peek, .lookAround: return CGFloat(sin(t * 2 * .pi)) * size * 0.04
+                default: return 0
+                }
+            }()
+            PetSprite(size: size, rig: rig)
+                .offset(y: -lift)
+                .frame(width: size, height: size, alignment: .bottom)
+        }
+    }
+}
+
 private struct CompletedCard: View {
     let task: CompletedTask
+    var showPet: Bool = false
     var onReply: (() -> Void)? = nil
     let onOpen: () -> Void
     let onDismiss: () -> Void
@@ -2712,6 +2742,11 @@ private struct CompletedCard: View {
                         .foregroundColor(.white.opacity(0.45))
                 }
                 Spacer(minLength: 0)
+                // The pet turns up to celebrate a finished task.
+                if showPet {
+                    PetCardBadge(size: 30, activity: .celebrate)
+                        .frame(width: 30, height: 30)
+                }
             }
 
             HStack(alignment: .center, spacing: 16) {
