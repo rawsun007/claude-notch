@@ -2708,43 +2708,83 @@ private struct PetCardBadge: View {
     var loop: Double = 2.4          // seconds per cycle
     var emote: PetEmote? = nil      // a glyph beside the head (e.g. a startled !)
     var jitter: Bool = false        // a fast nervous shake, for the danger card
-    var dance: Bool = false         // the full four-beat routine (task-complete card)
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { tl in
             let clock = tl.date.timeIntervalSinceReferenceDate
             let t = clock.truncatingRemainder(dividingBy: loop) / loop
-            if dance {
-                let f = PetRigging.dance(progress: t, time: clock)
-                PetSprite(size: size, rig: f.rig)
-                    .rotationEffect(.degrees(f.rotation))
-                    .offset(x: CGFloat(f.offsetX) * size, y: CGFloat(-f.offsetY) * size)
-                    .frame(width: size, height: size, alignment: .bottom)
-            } else {
-                let rig = PetRigging.rig(for: activity, progress: t, time: clock)
-                // The rig handles the limbs; the whole-body hop/bob is card-local
-                // so it doesn't drag in PetEngine's notch geometry.
-                let lift: CGFloat = {
-                    switch activity {
-                    case .celebrate: return CGFloat(abs(sin(t * 3 * .pi))) * size * 0.28
-                    case .peek, .lookAround: return CGFloat(sin(t * 2 * .pi)) * size * 0.04
-                    default: return 0
-                    }
-                }()
-                let shake: CGFloat = jitter ? CGFloat(sin(clock * 22)) * size * 0.045 : 0
-                ZStack {
-                    PetSprite(size: size, rig: rig)
-                        .offset(x: shake, y: -lift)
-                    if let emote {
-                        // Above and just past the right of the head — same
-                        // landmarks the notch emote uses, so it sits on the
-                        // creature and not the empty box around it.
-                        PetEmoteView(emote: emote, scale: 1)
-                            .offset(x: shake + size * CGFloat(PetBody.shoulderRightFraction) - 2,
-                                    y: -lift + size * CGFloat(PetBody.headTopFraction) - 3)
-                    }
+            let rig = PetRigging.rig(for: activity, progress: t, time: clock)
+            // The rig handles the limbs; the whole-body hop/bob is card-local so
+            // it doesn't drag in PetEngine's notch geometry.
+            let lift: CGFloat = {
+                switch activity {
+                case .celebrate: return CGFloat(abs(sin(t * 3 * .pi))) * size * 0.28
+                case .peek, .lookAround: return CGFloat(sin(t * 2 * .pi)) * size * 0.04
+                default: return 0
                 }
-                .frame(width: size, height: size, alignment: .bottom)
+            }()
+            let shake: CGFloat = jitter ? CGFloat(sin(clock * 22)) * size * 0.045 : 0
+            ZStack {
+                PetSprite(size: size, rig: rig)
+                    .offset(x: shake, y: -lift)
+                if let emote {
+                    // Above and just past the right of the head — same landmarks
+                    // the notch emote uses, so it sits on the creature and not
+                    // the empty box around it.
+                    PetEmoteView(emote: emote, scale: 1)
+                        .offset(x: shake + size * CGFloat(PetBody.shoulderRightFraction) - 2,
+                                y: -lift + size * CGFloat(PetBody.headTopFraction) - 3)
+                }
+            }
+            .frame(width: size, height: size, alignment: .bottom)
+        }
+    }
+}
+
+/// The pet strolls back and forth across the full width of a card, facing the
+/// way it's headed, and does a spin-and-jump flourish (the tail of the dance
+/// routine) when it reaches each end. Card-only — it uses the lane's measured
+/// width, not the notch, so it can't run off the edge.
+private struct PetWalkStrip: View {
+    var height: CGFloat = 26
+    var period: Double = 6.0   // one full there-and-back-again
+
+    var body: some View {
+        GeometryReader { geo in
+            TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { tl in
+                let clock = tl.date.timeIntervalSinceReferenceDate
+                let sprite = height
+                let travel = max(0, geo.size.width - sprite)
+                let t = clock.truncatingRemainder(dividingBy: period) / period
+
+                var x: CGFloat = 0
+                var faceLeft = false
+                var rig = PetRigging.rig(for: .stroll, progress: 0.5, time: clock)
+                var rotation: Double = 0
+                var lift: Double = 0
+
+                switch t {
+                case ..<0.40:                       // walk to the right
+                    x = CGFloat(t / 0.40) * travel
+                case ..<0.50:                       // flourish at the right end
+                    let f = PetRigging.dance(progress: 0.55 + 0.45 * (t - 0.40) / 0.10, time: clock)
+                    x = travel; rig = f.rig; rotation = f.rotation; lift = f.offsetY
+                case ..<0.90:                       // walk back to the left
+                    x = CGFloat(1 - (t - 0.50) / 0.40) * travel
+                    faceLeft = true
+                default:                            // flourish at the left end
+                    let f = PetRigging.dance(progress: 0.55 + 0.45 * (t - 0.90) / 0.10, time: clock)
+                    x = 0; faceLeft = true; rig = f.rig; rotation = f.rotation; lift = f.offsetY
+                }
+
+                return ZStack(alignment: .bottomLeading) {
+                    Color.clear
+                    PetSprite(size: sprite, rig: rig)
+                        .rotationEffect(.degrees(rotation))
+                        .scaleEffect(x: faceLeft ? -1 : 1, y: 1)   // face the way it walks
+                        .offset(x: x, y: CGFloat(-lift) * sprite)
+                }
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .bottomLeading)
             }
         }
     }
@@ -2775,11 +2815,15 @@ private struct CompletedCard: View {
                         .foregroundColor(.white.opacity(0.45))
                 }
                 Spacer(minLength: 0)
-                // The pet turns up to dance out a finished task.
-                if showPet {
-                    PetCardBadge(size: 32, loop: 3.4, dance: true)
-                        .frame(width: 32, height: 32)
-                }
+            }
+
+            // The task-complete card has room to spare, so the pet gets a lane
+            // to itself: it strolls the full width, spins and jumps at each end,
+            // and strolls back. A finished task is worth a victory lap.
+            if showPet {
+                PetWalkStrip(height: 26)
+                    .frame(height: 26)
+                    .padding(.top, -4)
             }
 
             HStack(alignment: .center, spacing: 16) {
