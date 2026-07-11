@@ -313,14 +313,20 @@ struct NotchView: View {
         // notch (its top hidden by it, exactly like the hardware notch would),
         // and its body hangs below on the transparent panel.
         if isPetOut, state.petActivity == .rope {
-            let notchH = NotchView.collapsedSize(on: NSScreen.main).height
+            // The black notch must match the HARDWARE cutout exactly, not the
+            // (wider) pet stage — otherwise it grows black wings out past the
+            // real notch and the whole illusion breaks. The pet stage is wider
+            // so the pet has room to swing; only the black is clamped.
+            let notch = NotchView.collapsedSize(on: NSScreen.main)
             return AnyView(
                 ZStack(alignment: .top) {
                     PetStageView(state: state, stageWidth: card.width, notchInset: state.notchTopInset)
                         .frame(width: card.width, height: card.height, alignment: .top)
                     // The collapsed black notch, on top, covering the pet's top.
+                    // Same width and content as the idle notch, so the swing
+                    // reads as the pet hanging out of the real notch.
                     StatusBarRow(state: state)
-                        .frame(width: card.width, height: notchH, alignment: .center)
+                        .frame(width: notch.width, height: notch.height, alignment: .center)
                         .background(Color.black)
                         .clipShape(shape)
                         .contentShape(Rectangle())
