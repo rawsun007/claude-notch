@@ -375,11 +375,6 @@ enum ClaudeUsageReader {
                   let u = msg["usage"] as? [String: Any]
             else { continue }
 
-            // Sub-agent (Task) turns run in their own small, fresh context. They
-            // share the transcript with `isSidechain: true`; counting them as the
-            // latest turn would crater the main session's occupancy reading.
-            if (obj["isSidechain"] as? Bool) == true { continue }
-
             let model = (msg["model"] as? String) ?? meter.model
             let input = (u["input_tokens"] as? Int) ?? 0
             let output = (u["output_tokens"] as? Int) ?? 0
@@ -387,9 +382,18 @@ enum ClaudeUsageReader {
             let cacheCreation = (u["cache_creation_input_tokens"] as? Int) ?? 0
 
             sawUsage = true
+            // Subagent (Task) turns are real spend, so their cost counts — the
+            // 7-day project/usage totals include them, and the session meter has
+            // to agree or the notch's per-session cost never sums to the project
+            // figure. (This skip used to swallow their cost entirely.)
             meter.costUSD += cost(input: input, output: output,
                                   cacheRead: cacheRead, cacheCreation: cacheCreation, model: model)
-            // Latest turn wins for the live readings (lines are chronological).
+
+            // But subagents run in their own small, fresh context (shared in the
+            // transcript as `isSidechain: true`), so the live context/model
+            // readings must come only from the MAIN thread's latest turn —
+            // treating a subagent turn as "latest" would crater the occupancy.
+            if (obj["isSidechain"] as? Bool) == true { continue }
             meter.model = model
             meter.contextTokens = input + cacheRead + cacheCreation
         }

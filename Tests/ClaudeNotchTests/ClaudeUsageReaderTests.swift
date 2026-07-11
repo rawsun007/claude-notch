@@ -168,3 +168,47 @@ final class ClaudeUsageReaderTests: XCTestCase {
         XCTAssertNil(ClaudeUsageReader.sessionMeter(transcriptPath: ""))
     }
 }
+
+/// The notch's per-session cost meter must agree with the 7-day project total,
+/// which means subagent (isSidechain) turns have to count — they're real spend.
+/// A regression here silently undercounts every session that used a Task agent.
+final class ClaudeUsageReaderSessionMeterTests: XCTestCase {
+
+    private func writeTranscript(_ lines: [String]) -> String {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cnt-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let path = dir.appendingPathComponent("session.jsonl").path
+        try? lines.joined(separator: "\n").write(toFile: path, atomically: true, encoding: .utf8)
+        return path
+    }
+
+    private func assistant(input: Int, output: Int, sidechain: Bool, model: String = "claude-opus-4-8") -> String {
+        let side = sidechain ? ",\"isSidechain\":true" : ""
+        return "{\"message\":{\"role\":\"assistant\",\"model\":\"\(model)\",\"usage\":{\"input_tokens\":\(input),\"output_tokens\":\(output),\"cache_read_input_tokens\":0,\"cache_creation_input_tokens\":0}}\(side)}"
+    }
+
+    func testSubagentTurnsCountTowardSessionCost() {
+        let mainOnly = writeTranscript([assistant(input: 1000, output: 500, sidechain: false)])
+        let withAgent = writeTranscript([
+            assistant(input: 1000, output: 500, sidechain: false),
+            assistant(input: 2000, output: 800, sidechain: true),   // a Task subagent turn
+        ])
+        let a = ClaudeUsageReader.sessionMeter(transcriptPath: mainOnly)
+        let b = ClaudeUsageReader.sessionMeter(transcriptPath: withAgent)
+        XCTAssertNotNil(a); XCTAssertNotNil(b)
+        // The subagent turn is extra spend, so the total must be strictly higher.
+        XCTAssertGreaterThan(b!.costUSD, a!.costUSD)
+    }
+
+    func testContextReadingIgnoresSubagentTurns() {
+        // A subagent runs in its own small, fresh context. If it arrives after
+        // the main turn, it must NOT become the live occupancy reading.
+        let path = writeTranscript([
+            assistant(input: 150_000, output: 500, sidechain: false),   // main: big context
+            assistant(input: 3_000, output: 200, sidechain: true),      // subagent: tiny
+        ])
+        let m = ClaudeUsageReader.sessionMeter(transcriptPath: path)
+        XCTAssertEqual(m?.contextTokens, 150_000, "occupancy comes from the main thread, not the subagent")
+    }
+}
