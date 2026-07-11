@@ -306,7 +306,31 @@ struct NotchView: View {
         let target = CGSize(width: card.width, height: displayHeight)
         let w = sizer.width > 0 ? sizer.width : target.width
         let h = sizer.height > 0 ? sizer.height : target.height
-        return ZStack(alignment: .top) {
+
+        // Rope is special: the black notch card must NOT grow, so it reads as
+        // the rope and pet coming out of the *real* hardware notch rather than
+        // out of a card that unfurled. The pet draws BEHIND a collapsed black
+        // notch (its top hidden by it, exactly like the hardware notch would),
+        // and its body hangs below on the transparent panel.
+        if isPetOut, state.petActivity == .rope {
+            let notchH = NotchView.collapsedSize(on: NSScreen.main).height
+            return AnyView(
+                ZStack(alignment: .top) {
+                    PetStageView(state: state, stageWidth: card.width, notchInset: state.notchTopInset)
+                        .frame(width: card.width, height: card.height, alignment: .top)
+                    // The collapsed black notch, on top, covering the pet's top.
+                    StatusBarRow(state: state)
+                        .frame(width: card.width, height: notchH, alignment: .center)
+                        .background(Color.black)
+                        .clipShape(shape)
+                        .contentShape(Rectangle())
+                        .onTapGesture { state.petBoop() }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            )
+        }
+
+        return AnyView(ZStack(alignment: .top) {
             ZStack(alignment: .top) {
                 if !collapsed {
                     // Lay the content out at its FINAL width/height (not the
@@ -367,7 +391,7 @@ struct NotchView: View {
             // pop-out feel); collapsing eases in cleanly.
             let expanding = newTarget.width * newTarget.height >= (sizer.width * sizer.height)
             sizer.animate(to: newTarget, expanding: expanding)
-        }
+        })
     }
 
     private var isCollapsedIdle: Bool {
