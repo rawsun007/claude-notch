@@ -582,23 +582,22 @@ private struct PetSprite: View {
                 ctx.fill(Path(rect(slab)), with: .color(Self.colour))
             }
 
-            // Eyes are holes punched back out of the body, so they show whatever
-            // is behind the pet (the notch's black) rather than being painted on.
-            // A blink shrinks the hole from the top, like a lid coming down.
-            ctx.blendMode = .destinationOut
+            // Eyes are painted solid dark, not punched through the body. A hole
+            // only reads as an eye when the pet sits on black (the notch card);
+            // on the transparent panel — where the rope pet hangs over your
+            // desktop — a hole shows the wallpaper instead. Solid eyes read the
+            // same everywhere. A blink shrinks the eye from the top, like a lid.
             for eye in [PetBody.eyeLeft, PetBody.eyeRight] {
                 let open = max(0, rig.eyeOpen)
                 guard open > 0.02 else { continue }
                 var lid = eye
                 lid.height = eye.height * open
                 let dy = eye.height - lid.height
-                ctx.fill(Path(rect(lid, dx: rig.eyeShift, dy: dy)), with: .color(.black))
+                ctx.fill(Path(rect(lid, dx: rig.eyeShift, dy: dy)),
+                         with: .color(Color(red: 0.16, green: 0.09, blue: 0.06)))
             }
         }
         .frame(width: size, height: size)
-        // destinationOut needs its own layer, or it punches through the card.
-        .compositingGroup()
-        .drawingGroup()
     }
 }
 
@@ -716,7 +715,7 @@ private struct PetStageView: View {
                         var path = Path()
                         path.move(to: CGPoint(x: canvasSize.width / 2, y: notchInset))
                         path.addLine(to: CGPoint(x: canvasSize.width / 2 + topX, y: topY))
-                        ctx.stroke(path, with: .color(Color(white: 0.72).opacity(pose.opacity)),
+                        ctx.stroke(path, with: .color(Color(white: 0.32).opacity(pose.opacity)),
                                    style: StrokeStyle(lineWidth: 2, lineCap: .round))
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
