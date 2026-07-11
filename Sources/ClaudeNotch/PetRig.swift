@@ -192,6 +192,17 @@ enum PetRigging {
                 rig.legLift[i] = -0.25   // hanging: legs stretch down
             }
 
+        case .rope:
+            // Both arms straight up, hands together on the rope; legs dangle
+            // loose and lag behind the swing a touch, the way dangling feet do.
+            rig.armLeftAngle = 70
+            rig.armRightAngle = 70
+            let lag = sin(t * 2 * .pi * 1.4) * 0.4
+            for i in 0..<4 {
+                rig.legSwing[i] = lag * (1 + Double(i % 2) * 0.3)
+                rig.legLift[i] = -0.3
+            }
+
         case .sleep:
             rig.eyeOpen = sleepingEyes
             // Legs folded under, arms slack.

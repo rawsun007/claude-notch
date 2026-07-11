@@ -49,6 +49,7 @@ enum PetActivity: String, CaseIterable, Equatable {
     case celebrate    // triple hop with sparkles
     case boop         // squash-and-pop reaction to a click
     case spin         // booped several times in a row: a delighted backflip
+    case rope         // dangles from a rope out of the notch, swinging
 
     /// Sprite size in points. Big enough to read as a creature at arm's length
     /// from the screen, not a favicon: the mascot is the feature, and the notch
@@ -75,6 +76,10 @@ enum PetActivity: String, CaseIterable, Equatable {
         }
     }
 
+    /// Length of the rope the pet dangles on (0 for everything else). The pet
+    /// hangs this far below the notch's lip before its body starts.
+    var ropeLength: Double { self == .rope ? 26 : 0 }
+
     /// Vertical room the activity needs *above* its resting position — a hop,
     /// a flip, a bob. The pet rests this much lower so the top of its arc still
     /// clears the notch lip, and the stage grows to match.
@@ -95,7 +100,9 @@ enum PetActivity: String, CaseIterable, Equatable {
     /// picked by hand: a celebrating pet hops 15pt, so resting it 5pt below the
     /// lip means the hardware notch shears the top off every hop.
     func restCentreY(notchInset: Double) -> Double {
-        notchInset + lipClearance + headroom + spriteSize / 2
+        // On a rope the pet hangs the rope's length below the lip.
+        if self == .rope { return notchInset + ropeLength + spriteSize / 2 }
+        return notchInset + lipClearance + headroom + spriteSize / 2
     }
 
     /// Extra pixels the notch card grows *below* the physical notch to give
@@ -103,6 +110,9 @@ enum PetActivity: String, CaseIterable, Equatable {
     /// exactly the size of the hardware cutout.
     var stageDrop: Double {
         guard self != .tucked else { return 0 }
+        // A rope hangs straight down at rest (its lowest point), so the stage
+        // just has to fit the rope plus the whole sprite.
+        if self == .rope { return ropeLength + spriteSize + 6 }
         // Enough for the sprite at rest, plus the slack its motion needs, plus
         // a little breathing room above the card's bottom curve.
         return lipClearance + spriteSize + headroom + 6
@@ -120,6 +130,7 @@ enum PetActivity: String, CaseIterable, Equatable {
              .spin:      return 44
         case .hangLeft,
              .hangRight: return 40
+        case .rope:      return 60   // room for the pendulum swing
         default:         return 28
         }
     }
@@ -134,8 +145,10 @@ enum PetActivity: String, CaseIterable, Equatable {
     /// flip at the feet swings the pet straight down through the card.
     var pivot: PetPivot {
         switch self {
-        case .hangLeft, .hangRight: return .paws
-        case .spin:                 return .centre
+        case .hangLeft, .hangRight: return .paws     // grips from the top
+        // On a rope the body tilts along the line, so it turns about its centre
+        // and the rope is drawn to whichever way it's swinging.
+        case .spin, .rope:          return .centre
         default:                    return .feet
         }
     }
@@ -232,9 +245,9 @@ enum PetEngine {
         case .sleepy:
             return [(.sleep, 6), (.peek, 1), (.hangLeft, 1)]
         case .calm:
-            return [(.peek, 4), (.lookAround, 3), (.hangLeft, 2), (.hangRight, 2), (.stroll, 2), (.sleep, 1)]
+            return [(.peek, 4), (.lookAround, 3), (.hangLeft, 2), (.hangRight, 2), (.stroll, 2), (.rope, 2), (.sleep, 1)]
         case .curious:
-            return [(.lookAround, 4), (.peek, 3), (.stroll, 3), (.hangRight, 2), (.hangLeft, 2)]
+            return [(.lookAround, 4), (.peek, 3), (.stroll, 3), (.rope, 3), (.hangRight, 2), (.hangLeft, 2)]
         case .working, .thinking:
             // Claude is busy; the pet stays out of the way. Autonomy is gated
             // upstream anyway, but keep the table honest.
@@ -272,6 +285,7 @@ enum PetEngine {
         case .celebrate:  return 2.4
         case .boop:       return 0.85
         case .spin:       return 1.5
+        case .rope:       return Double.random(in: 4.0...6.0, using: &rng)
         }
     }
 
@@ -470,6 +484,26 @@ enum PetEngine {
             pose.rotation = squash * 5
             pose.emote = t < 0.6 ? .sparkle : (stage.petting ? .heart : nil)
             pose.emoteScale = 1 - t * 0.4
+
+        case .rope:
+            // A pendulum. The rope pivots from the notch's lip; the pet hangs at
+            // the end and swings, its body tilting along the line. The swing is
+            // wide early and calms as the rope loses energy (a real pendulum
+            // bleeds amplitude). The rope itself is drawn by the renderer from
+            // the same anchor, using this rotation.
+            let anchor = stage.notchInset
+            let radius = activity.ropeLength + activity.spriteSize / 2
+            let maxAngle = 22.0 * .pi / 180
+            let amplitude = maxAngle * (0.55 + 0.45 * (1 - t))   // bleeds off
+            let theta = amplitude * sin(t * 2 * .pi * 1.4 + 0.4)
+            let hiddenY = hiddenCentreY(for: .rope, notchInset: anchor)
+            let targetX = sin(theta) * radius
+            let targetY = anchor + cos(theta) * radius
+            pose.x = targetX * envelope
+            pose.y = hiddenY + (targetY - hiddenY) * envelope
+            pose.rotation = theta * 180 / .pi
+            pose.flipped = theta < 0
+            pose.emote = stage.petting ? .heart : nil
         }
 
         // Hard floor: the entry envelope deliberately overshoots (that's the

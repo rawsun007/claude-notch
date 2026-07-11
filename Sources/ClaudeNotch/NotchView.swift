@@ -681,6 +681,22 @@ private struct PetStageView: View {
 
             ZStack(alignment: .top) {
                 Color.clear
+                // The rope: drawn behind the pet, from the notch's lip down to
+                // where the pet grips it. Its end follows the pet's top along the
+                // swing, so the line and the creature stay joined at every angle.
+                if activity == .rope {
+                    let theta: Double = pose.rotation * .pi / 180
+                    let topX = CGFloat(pose.x) - CGFloat(sin(theta)) * sprite / 2
+                    let topY = CGFloat(pose.y) - CGFloat(cos(theta)) * sprite / 2
+                    Canvas { ctx, canvasSize in
+                        var path = Path()
+                        path.move(to: CGPoint(x: canvasSize.width / 2, y: notchInset))
+                        path.addLine(to: CGPoint(x: canvasSize.width / 2 + topX, y: topY))
+                        ctx.stroke(path, with: .color(Color(white: 0.72).opacity(pose.opacity)),
+                                   style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
                 PetSprite(size: sprite, rig: rig)
                     .shadow(color: .black.opacity(0.55), radius: 4, y: 1)
                     .scaleEffect(x: pose.flipped ? -pose.scaleX : pose.scaleX, y: pose.scaleY, anchor: anchor)

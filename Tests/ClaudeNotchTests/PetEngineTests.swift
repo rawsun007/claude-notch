@@ -290,6 +290,43 @@ final class PetEngineTests: XCTestCase {
         }
     }
 
+    // MARK: - Rope
+
+    func testRopeHangsBelowTheLipAndSwingsBothWays() {
+        // The rope pet is not skipped by the lip check (it's not a corner-hang),
+        // so through the hold phase its head must stay clear of the notch.
+        for i in 30...75 {
+            let p = PetEngine.pose(for: .rope, progress: Double(i) / 100, stage: stage)
+            XCTAssertGreaterThanOrEqual(p.y - PetActivity.rope.spriteSize / 2, stage.notchInset,
+                                        "the rope pet's head hit the notch at t=\(Double(i) / 100)")
+        }
+        // A pendulum: it passes through centre to both sides.
+        let xs = (0...100).map { PetEngine.pose(for: .rope, progress: Double($0) / 100, stage: stage).x }
+        XCTAssertTrue(xs.contains { $0 > 3 }, "must swing right")
+        XCTAssertTrue(xs.contains { $0 < -3 }, "must swing left")
+    }
+
+    func testRopeBodyTiltsTheWayItSwings() {
+        // Rotation and horizontal offset share a sign — the body leans into the
+        // swing rather than staying bolt upright.
+        for i in 20...80 {
+            let p = PetEngine.pose(for: .rope, progress: Double(i) / 100, stage: stage)
+            if abs(p.x) > 2 {
+                XCTAssertEqual(p.x > 0, p.rotation > 0, "tilt must follow the swing at t=\(Double(i) / 100)")
+            }
+        }
+    }
+
+    func testRopeSwingLosesAmplitudeOverTime() {
+        // A real pendulum bleeds energy: the late swing is gentler than the early.
+        func maxAngle(_ lo: Double, _ hi: Double) -> Double {
+            stride(from: lo, to: hi, by: 0.005)
+                .map { abs(PetEngine.pose(for: .rope, progress: $0, stage: stage).rotation) }
+                .max() ?? 0
+        }
+        XCTAssertGreaterThan(maxAngle(0.15, 0.45), maxAngle(0.65, 0.95))
+    }
+
     func testSpinTurnsTwiceInOneDirectionAndLandsSquashed() {
         var previous = 0.0
         for i in 0...200 {

@@ -606,6 +606,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         case .celebrate:  return "Celebrate"
         case .boop:       return "Boop"
         case .spin:       return "Backflip"
+        case .rope:       return "Dangle on a Rope"
         }
     }
 
