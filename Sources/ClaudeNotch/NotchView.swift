@@ -421,7 +421,8 @@ struct NotchView: View {
                     useTouchID: state.requireTouchID && BiometricAuth.isAvailable,
                     onRaiseCap: { state.raiseBudgetAndAllow() },
                     onDisableEnforce: { state.disableEnforcementAndAllow() },
-                    raiseCapTarget: req.budgetBlock.map { state.raisedCapTarget(for: $0) } ?? 0
+                    raiseCapTarget: req.budgetBlock.map { state.raisedCapTarget(for: $0) } ?? 0,
+                    showPet: state.petEnabled
                 )
                 // Fresh card per request id so the hold-to-confirm gesture
                 // state (pressing / progress) can't carry over to the next one.
@@ -1545,6 +1546,7 @@ private struct PermissionCard: View {
     var onRaiseCap: (() -> Void)? = nil
     var onDisableEnforce: (() -> Void)? = nil
     var raiseCapTarget: Double = 0
+    var showPet: Bool = false
 
     private var isBudgetBlocked: Bool { request.budgetBlock != nil }
     private var accentColor: Color {
@@ -1590,7 +1592,7 @@ private struct PermissionCard: View {
             }
 
             if request.isDangerous {
-                DangerBanner(reasons: request.dangerReasons)
+                DangerBanner(reasons: request.dangerReasons, showPet: showPet)
             }
 
             if let block = request.budgetBlock {
@@ -1730,6 +1732,7 @@ private struct PermissionCard: View {
 
 private struct DangerBanner: View {
     let reasons: [String]
+    var showPet: Bool = false
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -1748,6 +1751,14 @@ private struct DangerBanner: View {
                 }
             }
             Spacer(minLength: 0)
+            // The pet flinches at a destructive command: looking about,
+            // shaking, a startled "!". A second pair of eyes that says "careful".
+            if showPet {
+                PetCardBadge(size: 30, activity: .lookAround, loop: 1.4,
+                             emote: .bang, jitter: true)
+                    .frame(width: 30, height: 30)
+                    .padding(.leading, 2)
+            }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
@@ -2694,7 +2705,9 @@ private struct NotificationCard: View {
 private struct PetCardBadge: View {
     var size: CGFloat = 34
     var activity: PetActivity = .celebrate
-    var loop: Double = 2.4   // seconds per cycle
+    var loop: Double = 2.4          // seconds per cycle
+    var emote: PetEmote? = nil      // a glyph beside the head (e.g. a startled !)
+    var jitter: Bool = false        // a fast nervous shake, for the danger card
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { tl in
@@ -2710,9 +2723,19 @@ private struct PetCardBadge: View {
                 default: return 0
                 }
             }()
-            PetSprite(size: size, rig: rig)
-                .offset(y: -lift)
-                .frame(width: size, height: size, alignment: .bottom)
+            let shake: CGFloat = jitter ? CGFloat(sin(clock * 22)) * size * 0.045 : 0
+            ZStack {
+                PetSprite(size: size, rig: rig)
+                    .offset(x: shake, y: -lift)
+                if let emote {
+                    // Above and just past the right of the head — same landmarks
+                    // the notch emote uses, so it sits on the creature not the box.
+                    PetEmoteView(emote: emote, scale: 1)
+                        .offset(x: shake + size * CGFloat(PetBody.shoulderRightFraction) - 2,
+                                y: -lift + size * CGFloat(PetBody.headTopFraction) - 3)
+                }
+            }
+            .frame(width: size, height: size, alignment: .bottom)
         }
     }
 }
