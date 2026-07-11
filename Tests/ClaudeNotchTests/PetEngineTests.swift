@@ -57,13 +57,13 @@ final class PetEngineTests: XCTestCase {
 
     func testCalmActivitySequenceIsStable() {
         XCTAssertEqual(picks(.calm, seed: 42),
-                       [.hangRight, .lookAround, .hangLeft, .stroll, .stroll,
-                        .peek, .lookAround, .hangRight, .peek, .hangRight])
+                       [.stroll, .hangLeft, .hangRight, .rope, .rope,
+                        .peek, .lookAround, .stroll, .peek, .hangRight])
     }
 
     func testCuriousActivitySequenceIsStable() {
         XCTAssertEqual(picks(.curious, seed: 7),
-                       [.peek, .peek, .hangRight, .hangRight, .stroll,
+                       [.peek, .peek, .rope, .hangRight, .rope,
                         .hangRight, .peek, .hangLeft, .hangLeft, .lookAround])
     }
 
