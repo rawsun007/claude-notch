@@ -350,13 +350,41 @@ enum ClaudeUsageReader {
     static let contextWindow1M = 1_000_000
 
     /// True for models whose default window is 1M on the plans this app targets
-    /// (Max). Frontier Sonnet 4.6 / Opus 4.6 / Opus 4.7 ship 1M by default; Haiku
-    /// and older models are 200k. Used only by `.auto` mode — a user on a 200k
-    /// plan can force the denominator via `ContextWindowMode`.
+    /// (Max). Haiku and older frontier models are 200k.
+    ///
+    /// This used to be a list of model names, which went stale the moment
+    /// Anthropic shipped the next one: Opus 4.8 landed with a 1M window, was not
+    /// in the list, and so a session sitting at 161k of a 1M window was drawn as
+    /// 161k/200k with the bar in the red — a 16%-full context reported as nearly
+    /// full. (The transcript settles it: this session ran past 600k tokens before
+    /// it compacted, which a 200k window cannot do.)
+    ///
+    /// So the version is parsed rather than matched. Frontier models from Sonnet
+    /// 4.6 and Opus 4.6 onward carry the 1M window, and anything newer than
+    /// those inherits it instead of silently falling back to 200k. `.auto` also
+    /// escalates on evidence — see `contextWindow(forModel:tokens:mode:)` — so
+    /// even a model this rule guesses wrong about corrects itself in use.
     static func modelHas1MWindow(_ model: String) -> Bool {
         let m = model.lowercased()
+        // Haiku is the small, fast model and stays on 200k however new it gets.
         if m.contains("haiku") { return false }
-        return m.contains("sonnet-4-6") || m.contains("opus-4-6") || m.contains("opus-4-7")
+        // Everything else frontier, from the 4.6 generation on, carries 1M — and
+        // that includes families that did not exist when this was written, which
+        // is the whole point. A model id we can't read a version out of keeps the
+        // conservative 200k.
+        guard let version = modelVersion(m) else { return false }
+        return version >= 4.6
+    }
+
+    /// The version out of a model id: "claude-opus-4-8" → 4.8, "claude-sonnet-5" → 5.
+    static func modelVersion(_ model: String) -> Double? {
+        // Take the digit groups after the family name: 4-8 → 4.8, 5 → 5.0.
+        let parts = model.split(separator: "-").drop { !$0.allSatisfy(\.isNumber) }
+        let numbers = parts.prefix { $0.allSatisfy(\.isNumber) }.compactMap { Int($0) }
+        guard let major = numbers.first else { return nil }
+        let minor = numbers.count > 1 ? numbers[1] : 0
+        // A date stamp (claude-haiku-4-5-20251001) is not a minor version.
+        return Double(major) + (minor < 10 ? Double(minor) / 10 : 0)
     }
 
     /// Pick the context-window denominator for a session given the user's mode,

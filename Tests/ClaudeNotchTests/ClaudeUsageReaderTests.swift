@@ -38,6 +38,38 @@ final class ClaudeUsageReaderTests: XCTestCase {
         XCTAssertFalse(ClaudeUsageReader.modelHas1MWindow("claude-sonnet-4-5"))
     }
 
+    func testNewerFrontierModelsInheritTheBigWindow() {
+        // The bug this replaces: Opus 4.8 shipped with a 1M window, was missing
+        // from a hardcoded list, and so a 161k context (16% of the window) was
+        // drawn as 161k/200k with the bar in the red.
+        XCTAssertTrue(ClaudeUsageReader.modelHas1MWindow("claude-opus-4-8"))
+        // And the ones after it, without anyone having to remember to come back here.
+        XCTAssertTrue(ClaudeUsageReader.modelHas1MWindow("claude-opus-4-9"))
+        XCTAssertTrue(ClaudeUsageReader.modelHas1MWindow("claude-sonnet-5"))
+        // Including families that did not exist when the rule was written.
+        XCTAssertTrue(ClaudeUsageReader.modelHas1MWindow("claude-fable-5"))
+        // Haiku stays small however new it is.
+        XCTAssertFalse(ClaudeUsageReader.modelHas1MWindow("claude-haiku-5"))
+        // And an unreadable id keeps the conservative denominator.
+        XCTAssertFalse(ClaudeUsageReader.modelHas1MWindow("some-other-model"))
+    }
+
+    func testModelVersionParsing() {
+        XCTAssertEqual(ClaudeUsageReader.modelVersion("claude-opus-4-8"), 4.8)
+        XCTAssertEqual(ClaudeUsageReader.modelVersion("claude-sonnet-5"), 5.0)
+        // A trailing date stamp is not a version component.
+        XCTAssertEqual(ClaudeUsageReader.modelVersion("claude-haiku-4-5-20251001"), 4.5)
+        XCTAssertNil(ClaudeUsageReader.modelVersion("unknown"))
+    }
+
+    func testOpus48SessionIsNotReportedAsNearlyFull() {
+        // The screenshot that started this: 161k tokens on Opus 4.8.
+        let w = ClaudeUsageReader.contextWindow(forModel: "claude-opus-4-8", tokens: 161_000, mode: .auto)
+        XCTAssertEqual(w, ClaudeUsageReader.contextWindow1M)
+        let p = ClaudeUsageReader.contextPercent(tokens: 161_000, model: "claude-opus-4-8", mode: .auto)
+        XCTAssertEqual(p, 0.161, accuracy: 0.001, "16% full, not 81%")
+    }
+
     func testContextPercentClampsToOne() {
         let p = ClaudeUsageReader.contextPercent(tokens: 500_000, model: "claude-haiku-4-5", mode: .w200k)
         XCTAssertEqual(p, 1.0, accuracy: 0.0001)
