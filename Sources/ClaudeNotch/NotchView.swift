@@ -1333,7 +1333,7 @@ struct ContextCostBar: View {
     }
     private var tokenLabel: String {
         guard tokens > 0 else { return "" }
-        return "\(fmtK(tokens)) / \(fmtK(maxTokens))"
+        return "\(fmtK(tokens))/\(fmtK(maxTokens))"
     }
     private var tooltipText: String {
         let base = "Context \(Int((percent * 100).rounded()))% full"
@@ -1357,6 +1357,13 @@ struct ContextCostBar: View {
                 Text(tokenLabel)
                     .font(.system(size: 9, design: .rounded).monospacedDigit())
                     .foregroundColor(tint.opacity(0.85))
+                    // Half a context reading is worse than none: the row is tight
+                    // enough that this used to truncate to "161k / 2…", which
+                    // hides the one number that gives the other one meaning.
+                    // It never truncates now — the labels left of it give way first.
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
             } else {
                 Text("\(Int((percent * 100).rounded()))%")
                     .font(.system(size: 9, design: .rounded).monospacedDigit())
@@ -1366,6 +1373,9 @@ struct ContextCostBar: View {
                 Text(ClaudeUsageReader.fmtMoney(cost))
                     .font(.system(size: 9, design: .rounded).monospacedDigit())
                     .foregroundColor(costColor)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
             }
         }
         .help(tooltipText)
