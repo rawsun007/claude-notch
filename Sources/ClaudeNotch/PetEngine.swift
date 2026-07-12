@@ -285,7 +285,11 @@ enum PetEngine {
         case .celebrate:  return 2.4
         case .boop:       return 0.85
         case .spin:       return 1.5
-        case .rope:       return Double.random(in: 4.0...6.0, using: &rng)
+        // Fixed, not sampled: the rope pose is a real simulation in seconds
+        // (free fall, catch, swing), so its length has to be the one the physics
+        // was tuned for — a random duration would rescale the whole thing and
+        // change gravity with it.
+        case .rope:       return ropeDuration
         }
     }
 
@@ -322,6 +326,125 @@ enum PetEngine {
         // A boop is the user's doing, not the pet's, so it doesn't earn silence.
         guard activity != .boop, activity != .spin else { return base }
         return max(base, duration * dutyCycle)
+    }
+
+    // MARK: Rope physics
+
+    /// The rope act is simulated, not keyframed. Three phases, all closed-form so
+    /// the pose stays a pure function of time:
+    ///
+    ///   1. Free fall. The pet hops off the lip with a little sideways speed and
+    ///      falls under gravity while the rope pays out slack.
+    ///   2. The catch. The rope goes taut. Its velocity splits into a radial part
+    ///      (along the rope — this is what the rope's elasticity absorbs) and a
+    ///      tangential part (across it — this is what becomes the swing). That
+    ///      split is the whole reason it looks right: the pet doesn't start
+    ///      swinging because we told it to, it swings because it was still moving
+    ///      sideways when the rope stopped it falling.
+    ///   3. Hang. An elastic pendulum: a damped spring along the rope (fast, dies
+    ///      in half a second) riding under a damped pendulum across it (slow,
+    ///      period sqrt(L/g), bleeds out over the act).
+    static let ropeDuration: Double = 5.0
+    /// Points per second squared. Not 9.8 — the stage is 40-odd points tall, so
+    /// gravity is tuned for the scale, the way it always is in a game.
+    static let ropeGravity: Double = 1200
+    /// Sideways speed as it leaves the notch. Zero here means a dead-straight
+    /// drop and no swing at all: this number *is* the swing.
+    static let ropeKickX: Double = 42
+    /// The rope's own spring: stiff and well damped, so the catch reads as a
+    /// snap-and-ring rather than a bungee.
+    static let ropeSpringOmega: Double = 17
+    static let ropeSpringZeta: Double = 0.20
+    /// How far the rope can actually stretch. The catch is violent enough to ask
+    /// for far more than a 26-point rope would ever give.
+    static let ropeMaxStretch: Double = 6
+    /// Swing damping (1/s): air, and a knot that isn't frictionless.
+    static let ropeSwingDamping: Double = 0.32
+    /// The pet is a body on the end of a line, not a bead on it — it trails the
+    /// rope's angle by a beat instead of staying rigidly in line with it.
+    static let ropeBobLag: Double = 0.06
+
+    struct RopeState: Equatable {
+        /// Sprite centre, relative to the notch anchor (+x right, y absolute).
+        var x: Double = 0
+        var y: Double = 0
+        /// Rope angle from straight down, radians, and its rate.
+        var angle: Double = 0
+        var angleRate: Double = 0
+        /// Anchor-to-centre distance and its rate (the rope's stretch).
+        var radius: Double = 0
+        var radialRate: Double = 0
+        var taut: Bool = false
+    }
+
+    /// `restRadius` is anchor-to-sprite-centre with the rope hanging slack-free;
+    /// `dropStart` is the centre's y while the pet is still hidden in the notch.
+    static func ropeState(seconds s: Double, anchor: Double,
+                          restRadius L0: Double, dropStart y0: Double) -> RopeState {
+        let g = ropeGravity
+        let vx = ropeKickX
+        // Time to fall far enough that the rope is out of slack. Solved on the
+        // vertical alone: the sideways kick moves it a few points in a third of a
+        // second, far inside the rope's own stretch.
+        let fall = max(0.0001, L0 - (y0 - anchor))
+        let sTaut = (2 * fall / g).squareRoot()
+
+        guard s >= sTaut else {
+            var state = RopeState()
+            state.x = vx * s
+            state.y = y0 + 0.5 * g * s * s
+            state.radius = (state.x * state.x + (state.y - anchor) * (state.y - anchor)).squareRoot()
+            state.radialRate = g * s          // still in free fall: all of it is fall
+            return state
+        }
+
+        // The catch. Position and velocity at the instant the rope bites.
+        let xT = vx * sTaut
+        let vy = g * sTaut
+        let theta0 = atan2(xT, L0)
+        let sinT = sin(theta0), cosT = cos(theta0)
+        let vRadial = vx * sinT + vy * cosT      // along the rope: the spring eats this
+        let vTangent = vx * cosT - vy * sinT     // across it: this becomes the swing
+        let omega0 = vTangent / L0
+
+        let u = s - sTaut
+
+        // Pendulum: damped free response from (theta0, omega0).
+        let wp = (g / L0).squareRoot()
+        let lam = ropeSwingDamping
+        let wd = max(0.1, (wp * wp - lam * lam).squareRoot())
+        let a = theta0
+        let b = (omega0 + lam * theta0) / wd
+        let decay = exp(-lam * u)
+        let cw = cos(wd * u), sw = sin(wd * u)
+        let angle = decay * (a * cw + b * sw)
+        let angleRate = decay * (-lam * (a * cw + b * sw) + wd * (b * cw - a * sw))
+
+        // Rope stretch: damped spring, launched by the radial velocity, starting
+        // at its rest length (the rope is inextensible until this moment).
+        let wr = ropeSpringOmega
+        let zr = ropeSpringZeta
+        let wrd = wr * (1 - zr * zr).squareRoot()
+        let amp = clampMag(vRadial / wrd, ropeMaxStretch)
+        let rDecay = exp(-zr * wr * u)
+        let stretch = rDecay * amp * sin(wrd * u)
+        let stretchRate = rDecay * amp * (wrd * cos(wrd * u) - zr * wr * sin(wrd * u))
+        let radius = L0 + stretch
+
+        var state = RopeState()
+        state.taut = true
+        state.angle = angle
+        state.angleRate = angleRate
+        state.radius = radius
+        state.radialRate = stretchRate
+        state.x = sin(angle) * radius
+        state.y = anchor + cos(angle) * radius
+        return state
+    }
+
+    /// Anchor-to-sprite-centre distance with the rope hanging straight and slack-free.
+    static func ropeRestRadius(_ activity: PetActivity) -> Double {
+        activity.ropeLength + activity.spriteSize / 2
     }
 
     // MARK: Pose
@@ -486,27 +609,25 @@ enum PetEngine {
             pose.emoteScale = 1 - t * 0.4
 
         case .rope:
-            // A pendulum on an elastic rope. The pet drops out of the notch, the
-            // rope snaps taut with a decaying vertical recoil (a real rope
-            // stretches and rebounds when a weight hits the end), and the whole
-            // thing swings side to side, bleeding amplitude the way a real
-            // pendulum loses energy. The rope line is drawn by the renderer from
-            // the same anchor, using this rotation.
+            // Simulated, not keyframed — see `ropeState`. The generic drop-out
+            // spring is deliberately *not* used here: the rope act has its own
+            // entry (a fall), and stacking a second spring on top of gravity is
+            // what made the old version read as a cartoon bob rather than a
+            // weight on a line. Only the retract is shared, to reel it back in.
             let anchor = stage.notchInset
-            let radius = activity.ropeLength + activity.spriteSize / 2
-            let maxAngle = 24.0 * .pi / 180
-            let amplitude = maxAngle * (0.5 + 0.5 * (1 - t))     // bleeds off
-            let theta = amplitude * sin(t * 2 * .pi * 1.5 + 0.4)
-            // Rope elasticity: a quick vertical bounce as it goes taut, fading
-            // fast. Scaled by envelope so it only rings once the pet is out.
-            let recoil = sin(t * 2 * .pi * 3.2) * exp(-t * 5) * 3.5
-            let hiddenY = hiddenCentreY(for: .rope, notchInset: anchor)
-            let targetX = sin(theta) * radius
-            let targetY = anchor + cos(theta) * radius + recoil
-            pose.x = targetX * envelope
-            pose.y = hiddenY + (targetY - hiddenY) * envelope
-            pose.rotation = theta * 180 / .pi
-            pose.flipped = theta < 0
+            let rope = ropeState(seconds: t * ropeDuration, anchor: anchor,
+                                 restRadius: ropeRestRadius(activity), dropStart: hiddenY)
+            pose.x = rope.x * (1 - retract)
+            pose.y = hiddenY + (rope.y - hiddenY) * (1 - retract)
+            // The body trails the rope instead of being welded to it.
+            pose.rotation = (rope.angle - ropeBobLag * rope.angleRate) * 180 / .pi
+            pose.flipped = rope.angle < 0
+            // Stretch along the rope: thin while falling and while the rope pulls
+            // it back up, fat as the rope bottoms out under it.
+            let ropeStretch = clampMag(rope.radialRate * 0.0012, 0.18)
+            pose.scaleY = 1 + ropeStretch
+            pose.scaleX = 1 - ropeStretch * 0.7
+            pose.opacity = 1 - retract
             pose.emote = stage.petting ? .heart : nil
         }
 

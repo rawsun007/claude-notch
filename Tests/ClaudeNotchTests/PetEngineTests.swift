@@ -308,13 +308,92 @@ final class PetEngineTests: XCTestCase {
 
     func testRopeBodyTiltsTheWayItSwings() {
         // Rotation and horizontal offset share a sign — the body leans into the
-        // swing rather than staying bolt upright.
+        // swing rather than staying bolt upright. Checked away from the bottom of
+        // the arc: the body trails the rope (see `ropeBobLag`), so within a few
+        // points of dead centre it is still tilted the way it came from, which is
+        // exactly what a weight on a line does.
         for i in 20...80 {
             let p = PetEngine.pose(for: .rope, progress: Double(i) / 100, stage: stage)
-            if abs(p.x) > 2 {
+            if abs(p.x) > 4 {
                 XCTAssertEqual(p.x > 0, p.rotation > 0, "tilt must follow the swing at t=\(Double(i) / 100)")
             }
         }
+    }
+
+    // MARK: - Rope physics
+
+    private var ropeRest: Double { PetEngine.ropeRestRadius(.rope) }
+    private var ropeHidden: Double { PetEngine.hiddenCentreY(for: .rope, notchInset: stage.notchInset) }
+
+    private func rope(_ seconds: Double) -> PetEngine.RopeState {
+        PetEngine.ropeState(seconds: seconds, anchor: stage.notchInset,
+                            restRadius: ropeRest, dropStart: ropeHidden)
+    }
+
+    func testRopeFallsFreelyUntilTheRopeIsTaut() {
+        // Before the catch the pet is in free fall, so the drop must go as t²:
+        // doubling the time quadruples the distance fallen.
+        let a = rope(0.08), b = rope(0.16)
+        XCTAssertFalse(a.taut)
+        XCTAssertFalse(b.taut)
+        let fallA = a.y - ropeHidden, fallB = b.y - ropeHidden
+        XCTAssertEqual(fallB / fallA, 4, accuracy: 0.01)
+        // And the rope is still slack: the pet has not reached the end of it.
+        XCTAssertLessThan(b.radius, ropeRest)
+    }
+
+    func testRopeCatchesAndNeverOverstretches() {
+        // The catch happens once, and the rope's stretch is bounded by its
+        // elasticity no matter how hard the fall hits the end of it.
+        var caught = false
+        for i in 0...500 {
+            let s = rope(Double(i) / 100)
+            if s.taut { caught = true }
+            XCTAssertLessThanOrEqual(s.radius, ropeRest + PetEngine.ropeMaxStretch + 0.001,
+                                     "rope stretched past its limit at \(Double(i) / 100)s")
+        }
+        XCTAssertTrue(caught, "the rope must go taut inside the act")
+        // Right after the catch it is stretched, not compressed: the weight is
+        // still moving down and the rope is taking it.
+        XCTAssertGreaterThan(rope(0.4).radius, ropeRest)
+    }
+
+    func testRopeSwingsAtItsPendulumPeriod() {
+        // The signature of a real pendulum: the period is set by the length and
+        // gravity, not by an animation curve. T = 2π sqrt(L/g).
+        let expected = 2 * Double.pi * (ropeRest / PetEngine.ropeGravity).squareRoot()
+        // Measure it: time between two zero-crossings of the same direction.
+        var crossings: [Double] = []
+        var previous = rope(0.5).angle
+        for i in 51...500 {
+            let s = Double(i) / 100
+            let angle = rope(s).angle
+            if previous < 0, angle >= 0 { crossings.append(s) }
+            previous = angle
+        }
+        XCTAssertGreaterThanOrEqual(crossings.count, 2, "must swing back and forth more than once")
+        let measured = crossings[1] - crossings[0]
+        XCTAssertEqual(measured, expected, accuracy: 0.08,
+                       "swing period must match sqrt(L/g), got \(measured) vs \(expected)")
+    }
+
+    func testRopeSwingIsBornOfTheFallNotOfNothing() {
+        // The pet only swings because it was still moving sideways when the rope
+        // stopped it falling. Kill the sideways kick and there is nothing to swing.
+        XCTAssertGreaterThan(PetEngine.ropeKickX, 0)
+        let peak = (0...500).map { abs(rope(Double($0) / 100).angle) }.max() ?? 0
+        XCTAssertGreaterThan(peak, 0.1, "the catch must convert the fall into a real swing")
+        XCTAssertLessThan(peak, 0.6, "and not into a windmill")
+    }
+
+    func testRopeBodyTrailsTheRope() {
+        // The pet is a weight on a line, not a bead threaded onto it: mid-swing,
+        // where the rope is turning fastest, the body lags behind its angle.
+        let fast = (100...300).map { rope(Double($0) / 100) }
+            .max(by: { abs($0.angleRate) < abs($1.angleRate) })!
+        let lagged = fast.angle - PetEngine.ropeBobLag * fast.angleRate
+        XCTAssertNotEqual(lagged, fast.angle, accuracy: 0.01)
+        XCTAssertLessThan(abs(lagged), abs(fast.angle) + 0.2)
     }
 
     func testRopeSwingLosesAmplitudeOverTime() {

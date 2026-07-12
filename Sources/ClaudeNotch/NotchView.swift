@@ -723,10 +723,27 @@ private struct PetStageView: View {
                     let grip = CGFloat(-PetBody.headTopFraction + 0.04) * sprite
                     let topX = CGFloat(pose.x) - CGFloat(sin(theta)) * grip
                     let topY = CGFloat(pose.y) - CGFloat(cos(theta)) * grip
+                    // A rope has a fixed length, so while the pet is still falling
+                    // the spare rope has to go somewhere: it sags. Straight line
+                    // only once the fall has paid the slack out and the rope is
+                    // taut. Without this the rope visibly grows out of the notch
+                    // like a tape measure.
+                    let restLen = CGFloat(PetEngine.ropeRestRadius(activity)) - grip
+                    let span = (topX * topX + (topY - CGFloat(notchInset)) * (topY - CGFloat(notchInset))).squareRoot()
+                    let slack = max(0, restLen - span)
                     Canvas { ctx, canvasSize in
+                        let top = CGPoint(x: canvasSize.width / 2, y: notchInset)
+                        let end = CGPoint(x: canvasSize.width / 2 + topX, y: topY)
                         var path = Path()
-                        path.move(to: CGPoint(x: canvasSize.width / 2, y: notchInset))
-                        path.addLine(to: CGPoint(x: canvasSize.width / 2 + topX, y: topY))
+                        path.move(to: top)
+                        if slack > 0.5 {
+                            // Hangs its slack below the chord, like a real line.
+                            let mid = CGPoint(x: (top.x + end.x) / 2,
+                                              y: (top.y + end.y) / 2 + slack * 1.1)
+                            path.addQuadCurve(to: end, control: mid)
+                        } else {
+                            path.addLine(to: end)
+                        }
                         ctx.stroke(path, with: .color(Color(white: 0.32).opacity(pose.opacity)),
                                    style: StrokeStyle(lineWidth: 2, lineCap: .round))
                     }

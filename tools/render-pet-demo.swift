@@ -13,7 +13,12 @@ import AppKit
 enum PetDemo {
     static let inset: Double = 32          // physical notch height
     static let baseWidth: Double = 180     // notch cutout width
-    static let samples: [Double] = [0.0, 0.08, 0.2, 0.35, 0.5, 0.65, 0.8, 0.94]
+    /// Override with PET_SAMPLES=0,0.02,0.05,... to zoom in on one phase of an
+    /// act (the rope's fall, say, which is all over inside the first tenth).
+    static let samples: [Double] = ProcessInfo.processInfo.environment["PET_SAMPLES"]
+        .map { $0.split(separator: ",").compactMap { Double($0) } }
+        .flatMap { $0.isEmpty ? nil : $0 }
+        ?? [0.0, 0.08, 0.2, 0.35, 0.5, 0.65, 0.8, 0.94]
     static let cellPad: Double = 14
     static let labelWidth: Double = 96
 
@@ -64,6 +69,32 @@ enum PetDemo {
 
                 NSGraphicsContext.saveGraphicsState()
                 NSBezierPath(roundedRect: plate, xRadius: 12, yRadius: 12).addClip()
+                // The rope strand, drawn the same way the app draws it: sagging
+                // while there is slack, straight once it is taut.
+                if activity == .rope {
+                    let sprite = activity.spriteSize
+                    let theta = pose.rotation * .pi / 180
+                    let grip = (-PetBody.headTopFraction + 0.04) * sprite
+                    let topX = pose.x - sin(theta) * grip
+                    let topY = pose.y - cos(theta) * grip
+                    let restLen = PetEngine.ropeRestRadius(activity) - grip
+                    let span = (topX * topX + (topY - inset) * (topY - inset)).squareRoot()
+                    let slack = max(0, restLen - span)
+                    let anchor = NSPoint(x: plateX + stageWidth / 2, y: plateY + inset)
+                    let end = NSPoint(x: anchor.x + topX, y: plateY + topY)
+                    let strand = NSBezierPath()
+                    strand.move(to: anchor)
+                    if slack > 0.5 {
+                        let mid = NSPoint(x: (anchor.x + end.x) / 2,
+                                          y: (anchor.y + end.y) / 2 + slack * 1.1)
+                        strand.curve(to: end, controlPoint1: mid, controlPoint2: mid)
+                    } else {
+                        strand.line(to: end)
+                    }
+                    strand.lineWidth = 2
+                    NSColor(calibratedWhite: 0.55, alpha: pose.opacity).setStroke()
+                    strand.stroke()
+                }
                 // Sample the gait clock at the same instant the app would.
                 let rig = PetRigging.rig(for: activity, progress: t, time: t * 2.4)
                 draw(size: activity.spriteSize, pose: pose, rig: rig,
