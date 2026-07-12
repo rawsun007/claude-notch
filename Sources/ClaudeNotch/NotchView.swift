@@ -2121,12 +2121,17 @@ private struct HistoryCard: View {
         var grouped: [String: [SessionRecord]] = [:]
         for r in state.sessionHistory { grouped[r.project, default: []].append(r) }
         return grouped.map { project, records in
-            ProjectStats(
+            let cwd = records.first?.cwd ?? ""
+            return ProjectStats(
                 id: project,
                 project: project,
-                cwd: records.first?.cwd ?? "",
+                cwd: cwd,
                 sessionCount: records.count,
-                totalCostUSD: records.reduce(0) { $0 + $1.costUSD },
+                // Money comes from the transcripts, not from the session records —
+                // see AppState.weekCostByProject for why the records cannot be
+                // trusted for it. Both this figure and the header above are the
+                // last seven days, so they agree.
+                totalCostUSD: state.weekCostByProject[cwd] ?? 0,
                 totalTokens: records.reduce(0) { $0 + $1.contextTokens },
                 totalToolCalls: records.reduce(0) { $0 + $1.toolCallCount },
                 totalDuration: records.compactMap(\.duration).reduce(0, +),
@@ -2142,20 +2147,30 @@ private struct HistoryCard: View {
         return allProjectStats.filter { $0.project.lowercased().contains(q) }
     }
 
-    /// Cost per day for the trailing week (oldest first) + totals, from
-    /// session history. Powers the mini trend header on the Projects tab.
+    /// Cost per day for the trailing week (oldest first) + totals. Powers the
+    /// mini trend header on the Projects tab.
+    ///
+    /// The total is the transcripts' total, so it matches the sum of the project
+    /// rows below it. The per-day shape still comes from the session records —
+    /// they are the only thing here with a start date — and is rescaled to the
+    /// real total, so the bars are proportions rather than dollar claims.
     private var weekSpend: (total: Double, sessions: Int, daily: [Double]) {
         let cal = Calendar.current
         let todayStart = cal.startOfDay(for: Date())
         var daily = [Double](repeating: 0, count: 7)
-        var total = 0.0, count = 0
+        var recorded = 0.0, count = 0
         for r in state.sessionHistory {
             let dayStart = cal.startOfDay(for: r.startedAt)
             guard let days = cal.dateComponents([.day], from: dayStart, to: todayStart).day,
                   (0..<7).contains(days) else { continue }
             daily[6 - days] += r.costUSD
-            total += r.costUSD
+            recorded += r.costUSD
             count += 1
+        }
+        let total = state.weekCostByProject.values.reduce(0, +)
+        if recorded > 0, total > 0 {
+            let scale = total / recorded
+            daily = daily.map { $0 * scale }
         }
         return (total, count, daily)
     }

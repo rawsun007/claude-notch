@@ -2190,6 +2190,28 @@ final class AppState: ObservableObject {
         guard !history.isEmpty else { return }
         isHistoryOpen = true
         recompute()
+        refreshProjectSpend()
+    }
+
+    /// Real 7-day spend per project working directory, read straight from the
+    /// transcripts.
+    ///
+    /// The Projects tab used to add up the cost stored on its own archived
+    /// session records, which is a different and much worse source: a record
+    /// only carries a cost if the app happened to have a transcript path for
+    /// that session, so most of them are zero, and the ones that aren't are
+    /// whole-transcript lifetime totals rather than anything week-shaped. That
+    /// is how the same project could read $227 on its card and $4 in the
+    /// seven-day header above it. Both figures now come from the transcripts.
+    @Published private(set) var weekCostByProject: [String: Double] = [:]
+
+    func refreshProjectSpend() {
+        Task { [weak self] in
+            let byProject = await Task.detached {
+                ClaudeUsageReader.compute().weekByProject.mapValues(\.costUSD)
+            }.value
+            self?.weekCostByProject = byProject
+        }
     }
 
     func closeHistory() {
