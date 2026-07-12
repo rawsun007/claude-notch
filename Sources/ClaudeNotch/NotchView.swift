@@ -1088,6 +1088,11 @@ private struct IdlePill: View {
                 ContextCostBar(
                     percent: state.currentContextPercent,
                     cost: state.currentCostUSD,
+                    // Without the model the bar cannot know how big the window
+                    // is, and quietly falls back to the smallest one — which is
+                    // how a 1M-window session kept being drawn against 200k.
+                    model: state.currentModel,
+                    showModelName: false,   // row 2 already names it
                     costCap: state.sessionCostCap,
                     tokens: state.currentContextTokens
                 )
@@ -1303,7 +1308,10 @@ private struct TaskMeter: View {
 struct ContextCostBar: View {
     let percent: Double     // 0...1
     let cost: Double        // cumulative USD
+    /// Needed even where the name isn't drawn: it's what sizes the window.
     var model: String = ""
+    /// False where the row already names the model elsewhere.
+    var showModelName: Bool = true
     var costCap: Double = 0 // session budget; 0 = off. Tints the cost figure.
     var tokens: Int = 0     // raw token count; 0 = omit token display
 
@@ -1326,7 +1334,11 @@ struct ContextCostBar: View {
         return m == "unknown" || m.isEmpty ? "" : m
     }
     private func fmtK(_ n: Int) -> String {
-        n >= 1000 ? "\(n / 1000)k" : "\(n)"
+        if n >= 1_000_000 {
+            let m = Double(n) / 1_000_000
+            return m == m.rounded() ? "\(Int(m))M" : String(format: "%.1fM", m)
+        }
+        return n >= 1000 ? "\(n / 1000)k" : "\(n)"
     }
     private var maxTokens: Int {
         ClaudeUsageReader.contextWindow(forModel: model, tokens: tokens, mode: .auto)
@@ -1344,7 +1356,7 @@ struct ContextCostBar: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            if !shortModel.isEmpty {
+            if showModelName, !shortModel.isEmpty {
                 Text(shortModel)
                     .font(.system(size: 9, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.4))
