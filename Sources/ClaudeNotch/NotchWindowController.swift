@@ -44,6 +44,8 @@ final class NotchWindowController {
     private let host: PassThroughHostingView
     private var cancellable: AnyCancellable?
     private var captureCancellable: AnyCancellable?
+    private var screenObservers: [NSObjectProtocol] = []
+    private var driftTimer: Timer?
 
     init(state: AppState) {
         self.state = state
@@ -111,6 +113,74 @@ final class NotchWindowController {
             .sink { [weak self] hide in
                 self?.window.sharingType = hide ? .none : .readOnly
             }
+
+        observeScreenChanges()
+    }
+
+    /// Re-pin the panel whenever the world moves under it.
+    ///
+    /// The panel used to reposition ONLY on a mode or hover change, which meant
+    /// anything that moved the screen out from under it — a resolution change, a
+    /// display sleep/wake, plugging in a monitor, switching Space — left it at a
+    /// stale origin until the next card happened to open. A stale origin is very
+    /// visible: the collapsed card is meant to hide exactly behind the hardware
+    /// notch, so a card that is off by even a little stops being invisible and
+    /// becomes a second, fake notch sitting next to the real one with its status
+    /// bars on show.
+    private func observeScreenChanges() {
+        let center = NotificationCenter.default
+        screenObservers.append(
+            center.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
+                               object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.repin() }
+            }
+        )
+        screenObservers.append(
+            NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.activeSpaceDidChangeNotification,
+                object: nil, queue: .main) { [weak self] _ in
+                    Task { @MainActor in self?.repin() }
+                }
+        )
+        // The events above cover what macOS tells us about. They do not cover
+        // everything that has been observed to displace a borderless panel, so
+        // there is also a slow backstop: check the frame now and then and put it
+        // back if it has moved. It costs nothing when nothing is wrong.
+        driftTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.repin(onlyIfDrifted: true) }
+        }
+    }
+
+    /// Put the panel back where it belongs. With `onlyIfDrifted`, does nothing
+    /// unless it has actually moved (so the common case is a cheap comparison).
+    private func repin(onlyIfDrifted: Bool = false) {
+        let screen = currentScreen()
+        if onlyIfDrifted, !hasDrifted(from: screen) { return }
+        position(on: screen)
+    }
+
+    /// True when the panel is no longer centred on the notch of `screen`, or has
+    /// slipped off its top edge.
+    private func hasDrifted(from screen: NSScreen) -> Bool {
+        let target = expectedOrigin(on: screen)
+        return abs(window.frame.origin.x - target.x) > 1 || abs(window.frame.origin.y - target.y) > 1
+    }
+
+    private func expectedOrigin(on screen: NSScreen) -> NSPoint {
+        let s = screen.frame
+        let centerX: CGFloat = {
+            if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
+                return (left.maxX + right.minX) / 2
+            }
+            return s.midX
+        }()
+        let size = NotchWindowController.windowSize(for: screen)
+        return NSPoint(x: centerX - size.width / 2, y: s.maxY - size.height)
+    }
+
+    deinit {
+        driftTimer?.invalidate()
+        for o in screenObservers { NotificationCenter.default.removeObserver(o) }
     }
 
     /// Fixed window: wide enough for the biggest card, tall enough for the
@@ -137,20 +207,21 @@ final class NotchWindowController {
     /// Pin the (fixed-size) window to the top, centred on the physical notch.
     /// Only resizes if the screen actually changed dimensions.
     private func position(on screen: NSScreen) {
-        let s = screen.frame
-        let centerX: CGFloat = {
-            if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
-                return (left.maxX + right.minX) / 2
-            }
-            return s.midX
-        }()
         let target = NotchWindowController.windowSize(for: screen)
-        let origin = NSPoint(x: centerX - target.width / 2, y: s.maxY - target.height)
+        let origin = expectedOrigin(on: screen)
+        let was = window.frame.origin
 
         if abs(window.frame.width - target.width) > 1 || abs(window.frame.height - target.height) > 1 {
             window.setFrame(NSRect(origin: origin, size: target), display: false)
         } else if window.frame.origin != origin {
             window.setFrameOrigin(origin)
+        }
+
+        // A correction of more than a point means the panel had genuinely been
+        // displaced (the "second notch beside the real one" bug). Worth a line:
+        // it is the only way to find out what moved it.
+        if abs(was.x - origin.x) > 1 || abs(was.y - origin.y) > 1 {
+            debugAppend("[\(Date())] repin: \(was) → \(origin) on screen \(screen.frame)\n")
         }
 
         let inset = NotchView.notchInset(on: screen)
