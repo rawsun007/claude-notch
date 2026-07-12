@@ -516,8 +516,6 @@ final class AppState: ObservableObject {
     private var petBoopStreak = 0
     private var petLastBoopAt: Date = .distantPast
     private var petTimer: Timer?
-    /// Countdown before a delayed demo starts (Play All) — see `demoPet`.
-    private var petDemoStartTimer: Timer?
     /// Demo mode: an activity was requested from the Demos menu, so it plays
     /// even while Claude is busy (the whole point is to watch it on demand).
     private var petDemoing = false
@@ -906,32 +904,15 @@ final class AppState: ObservableObject {
     /// Demos menu: perform these activities back to back, right now, whatever
     /// else is going on. Turns Pet Mode on if it was off — you asked to see the
     /// pet, so here is the pet.
-    /// Play a sequence of pet activities on demand.
-    ///
-    /// `startingIn` delays the first one. Play All uses it: the point of playing
-    /// every activity back to back is to record the pet, and you cannot start a
-    /// screen recording while the menu you just clicked is still open and your
-    /// pointer is in it. The countdown buys you the time to close the menu and
-    /// hit record.
-    func demoPet(_ activities: [PetActivity], startingIn delay: TimeInterval = 0) {
+    func demoPet(_ activities: [PetActivity]) {
         guard let first = activities.first else { return }
         if !petEnabled { setPetEnabled(true) }
         petDemoQueue = Array(activities.dropFirst())
         petDemoing = true
         petInterrupted = nil
-        guard delay > 0 else {
-            // Starts on the spot: the Demos > Pet rows keep the menu open, so the
-            // pet performs in the notch while you pick the next one.
-            beginPetActivity(first)
-            return
-        }
-        petDemoStartTimer?.invalidate()
-        petDemoStartTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
-            Task { @MainActor in
-                guard let self, self.petDemoing else { return }
-                self.beginPetActivity(first)
-            }
-        }
+        // Starts on the spot: the Demos > Pet rows keep the menu open, so the
+        // pet performs in the notch while you pick the next one.
+        beginPetActivity(first)
     }
 
     func setPetEnabled(_ on: Bool) {
@@ -941,9 +922,6 @@ final class AppState: ObservableObject {
         } else {
             petTimer?.invalidate()
             petTimer = nil
-            petDemoStartTimer?.invalidate()
-            petDemoStartTimer = nil
-            petDemoing = false
             endPetActivity()
         }
         schedulePersist()

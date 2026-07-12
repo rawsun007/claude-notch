@@ -138,18 +138,15 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         // down to Demos > Pet between each is the whole friction.
         demosMenu.addItem(.separator())
         let petMenu = NSMenu()
-        func addPetRow(_ title: String, startingIn delay: TimeInterval = 0,
-                       _ activities: @escaping () -> [PetActivity]) {
+        func addPetRow(_ title: String, _ activities: @escaping () -> [PetActivity]) {
             let row = KeepOpenRowView(title: title, checked: false, width: 200)
-            row.handler = { [weak self] in self?.state.demoPet(activities(), startingIn: delay) }
+            row.handler = { [weak self] in self?.state.demoPet(activities()) }
             let holder = NSMenuItem()
             holder.view = row
             petMenu.addItem(holder)
         }
         let demoable = PetActivity.allCases.filter { $0 != .tucked }
-        // Play All is the one you record: it needs a beat to close the menu and
-        // start the recorder before the pet moves.
-        addPetRow("Play All (starts in 5s)", startingIn: 5) { demoable }
+        addPetRow("Play All") { demoable }
         petMenu.addItem(.separator())
         for activity in demoable {
             addPetRow(MenuBarController.petDemoTitle(activity)) { [activity] }
