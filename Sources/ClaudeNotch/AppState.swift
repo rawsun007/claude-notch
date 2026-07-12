@@ -2363,14 +2363,14 @@ final class AppState: ObservableObject {
     ///
     /// A session is a session if Claude actually did something in it: it burned
     /// tokens, it cost money, or it changed a file. Everything else is noise.
-    static func isWorthArchiving(_ session: LiveSession) -> Bool {
+    nonisolated static func isWorthArchiving(_ session: LiveSession) -> Bool {
         session.contextTokens > 0 || session.sessionCostUSD > 0 || !session.touchedFiles.isEmpty
     }
 
     /// The same rule applied to an already-archived row, so history saved under
     /// the old rule gets swept clean on the next launch. A record has no file
     /// list, so the evidence is tokens or money.
-    static func isWorthKeeping(_ record: SessionRecord) -> Bool {
+    nonisolated static func isWorthKeeping(_ record: SessionRecord) -> Bool {
         record.contextTokens > 0 || record.costUSD > 0
     }
 
