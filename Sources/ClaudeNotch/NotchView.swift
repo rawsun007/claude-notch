@@ -284,11 +284,6 @@ struct NotchView: View {
     /// On notched MacBooks: match the physical notch so we visually merge.
     /// On non-notched Macs (Air, older): draw a Dynamic-Island-style fake notch
     /// of similar dimensions, hanging from the top.
-    /// TEMPORARY (video). Blacks the collapsed notch out so the pet performs
-    /// against a clean notch with no status bars in shot. Set back to false when
-    /// the recording is done — this is the only thing that reads it.
-    static let videoBlackout = true
-
     static func collapsedSize(on screen: NSScreen?) -> CGSize {
         if let screen,
            screen.safeAreaInsets.top > 0,
@@ -346,19 +341,12 @@ struct NotchView: View {
                     // The collapsed black notch, on top, covering the pet's top.
                     // Same width and content as the idle notch, so the swing
                     // reads as the pet hanging out of the real notch.
-                    Group {
-                        // TEMPORARY (video): blacked out, same as the idle notch.
-                        if NotchView.videoBlackout {
-                            Color.black.frame(width: notch.width, height: notch.height)
-                        } else {
-                            StatusBarRow(state: state)
-                                .frame(width: notch.width, height: notch.height, alignment: .center)
-                        }
-                    }
-                    .background(Color.black)
-                    .clipShape(shape)
-                    .contentShape(Rectangle())
-                    .onTapGesture { state.petBoop() }
+                    StatusBarRow(state: state)
+                        .frame(width: notch.width, height: notch.height, alignment: .center)
+                        .background(Color.black)
+                        .clipShape(shape)
+                        .contentShape(Rectangle())
+                        .onTapGesture { state.petBoop() }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             )
@@ -401,21 +389,10 @@ struct NotchView: View {
                     // Collapsed idle: show the always-visible status bar row
                     // centred within the physical-notch height. Clicking the
                     // bare notch wakes the pet — the notch is where it lives.
-                    // TEMPORARY (video): the collapsed notch is blacked out — no
-                    // status bars, just black — so the pet films against a clean
-                    // notch. Revert `videoBlackout` to false to bring the row
-                    // back. Nothing else depends on this flag.
-                    if !NotchView.videoBlackout {
-                        StatusBarRow(state: state)
-                            .frame(width: card.width, height: card.height, alignment: .center)
-                            .contentShape(Rectangle())
-                            .onTapGesture { state.petBoop() }
-                    } else {
-                        Color.black
-                            .frame(width: card.width, height: card.height)
-                            .contentShape(Rectangle())
-                            .onTapGesture { state.petBoop() }
-                    }
+                    StatusBarRow(state: state)
+                        .frame(width: card.width, height: card.height, alignment: .center)
+                        .contentShape(Rectangle())
+                        .onTapGesture { state.petBoop() }
                 }
             }
             // Black fill + clip apply AT the animating frame size, so the
