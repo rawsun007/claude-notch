@@ -2379,10 +2379,32 @@ final class AppState: ObservableObject {
         record.contextTokens > 0 || record.costUSD > 0
     }
 
+    /// Write (or rewrite) this session's history row.
+    ///
+    /// This is called at the end of every *turn*, not only at the end of the
+    /// session — Stop fires each time Claude finishes replying. The first cut
+    /// archived once and then refused to touch the row again, so a session's
+    /// record froze the moment its first turn ended: an afternoon of work was
+    /// filed as "27s", with the cost and the tool count from that one turn.
+    ///
+    /// The row is therefore keyed by the session and updated in place. Its start
+    /// stays put, its end moves with the latest turn, and the totals track the
+    /// live session, so the duration is the whole session and not its first
+    /// breath.
     private func archiveSession(_ session: LiveSession) {
-        guard !archivedSessionKeys.contains(session.id) else { return }
         guard Self.isWorthArchiving(session) else { return }
         archivedSessionKeys.insert(session.id)
+
+        if let i = sessionHistory.firstIndex(where: { $0.sessionKey == session.id }) {
+            sessionHistory[i].endedAt = Date()
+            sessionHistory[i].contextTokens = session.contextTokens
+            sessionHistory[i].costUSD = session.sessionCostUSD
+            sessionHistory[i].toolCallCount = session.toolCallCount
+            sessionHistory[i].model = session.model
+            schedulePersist()
+            return
+        }
+
         let record = SessionRecord(
             sessionKey: session.id,
             project: session.project.isEmpty ? "unnamed" : session.project,
