@@ -94,6 +94,22 @@ struct NotchView: View {
         return screen.safeAreaInsets.top
     }
 
+    /// Shorten a label from the middle, keeping both ends readable
+    /// ("feature/really-long-name" → "feature/…-name").
+    ///
+    /// Done here rather than by SwiftUI's own truncation because a `Text` given a
+    /// flexible width will keep shrinking as far as the layout demands — a branch
+    /// called "main" was ending up drawn as "m". A label is worth showing when it
+    /// can still be read; the eliding stops well before that point, and the full
+    /// value stays in the tooltip.
+    static func elide(_ text: String, to limit: Int) -> String {
+        guard text.count > limit, limit > 3 else { return text }
+        let keep = limit - 1                      // room for the ellipsis
+        let head = keep - keep / 2
+        let tail = keep / 2
+        return text.prefix(head) + "…" + text.suffix(tail)
+    }
+
     /// Rendered width of a string in the given font — used to size the idle
     /// card to what it's actually showing instead of a fixed width. A fixed
     /// width either left a big dead gap for a sparse session (no model/
@@ -1070,14 +1086,19 @@ private struct IdlePill: View {
                             Image(systemName: "arrow.triangle.branch")
                                 .font(.system(size: 8, weight: .semibold))
                                 .foregroundColor(.white.opacity(0.3))
-                            Text(state.currentGitBranch)
+                            // Elide long branch names ourselves and then hold that
+                            // width. Left to the layout, this was the first thing
+                            // squeezed when the row got tight, and it did not
+                            // stop at "ma…" — it went all the way down to "m",
+                            // which reads as a glyph nobody ordered rather than
+                            // as a branch.
+                            Text(NotchView.elide(state.currentGitBranch, to: 18))
                                 .font(.system(size: 10, design: .rounded))
                                 .foregroundColor(.white.opacity(0.45))
                                 .lineLimit(1)
-                                .truncationMode(.middle)
-                                .frame(maxWidth: 110)
+                                .fixedSize(horizontal: true, vertical: false)
                         }
-                        .help("Checked-out git branch")
+                        .help("Checked-out git branch: \(state.currentGitBranch)")
                     }
                 }
                 Spacer(minLength: 0)
@@ -1208,10 +1229,9 @@ private struct SessionsList: View {
                                 HStack(spacing: 2) {
                                     Image(systemName: "arrow.triangle.branch")
                                         .font(.system(size: 7, weight: .semibold))
-                                    Text(session.gitBranch)
+                                    Text(NotchView.elide(session.gitBranch, to: 16))
                                         .lineLimit(1)
-                                        .truncationMode(.middle)
-                                        .frame(maxWidth: 90)
+                                        .fixedSize(horizontal: true, vertical: false)
                                 }
                                 .font(.system(size: 9, design: .rounded))
                                 .foregroundColor(.white.opacity(0.4))

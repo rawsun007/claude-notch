@@ -322,3 +322,21 @@ final class ReportedContextWindowTests: XCTestCase {
         XCTAssertEqual(w, ClaudeUsageReader.contextWindow)
     }
 }
+
+/// Labels shorten from the middle rather than being crushed by the layout — a
+/// branch called "main" was being drawn as "m".
+final class ElideTests: XCTestCase {
+
+    func testShortNamesAreLeftAlone() {
+        XCTAssertEqual(NotchView.elide("main", to: 18), "main")
+        XCTAssertEqual(NotchView.elide("feature/pet", to: 18), "feature/pet")
+    }
+
+    func testLongNamesKeepBothEnds() {
+        let out = NotchView.elide("feature/really-long-branch-name", to: 18)
+        XCTAssertEqual(out.count, 18)
+        XCTAssertTrue(out.hasPrefix("feature"), "the start says which branch it is")
+        XCTAssertTrue(out.hasSuffix("name"), "the end distinguishes siblings")
+        XCTAssertTrue(out.contains("…"))
+    }
+}
