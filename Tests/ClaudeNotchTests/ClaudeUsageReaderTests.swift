@@ -211,4 +211,47 @@ final class ClaudeUsageReaderSessionMeterTests: XCTestCase {
         let m = ClaudeUsageReader.sessionMeter(transcriptPath: path)
         XCTAssertEqual(m?.contextTokens, 150_000, "occupancy comes from the main thread, not the subagent")
     }
+
+    /// One API response, written out as three lines (thinking, text, tool_use),
+    /// each repeating the same id and the same usage — exactly what Claude Code
+    /// writes for a turn that thinks, talks and then calls a tool.
+    private func blocks(id: String, input: Int, output: Int) -> [String] {
+        (0..<3).map { _ in
+            "{\"message\":{\"id\":\"\(id)\",\"role\":\"assistant\",\"model\":\"claude-opus-4-8\",\"usage\":{\"input_tokens\":\(input),\"output_tokens\":\(output),\"cache_read_input_tokens\":0,\"cache_creation_input_tokens\":0}}}"
+        }
+    }
+
+    func testATurnIsChargedOncePerMessageNotOncePerLine() {
+        let oneLine = writeTranscript([blocks(id: "msg_a", input: 1000, output: 500)[0]])
+        let threeLines = writeTranscript(blocks(id: "msg_a", input: 1000, output: 500))
+        let a = ClaudeUsageReader.sessionMeter(transcriptPath: oneLine)
+        let b = ClaudeUsageReader.sessionMeter(transcriptPath: threeLines)
+        XCTAssertNotNil(a); XCTAssertNotNil(b)
+        // Same turn, same spend — whether it arrived as one block or three.
+        XCTAssertEqual(b!.costUSD, a!.costUSD, accuracy: 1e-9,
+                       "repeated lines for one message must not be billed again")
+    }
+
+    func testDistinctMessagesStillBothCount() {
+        // The dedupe is by message id, so two genuinely different turns must add up.
+        let path = writeTranscript(blocks(id: "msg_a", input: 1000, output: 500)
+                                   + blocks(id: "msg_b", input: 1000, output: 500))
+        let one = writeTranscript(blocks(id: "msg_a", input: 1000, output: 500))
+        let two = ClaudeUsageReader.sessionMeter(transcriptPath: path)!
+        let single = ClaudeUsageReader.sessionMeter(transcriptPath: one)!
+        XCTAssertEqual(two.costUSD, single.costUSD * 2, accuracy: 1e-9)
+    }
+
+    func testLinesWithoutAnIdAreStillCounted() {
+        // Old transcripts have no message id. They can't be deduped, and dropping
+        // them would be worse than the double count they might carry.
+        let path = writeTranscript([
+            assistant(input: 1000, output: 500, sidechain: false),
+            assistant(input: 1000, output: 500, sidechain: false),
+        ])
+        let one = writeTranscript([assistant(input: 1000, output: 500, sidechain: false)])
+        let both = ClaudeUsageReader.sessionMeter(transcriptPath: path)!
+        let single = ClaudeUsageReader.sessionMeter(transcriptPath: one)!
+        XCTAssertEqual(both.costUSD, single.costUSD * 2, accuracy: 1e-9)
+    }
 }

@@ -74,6 +74,24 @@ enum ClaudeUsageReader {
         return (3, 15, 3.75, 0.3)   // default to Sonnet pricing
     }
 
+    /// True the first time this assistant *message* is seen, false for every
+    /// later line that repeats it.
+    ///
+    /// Claude Code does not write one transcript line per API response — it
+    /// writes one line per content block. A turn that thinks, says something and
+    /// then calls a tool lands as three lines, each carrying the same
+    /// `message.id` and, crucially, *the same `usage` object*. Billing every
+    /// line therefore charged that one turn three times over, which is why a
+    /// session could read $228 when it had really spent $123. The usage belongs
+    /// to the message, so it is counted once per message id.
+    ///
+    /// Lines with no id (older transcripts, synthetic entries) can't be deduped
+    /// and are counted as they come.
+    static func isFirstLine(of message: [String: Any], seen: inout Set<String>) -> Bool {
+        guard let id = message["id"] as? String, !id.isEmpty else { return true }
+        return seen.insert(id).inserted
+    }
+
     private static func cost(input: Int, output: Int, cacheRead: Int, cacheCreation: Int, model: String) -> Double {
         let p = price(for: model)
         return Double(input) / 1_000_000 * p.input
@@ -253,6 +271,7 @@ enum ClaudeUsageReader {
 
         var sessionsTodaySet = Set<String>()
         var sessionsWeekSet = Set<String>()
+        var billed = Set<String>()   // message.id — see `isFirstLine(of:seen:)`
 
         for case let url as URL in en {
             guard url.pathExtension == "jsonl" else { continue }
@@ -272,7 +291,8 @@ enum ClaudeUsageReader {
                       let u = msg["usage"] as? [String: Any],
                       let tsStr = obj["timestamp"] as? String,
                       let ts = iso.date(from: tsStr) ?? isoPlain.date(from: tsStr),
-                      ts >= weekAgo
+                      ts >= weekAgo,
+                      isFirstLine(of: msg, seen: &billed)
                 else { continue }
 
                 let model = (msg["model"] as? String) ?? "unknown"
@@ -367,6 +387,7 @@ enum ClaudeUsageReader {
 
         var meter = SessionMeter()
         var sawUsage = false
+        var billed = Set<String>()   // message.id — see `isFirstLine(of:seen:)`
         for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
             guard let ld = line.data(using: .utf8),
                   let obj = try? JSONSerialization.jsonObject(with: ld) as? [String: Any],
@@ -386,8 +407,13 @@ enum ClaudeUsageReader {
             // 7-day project/usage totals include them, and the session meter has
             // to agree or the notch's per-session cost never sums to the project
             // figure. (This skip used to swallow their cost entirely.)
-            meter.costUSD += cost(input: input, output: output,
-                                  cacheRead: cacheRead, cacheCreation: cacheCreation, model: model)
+            //
+            // Charged once per message, not once per line: one API response is
+            // written out as several lines that all repeat the same usage.
+            if isFirstLine(of: msg, seen: &billed) {
+                meter.costUSD += cost(input: input, output: output,
+                                      cacheRead: cacheRead, cacheCreation: cacheCreation, model: model)
+            }
 
             // But subagents run in their own small, fresh context (shared in the
             // transcript as `isSidechain: true`), so the live context/model
