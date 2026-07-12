@@ -671,7 +671,11 @@ final class AppState: ObservableObject {
     init() {
         if let snapshot = Persistence.load() {
             self.history = snapshot.history
-            self.sessionHistory = snapshot.sessionHistory ?? []
+            // Sweep out the sessions the old archive rule let in: rows where
+            // Claude never spent a token, never cost anything and never touched a
+            // file. They are hook noise, not history, and they drag the project
+            // stats around with them.
+            self.sessionHistory = (snapshot.sessionHistory ?? []).filter(Self.isWorthKeeping)
             self.archivedSessionKeys = Set(self.sessionHistory.map(\.sessionKey))
             self.allowRules = snapshot.allowRules
             self.recentProjects = snapshot.recentProjects
@@ -2348,9 +2352,31 @@ final class AppState: ObservableObject {
         schedulePersist()
     }
 
+    /// Whether a finished session is worth a row in the history.
+    ///
+    /// The old rule ("it ran a tool, or it has a project name") let anything
+    /// through, because every hook payload carries a cwd and therefore a project
+    /// name. Any single stray hook — a probe, a script, a one-off command in a
+    /// scratch directory — became a session in the list, which is why the
+    /// history filled up with one-second entries named after folders that no
+    /// longer exist.
+    ///
+    /// A session is a session if Claude actually did something in it: it burned
+    /// tokens, it cost money, or it changed a file. Everything else is noise.
+    static func isWorthArchiving(_ session: LiveSession) -> Bool {
+        session.contextTokens > 0 || session.sessionCostUSD > 0 || !session.touchedFiles.isEmpty
+    }
+
+    /// The same rule applied to an already-archived row, so history saved under
+    /// the old rule gets swept clean on the next launch. A record has no file
+    /// list, so the evidence is tokens or money.
+    static func isWorthKeeping(_ record: SessionRecord) -> Bool {
+        record.contextTokens > 0 || record.costUSD > 0
+    }
+
     private func archiveSession(_ session: LiveSession) {
         guard !archivedSessionKeys.contains(session.id) else { return }
-        guard session.toolCallCount > 0 || !session.project.isEmpty else { return }
+        guard Self.isWorthArchiving(session) else { return }
         archivedSessionKeys.insert(session.id)
         let record = SessionRecord(
             sessionKey: session.id,
