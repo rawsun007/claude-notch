@@ -2209,12 +2209,17 @@ final class AppState: ObservableObject {
     /// seven-day header above it. Both figures now come from the transcripts.
     @Published private(set) var weekCostByProject: [String: Double] = [:]
 
+    /// Spend per calendar day (yyyy-MM-dd), same source. The daily bars used to
+    /// be built from the session records, which only exist for sessions the app
+    /// happened to be running for and archived — so a week of real work showed up
+    /// as one tall bar today and six flat ones.
+    @Published private(set) var weekCostByDay: [String: Double] = [:]
+
     func refreshProjectSpend() {
         Task { [weak self] in
-            let byProject = await Task.detached {
-                ClaudeUsageReader.compute().weekByProject.mapValues(\.costUSD)
-            }.value
-            self?.weekCostByProject = byProject
+            let usage = await Task.detached { ClaudeUsageReader.compute() }.value
+            self?.weekCostByProject = usage.weekByProject.mapValues(\.costUSD)
+            self?.weekCostByDay = usage.dailyCostUSD
         }
     }
 

@@ -2150,29 +2150,23 @@ private struct HistoryCard: View {
     /// Cost per day for the trailing week (oldest first) + totals. Powers the
     /// mini trend header on the Projects tab.
     ///
-    /// The total is the transcripts' total, so it matches the sum of the project
-    /// rows below it. The per-day shape still comes from the session records —
-    /// they are the only thing here with a start date — and is rescaled to the
-    /// real total, so the bars are proportions rather than dollar claims.
+    /// Every number here comes from the transcripts, so the bars, the total and
+    /// the project rows below all agree. The bars used to be built from the
+    /// session records, which only exist for sessions the app was running for and
+    /// archived — so a week of real work rendered as one tall bar today and six
+    /// flat ones.
     private var weekSpend: (total: Double, sessions: Int, daily: [Double]) {
         let cal = Calendar.current
-        let todayStart = cal.startOfDay(for: Date())
-        var daily = [Double](repeating: 0, count: 7)
-        var recorded = 0.0, count = 0
-        for r in state.sessionHistory {
-            let dayStart = cal.startOfDay(for: r.startedAt)
-            guard let days = cal.dateComponents([.day], from: dayStart, to: todayStart).day,
-                  (0..<7).contains(days) else { continue }
-            daily[6 - days] += r.costUSD
-            recorded += r.costUSD
-            count += 1
+        let today = Date()
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        fmt.dateFormat = "yyyy-MM-dd"
+        let daily: [Double] = (0..<7).map { i in
+            guard let day = cal.date(byAdding: .day, value: i - 6, to: today) else { return 0 }
+            return state.weekCostByDay[fmt.string(from: day)] ?? 0
         }
         let total = state.weekCostByProject.values.reduce(0, +)
-        if recorded > 0, total > 0 {
-            let scale = total / recorded
-            daily = daily.map { $0 * scale }
-        }
-        return (total, count, daily)
+        return (total, state.sessionHistory.count, daily)
     }
 
     @ViewBuilder

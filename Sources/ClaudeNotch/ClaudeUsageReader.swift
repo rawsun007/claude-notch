@@ -41,6 +41,7 @@ enum ClaudeUsageReader {
         var weekByModel: [String: Tokens] = [:]
         var weekByProject: [String: Tokens] = [:]   // keyed by cwd
         var dailyTokens: [String: Int] = [:]         // yyyy-MM-dd → total tokens
+        var dailyCostUSD: [String: Double] = [:]     // yyyy-MM-dd → estimated spend
         var hourCounts: [Int: Int] = [:]             // local hour 0...23 → message count
         var cacheSavingsUSD: Double = 0              // vs paying fresh input price
         var sessionsToday = 0
@@ -311,7 +312,9 @@ enum ClaudeUsageReader {
                 if !cwd.isEmpty {
                     usage.weekByProject[cwd, default: Tokens()] = usage.weekByProject[cwd, default: Tokens()] + t
                 }
-                usage.dailyTokens[dayFmt.string(from: ts), default: 0] += t.total
+                let day = dayFmt.string(from: ts)
+                usage.dailyTokens[day, default: 0] += t.total
+                usage.dailyCostUSD[day, default: 0] += c
                 usage.hourCounts[cal.component(.hour, from: ts), default: 0] += 1
                 usage.cacheSavingsUSD += cacheSavings(cacheRead: cacheRead, model: model)
                 if let sid { sessionsWeekSet.insert(sid) }
