@@ -287,3 +287,38 @@ final class ClaudeUsageReaderSessionMeterTests: XCTestCase {
         XCTAssertEqual(both.costUSD, single.costUSD * 2, accuracy: 1e-9)
     }
 }
+
+/// The window Claude Code reports beats anything the app infers. Inference is
+/// the fallback for the first frames of a session, before a status line lands.
+final class ReportedContextWindowTests: XCTestCase {
+
+    func testReportedWindowWinsOverInference() {
+        // The model rule would say 200k here; Claude Code says otherwise, and
+        // Claude Code is the one running the model.
+        let w = AppState.windowFor(model: "claude-haiku-4-5", reported: 1_000_000,
+                                   learned: [:], tokens: 10, mode: .auto)
+        XCTAssertEqual(w, 1_000_000)
+    }
+
+    func testLearnedWindowUsedBeforeThisSessionReportsOne() {
+        // A fresh session on a model we have seen before starts with the truth
+        // instead of guessing until its first status line arrives.
+        let w = AppState.windowFor(model: "claude-opus-4-8", reported: 0,
+                                   learned: ["claude-opus-4-8": 1_000_000],
+                                   tokens: 10, mode: .auto)
+        XCTAssertEqual(w, 1_000_000)
+    }
+
+    func testInferenceIsTheFallback() {
+        let w = AppState.windowFor(model: "claude-haiku-4-5", reported: 0, learned: [:],
+                                   tokens: 10, mode: .auto)
+        XCTAssertEqual(w, ClaudeUsageReader.contextWindow)
+    }
+
+    func testAnExplicitModeOverridesEverything() {
+        // The user forcing 200k means 200k, whatever Claude Code reported.
+        let w = AppState.windowFor(model: "claude-opus-4-8", reported: 1_000_000,
+                                   learned: [:], tokens: 10, mode: .w200k)
+        XCTAssertEqual(w, ClaudeUsageReader.contextWindow)
+    }
+}

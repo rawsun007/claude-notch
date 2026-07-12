@@ -423,11 +423,20 @@ final class EventServer {
         let contextPct = num("context_pct")
         let fiveHourPct = num("five_hour_pct")
         let sevenDayPct = num("seven_day_pct")
+        // The window Claude Code itself is measuring against, and the tokens it
+        // counts as being in it. This is the only place either number is
+        // reported: hooks don't carry them, and the transcript doesn't record
+        // them. Everything else the app does with a context window is inference.
+        let contextWindow = num("context_window").map(Int.init)
+        let contextTokens = num("context_tokens").map(Int.init)
         // Nothing usable — don't churn the UI.
-        guard contextPct != nil || fiveHourPct != nil || sevenDayPct != nil else { return }
+        guard contextPct != nil || fiveHourPct != nil || sevenDayPct != nil
+                || contextWindow != nil else { return }
         Task { @MainActor [weak state] in
             state?.noteStatusLine(sessionId: sessionId, model: model,
                                   contextPct: contextPct,
+                                  contextWindow: contextWindow,
+                                  contextTokens: contextTokens,
                                   fiveHourPct: fiveHourPct,
                                   sevenDayPct: sevenDayPct)
         }

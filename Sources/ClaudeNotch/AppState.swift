@@ -95,6 +95,9 @@ struct LiveSession: Identifiable, Equatable {
     // Live context + cost meter, parsed from this session's transcript usage.
     var contextPercent: Double = 0   // 0...1 of the context window in use now
     var contextTokens: Int = 0       // raw input-side tokens (for re-deriving % on override)
+    // The window Claude Code reported for this session (0 = never reported, so
+    // the app has to infer it). Only the status line carries this.
+    var contextWindow: Int = 0
     var sessionCostUSD: Double = 0   // cumulative estimated cost so far
     var model: String = ""           // most recent model id (e.g. claude-opus-4-8)
     var isCompacting: Bool = false   // true between PreCompact and the next event
@@ -705,6 +708,7 @@ final class AppState: ObservableObject {
             self.contextWindowMode = snapshot.contextWindowMode.flatMap(ContextWindowMode.init) ?? .auto
             self.notchTitleMode = snapshot.notchTitleMode.flatMap(NotchTitleMode.init) ?? .claude
             self.customNotchTitle = snapshot.customNotchTitle ?? ""
+            self.learnedContextWindows = snapshot.learnedContextWindows ?? [:]
         } else {
             self.requireTouchID = BiometricAuth.isAvailable
         }
@@ -1268,7 +1272,8 @@ final class AppState: ObservableObject {
     /// Authoritative usage fed by Claude Code's statusLine command (the only
     /// local source of real plan-limit %). Percentages arrive as 0...100.
     func noteStatusLine(sessionId: String, model: String,
-                        contextPct: Double?, fiveHourPct: Double?, sevenDayPct: Double?) {
+                        contextPct: Double?, contextWindow: Int? = nil, contextTokens: Int? = nil,
+                        fiveHourPct: Double?, sevenDayPct: Double?) {
         if let p = fiveHourPct { fiveHourLimitPercent = min(1, max(0, p / 100)) }
         if let p = sevenDayPct { weeklyLimitPercent = min(1, max(0, p / 100)) }
 
@@ -1278,11 +1283,43 @@ final class AppState: ObservableObject {
         upsertSession(id: sessionId, cwd: currentCwd) { s in
             if let pct { s.contextPercent = pct }
             if !model.isEmpty { s.model = model }
+            if let w = contextWindow, w > 0 { s.contextWindow = w }
+            if let t = contextTokens, t > 0 { s.contextTokens = t }
         }
         let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
         guard isCurrent else { return }
         if let pct { currentContextPercent = pct }
         if !model.isEmpty { currentModel = model }
+        if let w = contextWindow, w > 0 {
+            currentContextWindow = w
+            // Remember it per model, so the next session on this model shows the
+            // right window from its first frame instead of guessing until the
+            // first status line lands.
+            if !model.isEmpty, learnedContextWindows[model] != w {
+                learnedContextWindows[model] = w
+                schedulePersist()
+            }
+        }
+        if let t = contextTokens, t > 0 { currentContextTokens = t }
+    }
+
+    /// The context window Claude Code says it is measuring the current session
+    /// against. 0 until a status line has been seen.
+    @Published private(set) var currentContextWindow: Int = 0
+
+    /// Windows reported by Claude Code, keyed by model id. Persisted, so a fresh
+    /// session starts with the true window rather than an inference.
+    @Published private(set) var learnedContextWindows: [String: Int] = [:]
+
+    /// The window to measure a session against: what Claude Code reported for it,
+    /// else what it reported for this model before, else the inference.
+    nonisolated static func windowFor(model: String, reported: Int, learned: [String: Int],
+                                      tokens: Int, mode: ContextWindowMode) -> Int {
+        if mode == .auto {
+            if reported > 0 { return reported }
+            if let known = learned[model], known > 0 { return known }
+        }
+        return ClaudeUsageReader.contextWindow(forModel: model, tokens: tokens, mode: mode)
     }
 
     /// Demo entry point: show the budget alert card exactly as a real
@@ -1445,7 +1482,8 @@ final class AppState: ObservableObject {
             statusBarItems: statusBarItems.map(\.rawValue),
             contextWindowMode: contextWindowMode.rawValue,
             notchTitleMode: notchTitleMode.rawValue,
-            customNotchTitle: customNotchTitle
+            customNotchTitle: customNotchTitle,
+            learnedContextWindows: learnedContextWindows
         ))
     }
 

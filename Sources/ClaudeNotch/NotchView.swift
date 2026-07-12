@@ -1094,7 +1094,12 @@ private struct IdlePill: View {
                     model: state.currentModel,
                     showModelName: false,   // row 2 already names it
                     costCap: state.sessionCostCap,
-                    tokens: state.currentContextTokens
+                    tokens: state.currentContextTokens,
+                    window: AppState.windowFor(model: state.currentModel,
+                                               reported: state.currentContextWindow,
+                                               learned: state.learnedContextWindows,
+                                               tokens: state.currentContextTokens,
+                                               mode: state.contextWindowMode)
                 )
                 .layoutPriority(1)
             }
@@ -1252,7 +1257,12 @@ private struct SessionsList: View {
                                            cost: session.sessionCostUSD,
                                            model: session.model,
                                            costCap: state.sessionCostCap,
-                                           tokens: session.contextTokens)
+                                           tokens: session.contextTokens,
+                                           window: AppState.windowFor(model: session.model,
+                                                                      reported: session.contextWindow,
+                                                                      learned: state.learnedContextWindows,
+                                                                      tokens: session.contextTokens,
+                                                                      mode: state.contextWindowMode))
                                 .padding(.leading, 14)
                         }
                     }
@@ -1314,6 +1324,10 @@ struct ContextCostBar: View {
     var showModelName: Bool = true
     var costCap: Double = 0 // session budget; 0 = off. Tints the cost figure.
     var tokens: Int = 0     // raw token count; 0 = omit token display
+    /// The window Claude Code itself reported for this session. 0 = never
+    /// reported (no status line yet), in which case the app falls back to
+    /// inferring it from the model.
+    var window: Int = 0
 
     private var clamped: CGFloat { min(1, max(0, CGFloat(percent))) }
     private var costColor: Color {
@@ -1341,7 +1355,9 @@ struct ContextCostBar: View {
         return n >= 1000 ? "\(n / 1000)k" : "\(n)"
     }
     private var maxTokens: Int {
-        ClaudeUsageReader.contextWindow(forModel: model, tokens: tokens, mode: .auto)
+        // Claude Code's own number wins over anything the app can work out.
+        if window > 0 { return window }
+        return ClaudeUsageReader.contextWindow(forModel: model, tokens: tokens, mode: .auto)
     }
     private var tokenLabel: String {
         guard tokens > 0 else { return "" }

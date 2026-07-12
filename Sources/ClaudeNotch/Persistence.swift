@@ -34,6 +34,9 @@ enum Persistence {
         var contextWindowMode: String? = nil
         var notchTitleMode: String? = nil
         var customNotchTitle: String? = nil
+        /// Context windows Claude Code reported, keyed by model id. Real data, not
+        /// a guess — see AppState.noteStatusLine.
+        var learnedContextWindows: [String: Int]? = nil
     }
 
     static let storeURL: URL = {
@@ -98,7 +101,8 @@ extension Persistence.Snapshot {
             statusBarItems: try? c.decode([String].self, forKey: .statusBarItems),
             contextWindowMode: try? c.decode(String.self, forKey: .contextWindowMode),
             notchTitleMode: try? c.decode(String.self, forKey: .notchTitleMode),
-            customNotchTitle: try? c.decode(String.self, forKey: .customNotchTitle)
+            customNotchTitle: try? c.decode(String.self, forKey: .customNotchTitle),
+            learnedContextWindows: try? c.decode([String: Int].self, forKey: .learnedContextWindows)
         )
     }
 }
