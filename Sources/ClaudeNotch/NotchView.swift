@@ -201,47 +201,9 @@ struct NotchView: View {
         row2.append(bar.reduce(0, +) + CGFloat(bar.count - 1) * 5)
         let row2Width = row2.reduce(0, +) + CGFloat(max(0, row2.count - 1)) * 5
 
-        return max(row1Width, row2Width, statusRowWidth(for: state, hovering: hovering))
+        return max(row1Width, row2Width)
     }
 
-    /// Natural width of the status row (the limits + cost). It only shows while
-    /// the notch is open.
-    ///
-    /// This was the miss that made the limits truncate to "4…" and "3d 17…": the
-    /// row moved into the expanded card, but the card kept sizing itself to rows
-    /// 1 and 2 only, so it was measured for content it was no longer the widest
-    /// thing in. A row that the card was never told about is a row that gets
-    /// squeezed.
-    private static func statusRowWidth(for state: AppState, hovering: Bool) -> CGFloat {
-        guard hovering || state.persistentNotchDisplay else { return 0 }
-        let items = state.statusBarItems
-        guard !items.isEmpty else { return 0 }
-
-        func widthOfItem(_ item: StatusBarItem) -> CGFloat {
-            var parts: [CGFloat] = [textWidth(item.barLabel, size: 9, weight: .medium)]
-            switch item {
-            case .fiveHourLimit, .weeklyLimit:
-                parts.append(52)   // the fill capsule
-                let pct = item == .fiveHourLimit ? state.fiveHourLimitPercent : state.weeklyLimitPercent
-                let text = pct >= 0 ? "\(Int((pct * 100).rounded()))%" : "—"
-                parts.append(textWidth(text, size: 9, weight: .semibold))
-                let resetAt = item == .fiveHourLimit ? state.fiveHourResetAt : state.weeklyResetAt
-                if let resetAt {
-                    parts.append(textWidth(ClaudeUsageReader.resetCountdown(until: resetAt), size: 9))
-                }
-            case .sessionCost:
-                parts.append(textWidth(ClaudeUsageReader.fmtMoney(state.currentCostUSD), size: 9, weight: .semibold))
-            }
-            // 5pt between every element in the widget.
-            return parts.reduce(0, +) + CGFloat(parts.count - 1) * 5
-        }
-
-        // Widgets, plus a separator (1pt + 12pt of padding each side) between
-        // them, plus the row's own 16pt horizontal padding.
-        let widgets = items.map(widthOfItem).reduce(0, +)
-        let separators = CGFloat(max(0, items.count - 1)) * 25
-        return widgets + separators + 32
-    }
 
     static func size(for mode: NotchMode, hovering: Bool = false, on screen: NSScreen? = nil, state: AppState? = nil) -> CGSize {
         let s = screen ?? NSScreen.main
@@ -267,9 +229,7 @@ struct NotchView: View {
             // +12 slack on top of the 56pt content padding — NSFont measuring
             // and SwiftUI's actual Text layout don't agree to the pixel, and
             // running short here is what truncates the model name.
-            // The ceiling has to clear the widest row the card can hold, which is
-            // now the status row with two countdowns in it — 380 cut it off.
-            let width = min(470, max(230, idleContentWidth(for: state, hovering: true) + 56 + 12))
+            let width = min(380, max(230, idleContentWidth(for: state, hovering: true) + 56 + 12))
             return CGSize(width: width, height: inset + 64)
         case .thinking:
             return CGSize(width: 340, height: inset + 64)
@@ -1253,20 +1213,12 @@ private struct IdlePill: View {
                 SessionsList(state: state, pulsePhase: pulsePhase)
             }
 
-            // Expanded notch: append the status bar row. It normally lives in the
-            // collapsed state, which the expansion replaces — so without this,
-            // opening the notch *hid* the limits, and with them the answer to the
-            // only question worth opening it for: when does my window reset. The
-            // expanded card is also the one place wide enough to print the
-            // countdowns rather than bury them in a tooltip.
-            if isOpen {
-                Rectangle()
-                    .fill(Color.white.opacity(0.06))
-                    .frame(height: 0.5)
-                    .padding(.horizontal, -14)
-                StatusBarRow(state: state)
-                    .padding(.horizontal, -14)
-            }
+            // The limits are NOT here. They lived in the collapsed notch, where
+            // they truncated to "8…" because it is only as wide as the hardware
+            // cutout, and then in this hover card, where they made a glanceable
+            // two-line pill into a three-line dashboard. They belong in the
+            // history panel (the clock icon), which is where you go when you
+            // actually want the numbers.
         }
         .onAppear {
             withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
@@ -2420,6 +2372,7 @@ private struct HistoryCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
+            limitsRow
             tabPicker
             searchField
             if tab == .events { filterChips }
@@ -2427,6 +2380,19 @@ private struct HistoryCard: View {
             footer
         }
         .onAppear { searchFocused = true }
+    }
+
+    /// Plan limits and session cost. This is the screen you open when you want
+    /// the numbers, so this is where they live — with room to print the reset
+    /// countdowns in full rather than squeezing them into the notch.
+    @ViewBuilder
+    private var limitsRow: some View {
+        StatusBarRow(state: state)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.white.opacity(0.04))
+            )
     }
 
     private var header: some View {
