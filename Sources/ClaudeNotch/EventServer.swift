@@ -420,12 +420,17 @@ final class EventServer {
         // once, but a session can be renamed at any point in its life.
         let sessionName = (payload["session_name"] as? String) ?? ""
         let worktree = (payload["worktree"] as? String) ?? ""
+        // The open PR for this branch, if there is one. Claude Code resolves it;
+        // the app would otherwise have to shell out to `gh` to know.
+        let prURL = (payload["pr_url"] as? String) ?? ""
+        let prState = (payload["pr_state"] as? String) ?? ""
         func num(_ key: String) -> Double? {
             if let d = payload[key] as? Double { return d }
             if let i = payload[key] as? Int { return Double(i) }
             if let s = payload[key] as? String, let d = Double(s) { return d }
             return nil
         }
+        let prNumber = num("pr_number").map(Int.init)
         let contextPct = num("context_pct")
         let fiveHourPct = num("five_hour_pct")
         let sevenDayPct = num("seven_day_pct")
@@ -441,10 +446,12 @@ final class EventServer {
         let sevenDayResetsAt = num("seven_day_resets_at").map { Date(timeIntervalSince1970: $0) }
         // Nothing usable — don't churn the UI.
         guard contextPct != nil || fiveHourPct != nil || sevenDayPct != nil
-                || contextWindow != nil || !sessionName.isEmpty || !worktree.isEmpty else { return }
+                || contextWindow != nil || !sessionName.isEmpty || !worktree.isEmpty
+                || prNumber != nil else { return }
         Task { @MainActor [weak state] in
             state?.noteStatusLine(sessionId: sessionId, model: model,
                                   sessionName: sessionName, worktree: worktree,
+                                  prNumber: prNumber, prURL: prURL, prState: prState,
                                   contextPct: contextPct,
                                   contextWindow: contextWindow,
                                   contextTokens: contextTokens,

@@ -53,3 +53,33 @@ final class StatusLineTests: XCTestCase {
         XCTAssertEqual(s.learnedContextWindows["claude-opus-4-8"], 1_000_000)
     }
 }
+
+/// The PR badge. Claude Code resolves the open PR for the branch, so the notch
+/// links to it without shelling out to `gh`.
+@MainActor
+final class PullRequestBadgeTests: XCTestCase {
+
+    func testPRIsCapturedFromTheStatusLine() {
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/repo", sessionId: "abc")
+        s.noteStatusLine(sessionId: "abc", model: "claude-opus-4-8",
+                         prNumber: 42, prURL: "https://github.com/o/r/pull/42", prState: "approved",
+                         contextPct: nil, fiveHourPct: nil, sevenDayPct: nil)
+        XCTAssertEqual(s.sessions["abc"]?.prNumber, 42)
+        XCTAssertEqual(s.sessions["abc"]?.prState, "approved")
+    }
+
+    func testNoPRLeavesTheBadgeOff() {
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/repo", sessionId: "abc")
+        s.noteStatusLine(sessionId: "abc", model: "claude-opus-4-8",
+                         contextPct: 5, fiveHourPct: nil, sevenDayPct: nil)
+        XCTAssertEqual(s.sessions["abc"]?.prNumber, 0, "no PR means no badge, not #0")
+    }
+
+    func testTooltipNamesTheReviewState() {
+        XCTAssertEqual(NotchView.prTooltip(number: 7, state: "changes_requested"),
+                       "Pull request #7 · changes requested")
+        XCTAssertEqual(NotchView.prTooltip(number: 7, state: ""), "Pull request #7")
+    }
+}

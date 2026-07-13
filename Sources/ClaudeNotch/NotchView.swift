@@ -94,6 +94,31 @@ struct NotchView: View {
         return screen.safeAreaInsets.top
     }
 
+    /// Colour of the PR badge: the review state is the only thing about a PR you
+    /// want to know without opening it.
+    static func prTint(_ state: String) -> Color {
+        switch state {
+        case "approved":          return .green.opacity(0.8)
+        case "changes_requested": return .orange.opacity(0.85)
+        case "draft":             return .white.opacity(0.35)
+        default:                  return .white.opacity(0.5)   // pending / unknown
+        }
+    }
+
+    static func prTooltip(number: Int, state: String) -> String {
+        let described: String = {
+            switch state {
+            case "approved":          return "approved"
+            case "changes_requested": return "changes requested"
+            case "draft":             return "draft"
+            case "pending":           return "review pending"
+            default:                  return ""
+            }
+        }()
+        let base = "Pull request #\(number)"
+        return described.isEmpty ? base : "\(base) · \(described)"
+    }
+
     /// Shorten a label from the middle, keeping both ends readable
     /// ("feature/really-long-name" → "feature/…-name").
     ///
@@ -1283,6 +1308,26 @@ private struct SessionsList: View {
                                 }
                                 .font(.system(size: 9, design: .rounded))
                                 .foregroundColor(.white.opacity(0.4))
+                            }
+                            // The open PR for this branch. Claude Code resolves it,
+                            // so the notch can link straight to it instead of the
+                            // app shelling out to `gh` to find out it exists.
+                            if session.prNumber > 0 {
+                                Button {
+                                    guard let url = URL(string: session.prURL) else { return }
+                                    NSWorkspace.shared.open(url)
+                                } label: {
+                                    HStack(spacing: 2) {
+                                        Image(systemName: "arrow.triangle.pull")
+                                            .font(.system(size: 7, weight: .semibold))
+                                        Text("#\(session.prNumber)")
+                                            .font(.system(size: 9, design: .rounded).monospacedDigit())
+                                    }
+                                    .foregroundColor(NotchView.prTint(session.prState))
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(session.prURL.isEmpty)
+                                .help(NotchView.prTooltip(number: session.prNumber, state: session.prState))
                             }
                             // Two sessions in the same repo look identical in this
                             // list. The worktree is what tells them apart.

@@ -111,6 +111,11 @@ struct LiveSession: Identifiable, Equatable {
     // Git worktree this session is in, when it is in a linked one. Two sessions
     // in the same repo are otherwise identical in the list.
     var worktree: String = ""
+    // The open PR for this session's branch, resolved by Claude Code (the app
+    // would otherwise have to shell out to `gh` to know it exists).
+    var prNumber: Int = 0
+    var prURL: String = ""
+    var prState: String = ""     // approved / pending / changes_requested / draft
     // Files Claude edited or wrote this session (ordered, unique, newest
     // last, capped). Drives the "N files" chip + Files Touched menu.
     var touchedFiles: [String] = []
@@ -1281,6 +1286,7 @@ final class AppState: ObservableObject {
     /// local source of real plan-limit %). Percentages arrive as 0...100.
     func noteStatusLine(sessionId: String, model: String,
                         sessionName: String = "", worktree: String = "",
+                        prNumber: Int? = nil, prURL: String = "", prState: String = "",
                         contextPct: Double?, contextWindow: Int? = nil, contextTokens: Int? = nil,
                         fiveHourPct: Double?, sevenDayPct: Double?,
                         fiveHourResetsAt: Date? = nil, sevenDayResetsAt: Date? = nil) {
@@ -1299,6 +1305,11 @@ final class AppState: ObservableObject {
             if let t = contextTokens, t > 0 { s.contextTokens = t }
             if !sessionName.isEmpty { s.title = sessionName }
             if !worktree.isEmpty { s.worktree = worktree }
+            if let pr = prNumber, pr > 0 {
+                s.prNumber = pr
+                s.prURL = prURL
+                s.prState = prState
+            }
         }
         let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
         guard isCurrent else { return }
