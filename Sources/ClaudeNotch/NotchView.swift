@@ -363,12 +363,10 @@ struct NotchView: View {
                 ZStack(alignment: .top) {
                     PetStageView(state: state, stageWidth: card.width, notchInset: state.notchTopInset)
                         .frame(width: card.width, height: card.height, alignment: .top)
-                    // The collapsed black notch, on top, covering the pet's top.
-                    // Same width and content as the idle notch, so the swing
-                    // reads as the pet hanging out of the real notch.
-                    StatusBarRow(state: state)
-                        .frame(width: notch.width, height: notch.height, alignment: .center)
-                        .background(Color.black)
+                    // The collapsed black notch, on top, covering the pet's top,
+                    // so the swing reads as the pet hanging out of the real notch.
+                    Color.black
+                        .frame(width: notch.width, height: notch.height)
                         .clipShape(shape)
                         .contentShape(Rectangle())
                         .onTapGesture { state.petBoop() }
@@ -411,11 +409,20 @@ struct NotchView: View {
                     PetStageView(state: state, stageWidth: card.width, notchInset: state.notchTopInset)
                         .frame(width: card.width, height: card.height, alignment: .top)
                 } else {
-                    // Collapsed idle: show the always-visible status bar row
-                    // centred within the physical-notch height. Clicking the
-                    // bare notch wakes the pet — the notch is where it lives.
-                    StatusBarRow(state: state)
-                        .frame(width: card.width, height: card.height, alignment: .center)
+                    // Collapsed idle: nothing but the notch.
+                    //
+                    // The status row used to live here, and it never fitted: the
+                    // collapsed card is exactly as wide as the hardware cutout, so
+                    // every figure in it was squeezed down to an ellipsis. A row of
+                    // "8…" and "$…" is not information, it is litter, and it was
+                    // sitting in the one place the app is supposed to be invisible.
+                    // The limits live in the expanded notch now, where they fit and
+                    // can show their reset countdowns.
+                    //
+                    // Clicking the bare notch still wakes the pet — the notch is
+                    // where it lives.
+                    Color.clear
+                        .frame(width: card.width, height: card.height)
                         .contentShape(Rectangle())
                         .onTapGesture { state.petBoop() }
                 }
@@ -833,10 +840,6 @@ private struct PetStageView: View {
 /// weekly cost as labelled mini progress bars relative to their configured caps.
 private struct StatusBarRow: View {
     @ObservedObject var state: AppState
-    /// True in the collapsed notch, which is only as wide as the hardware cutout
-    /// and has no room for the reset countdowns (they stay in the tooltip). The
-    /// persistent card is wide enough to show them.
-    var compact: Bool = true
 
     /// Display data for one bar slot: bar fill (0...1, nil = no data) and the
     /// right-side label. For `.sessionCost` we skip the fill bar and show raw $.
@@ -937,7 +940,7 @@ private struct StatusBarRow: View {
         TimelineView(.periodic(from: .now, by: 30)) { _ in
             HStack(spacing: 0) {
                 ForEach(Array(items.enumerated()), id: \.offset) { idx, item in
-                    let d = barData(for: item, showCountdown: !compact)
+                    let d = barData(for: item, showCountdown: true)
                     BarWidget(label: item.barLabel, data: d, tint: tint(for: d.pct ?? 0))
                     if idx < items.count - 1 { separator }
                 }
@@ -1220,7 +1223,7 @@ private struct IdlePill: View {
                     .fill(Color.white.opacity(0.06))
                     .frame(height: 0.5)
                     .padding(.horizontal, -14)
-                StatusBarRow(state: state, compact: false)
+                StatusBarRow(state: state)
                     .padding(.horizontal, -14)
             }
         }
