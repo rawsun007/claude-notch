@@ -586,3 +586,53 @@ final class PetWatchesClaudeTests: XCTestCase {
         }
     }
 }
+
+/// The pet reacts to things going wrong, not just to things going right.
+final class PetFlinchTests: XCTestCase {
+
+    private let stage = PetEngine.Stage(notchInset: 32, halfWidth: 110)
+
+    func testAFailureOutranksACompletion() {
+        // A turn that died did not finish. If both flags are somehow set, the
+        // pet must not stand there celebrating a crash.
+        var ctx = PetEngine.Context()
+        ctx.justFinished = true
+        ctx.justFailed = true
+        XCTAssertEqual(PetEngine.mood(for: ctx), .startled)
+    }
+
+    func testStartledPetFlinches() {
+        var rng = SeededRNG(seed: 2)
+        XCTAssertEqual(PetEngine.pickActivity(mood: .startled, using: &rng), .flinch)
+    }
+
+    func testFlinchRecoilsHardThenSettles() {
+        // A fright is a fast recoil and a slow recovery. The early motion must be
+        // much bigger than the late motion, or it reads as a dance step.
+        func peak(_ lo: Double, _ hi: Double) -> Double {
+            Array(stride(from: lo, to: hi, by: 0.01))
+                .map { abs(PetEngine.pose(for: .flinch, progress: $0, stage: stage).x) }
+                .max() ?? 0
+        }
+        XCTAssertGreaterThan(peak(0.0, 0.3), peak(0.6, 1.0) * 2)
+    }
+
+    func testFlinchStartsAlarmedAndEndsWary() {
+        let early = PetEngine.pose(for: .flinch, progress: 0.2, stage: stage)
+        let late = PetEngine.pose(for: .flinch, progress: 0.9, stage: stage)
+        XCTAssertEqual(early.emote, .bang)
+        XCTAssertEqual(late.emote, .dots)
+    }
+
+    func testFlinchStaysOnStage() {
+        // Checked across the hold phase: at the very start and end the pet is
+        // still behind the notch, which is where it is supposed to be.
+        for i in 20...80 {
+            let p = PetEngine.pose(for: .flinch, progress: Double(i) / 100, stage: stage)
+            let floor = stage.notchInset + PetActivity.flinch.stageDrop - PetActivity.flinch.spriteSize / 2
+            XCTAssertLessThanOrEqual(p.y, floor + 0.001)
+            XCTAssertGreaterThanOrEqual(p.y - PetActivity.flinch.spriteSize / 2, stage.notchInset - 0.001,
+                                        "the recoil must not jump the pet up into the notch")
+        }
+    }
+}

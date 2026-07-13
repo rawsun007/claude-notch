@@ -28,6 +28,7 @@ struct SeededRNG: RandomNumberGenerator {
 /// What the pet *feels*, derived entirely from what Claude is doing. Mood
 /// picks the activity table and the tempo; it never picks an activity itself.
 enum PetMood: String, CaseIterable, Equatable {
+    case startled     // a turn just died, or you denied a command
     case sleepy       // nothing has happened for a long while
     case calm         // idle, recently used
     case curious      // a session exists but is quiet
@@ -51,6 +52,7 @@ enum PetActivity: String, CaseIterable, Equatable {
     case spin         // booped several times in a row: a delighted backflip
     case rope         // dangles from a rope out of the notch, swinging
     case watch        // Claude is working: the pet stays out and keeps it company
+    case flinch       // something went wrong: a startled recoil, then a wary peek
 
     /// Sprite size in points. Big enough to read as a creature at arm's length
     /// from the screen, not a favicon: the mascot is the feature, and the notch
@@ -214,6 +216,7 @@ enum PetEngine {
         var isWorking: Bool = false          // Claude is running a tool
         var isThinking: Bool = false
         var justFinished: Bool = false       // a task completed in the last few seconds
+        var justFailed: Bool = false         // a turn died, or a command was denied
         var secondsSinceActivity: Double = 0 // since the last hook event
 
         /// The pet only acts when the notch is genuinely at rest. Never over an
@@ -229,6 +232,8 @@ enum PetEngine {
     static let sleepAfter: Double = 300
 
     static func mood(for ctx: Context) -> PetMood {
+        // A failure outranks a completion: if the turn died, it did not finish.
+        if ctx.justFailed { return .startled }
         if ctx.justFinished { return .celebrating }
         if ctx.isWorking { return .working }
         if ctx.isThinking { return .thinking }
@@ -260,6 +265,8 @@ enum PetEngine {
             return [(.watch, 3), (.peek, 2), (.lookAround, 1)]
         case .celebrating:
             return [(.celebrate, 1)]
+        case .startled:
+            return [(.flinch, 1)]
         }
     }
 
@@ -297,6 +304,7 @@ enum PetEngine {
         // change gravity with it.
         case .rope:       return ropeDuration
         case .watch:      return Double.random(in: 3.5...5.0, using: &rng)
+        case .flinch:     return 2.0
         }
     }
 
@@ -319,6 +327,7 @@ enum PetEngine {
         case .working,
              .thinking:    return Double.random(in: 0.5...2.0, using: &rng)
         case .celebrating: return 6
+        case .startled:    return 5
         }
     }
 
@@ -641,6 +650,20 @@ enum PetEngine {
             // Thought dots while it watches, unless you are scratching its head.
             pose.emote = stage.petting ? .heart : (t > 0.25 ? .dots : nil)
             pose.emoteScale = 0.8
+
+        case .flinch:
+            // Startled. It jumps back from whatever just happened, shakes, then
+            // creeps forward again to look at it — the recoil is fast and the
+            // recovery is slow, which is what makes it read as a fright rather
+            // than a dance step.
+            let recoil = exp(-t * 5) * cos(t * 2 * .pi * 4)
+            pose.x = recoil * 6 * envelope
+            pose.y -= abs(recoil) * 3 * envelope
+            pose.rotation = recoil * 9
+            pose.scaleY = 1 + stretch * 0.5 - abs(recoil) * 0.10
+            pose.scaleX = 1 - stretch * 0.35 + abs(recoil) * 0.08
+            pose.emote = stage.petting ? .heart : (t < 0.55 ? .bang : .dots)
+            pose.emoteScale = 1.1 - t * 0.5
 
         case .rope:
             // Simulated, not keyframed — see `ropeState`. The generic drop-out

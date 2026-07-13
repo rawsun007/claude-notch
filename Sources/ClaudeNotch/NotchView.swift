@@ -662,6 +662,7 @@ private struct ClaudeIconView: View {
         case .working:     return (0.7, 1.6)    // busy, quick
         case .thinking:    return (1.1, 1.2)
         case .celebrating: return (0.45, 2.4)   // bouncing
+        case .startled:    return (0.3, 2.0)    // jittery
         case .sleepy:      return (3.2, 0.5)    // barely breathing
         case .curious:     return (1.5, 1.0)
         case .calm, .none: return (1.8, 0.9)

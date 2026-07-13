@@ -511,6 +511,8 @@ final class AppState: ObservableObject {
     /// A finished task makes the pet celebrate — but only briefly, so a task
     /// that finished ten minutes ago doesn't leave it hopping forever.
     private var petCelebrateUntil: Date = .distantPast
+    /// The pet is startled until this instant (a turn died, or you said no).
+    private var petStartleUntil: Date = .distantPast
     private var petActivityStart: Date = .distantPast
     private var petActivityDuration: Double = 0
     /// Seconds the current activity spent frozen under the user's cursor.
@@ -760,6 +762,7 @@ final class AppState: ObservableObject {
         ctx.isWorking = isClaudeWorking && claudeActionStatus != "thinking"
         ctx.isThinking = claudeActionStatus == "thinking"
         ctx.justFinished = Date() < petCelebrateUntil
+        ctx.justFailed = Date() < petStartleUntil
         ctx.secondsSinceActivity = lastHookAt.map { Date().timeIntervalSince($0) } ?? PetEngine.sleepAfter
         return ctx
     }
@@ -914,6 +917,20 @@ final class AppState: ObservableObject {
         petNextActionAt = Date().addingTimeInterval(1.2)
     }
 
+    /// Something went wrong: a turn died, or you denied a command. The pet jumps.
+    /// Immediate, unlike the celebration — a fright has no delay in it.
+    ///
+    /// The window is generous because a failure usually raises a card, and the
+    /// pet is not allowed to perform over a card the user is reading. It has to
+    /// still be startled when that card clears, or it would sleep through the
+    /// one event it exists to react to.
+    func petStartle() {
+        guard petEnabled else { return }
+        petStartleUntil = Date().addingTimeInterval(14)
+        petCelebrateUntil = .distantPast   // a dead turn did not finish
+        petNextActionAt = Date()
+    }
+
     /// Demos menu: perform these activities back to back, right now, whatever
     /// else is going on. Turns Pet Mode on if it was off — you asked to see the
     /// pet, so here is the pet.
@@ -1001,6 +1018,7 @@ final class AppState: ObservableObject {
         case .deny:
             stats.denied += 1; sessionDenied += 1
             day.denied += 1
+            petStartle()
         case .ask:
             break
         }
@@ -1837,6 +1855,7 @@ final class AppState: ObservableObject {
     /// long task never dies silently while the user is away.
     func noteStopFailure(title: String, detail: String, cwd: String, sessionId: String) {
         markSessionDone(cwd: cwd, sessionId: sessionId)
+        petStartle()
         upsertSession(id: sessionId, cwd: cwd) { s in
             s.status = "error"
         }

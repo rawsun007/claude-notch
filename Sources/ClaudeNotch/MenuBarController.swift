@@ -608,6 +608,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         case .spin:       return "Backflip"
         case .rope:       return "Dangle on a Rope"
         case .watch:      return "Watch Claude Work"
+        case .flinch:     return "Flinch (something broke)"
         }
     }
 

@@ -157,6 +157,18 @@ enum PetRigging {
         case .tucked:
             break
 
+        case .flinch:
+            // Eyes wide, arms thrown up, legs braced.
+            rig.eyeOpen = 1
+            rig.eyeShift = 0
+            let shake = exp(-t * 5) * cos(t * 2 * .pi * 4)
+            rig.armLeftAngle = -55 + shake * 12
+            rig.armRightAngle = 55 - shake * 12
+            for i in 0..<4 {
+                rig.legLift[i] = 0
+                rig.legSwing[i] = shake * 1.2
+            }
+
         case .watch:
             // Watching, not idling: eyes tracking, arms swinging with the pace,
             // legs doing a slow on-the-spot walk.
