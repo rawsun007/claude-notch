@@ -52,8 +52,14 @@ final class NotchWindowController {
 
         let screen = NSScreen.main ?? NSScreen.screens.first ?? NSScreen()
         let winSize = NotchWindowController.windowSize(for: screen)
+        // Born where it belongs. Created at the origin and moved afterwards, the
+        // panel briefly existed at the bottom-left corner of the screen — which
+        // the drift log caught on every single launch, and which is a card-shaped
+        // thing sitting in the wrong place for as long as it takes the first
+        // position() to run.
         let panel = NotchPanel(
-            contentRect: NSRect(origin: .zero, size: winSize),
+            contentRect: NSRect(origin: NotchWindowController.origin(on: screen, size: winSize),
+                                size: winSize),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -167,6 +173,12 @@ final class NotchWindowController {
     }
 
     private func expectedOrigin(on screen: NSScreen) -> NSPoint {
+        NotchWindowController.origin(on: screen, size: NotchWindowController.windowSize(for: screen))
+    }
+
+    /// Top of the screen, centred on the physical notch. Static so the panel can
+    /// be *created* here rather than created somewhere else and moved.
+    static func origin(on screen: NSScreen, size: CGSize) -> NSPoint {
         let s = screen.frame
         let centerX: CGFloat = {
             if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
@@ -174,7 +186,6 @@ final class NotchWindowController {
             }
             return s.midX
         }()
-        let size = NotchWindowController.windowSize(for: screen)
         return NSPoint(x: centerX - size.width / 2, y: s.maxY - size.height)
     }
 
