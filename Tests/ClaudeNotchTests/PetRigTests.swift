@@ -214,9 +214,16 @@ final class PetRigTests: XCTestCase {
     func testArmAnglesAreMirrored() {
         // "Arms up" must not mean "left arm up, right arm down". Every activity
         // that raises both arms says so with two positive angles.
-        for activity in [PetActivity.hangLeft, .hangRight, .celebrate, .spin] {
+        for activity in [PetActivity.hangLeft, .hangRight, .celebrate, .spin, .flinch] {
             let r = rig(activity, t: 0.5)
             XCTAssertEqual(r.armLeftAngle.sign, r.armRightAngle.sign, "\(activity)")
+        }
+        // A startled pet throws both arms up, and keeps them up for the whole
+        // fright — not one up and one down, which is a shrug.
+        for i in 0...20 {
+            let r = rig(.flinch, t: Double(i) / 20)
+            XCTAssertGreaterThan(r.armLeftAngle, 20)
+            XCTAssertGreaterThan(r.armRightAngle, 20)
         }
     }
 

@@ -161,9 +161,13 @@ enum PetRigging {
             // Eyes wide, arms thrown up, legs braced.
             rig.eyeOpen = 1
             rig.eyeShift = 0
+            // Both arms fly UP, which in this rig means two angles of the same
+            // sign — mirrored, not counter-swung like a walk. Getting this wrong
+            // reads as the pet raising one arm and lowering the other, which is a
+            // shrug, not a fright.
             let shake = exp(-t * 5) * cos(t * 2 * .pi * 4)
-            rig.armLeftAngle = -55 + shake * 12
-            rig.armRightAngle = 55 - shake * 12
+            rig.armLeftAngle = 58 + shake * 10
+            rig.armRightAngle = 58 - shake * 10
             for i in 0..<4 {
                 rig.legLift[i] = 0
                 rig.legSwing[i] = shake * 1.2

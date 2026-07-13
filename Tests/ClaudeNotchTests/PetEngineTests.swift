@@ -74,12 +74,19 @@ final class PetEngineTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(seq.filter { $0 == .sleep }.count, 5)
     }
 
-    func testBusyMoodsNeverPerform() {
+    func testBusyMoodsKeepTheWorkCompany() {
+        // This used to assert the opposite: that a busy mood always tucked the
+        // pet away. That was the bug. A mascot that hides for the whole of a tool
+        // run is a screensaver, so the busy moods now put it out to watch — while
+        // `allowsAutonomy` still keeps it off any card the user is reading, which
+        // is what "stay out of the way" actually has to mean.
         for mood in [PetMood.working, .thinking] {
-            XCTAssertEqual(Set(picks(mood, seed: 3)), [.tucked],
-                           "\(mood) must not pull the pet out over an active session")
+            let seq = picks(mood, seed: 3)
+            XCTAssertFalse(seq.contains(.tucked), "\(mood) must not hide the pet from the work")
+            XCTAssertTrue(seq.contains(.watch), "\(mood) should mostly be spent watching")
         }
         XCTAssertEqual(Set(picks(.celebrating, seed: 3)), [.celebrate])
+        XCTAssertEqual(Set(picks(.startled, seed: 3)), [.flinch])
     }
 
     func testNoMoodCanPickAnActivityItHasNoWeightFor() {
