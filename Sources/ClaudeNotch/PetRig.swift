@@ -157,6 +157,20 @@ enum PetRigging {
         case .tucked:
             break
 
+        case .watch:
+            // Watching, not idling: eyes tracking, arms swinging with the pace,
+            // legs doing a slow on-the-spot walk.
+            rig.eyeOpen = blink(at: time)
+            rig.eyeShift = PetEngine.clampMag(cursorX * 0.01, 0.6)
+            let swing = sin(t * 2 * .pi * 0.7)
+            rig.armLeftAngle = swing * 14
+            rig.armRightAngle = -swing * 14
+            for i in 0..<4 {
+                let phase = t * 2.2 + PetBody.gaitPhase[i]
+                rig.legLift[i] = max(0, sin(phase * 2 * .pi)) * 1.4
+                rig.legSwing[i] = cos(phase * 2 * .pi) * 1.0
+            }
+
         case .peek, .boop:
             // Standing. A little weight shift so it isn't a statue.
             let sway = sin(time * 1.6) * 0.06

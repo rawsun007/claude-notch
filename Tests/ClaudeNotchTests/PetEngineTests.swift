@@ -536,3 +536,53 @@ final class PetEngineTests: XCTestCase {
         XCTAssertLessThanOrEqual(abs(r.x), 9.001)
     }
 }
+
+/// The pet and the product. A mascot that hides exactly when there is something
+/// to watch is a screensaver.
+final class PetWatchesClaudeTests: XCTestCase {
+
+    private let stage = PetEngine.Stage(notchInset: 32, halfWidth: 110)
+
+    func testWorkingClaudeGetsAWatchingPet() {
+        // The pet used to tuck itself away for the whole of a tool run.
+        var rng = SeededRNG(seed: 11)
+        let picks = (0..<20).map { _ in PetEngine.pickActivity(mood: .working, using: &rng) }
+        XCTAssertFalse(picks.contains(.tucked), "the pet must not hide while Claude works")
+        XCTAssertTrue(picks.contains(.watch))
+    }
+
+    func testThePetStaysWithTheWorkRatherThanFlashingUpOnce() {
+        // The duty cycle keeps an idle pet from pestering you all afternoon. It
+        // must not apply while Claude is busy, or the pet is on screen for a few
+        // seconds of every minute of a long run.
+        var rng = SeededRNG(seed: 5)
+        var onScreen = 0.0, total = 0.0
+        for _ in 0..<200 {
+            let activity = PetEngine.pickActivity(mood: .working, using: &rng)
+            let duration = PetEngine.duration(of: activity, using: &rng)
+            let gap = PetEngine.nextDelay(mood: .working, after: activity,
+                                          lasting: duration, using: &rng)
+            if activity != .tucked { onScreen += duration }
+            total += duration + gap
+        }
+        XCTAssertGreaterThan(onScreen / total, 0.6,
+                             "the pet should keep the work company, not visit it")
+    }
+
+    func testAnIdlePetStillEarnsItsSilence() {
+        // The waiver is for busy moods only — a calm pet must still buy a long
+        // quiet after every performance.
+        var rng = SeededRNG(seed: 5)
+        let gap = PetEngine.nextDelay(mood: .calm, after: .sleep, lasting: 12, using: &rng)
+        XCTAssertGreaterThanOrEqual(gap, 12 * PetEngine.dutyCycle)
+    }
+
+    func testWatchStaysOnStage() {
+        for i in 0...100 {
+            let p = PetEngine.pose(for: .watch, progress: Double(i) / 100, stage: stage)
+            let floor = stage.notchInset + PetActivity.watch.stageDrop - PetActivity.watch.spriteSize / 2
+            XCTAssertLessThanOrEqual(p.y, floor + 0.001)
+            XCTAssertLessThanOrEqual(abs(p.x), PetActivity.watch.maxCentreOffset(halfWidth: stage.halfWidth) + 0.001)
+        }
+    }
+}

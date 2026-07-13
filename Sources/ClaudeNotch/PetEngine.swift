@@ -50,6 +50,7 @@ enum PetActivity: String, CaseIterable, Equatable {
     case boop         // squash-and-pop reaction to a click
     case spin         // booped several times in a row: a delighted backflip
     case rope         // dangles from a rope out of the notch, swinging
+    case watch        // Claude is working: the pet stays out and keeps it company
 
     /// Sprite size in points. Big enough to read as a creature at arm's length
     /// from the screen, not a favicon: the mascot is the feature, and the notch
@@ -248,10 +249,15 @@ enum PetEngine {
             return [(.peek, 4), (.lookAround, 3), (.hangLeft, 2), (.hangRight, 2), (.stroll, 2), (.rope, 2), (.sleep, 1)]
         case .curious:
             return [(.lookAround, 4), (.peek, 3), (.stroll, 3), (.rope, 3), (.hangRight, 2), (.hangLeft, 2)]
-        case .working, .thinking:
-            // Claude is busy; the pet stays out of the way. Autonomy is gated
-            // upstream anyway, but keep the table honest.
-            return [(.tucked, 1)]
+        case .working:
+            // Claude is working, so the pet works: it stays out and watches the
+            // job instead of hiding for the whole run. This is the point of
+            // having it at all — a mascot that vanishes exactly when there is
+            // something to watch is just a screensaver.
+            return [(.watch, 5), (.peek, 1)]
+        case .thinking:
+            // Thinking is quieter than a tool run. The pet waits with you.
+            return [(.watch, 3), (.peek, 2), (.lookAround, 1)]
         case .celebrating:
             return [(.celebrate, 1)]
         }
@@ -290,6 +296,7 @@ enum PetEngine {
         // was tuned for — a random duration would rescale the whole thing and
         // change gravity with it.
         case .rope:       return ropeDuration
+        case .watch:      return Double.random(in: 3.5...5.0, using: &rng)
         }
     }
 
@@ -306,8 +313,11 @@ enum PetEngine {
         case .curious:     return Double.random(in: 45...100, using: &rng)
         case .calm:        return Double.random(in: 90...200, using: &rng)
         case .sleepy:      return Double.random(in: 240...480, using: &rng)
+        // While Claude works the pet is ON DUTY: it comes back almost at once,
+        // so it is present for the run rather than flashing up once in the
+        // middle of it. The duty-cycle rule below is waived for the same reason.
         case .working,
-             .thinking:    return Double.random(in: 8...14, using: &rng)   // re-check soon
+             .thinking:    return Double.random(in: 0.5...2.0, using: &rng)
         case .celebrating: return 6
         }
     }
@@ -325,6 +335,12 @@ enum PetEngine {
         let base = nextDelay(mood: mood, using: &rng)
         // A boop is the user's doing, not the pet's, so it doesn't earn silence.
         guard activity != .boop, activity != .spin else { return base }
+        // Neither does anything the pet does while Claude is busy. The duty
+        // cycle exists to stop an idle pet pestering you all afternoon; during a
+        // tool run the pet is meant to be there, and applying the rule would put
+        // it on screen for four seconds out of every minute of a long run, which
+        // is the opposite of keeping you company.
+        guard mood != .working, mood != .thinking else { return base }
         return max(base, duration * dutyCycle)
     }
 
@@ -607,6 +623,24 @@ enum PetEngine {
             pose.rotation = squash * 5
             pose.emote = t < 0.6 ? .sparkle : (stage.petting ? .heart : nil)
             pose.emoteScale = 1 - t * 0.4
+
+        case .watch:
+            // On duty. It paces a little, bobs, and keeps glancing at the cursor
+            // — busy but not frantic, because it is watching work happen rather
+            // than doing a trick. Slower than a stroll and shorter in travel, so
+            // it reads as pacing on the spot rather than going somewhere.
+            let pace = sin(t * 2 * .pi * 0.7)
+            pose.x = pace * 7 * envelope + lean * 0.5
+            pose.flipped = pace < 0
+            // A small, steady bounce: the pet is up on its toes.
+            let step = abs(sin(t * 2 * .pi * 2.2))
+            pose.y -= step * 1.8 * envelope
+            pose.rotation = pace * 4
+            pose.scaleY = 1 + stretch * 0.6 + step * 0.04
+            pose.scaleX = 1 - stretch * 0.4 - step * 0.03
+            // Thought dots while it watches, unless you are scratching its head.
+            pose.emote = stage.petting ? .heart : (t > 0.25 ? .dots : nil)
+            pose.emoteScale = 0.8
 
         case .rope:
             // Simulated, not keyframed — see `ropeState`. The generic drop-out
