@@ -176,12 +176,15 @@ final class PetEngineTests: XCTestCase {
     }
 
     func testPeekPoseGolden() {
+        // Opacity is 1 at every instant now, including the frames where the pet
+        // is parked behind the notch: it hides by being *behind the cutout*, not
+        // by dissolving. Fading it made it ghost out in mid-air on the way home.
         assertPose(.peek, 0.0, x: 0, y: 9, rot: 0, sx: 1, sy: 1,
-                   flipped: false, opacity: 0, emote: nil)
+                   flipped: false, opacity: 1, emote: nil)
         assertPose(.peek, 0.5, x: 0, y: 65.5206, rot: 0, sx: 1, sy: 1,
                    flipped: false, opacity: 1, emote: .dots)
         assertPose(.peek, 1.0, x: 0, y: 9, rot: 0, sx: 1, sy: 1,
-                   flipped: false, opacity: 0, emote: nil)
+                   flipped: false, opacity: 1, emote: nil)
     }
 
     func testLookAroundSweepsBothWays() {

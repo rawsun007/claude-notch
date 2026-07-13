@@ -515,7 +515,12 @@ enum PetEngine {
         let hiddenY = hiddenCentreY(for: activity, notchInset: stage.notchInset)
         var pose = PetPose()
         pose.y = hiddenY + (restY - hiddenY) * envelope
-        pose.opacity = min(1, envelope * 2.2)
+        // Solid the whole way. The pet used to fade out as it retracted, which
+        // made it dissolve in mid-air instead of climbing back into the notch —
+        // and the fade was never needed: the retract already carries the whole
+        // sprite up behind the hardware cutout, which hides it far better than
+        // any alpha ramp. A creature that goes transparent is a ghost, not a pet.
+        pose.opacity = 1
 
         // Squash & stretch straight off the spring's analytic velocity: the pet
         // stretches thin as it dives (fast, downward) and squashes wide as the
@@ -684,7 +689,6 @@ enum PetEngine {
             let ropeStretch = clampMag(rope.radialRate * 0.0012, 0.18)
             pose.scaleY = 1 + ropeStretch
             pose.scaleX = 1 - ropeStretch * 0.7
-            pose.opacity = 1 - retract
             pose.emote = stage.petting ? .heart : nil
         }
 
