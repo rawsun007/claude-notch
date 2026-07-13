@@ -839,7 +839,7 @@ private struct PetStageView: View {
 /// Always-visible compact bar shown in the collapsed notch and appended at the
 /// bottom of the persistent-notch idle view. Shows the rolling 5-hour cost and
 /// weekly cost as labelled mini progress bars relative to their configured caps.
-private struct StatusBarRow: View {
+struct StatusBarRow: View {
     @ObservedObject var state: AppState
 
     /// Display data for one bar slot: bar fill (0...1, nil = no data) and the
@@ -856,12 +856,12 @@ private struct StatusBarRow: View {
     private func barData(for item: StatusBarItem, showCountdown: Bool) -> BarData {
         switch item {
         case .fiveHourLimit:
-            let p = state.fiveHourLimitPercent >= 0 ? CGFloat(state.fiveHourLimitPercent) : nil
+            let p = Self.livePercent(state.fiveHourLimitPercent, resetAt: state.fiveHourResetAt)
             return BarData(pct: p, text: p.map { "\(Int(($0 * 100).rounded()))%" } ?? "—", showBar: true,
                            resetIn: showCountdown ? Self.countdown(state.fiveHourResetAt) : "",
                            tooltip: Self.limitTooltip("5-hour limit", pct: p, resetAt: state.fiveHourResetAt))
         case .weeklyLimit:
-            let p = state.weeklyLimitPercent >= 0 ? CGFloat(state.weeklyLimitPercent) : nil
+            let p = Self.livePercent(state.weeklyLimitPercent, resetAt: state.weeklyResetAt)
             return BarData(pct: p, text: p.map { "\(Int(($0 * 100).rounded()))%" } ?? "—", showBar: true,
                            resetIn: showCountdown ? Self.countdown(state.weeklyResetAt) : "",
                            tooltip: Self.limitTooltip("Weekly limit", pct: p, resetAt: state.weeklyResetAt))
@@ -871,8 +871,25 @@ private struct StatusBarRow: View {
         }
     }
 
+    /// A usage percentage is only worth showing while the window it was measured
+    /// in is still running. Past its reset instant it describes a window that no
+    /// longer exists, so it becomes "—" until the next status line replaces it.
+    /// This is what stops a stale reading sitting there looking like a fact.
+    static func livePercent(_ percent: Double, resetAt: Date?) -> CGFloat? {
+        guard percent >= 0 else { return nil }
+        if let resetAt, resetAt <= Date() { return nil }
+        return CGFloat(percent)
+    }
+
+    /// The countdown, or nothing once the window it describes has already reset.
+    ///
+    /// Claude Code only pushes a status line when it redraws, so a reading can
+    /// sit in the notch long after it stopped being true. Once its reset instant
+    /// is in the past, the percentage beside it is describing a window that no
+    /// longer exists, and "0% · now" is a confident-looking lie. Say nothing
+    /// instead, until the next status line brings a real number.
     private static func countdown(_ resetAt: Date?) -> String {
-        guard let resetAt else { return "" }
+        guard let resetAt, resetAt > Date() else { return "" }
         return ClaudeUsageReader.resetCountdown(until: resetAt)
     }
 

@@ -118,3 +118,31 @@ final class LiveEffortTests: XCTestCase {
         XCTAssertEqual(s.currentEffort, "Medium", "no effort reported means no change")
     }
 }
+
+/// A limit reading is only true while the window it was measured in is running.
+/// Claude Code pushes a status line when it redraws, so a reading can sit in the
+/// notch long after it stopped being true.
+final class StaleLimitTests: XCTestCase {
+
+    func testALiveWindowKeepsItsNumber() {
+        let inAnHour = Date().addingTimeInterval(3600)
+        XCTAssertEqual(StatusBarRow.livePercent(0.82, resetAt: inAnHour), 0.82)
+    }
+
+    func testAWindowThatHasResetHasNoNumber() {
+        // "0% · now" is a confident-looking lie about a window that no longer
+        // exists. Say nothing until a real reading replaces it.
+        let anHourAgo = Date().addingTimeInterval(-3600)
+        XCTAssertNil(StatusBarRow.livePercent(0.82, resetAt: anHourAgo))
+    }
+
+    func testNoReadingAtAllStaysNoReading() {
+        XCTAssertNil(StatusBarRow.livePercent(-1, resetAt: nil))
+    }
+
+    func testAReadingWithNoResetInstantIsStillShown() {
+        // Not every plan reports a reset. A percentage with no reset is all we
+        // have, and it is better than nothing.
+        XCTAssertEqual(StatusBarRow.livePercent(0.4, resetAt: nil), 0.4)
+    }
+}

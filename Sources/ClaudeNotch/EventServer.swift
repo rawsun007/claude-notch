@@ -25,6 +25,11 @@ final class EventServer {
     private var meterLastComputed: [String: Date] = [:]
     private let meterLock = NSLock()
 
+    // Last plan-limit reading we logged, so a redraw-per-keystroke status line
+    // doesn't fill the debug log with the same numbers.
+    private var lastLimitsFingerprint = ""
+    private let limitsLock = NSLock()
+
     // Throttle the daily total-cost recompute (parses every recent transcript).
     private var todayCostLastComputed = Date.distantPast
     private let todayCostLock = NSLock()
@@ -448,6 +453,21 @@ final class EventServer {
         // says whether you can wait it out.
         let fiveHourResetsAt = num("five_hour_resets_at").map { Date(timeIntervalSince1970: $0) }
         let sevenDayResetsAt = num("seven_day_resets_at").map { Date(timeIntervalSince1970: $0) }
+        // Log a status line only when its numbers CHANGE. Claude Code pushes one
+        // on every redraw, so logging them all buries the log; logging none left
+        // us unable to tell a stale reading from a wrong one.
+        func show(_ v: Any?) -> String { v.map { "\($0)" } ?? "nil" }
+        let fingerprint = show(fiveHourPct) + show(fiveHourResetsAt)
+            + show(sevenDayPct) + show(sevenDayResetsAt)
+        let changed: Bool = limitsLock.withLock {
+            guard lastLimitsFingerprint != fingerprint else { return false }
+            lastLimitsFingerprint = fingerprint
+            return true
+        }
+        if changed {
+            debugLog("statusline: 5h=" + show(fiveHourPct) + "% reset=" + show(fiveHourResetsAt)
+                     + " wk=" + show(sevenDayPct) + "% reset=" + show(sevenDayResetsAt))
+        }
         // Nothing usable — don't churn the UI.
         guard contextPct != nil || fiveHourPct != nil || sevenDayPct != nil
                 || contextWindow != nil || !sessionName.isEmpty || !worktree.isEmpty
