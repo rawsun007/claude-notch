@@ -424,6 +424,10 @@ final class EventServer {
         // the app would otherwise have to shell out to `gh` to know.
         let prURL = (payload["pr_url"] as? String) ?? ""
         let prState = (payload["pr_state"] as? String) ?? ""
+        // The effort the RUNNING session is on. settings.json only says what a
+        // new session would start at, and the two part company the moment you
+        // change effort mid-session.
+        let effort = (payload["effort"] as? String) ?? ""
         func num(_ key: String) -> Double? {
             if let d = payload[key] as? Double { return d }
             if let i = payload[key] as? Int { return Double(i) }
@@ -447,11 +451,12 @@ final class EventServer {
         // Nothing usable — don't churn the UI.
         guard contextPct != nil || fiveHourPct != nil || sevenDayPct != nil
                 || contextWindow != nil || !sessionName.isEmpty || !worktree.isEmpty
-                || prNumber != nil else { return }
+                || prNumber != nil || !effort.isEmpty else { return }
         Task { @MainActor [weak state] in
             state?.noteStatusLine(sessionId: sessionId, model: model,
                                   sessionName: sessionName, worktree: worktree,
                                   prNumber: prNumber, prURL: prURL, prState: prState,
+                                  effort: effort,
                                   contextPct: contextPct,
                                   contextWindow: contextWindow,
                                   contextTokens: contextTokens,

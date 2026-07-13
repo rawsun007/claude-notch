@@ -25,6 +25,7 @@ if command -v jq >/dev/null 2>&1 && nc -z 127.0.0.1 53127 2>/dev/null; then
         pr_number:     (.pr.number // null),
         pr_url:        (.pr.url // ""),
         pr_state:      (.pr.review_state // ""),
+        effort:        (.effort.level // ""),
         context_pct:   (.context_window.used_percentage // null),
         context_window: (.context_window.context_window_size // null),
         context_tokens: (.context_window.total_input_tokens // null),

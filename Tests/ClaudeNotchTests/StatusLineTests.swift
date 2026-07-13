@@ -83,3 +83,38 @@ final class PullRequestBadgeTests: XCTestCase {
         XCTAssertEqual(NotchView.prTooltip(number: 7, state: ""), "Pull request #7")
     }
 }
+
+/// Effort. The settings file says what a NEW session would start at; the status
+/// line says what the running one is actually on.
+@MainActor
+final class LiveEffortTests: XCTestCase {
+
+    func testLiveEffortReplacesTheSettingsValue() {
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/repo", sessionId: "abc")
+        s.noteEffort("Medium")                  // from settings.json
+        s.noteStatusLine(sessionId: "abc", model: "claude-opus-4-8", effort: "xhigh",
+                         contextPct: nil, fiveHourPct: nil, sevenDayPct: nil)
+        XCTAssertEqual(s.currentEffort, "Xhigh")
+    }
+
+    func testTheSettingsPollCannotStompTheLiveValue() {
+        // The settings poll runs every minute. Once Claude Code has told us what
+        // the running session is on, that poll must not drag it back to stale.
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/repo", sessionId: "abc")
+        s.noteStatusLine(sessionId: "abc", model: "claude-opus-4-8", effort: "max",
+                         contextPct: nil, fiveHourPct: nil, sevenDayPct: nil)
+        s.noteEffort("Medium")                  // the poll, a minute later
+        XCTAssertEqual(s.currentEffort, "Max", "the live effort must win over the settings file")
+    }
+
+    func testAnEmptyEffortChangesNothing() {
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/repo", sessionId: "abc")
+        s.noteEffort("Medium")
+        s.noteStatusLine(sessionId: "abc", model: "claude-opus-4-8", effort: "",
+                         contextPct: 5, fiveHourPct: nil, sevenDayPct: nil)
+        XCTAssertEqual(s.currentEffort, "Medium", "no effort reported means no change")
+    }
+}

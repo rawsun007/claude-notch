@@ -1241,9 +1241,25 @@ final class AppState: ObservableObject {
         weeklyCostUSD = weekly
     }
 
-    /// Refresh effort level from ~/.claude/settings.json (cheap file read, call off-thread).
+    /// Effort read from ~/.claude/settings.json (cheap file read, call off-thread).
+    ///
+    /// Ignored once the status line has told us the *running* session's effort:
+    /// the file says what a new session would start at, the status line says what
+    /// this one is actually on, and they disagree the moment you change effort
+    /// mid-session. A one-minute settings poll would otherwise keep stomping the
+    /// live value back to the stale one.
     func noteEffort(_ effort: String) {
+        guard !effortIsLive else { return }
         currentEffort = effort
+    }
+
+    /// True once Claude Code has reported the live effort for this session.
+    private var effortIsLive = false
+
+    func noteLiveEffort(_ effort: String) {
+        guard !effort.isEmpty else { return }
+        effortIsLive = true
+        currentEffort = effort.prefix(1).uppercased() + effort.dropFirst()
     }
 
     /// Seed the model from a transcript scan at startup. Only fills in if
@@ -1287,11 +1303,13 @@ final class AppState: ObservableObject {
     func noteStatusLine(sessionId: String, model: String,
                         sessionName: String = "", worktree: String = "",
                         prNumber: Int? = nil, prURL: String = "", prState: String = "",
+                        effort: String = "",
                         contextPct: Double?, contextWindow: Int? = nil, contextTokens: Int? = nil,
                         fiveHourPct: Double?, sevenDayPct: Double?,
                         fiveHourResetsAt: Date? = nil, sevenDayResetsAt: Date? = nil) {
         if let p = fiveHourPct { fiveHourLimitPercent = min(1, max(0, p / 100)) }
         if let p = sevenDayPct { weeklyLimitPercent = min(1, max(0, p / 100)) }
+        noteLiveEffort(effort)
         if let d = fiveHourResetsAt { fiveHourResetAt = d }
         if let d = sevenDayResetsAt { weeklyResetAt = d }
 
