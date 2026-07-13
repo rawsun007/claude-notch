@@ -340,3 +340,33 @@ final class ElideTests: XCTestCase {
         XCTAssertTrue(out.contains("…"))
     }
 }
+
+/// The reset countdown. A percentage tells you that you are in trouble; this
+/// tells you whether you can wait it out, so its wording has to be unambiguous
+/// at a glance.
+final class ResetCountdownTests: XCTestCase {
+
+    private let now = Date(timeIntervalSince1970: 1_000_000)
+    private func inSeconds(_ s: Double) -> Date { now.addingTimeInterval(s) }
+
+    func testMinutes() {
+        XCTAssertEqual(ClaudeUsageReader.resetCountdown(until: inSeconds(60 * 42), now: now), "42m")
+        XCTAssertEqual(ClaudeUsageReader.resetCountdown(until: inSeconds(90), now: now), "2m")   // rounds up
+    }
+
+    func testHoursAndMinutes() {
+        XCTAssertEqual(ClaudeUsageReader.resetCountdown(until: inSeconds(3600 + 60 * 12), now: now), "1h 12m")
+        XCTAssertEqual(ClaudeUsageReader.resetCountdown(until: inSeconds(3600 * 2), now: now), "2h")
+    }
+
+    func testDays() {
+        XCTAssertEqual(ClaudeUsageReader.resetCountdown(until: inSeconds(3600 * 26), now: now), "1d 2h")
+        XCTAssertEqual(ClaudeUsageReader.resetCountdown(until: inSeconds(3600 * 48), now: now), "2d")
+    }
+
+    func testAlreadyPast() {
+        // A stale reset instant must not render as a negative countdown.
+        XCTAssertEqual(ClaudeUsageReader.resetCountdown(until: inSeconds(-5), now: now), "now")
+        XCTAssertEqual(ClaudeUsageReader.resetCountdown(until: now, now: now), "now")
+    }
+}

@@ -807,6 +807,10 @@ private struct PetStageView: View {
 /// weekly cost as labelled mini progress bars relative to their configured caps.
 private struct StatusBarRow: View {
     @ObservedObject var state: AppState
+    /// True in the collapsed notch, which is only as wide as the hardware cutout
+    /// and has no room for the reset countdowns (they stay in the tooltip). The
+    /// persistent card is wide enough to show them.
+    var compact: Bool = true
 
     /// Display data for one bar slot: bar fill (0...1, nil = no data) and the
     /// right-side label. For `.sessionCost` we skip the fill bar and show raw $.
@@ -814,19 +818,49 @@ private struct StatusBarRow: View {
         var pct: CGFloat?       // nil hides the bar track (cost item); 0...1 fills it
         var text: String        // "38%", "$0.42", or "—"
         var showBar: Bool       // false for session-cost item
+        /// "1h 12m" until this limit's window resets. Empty when unknown.
+        var resetIn: String = ""
+        var tooltip: String = ""
     }
 
-    private func barData(for item: StatusBarItem) -> BarData {
+    private func barData(for item: StatusBarItem, showCountdown: Bool) -> BarData {
         switch item {
         case .fiveHourLimit:
             let p = state.fiveHourLimitPercent >= 0 ? CGFloat(state.fiveHourLimitPercent) : nil
-            return BarData(pct: p, text: p.map { "\(Int(($0 * 100).rounded()))%" } ?? "—", showBar: true)
+            return BarData(pct: p, text: p.map { "\(Int(($0 * 100).rounded()))%" } ?? "—", showBar: true,
+                           resetIn: showCountdown ? Self.countdown(state.fiveHourResetAt) : "",
+                           tooltip: Self.limitTooltip("5-hour limit", pct: p, resetAt: state.fiveHourResetAt))
         case .weeklyLimit:
             let p = state.weeklyLimitPercent >= 0 ? CGFloat(state.weeklyLimitPercent) : nil
-            return BarData(pct: p, text: p.map { "\(Int(($0 * 100).rounded()))%" } ?? "—", showBar: true)
+            return BarData(pct: p, text: p.map { "\(Int(($0 * 100).rounded()))%" } ?? "—", showBar: true,
+                           resetIn: showCountdown ? Self.countdown(state.weeklyResetAt) : "",
+                           tooltip: Self.limitTooltip("Weekly limit", pct: p, resetAt: state.weeklyResetAt))
         case .sessionCost:
-            return BarData(pct: nil, text: ClaudeUsageReader.fmtMoney(state.currentCostUSD), showBar: false)
+            return BarData(pct: nil, text: ClaudeUsageReader.fmtMoney(state.currentCostUSD), showBar: false,
+                           tooltip: "Estimated cost of this session")
         }
+    }
+
+    private static func countdown(_ resetAt: Date?) -> String {
+        guard let resetAt else { return "" }
+        return ClaudeUsageReader.resetCountdown(until: resetAt)
+    }
+
+    private static let resetClockFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .none
+        f.timeStyle = .short
+        return f
+    }()
+
+    private static func limitTooltip(_ name: String, pct: CGFloat?, resetAt: Date?) -> String {
+        var parts: [String] = [name]
+        if let pct { parts.append("\(Int((pct * 100).rounded()))% used") }
+        if let resetAt {
+            parts.append("resets in \(ClaudeUsageReader.resetCountdown(until: resetAt)) "
+                         + "(\(resetClockFormatter.string(from: resetAt)))")
+        }
+        return parts.joined(separator: " · ")
     }
 
     private func tint(for pct: CGFloat) -> Color {
@@ -856,21 +890,35 @@ private struct StatusBarRow: View {
                 Text(data.text)
                     .font(.system(size: 9, weight: .semibold, design: .rounded).monospacedDigit())
                     .foregroundColor(.white.opacity(0.65))
+                // "82%" tells you that you are in trouble. It does not tell you
+                // whether you can wait it out, which is the thing you actually
+                // want to know, and Claude Code reports it.
+                if !data.resetIn.isEmpty {
+                    Text(data.resetIn)
+                        .font(.system(size: 9, design: .rounded).monospacedDigit())
+                        .foregroundColor(.white.opacity(0.32))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                }
             }
+            .help(data.tooltip)
         }
     }
 
     var body: some View {
         let items = state.statusBarItems
-        HStack(spacing: 0) {
-            ForEach(Array(items.enumerated()), id: \.offset) { idx, item in
-                let d = barData(for: item)
-                BarWidget(label: item.barLabel, data: d, tint: tint(for: d.pct ?? 0))
-                if idx < items.count - 1 { separator }
+        // Re-render every half minute so the countdowns actually count down.
+        TimelineView(.periodic(from: .now, by: 30)) { _ in
+            HStack(spacing: 0) {
+                ForEach(Array(items.enumerated()), id: \.offset) { idx, item in
+                    let d = barData(for: item, showCountdown: !compact)
+                    BarWidget(label: item.barLabel, data: d, tint: tint(for: d.pct ?? 0))
+                    if idx < items.count - 1 { separator }
+                }
             }
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, alignment: .center)
         }
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private var separator: some View {
@@ -1142,7 +1190,7 @@ private struct IdlePill: View {
                     .fill(Color.white.opacity(0.06))
                     .frame(height: 0.5)
                     .padding(.horizontal, -14)
-                StatusBarRow(state: state)
+                StatusBarRow(state: state, compact: false)
                     .padding(.horizontal, -14)
             }
         }

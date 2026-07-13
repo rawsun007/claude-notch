@@ -108,6 +108,29 @@ enum ClaudeUsageReader {
         return Double(cacheRead) / 1_000_000 * (p.input - p.cacheRead)
     }
 
+    /// How long until a rate-limit window resets, as a glanceable string.
+    ///
+    /// A percentage on its own tells you that you are in trouble but not whether
+    /// you can wait it out: "82%" is a very different fact at ten minutes to
+    /// reset than at four hours. Claude Code reports the reset instant, so the
+    /// notch can answer the question people actually have.
+    ///
+    /// Coarse on purpose — nobody is counting seconds down to a five-hour window.
+    static func resetCountdown(until reset: Date, now: Date = Date()) -> String {
+        let seconds = reset.timeIntervalSince(now)
+        guard seconds > 0 else { return "now" }
+        let minutes = Int((seconds / 60).rounded(.up))
+        guard minutes >= 60 else { return "\(minutes)m" }
+        let hours = minutes / 60
+        let rest = minutes % 60
+        guard hours < 24 else {
+            let days = hours / 24
+            let restHours = hours % 24
+            return restHours > 0 ? "\(days)d \(restHours)h" : "\(days)d"
+        }
+        return rest > 0 ? "\(hours)h \(rest)m" : "\(hours)h"
+    }
+
     /// Last path component of a working directory, e.g. ".../claude mac app" → "claude mac app".
     static func projectName(_ cwd: String) -> String {
         let name = (cwd as NSString).lastPathComponent

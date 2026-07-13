@@ -24,7 +24,9 @@ if command -v jq >/dev/null 2>&1 && nc -z 127.0.0.1 53127 2>/dev/null; then
         context_window: (.context_window.context_window_size // null),
         context_tokens: (.context_window.total_input_tokens // null),
         five_hour_pct: (.rate_limits.five_hour.used_percentage // null),
-        seven_day_pct: (.rate_limits.seven_day.used_percentage // null)
+        seven_day_pct: (.rate_limits.seven_day.used_percentage // null),
+        five_hour_resets_at: (.rate_limits.five_hour.resets_at // null),
+        seven_day_resets_at: (.rate_limits.seven_day.resets_at // null)
     }' 2>/dev/null | curl -s --max-time 1 -X POST \
         -H 'Content-Type: application/json' --data-binary @- \
         http://127.0.0.1:53127/statusline >/dev/null 2>&1 || true

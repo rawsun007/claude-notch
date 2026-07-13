@@ -607,6 +607,10 @@ final class AppState: ObservableObject {
     // the /statusline route. -1 = no data yet (so the UI can show "—").
     @Published private(set) var fiveHourLimitPercent: Double = -1
     @Published private(set) var weeklyLimitPercent: Double = -1
+    /// When each limit window resets. Reported by Claude Code's status line; nil
+    /// until one arrives (and for anyone not on a subscription plan).
+    @Published private(set) var fiveHourResetAt: Date?
+    @Published private(set) var weeklyResetAt: Date?
     // Hard-stop: when on, a tool request whose session/daily cap is already
     // exceeded is held for a decision (Deny / Allow once / Raise cap) instead
     // of being auto-allowed — even under an allow-rule or auto-approve. Off by
@@ -1273,9 +1277,12 @@ final class AppState: ObservableObject {
     /// local source of real plan-limit %). Percentages arrive as 0...100.
     func noteStatusLine(sessionId: String, model: String,
                         contextPct: Double?, contextWindow: Int? = nil, contextTokens: Int? = nil,
-                        fiveHourPct: Double?, sevenDayPct: Double?) {
+                        fiveHourPct: Double?, sevenDayPct: Double?,
+                        fiveHourResetsAt: Date? = nil, sevenDayResetsAt: Date? = nil) {
         if let p = fiveHourPct { fiveHourLimitPercent = min(1, max(0, p / 100)) }
         if let p = sevenDayPct { weeklyLimitPercent = min(1, max(0, p / 100)) }
+        if let d = fiveHourResetsAt { fiveHourResetAt = d }
+        if let d = sevenDayResetsAt { weeklyResetAt = d }
 
         // Model update is independent of contextPct — a status line may carry a
         // model string but no context percentage (e.g. early in a session).

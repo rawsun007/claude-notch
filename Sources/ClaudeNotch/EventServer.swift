@@ -429,6 +429,10 @@ final class EventServer {
         // them. Everything else the app does with a context window is inference.
         let contextWindow = num("context_window").map(Int.init)
         let contextTokens = num("context_tokens").map(Int.init)
+        // Unix epoch seconds. A percentage says you are in trouble; the reset
+        // says whether you can wait it out.
+        let fiveHourResetsAt = num("five_hour_resets_at").map { Date(timeIntervalSince1970: $0) }
+        let sevenDayResetsAt = num("seven_day_resets_at").map { Date(timeIntervalSince1970: $0) }
         // Nothing usable — don't churn the UI.
         guard contextPct != nil || fiveHourPct != nil || sevenDayPct != nil
                 || contextWindow != nil else { return }
@@ -438,7 +442,9 @@ final class EventServer {
                                   contextWindow: contextWindow,
                                   contextTokens: contextTokens,
                                   fiveHourPct: fiveHourPct,
-                                  sevenDayPct: sevenDayPct)
+                                  sevenDayPct: sevenDayPct,
+                                  fiveHourResetsAt: fiveHourResetsAt,
+                                  sevenDayResetsAt: sevenDayResetsAt)
         }
     }
 
