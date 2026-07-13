@@ -1209,9 +1209,13 @@ private struct IdlePill: View {
                 SessionsList(state: state, pulsePhase: pulsePhase)
             }
 
-            // Persistent notch: append the status bar row so it's visible even
-            // though the collapsed state (where it normally lives) is inactive.
-            if state.persistentNotchDisplay {
+            // Expanded notch: append the status bar row. It normally lives in the
+            // collapsed state, which the expansion replaces — so without this,
+            // opening the notch *hid* the limits, and with them the answer to the
+            // only question worth opening it for: when does my window reset. The
+            // expanded card is also the one place wide enough to print the
+            // countdowns rather than bury them in a tooltip.
+            if isOpen {
                 Rectangle()
                     .fill(Color.white.opacity(0.06))
                     .frame(height: 0.5)
