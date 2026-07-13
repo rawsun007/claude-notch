@@ -527,9 +527,17 @@ final class PetEngineTests: XCTestCase {
         // t = 0.98 would normally be deep into the retract.
         let free = PetEngine.pose(for: .peek, progress: 0.98, stage: stage)
         let held = PetEngine.pose(for: .peek, progress: 0.98, stage: petted)
-        XCTAssertLessThan(free.opacity, 1)          // on its way back in
+        // "On its way back in" is now a fact about where the pet IS, not about
+        // how transparent it is: it climbs back up behind the notch rather than
+        // fading out. So the retreat is measured in y, which is also the only
+        // thing that was ever really being asserted here.
+        let hidden = PetEngine.hiddenCentreY(for: .peek, notchInset: stage.notchInset)
+        XCTAssertLessThan(free.y, held.y)                 // free pet is heading home
+        XCTAssertLessThan(free.y - hidden, (held.y - hidden) / 2,
+                          "the free pet should be most of the way back into the notch")
+        XCTAssertGreaterThan(held.y, stage.notchInset)    // held pet is still out
         XCTAssertEqual(held.opacity, 1, accuracy: 0.0001)
-        XCTAssertGreaterThan(held.y, free.y)        // still out where the cursor is
+        XCTAssertEqual(free.opacity, 1, accuracy: 0.0001, "the pet hides by moving, not by dissolving")
         XCTAssertEqual(held.emote, .heart)
     }
 
