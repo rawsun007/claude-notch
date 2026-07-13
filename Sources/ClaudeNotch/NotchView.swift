@@ -1284,6 +1284,20 @@ private struct SessionsList: View {
                                 .font(.system(size: 9, design: .rounded))
                                 .foregroundColor(.white.opacity(0.4))
                             }
+                            // Two sessions in the same repo look identical in this
+                            // list. The worktree is what tells them apart.
+                            if !session.worktree.isEmpty {
+                                HStack(spacing: 2) {
+                                    Image(systemName: "square.on.square")
+                                        .font(.system(size: 7, weight: .semibold))
+                                    Text(NotchView.elide(session.worktree, to: 14))
+                                        .lineLimit(1)
+                                        .fixedSize(horizontal: true, vertical: false)
+                                }
+                                .font(.system(size: 9, design: .rounded))
+                                .foregroundColor(.white.opacity(0.4))
+                                .help("Git worktree: \(session.worktree)")
+                            }
                             if let waitStart = state.pendingWaitStart(forCwd: session.cwd) {
                                 TimelineView(.periodic(from: .now, by: 15)) { _ in
                                     Text("⏳ \(waitElapsed(waitStart))")

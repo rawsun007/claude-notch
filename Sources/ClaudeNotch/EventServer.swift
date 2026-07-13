@@ -414,6 +414,12 @@ final class EventServer {
     private func handleStatusLine(payload: [String: Any]) {
         let sessionId = (payload["session_id"] as? String) ?? ""
         let model = (payload["model"] as? String) ?? ""
+        // What `/rename` set, and the worktree this session is in. Both are how
+        // you tell two sessions in the same repo apart; the folder name cannot.
+        // The status line is the right source for the name: SessionStart fires
+        // once, but a session can be renamed at any point in its life.
+        let sessionName = (payload["session_name"] as? String) ?? ""
+        let worktree = (payload["worktree"] as? String) ?? ""
         func num(_ key: String) -> Double? {
             if let d = payload[key] as? Double { return d }
             if let i = payload[key] as? Int { return Double(i) }
@@ -435,9 +441,10 @@ final class EventServer {
         let sevenDayResetsAt = num("seven_day_resets_at").map { Date(timeIntervalSince1970: $0) }
         // Nothing usable — don't churn the UI.
         guard contextPct != nil || fiveHourPct != nil || sevenDayPct != nil
-                || contextWindow != nil else { return }
+                || contextWindow != nil || !sessionName.isEmpty || !worktree.isEmpty else { return }
         Task { @MainActor [weak state] in
             state?.noteStatusLine(sessionId: sessionId, model: model,
+                                  sessionName: sessionName, worktree: worktree,
                                   contextPct: contextPct,
                                   contextWindow: contextWindow,
                                   contextTokens: contextTokens,

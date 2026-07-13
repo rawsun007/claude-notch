@@ -105,8 +105,12 @@ struct LiveSession: Identifiable, Equatable {
     // acceptEdits / auto / dontAsk / bypassPermissions). Non-default modes get
     // a badge in the notch so a bypass session is never invisible.
     var permissionMode: String = ""
-    // Session title from the SessionStart hook, when the user has set one.
+    // Session title: what `/rename` set. Comes from the SessionStart hook, and
+    // from the status line thereafter (a session can be renamed at any point).
     var title: String = ""
+    // Git worktree this session is in, when it is in a linked one. Two sessions
+    // in the same repo are otherwise identical in the list.
+    var worktree: String = ""
     // Files Claude edited or wrote this session (ordered, unique, newest
     // last, capped). Drives the "N files" chip + Files Touched menu.
     var touchedFiles: [String] = []
@@ -1276,6 +1280,7 @@ final class AppState: ObservableObject {
     /// Authoritative usage fed by Claude Code's statusLine command (the only
     /// local source of real plan-limit %). Percentages arrive as 0...100.
     func noteStatusLine(sessionId: String, model: String,
+                        sessionName: String = "", worktree: String = "",
                         contextPct: Double?, contextWindow: Int? = nil, contextTokens: Int? = nil,
                         fiveHourPct: Double?, sevenDayPct: Double?,
                         fiveHourResetsAt: Date? = nil, sevenDayResetsAt: Date? = nil) {
@@ -1292,6 +1297,8 @@ final class AppState: ObservableObject {
             if !model.isEmpty { s.model = model }
             if let w = contextWindow, w > 0 { s.contextWindow = w }
             if let t = contextTokens, t > 0 { s.contextTokens = t }
+            if !sessionName.isEmpty { s.title = sessionName }
+            if !worktree.isEmpty { s.worktree = worktree }
         }
         let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
         guard isCurrent else { return }
