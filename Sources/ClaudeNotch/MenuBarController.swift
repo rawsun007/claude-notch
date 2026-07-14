@@ -379,6 +379,15 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             self.refreshPrefs()
             self.refreshInsights()
             self.refreshClaudeUsage()
+            // The notch-title submenu resolves its label from live state (the
+            // project name comes from whichever session is running), so it has to
+            // be rebuilt when the menu opens. It used to be rebuilt only when you
+            // clicked one of its rows, which was invisible for "Claude" and
+            // "Custom" — those do not depend on session state, so a stale label
+            // was still the right one. "Project name" does depend on it, and at
+            // launch there is no project yet, so it showed the "Claude" fallback
+            // and then never corrected itself.
+            self.refreshNotchTitleMenu()
         }
     }
 
@@ -948,7 +957,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func refreshNotchTitleMenu() {
         notchTitleMenu.removeAllItems()
         // Submenu title reflects the current choice (and the resolved label).
-        notchTitleItem.title = "Notch Title: \(state.entityName)"
+        // With no session running there is no project to resolve, and showing the
+        // "Claude" fallback here reads as though the setting did not take. Say
+        // what is actually going on instead.
+        let resolved: String = {
+            if state.notchTitleMode == .project, state.currentProject.isEmpty {
+                return "Project name (no session yet)"
+            }
+            return state.entityName
+        }()
+        notchTitleItem.title = "Notch Title: \(resolved)"
 
         func row(_ title: String, mode: NotchTitleMode, action: Selector) {
             let mi = NSMenuItem(title: title, action: action, keyEquivalent: "")

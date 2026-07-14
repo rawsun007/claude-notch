@@ -146,3 +146,33 @@ final class StaleLimitTests: XCTestCase {
         XCTAssertEqual(StatusBarRow.livePercent(0.4, resetAt: nil), 0.4)
     }
 }
+
+/// The notch title. "Project name" resolves from whichever session is running,
+/// which is why its menu label has to be rebuilt when the menu opens rather than
+/// only when you click it.
+@MainActor
+final class NotchTitleTests: XCTestCase {
+
+    func testProjectModeUsesTheRunningProject() {
+        let s = AppState()
+        s.setNotchTitleMode(.project)
+        s.noteSession(cwd: "/Users/me/claude mac app", sessionId: "abc")
+        XCTAssertEqual(s.entityName, "claude mac app")
+    }
+
+    func testProjectModeFallsBackWhenNothingIsRunning() {
+        let s = AppState()
+        s.setNotchTitleMode(.project)
+        XCTAssertEqual(s.entityName, "Claude", "with no session there is no project to show")
+    }
+
+    func testClaudeAndCustomDoNotDependOnTheSession() {
+        let s = AppState()
+        s.setNotchTitleMode(.claude)
+        XCTAssertEqual(s.entityName, "Claude")
+        s.setCustomNotchTitle("Roshan bot")
+        XCTAssertEqual(s.entityName, "Roshan bot")
+        s.noteSession(cwd: "/Users/me/other", sessionId: "abc")
+        XCTAssertEqual(s.entityName, "Roshan bot", "a session must not override a custom title")
+    }
+}
