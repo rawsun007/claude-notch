@@ -1340,8 +1340,27 @@ private struct SessionsList: View {
                                 .fill(working ? Color.blue : Color.green)
                                 .frame(width: 6, height: 6)
                                 .opacity(working ? 0.4 + 0.6 * (0.5 + 0.5 * sin(pulsePhase)) : 1.0)
-                            Text(!session.title.isEmpty ? session.title
-                                 : session.project.isEmpty ? "session" : session.project)
+                            // A background agent is named by the task it was given.
+                            // It has no other label: no terminal, no window, and a
+                            // folder name tells you nothing about what it is doing.
+                            let label: String = {
+                                if !session.title.isEmpty { return session.title }
+                                if !session.backgroundIntent.isEmpty { return session.backgroundIntent }
+                                return session.project.isEmpty ? "session" : session.project
+                            }()
+                            if !session.backgroundAgentId.isEmpty {
+                                Text("AGENT")
+                                    .font(.system(size: 8, weight: .bold, design: .rounded))
+                                    .foregroundColor(.purple.opacity(0.9))
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                            .fill(Color.purple.opacity(0.18))
+                                    )
+                                    .help("Running in the background (claude --bg)")
+                            }
+                            Text(label)
                                 .font(.system(size: 11, weight: .medium, design: .rounded))
                                 .foregroundColor(.white.opacity(0.9))
                                 .lineLimit(1)
@@ -1358,6 +1377,24 @@ private struct SessionsList: View {
                                 }
                                 .font(.system(size: 9, design: .rounded))
                                 .foregroundColor(.white.opacity(0.4))
+                            }
+                            // A background agent has no terminal of its own, so the
+                            // only way to watch it or answer it is to attach.
+                            if !session.backgroundAgentId.isEmpty {
+                                Button {
+                                    state.attachBackgroundAgent(id: session.backgroundAgentId,
+                                                                cwd: session.cwd)
+                                } label: {
+                                    HStack(spacing: 2) {
+                                        Image(systemName: "arrow.right.circle")
+                                            .font(.system(size: 7, weight: .semibold))
+                                        Text("Attach")
+                                            .font(.system(size: 9, weight: .medium, design: .rounded))
+                                    }
+                                    .foregroundColor(.purple.opacity(0.9))
+                                }
+                                .buttonStyle(.plain)
+                                .help("Open this background agent in a terminal (claude attach \(session.backgroundAgentId))")
                             }
                             // The open PR for this branch. Claude Code resolves it,
                             // so the notch can link straight to it instead of the

@@ -111,6 +111,11 @@ struct LiveSession: Identifiable, Equatable {
     // Git worktree this session is in, when it is in a linked one. Two sessions
     // in the same repo are otherwise identical in the list.
     var worktree: String = ""
+    // The background agent this session IS, if it is one (`claude --bg`). A
+    // background agent has no terminal, so the row has to say so and offer to
+    // attach — otherwise it looks exactly like a session you are sitting in.
+    var backgroundAgentId: String = ""
+    var backgroundIntent: String = ""
     // The open PR for this session's branch, resolved by Claude Code (the app
     // would otherwise have to shell out to `gh` to know it exists).
     var prNumber: Int = 0
@@ -2317,6 +2322,38 @@ final class AppState: ObservableObject {
         isHistoryOpen = true
         recompute()
         refreshProjectSpend()
+        refreshBackgroundAgents()
+    }
+
+    /// Background agents the Claude Code daemon is currently running.
+    ///
+    /// They already reach the app as sessions (their hooks fire like any other),
+    /// but nothing distinguished them from a session you are sitting in front of,
+    /// and a background agent is precisely the thing you are NOT looking at.
+    @Published private(set) var backgroundAgents: [BackgroundAgent] = []
+
+    func refreshBackgroundAgents() {
+        let agents = BackgroundAgentReader.read()
+        guard agents != backgroundAgents else { return }
+        backgroundAgents = agents
+
+        // Stamp the sessions we already know about, so their rows can say what
+        // they are and what they were asked to do.
+        let byId = Dictionary(uniqueKeysWithValues: agents.map { ($0.sessionId, $0) })
+        for (key, var session) in sessions {
+            guard let agent = byId[session.id] ?? byId[key] else { continue }
+            guard session.backgroundAgentId != agent.id else { continue }
+            session.backgroundAgentId = agent.id
+            session.backgroundIntent = agent.intent
+            sessions[key] = session
+        }
+    }
+
+    /// Open a background agent in a terminal. It has no terminal of its own, so
+    /// this is the only way to see it or answer it.
+    func attachBackgroundAgent(id: String, cwd: String) {
+        guard !id.isEmpty else { return }
+        TerminalAutomator.attachAgent(id: id, in: cwd)
     }
 
     /// Real 7-day spend per project working directory, read straight from the
@@ -2554,7 +2591,12 @@ final class AppState: ObservableObject {
     private func ensureStaleTimer() {
         guard staleTimer == nil else { return }
         staleTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.checkStale() }
+            Task { @MainActor [weak self] in
+                self?.checkStale()
+                // Same heartbeat: an agent can start or die without any hook
+                // reaching us (it is a daemon, not a terminal).
+                self?.refreshBackgroundAgents()
+            }
         }
     }
 

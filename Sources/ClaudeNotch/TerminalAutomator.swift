@@ -122,28 +122,47 @@ enum TerminalAutomator {
     /// (`claude "message"`). Uses a temp `.command` file (run by the user's
     /// default terminal) rather than AppleScript — so it needs NO Automation
     /// permission and the full claude path works regardless of shell PATH.
-    static func startClaude(in directory: String, message: String? = nil) {
+    /// Open a background agent in a terminal (`claude attach <short-id>`).
+    ///
+    /// A background agent has no terminal of its own — that is the whole point of
+    /// it — so attaching is the only way to see what it is doing or answer it.
+    static func attachAgent(id: String, in directory: String) {
         let claude = resolveClaudePath() ?? "claude"
-        let trimmed = message?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let launch = trimmed.isEmpty
-            ? "exec \(shellQuote(claude))"
-            : "exec \(shellQuote(claude)) \(shellQuote(trimmed))"
-        let body = """
+        openInTerminal("""
         #!/bin/zsh
         cd \(shellQuote(directory)) || exit 1
         clear
-        \(launch)
-        """
+        exec \(shellQuote(claude)) attach \(shellQuote(id))
+        """, label: "attach \(id)")
+    }
+
+    /// Write a script and hand it to Terminal. Both entry points do the same
+    /// thing, and doing it twice is how they drift apart.
+    private static func openInTerminal(_ body: String, label: String) {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("ClaudeNotch-start-\(UUID().uuidString).command")
         do {
             try body.write(to: url, atomically: true, encoding: .utf8)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
             NSWorkspace.shared.open(url)
-            debugLog("startClaude: opened \(url.lastPathComponent) → cd \(directory) && claude \(trimmed.isEmpty ? "" : "<msg>")")
+            debugLog("openInTerminal: \(label) → \(url.lastPathComponent)")
         } catch {
-            debugLog("startClaude: failed to write/open .command — \(error)")
+            debugLog("openInTerminal: failed to write/open .command — \(error)")
         }
+    }
+
+    static func startClaude(in directory: String, message: String? = nil) {
+        let claude = resolveClaudePath() ?? "claude"
+        let trimmed = message?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let launch = trimmed.isEmpty
+            ? "exec \(shellQuote(claude))"
+            : "exec \(shellQuote(claude)) \(shellQuote(trimmed))"
+        openInTerminal("""
+        #!/bin/zsh
+        cd \(shellQuote(directory)) || exit 1
+        clear
+        \(launch)
+        """, label: "start in \(directory)")
     }
 
     private static func shellQuote(_ s: String) -> String {
