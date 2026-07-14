@@ -622,6 +622,14 @@ final class AppState: ObservableObject {
     /// until one arrives (and for anyone not on a subscription plan).
     @Published private(set) var fiveHourResetAt: Date?
     @Published private(set) var weeklyResetAt: Date?
+    /// When the limits above were last reported.
+    ///
+    /// They only arrive while a Claude session is actively redrawing its status
+    /// line, so between sessions (and after the app restarts) the newest reading
+    /// we have can be hours old. Showing an hours-old percentage as though it
+    /// were current is how the notch ended up disagreeing with `/usage`, so the
+    /// age is kept and shown.
+    @Published private(set) var limitsUpdatedAt: Date?
     // Hard-stop: when on, a tool request whose session/daily cap is already
     // exceeded is held for a decision (Deny / Allow once / Raise cap) instead
     // of being auto-allowed — even under an allow-rule or auto-approve. Off by
@@ -724,6 +732,11 @@ final class AppState: ObservableObject {
             self.notchTitleMode = snapshot.notchTitleMode.flatMap(NotchTitleMode.init) ?? .claude
             self.customNotchTitle = snapshot.customNotchTitle ?? ""
             self.learnedContextWindows = snapshot.learnedContextWindows ?? [:]
+            self.fiveHourLimitPercent = snapshot.fiveHourLimitPercent ?? -1
+            self.weeklyLimitPercent = snapshot.weeklyLimitPercent ?? -1
+            self.fiveHourResetAt = snapshot.fiveHourResetAt
+            self.weeklyResetAt = snapshot.weeklyResetAt
+            self.limitsUpdatedAt = snapshot.limitsUpdatedAt
         } else {
             self.requireTouchID = BiometricAuth.isAvailable
         }
@@ -1330,6 +1343,10 @@ final class AppState: ObservableObject {
         noteLiveEffort(effort)
         if let d = fiveHourResetsAt { fiveHourResetAt = d }
         if let d = sevenDayResetsAt { weeklyResetAt = d }
+        if fiveHourPct != nil || sevenDayPct != nil {
+            limitsUpdatedAt = Date()
+            schedulePersist()
+        }
 
         // Model update is independent of contextPct — a status line may carry a
         // model string but no context percentage (e.g. early in a session).
@@ -1544,7 +1561,12 @@ final class AppState: ObservableObject {
             contextWindowMode: contextWindowMode.rawValue,
             notchTitleMode: notchTitleMode.rawValue,
             customNotchTitle: customNotchTitle,
-            learnedContextWindows: learnedContextWindows
+            learnedContextWindows: learnedContextWindows,
+            fiveHourLimitPercent: fiveHourLimitPercent,
+            weeklyLimitPercent: weeklyLimitPercent,
+            fiveHourResetAt: fiveHourResetAt,
+            weeklyResetAt: weeklyResetAt,
+            limitsUpdatedAt: limitsUpdatedAt
         ))
     }
 

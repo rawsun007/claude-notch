@@ -37,6 +37,14 @@ enum Persistence {
         /// Context windows Claude Code reported, keyed by model id. Real data, not
         /// a guess — see AppState.noteStatusLine.
         var learnedContextWindows: [String: Int]? = nil
+        /// The last plan-limit reading Claude Code gave us, and when. Persisted so
+        /// a relaunch does not blank the limits (they only arrive while a session
+        /// is redrawing its status line, which can be hours away).
+        var fiveHourLimitPercent: Double? = nil
+        var weeklyLimitPercent: Double? = nil
+        var fiveHourResetAt: Date? = nil
+        var weeklyResetAt: Date? = nil
+        var limitsUpdatedAt: Date? = nil
     }
 
     static let storeURL: URL = {
@@ -102,7 +110,12 @@ extension Persistence.Snapshot {
             contextWindowMode: try? c.decode(String.self, forKey: .contextWindowMode),
             notchTitleMode: try? c.decode(String.self, forKey: .notchTitleMode),
             customNotchTitle: try? c.decode(String.self, forKey: .customNotchTitle),
-            learnedContextWindows: try? c.decode([String: Int].self, forKey: .learnedContextWindows)
+            learnedContextWindows: try? c.decode([String: Int].self, forKey: .learnedContextWindows),
+            fiveHourLimitPercent: try? c.decode(Double.self, forKey: .fiveHourLimitPercent),
+            weeklyLimitPercent: try? c.decode(Double.self, forKey: .weeklyLimitPercent),
+            fiveHourResetAt: try? c.decode(Date.self, forKey: .fiveHourResetAt),
+            weeklyResetAt: try? c.decode(Date.self, forKey: .weeklyResetAt),
+            limitsUpdatedAt: try? c.decode(Date.self, forKey: .limitsUpdatedAt)
         )
     }
 }

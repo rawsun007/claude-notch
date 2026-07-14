@@ -176,3 +176,48 @@ final class NotchTitleTests: XCTestCase {
         XCTAssertEqual(s.entityName, "Roshan bot", "a session must not override a custom title")
     }
 }
+
+/// A limit reading has an age. Claude Code only reports usage while a session is
+/// redrawing its status line, so between sessions the newest reading we have goes
+/// quietly out of date, and showing it as current is how the notch ended up
+/// disagreeing with /usage.
+@MainActor
+final class LimitFreshnessTests: XCTestCase {
+
+    func testAFreshReadingHasNoAgeToShow() {
+        XCTAssertNil(StatusBarRow.readingAge(Date()))
+        XCTAssertNil(StatusBarRow.readingAge(Date().addingTimeInterval(-60)))
+    }
+
+    func testAnOldReadingSaysHowOldItIs() {
+        let age = StatusBarRow.readingAge(Date().addingTimeInterval(-3600))
+        XCTAssertEqual(age, "1h")
+    }
+
+    func testNoReadingHasNoAge() {
+        XCTAssertNil(StatusBarRow.readingAge(nil))
+    }
+
+    func testTheStatusLineStampsTheReading() {
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/repo", sessionId: "abc")
+        XCTAssertNil(s.limitsUpdatedAt)
+        s.noteStatusLine(sessionId: "abc", model: "claude-opus-4-8",
+                         contextPct: nil, fiveHourPct: 34, sevenDayPct: 52)
+        XCTAssertNotNil(s.limitsUpdatedAt, "a reading has to know when it arrived")
+        XCTAssertEqual(s.weeklyLimitPercent, 0.52, accuracy: 0.001)
+    }
+
+    func testAPayloadWithNoLimitsDoesNotRestampTheReading() {
+        // A status line that carries only context must not make an hours-old limit
+        // reading look like it just arrived.
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/repo", sessionId: "abc")
+        s.noteStatusLine(sessionId: "abc", model: "claude-opus-4-8",
+                         contextPct: nil, fiveHourPct: 34, sevenDayPct: 52)
+        let stamped = s.limitsUpdatedAt
+        s.noteStatusLine(sessionId: "abc", model: "claude-opus-4-8",
+                         contextPct: 40, fiveHourPct: nil, sevenDayPct: nil)
+        XCTAssertEqual(s.limitsUpdatedAt, stamped)
+    }
+}

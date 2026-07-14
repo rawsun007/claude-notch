@@ -850,6 +850,8 @@ struct StatusBarRow: View {
         var showBar: Bool       // false for session-cost item
         /// "1h 12m" until this limit's window resets. Empty when unknown.
         var resetIn: String = ""
+        /// How old this reading is, once it is old enough to matter. Nil = fresh.
+        var age: String? = nil
         var tooltip: String = ""
     }
 
@@ -859,12 +861,14 @@ struct StatusBarRow: View {
             let p = Self.livePercent(state.fiveHourLimitPercent, resetAt: state.fiveHourResetAt)
             return BarData(pct: p, text: p.map { "\(Int(($0 * 100).rounded()))%" } ?? "—", showBar: true,
                            resetIn: showCountdown ? Self.countdown(state.fiveHourResetAt) : "",
-                           tooltip: Self.limitTooltip("5-hour limit", pct: p, resetAt: state.fiveHourResetAt))
+                           age: Self.readingAge(state.limitsUpdatedAt),
+                           tooltip: limitTooltip("5-hour limit", pct: p, resetAt: state.fiveHourResetAt))
         case .weeklyLimit:
             let p = Self.livePercent(state.weeklyLimitPercent, resetAt: state.weeklyResetAt)
             return BarData(pct: p, text: p.map { "\(Int(($0 * 100).rounded()))%" } ?? "—", showBar: true,
                            resetIn: showCountdown ? Self.countdown(state.weeklyResetAt) : "",
-                           tooltip: Self.limitTooltip("Weekly limit", pct: p, resetAt: state.weeklyResetAt))
+                           age: Self.readingAge(state.limitsUpdatedAt),
+                           tooltip: limitTooltip("Weekly limit", pct: p, resetAt: state.weeklyResetAt))
         case .sessionCost:
             return BarData(pct: nil, text: ClaudeUsageReader.fmtMoney(state.currentCostUSD), showBar: false,
                            tooltip: "Estimated cost of this session")
@@ -900,14 +904,34 @@ struct StatusBarRow: View {
         return f
     }()
 
-    private static func limitTooltip(_ name: String, pct: CGFloat?, resetAt: Date?) -> String {
+    private func limitTooltip(_ name: String, pct: CGFloat?, resetAt: Date?) -> String {
         var parts: [String] = [name]
         if let pct { parts.append("\(Int((pct * 100).rounded()))% used") }
         if let resetAt {
             parts.append("resets in \(ClaudeUsageReader.resetCountdown(until: resetAt)) "
-                         + "(\(resetClockFormatter.string(from: resetAt)))")
+                         + "(\(Self.resetClockFormatter.string(from: resetAt)))")
         }
+        if let age = Self.readingAge(state.limitsUpdatedAt) {
+            parts.append("last reported \(age) ago")
+        }
+        parts.append("Claude Code only reports usage while a session is running")
         return parts.joined(separator: " · ")
+    }
+
+    /// How old the newest limit reading is, or nil while it is fresh enough to
+    /// pass for current.
+    ///
+    /// Claude Code reports usage only while a session is redrawing its status
+    /// line. Leave Claude idle and the newest reading we have ages quietly, which
+    /// is how the notch could sit there showing 31% while `/usage` said 52%. An
+    /// old number presented as a current one is worse than no number.
+    static let staleAfter: TimeInterval = 5 * 60
+
+    static func readingAge(_ updatedAt: Date?) -> String? {
+        guard let updatedAt else { return nil }
+        let age = Date().timeIntervalSince(updatedAt)
+        guard age >= staleAfter else { return nil }
+        return ClaudeUsageReader.resetCountdown(until: Date().addingTimeInterval(age), now: Date())
     }
 
     private func tint(for pct: CGFloat) -> Color {
@@ -944,6 +968,14 @@ struct StatusBarRow: View {
                     Text(data.resetIn)
                         .font(.system(size: 9, design: .rounded).monospacedDigit())
                         .foregroundColor(.white.opacity(0.32))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+                // An old reading must not pass for a current one.
+                if let age = data.age {
+                    Text("· \(age) old")
+                        .font(.system(size: 9, design: .rounded))
+                        .foregroundColor(.white.opacity(0.28))
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
                 }
