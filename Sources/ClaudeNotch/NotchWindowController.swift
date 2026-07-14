@@ -67,10 +67,21 @@ final class NotchWindowController {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
-        panel.level = .popUpMenu
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         panel.isMovable = false
+        // ORDER MATTERS. `isFloatingPanel` is not an extra flag on top of the
+        // level: setting it true assigns the level to .floating (3). It was being
+        // set AFTER the level, so every level we thought we were choosing was
+        // being thrown away, and the notch has been living at level 3 — under
+        // ordinary windows, and under any app in full screen. That is why moving
+        // the cursor to the notch inside a full-screen app did nothing: the notch
+        // was behind the app, not ignoring the mouse.
         panel.isFloatingPanel = true
+        // Set the level LAST so it is the one that survives. Above the shielding
+        // level, which is what puts it over a full-screen window; .canJoinAllSpaces
+        // is what stops it staying behind on the desktop's Space while the
+        // full-screen app owns its own.
+        panel.level = NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()))
         panel.becomesKeyOnlyIfNeeded = false
         panel.hidesOnDeactivate = false
         panel.worksWhenModal = true
