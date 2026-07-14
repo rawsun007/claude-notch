@@ -45,6 +45,7 @@ enum Persistence {
         var fiveHourResetAt: Date? = nil
         var weeklyResetAt: Date? = nil
         var limitsUpdatedAt: Date? = nil
+        var breakRemindersEnabled: Bool? = nil
     }
 
     static let storeURL: URL = {
@@ -115,7 +116,8 @@ extension Persistence.Snapshot {
             weeklyLimitPercent: try? c.decode(Double.self, forKey: .weeklyLimitPercent),
             fiveHourResetAt: try? c.decode(Date.self, forKey: .fiveHourResetAt),
             weeklyResetAt: try? c.decode(Date.self, forKey: .weeklyResetAt),
-            limitsUpdatedAt: try? c.decode(Date.self, forKey: .limitsUpdatedAt)
+            limitsUpdatedAt: try? c.decode(Date.self, forKey: .limitsUpdatedAt),
+            breakRemindersEnabled: try? c.decode(Bool.self, forKey: .breakRemindersEnabled)
         )
     }
 }

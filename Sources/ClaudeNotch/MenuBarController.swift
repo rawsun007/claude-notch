@@ -18,6 +18,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var statusItem: NSMenuItem!
     private var persistentNotchItem: NSMenuItem!
     private var petModeItem: NSMenuItem!
+    private var breakRemindersItem: NSMenuItem!
     private var autoApproveItem: NSMenuItem!
     private var autoApproveMenu: NSMenu!
     private var snoozeItem: NSMenuItem!
@@ -246,6 +247,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         petModeItem.target = self
         petModeItem.toolTip = "Let the Claude mascot live in the notch: it peeks, strolls, hangs off the edge, naps, and celebrates finished tasks. Click it to boop it."
         menu.addItem(petModeItem)
+
+        breakRemindersItem = NSMenuItem(title: "Break Reminders",
+                                       action: #selector(toggleBreakReminders), keyEquivalent: "")
+        breakRemindersItem.target = self
+        breakRemindersItem.toolTip = "Nudge you once after a long unbroken stretch of work. Measured from Claude Code's own activity, so there is no timer to start."
+        menu.addItem(breakRemindersItem)
 
         menuSpendItem = NSMenuItem(title: "Show Today's Spend in Menu Bar",
                                    action: #selector(toggleMenuSpend), keyEquivalent: "")
@@ -866,6 +873,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshPrefs()
     }
 
+    @objc private func toggleBreakReminders() {
+        state.setBreakRemindersEnabled(!state.breakRemindersEnabled)
+        refreshPrefs()
+    }
+
     @objc private func toggleTouchID() {
         state.setRequireTouchID(!state.requireTouchID)
         touchIDItem?.state = state.requireTouchID ? .on : .off
@@ -946,6 +958,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func refreshPrefs() {
         persistentNotchItem.state = state.persistentNotchDisplay ? .on : .off
         petModeItem.state = state.petEnabled ? .on : .off
+        breakRemindersItem.state = state.breakRemindersEnabled ? .on : .off
+        // Say how long you have actually been at it, so the toggle is not an
+        // abstraction: it is describing the stretch you are in right now.
+        let stretch = Int(state.focusStretch / 60)
+        breakRemindersItem.title = stretch >= 5
+            ? "Break Reminders  (\(stretch)m at it)"
+            : "Break Reminders"
         refreshNotchTitleMenu()
         refreshAutoApproveMenu()
         refreshSnoozeMenu()

@@ -759,6 +759,7 @@ final class AppState: ObservableObject {
             self.fiveHourResetAt = snapshot.fiveHourResetAt
             self.weeklyResetAt = snapshot.weeklyResetAt
             self.limitsUpdatedAt = snapshot.limitsUpdatedAt
+            self.breakRemindersEnabled = snapshot.breakRemindersEnabled ?? false
         } else {
             self.requireTouchID = BiometricAuth.isAvailable
         }
@@ -1594,7 +1595,8 @@ final class AppState: ObservableObject {
             weeklyLimitPercent: weeklyLimitPercent,
             fiveHourResetAt: fiveHourResetAt,
             weeklyResetAt: weeklyResetAt,
-            limitsUpdatedAt: limitsUpdatedAt
+            limitsUpdatedAt: limitsUpdatedAt,
+            breakRemindersEnabled: breakRemindersEnabled
         ))
     }
 
@@ -1621,6 +1623,7 @@ final class AppState: ObservableObject {
         let bid = (originatorBundleID != Bundle.main.bundleIdentifier) ? originatorBundleID : nil
         if let bid { lastOriginatorBundleID = bid }
         lastHookAt = Date()
+        noteFocusActivity()
         upsertSession(id: sessionId, cwd: c, authoritativeCwd: true, create: true) { s in
             if let bid { s.originatorBundleID = bid }
         }
@@ -2351,6 +2354,41 @@ final class AppState: ObservableObject {
         recompute()
         refreshProjectSpend()
         refreshBackgroundAgents()
+    }
+
+    /// Break reminders. Off by default: an unasked-for interruption is the thing
+    /// people switch off first, and once it is off you lose every later one too.
+    @Published var breakRemindersEnabled: Bool = false
+    private var focus = FocusTracker()
+
+    func setBreakRemindersEnabled(_ on: Bool) {
+        breakRemindersEnabled = on
+        schedulePersist()
+    }
+
+    /// How long you have been working without a break, in seconds. 0 when you are
+    /// on one. Measured from Claude Code's hooks rather than a timer you start:
+    /// the app already knows when work is happening.
+    var focusStretch: TimeInterval { focus.stretch(now: Date()) }
+
+    /// Called on every hook. Ends the stretch if you have been away, and nudges
+    /// once when a stretch gets long.
+    private func noteFocusActivity() {
+        let now = Date()
+        focus.noteActivity(at: now)
+        guard breakRemindersEnabled, focus.shouldNudge(now: now) else { return }
+        let minutes = Int(focus.stretch(now: now) / 60)
+        let req = PermissionRequest(
+            kind: .notification,
+            title: "\(minutes)m without a break",
+            detail: "You have been at this for \(minutes) minutes. Claude will still be here.",
+            toolName: "Focus",
+            source: "ClaudeNotch",
+            cwd: currentCwd,
+            originatorBundleID: nil,
+            resolver: { _, _ in }
+        )
+        enqueuePermission(req)
     }
 
     /// Background agents the Claude Code daemon is currently running.
