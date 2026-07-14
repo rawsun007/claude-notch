@@ -294,3 +294,33 @@ final class ReportedCostTests: XCTestCase {
         XCTAssertEqual(s.sessions["abc"]?.linesRemoved, 340)
     }
 }
+
+/// What a session row is called. Claude Code names sessions itself, so the name
+/// cannot be trusted to be the thing you would recognise the session by.
+@MainActor
+final class SessionLabelTests: XCTestCase {
+
+    func testTheProjectIsWhatYouRecogniseASessionBy() {
+        // Claude Code auto-titled this session "Caveman speech pattern
+        // implementation". Nobody typed that, and it is not a folder. Showing it
+        // where the project should be replaced the one label the user knows.
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/claude mac app", sessionId: "abc")
+        s.noteStatusLine(sessionId: "abc", model: "claude-opus-4-8",
+                         sessionName: "Caveman speech pattern implementation",
+                         contextPct: nil, fiveHourPct: nil, sevenDayPct: nil)
+        let session = s.sessions["abc"]
+        XCTAssertEqual(session?.project, "claude mac app", "the project stays the project")
+        XCTAssertEqual(session?.title, "Caveman speech pattern implementation",
+                       "the name is kept, to be shown as a subtitle")
+    }
+
+    func testABackgroundAgentIsStillNamedByItsTask() {
+        // The exception: an agent runs wherever it was dispatched, so its folder
+        // says nothing, and the task it was given is genuinely its only name.
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/repo", sessionId: "abc")
+        s.noteAgentNotice(.needsInput, sessionId: "abc")
+        XCTAssertTrue(s.sessions["abc"]?.agentNeedsInput == true)
+    }
+}

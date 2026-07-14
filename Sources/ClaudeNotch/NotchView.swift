@@ -1340,13 +1340,28 @@ private struct SessionsList: View {
                                 .fill(working ? Color.blue : Color.green)
                                 .frame(width: 6, height: 6)
                                 .opacity(working ? 0.4 + 0.6 * (0.5 + 0.5 * sin(pulsePhase)) : 1.0)
-                            // A background agent is named by the task it was given.
-                            // It has no other label: no terminal, no window, and a
-                            // folder name tells you nothing about what it is doing.
+                            // The project is what you recognise a session BY. Claude
+                            // Code names sessions itself now, so preferring the name
+                            // meant a row saying "Caveman speech pattern impleme…"
+                            // where the folder should have been — a title you never
+                            // wrote, standing in for the one thing you would have
+                            // recognised. The name is a subtitle, not the label.
+                            //
+                            // A background agent is the exception: it has no folder
+                            // worth showing (it runs wherever it was dispatched) and
+                            // the task it was given is genuinely its only name.
+                            let isAgent = !session.backgroundAgentId.isEmpty
                             let label: String = {
+                                if isAgent, !session.backgroundIntent.isEmpty { return session.backgroundIntent }
+                                if !session.project.isEmpty { return session.project }
                                 if !session.title.isEmpty { return session.title }
-                                if !session.backgroundIntent.isEmpty { return session.backgroundIntent }
-                                return session.project.isEmpty ? "session" : session.project
+                                return "session"
+                            }()
+                            // Shown after the project, dimmed, only when it adds
+                            // something the project name does not already say.
+                            let subtitle: String = {
+                                guard !isAgent, !session.title.isEmpty else { return "" }
+                                return session.title == session.project ? "" : session.title
                             }()
                             if !session.backgroundAgentId.isEmpty {
                                 // A blocked agent is not just another running one:
@@ -1371,8 +1386,15 @@ private struct SessionsList: View {
                                 .foregroundColor(.white.opacity(0.9))
                                 .lineLimit(1)
                                 .truncationMode(.tail)
-                                .help(session.title.isEmpty ? session.cwd
-                                      : "\(session.project) — \(session.cwd)")
+                                .help(session.cwd)
+                            if !subtitle.isEmpty {
+                                Text(subtitle)
+                                    .font(.system(size: 9, design: .rounded))
+                                    .foregroundColor(.white.opacity(0.35))
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                                    .help("Session name: \(subtitle)")
+                            }
                             if !session.gitBranch.isEmpty {
                                 HStack(spacing: 2) {
                                     Image(systemName: "arrow.triangle.branch")
@@ -1489,7 +1511,10 @@ private struct SessionsList: View {
                                 .font(.system(size: 9, design: .rounded))
                                 .foregroundColor(.orange.opacity(0.8))
                                 .padding(.leading, 14)
-                        } else if session.hasMeter {
+                        } else if session.hasMeter, session.id != state.currentSessionId {
+                            // The header IS the current session, and it already shows
+                            // this exact bar. Drawing it again a line below is not
+                            // more information, it is the same number twice.
                             ContextCostBar(percent: session.contextPercent,
                                            cost: session.displayCostUSD,
                                            model: session.model,

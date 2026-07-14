@@ -605,7 +605,9 @@ final class AppState: ObservableObject {
     // etc.) currently reflects. Only this session may write the mirror, so a
     // background session's transcript poll — or a closed session whose poll is
     // still winding down — can't thrash the collapsed header every tick.
-    private var currentSessionId: String = ""
+    /// The session the notch header is describing. Readable so the session LIST
+    /// can avoid repeating what the header already says about it.
+    private(set) var currentSessionId: String = ""
     @Published private(set) var lastActivity: String = ""          // "Bash: ls -la" etc.
     @Published private(set) var lastUserPrompt: String = ""
     @Published private(set) var recentProjects: [String] = []      // ordered, deduped cwds (newest first)
