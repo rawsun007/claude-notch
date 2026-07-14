@@ -89,3 +89,28 @@ enum BackgroundAgentReader {
         "claude attach \(agent.id)"
     }
 }
+
+/// What a Notification hook is telling us about a background agent.
+///
+/// Claude Code fires the Notification hook for background agents when one needs
+/// input or finishes (`agent_needs_input` / `agent_completed`). A blocked
+/// background agent is the worst case this app knows of: it is stuck, it has no
+/// terminal to be stuck in front of, and nothing anywhere says so.
+///
+/// The field carrying the reason is not documented, so rather than guess a key
+/// name and silently miss it forever, the whole payload is searched for the
+/// marker. A wrong guess about the key would fail closed and quietly, which is
+/// the failure mode that never gets noticed.
+enum AgentNotice: String, Equatable {
+    case needsInput = "agent_needs_input"
+    case completed = "agent_completed"
+
+    static func classify(_ payload: [String: Any]) -> AgentNotice? {
+        for value in payload.values {
+            guard let text = value as? String else { continue }
+            if text.contains(AgentNotice.needsInput.rawValue) { return .needsInput }
+            if text.contains(AgentNotice.completed.rawValue) { return .completed }
+        }
+        return nil
+    }
+}

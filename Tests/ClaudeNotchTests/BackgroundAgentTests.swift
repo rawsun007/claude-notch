@@ -84,3 +84,37 @@ final class BackgroundAgentTests: XCTestCase {
         XCTAssertTrue(BackgroundAgentReader.parse(#"{"workers": {}}"#.data(using: .utf8)!).isEmpty)
     }
 }
+
+/// Background agent notifications. Claude Code fires the Notification hook when a
+/// background agent needs input or finishes.
+final class AgentNoticeTests: XCTestCase {
+
+    func testABlockedAgentIsRecognised() {
+        XCTAssertEqual(AgentNotice.classify(["reason": "agent_needs_input"]), .needsInput)
+        XCTAssertEqual(AgentNotice.classify(["type": "agent_completed"]), .completed)
+    }
+
+    /// The key carrying the reason is not documented, so the marker is looked for
+    /// across the payload rather than under one guessed key name. Guessing the key
+    /// would fail closed and silently, which is the failure nobody notices.
+    func testTheMarkerIsFoundWhicheverFieldCarriesIt() {
+        XCTAssertEqual(AgentNotice.classify(["message": "Agent 703d48dc: agent_needs_input"]), .needsInput)
+        XCTAssertEqual(AgentNotice.classify(["notification_type": "agent_completed"]), .completed)
+    }
+
+    func testAnOrdinaryNotificationIsNotAnAgentNotice() {
+        XCTAssertNil(AgentNotice.classify(["message": "Claude needs your permission to run curl"]))
+        XCTAssertNil(AgentNotice.classify([:]))
+    }
+
+    @MainActor
+    func testABlockedAgentIsMarkedAndClearedByAttaching() {
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/repo", sessionId: "abc")
+        s.noteAgentNotice(.needsInput, sessionId: "abc")
+        XCTAssertTrue(s.sessions["abc"]?.agentNeedsInput == true)
+        // Completing is not being blocked.
+        s.noteAgentNotice(.completed, sessionId: "abc")
+        XCTAssertFalse(s.sessions["abc"]?.agentNeedsInput == true)
+    }
+}

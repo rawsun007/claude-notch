@@ -116,6 +116,10 @@ struct LiveSession: Identifiable, Equatable {
     // attach — otherwise it looks exactly like a session you are sitting in.
     var backgroundAgentId: String = ""
     var backgroundIntent: String = ""
+    // True while a background agent is BLOCKED waiting for you. This is the worst
+    // case the app knows about: it is stuck, and it has no terminal to be stuck
+    // in front of, so nothing else on the machine will tell you.
+    var agentNeedsInput: Bool = false
     // The open PR for this session's branch, resolved by Claude Code (the app
     // would otherwise have to shell out to `gh` to know it exists).
     var prNumber: Int = 0
@@ -2349,9 +2353,30 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// A background agent said it needs input, or that it finished.
+    func noteAgentNotice(_ notice: AgentNotice, sessionId: String) {
+        guard !sessionId.isEmpty else { return }
+        upsertSession(id: sessionId, cwd: currentCwd) { s in
+            s.agentNeedsInput = (notice == .needsInput)
+        }
+        // The roster is how we know it is a background agent at all, and a notice
+        // is the moment it is most worth being right about.
+        refreshBackgroundAgents()
+    }
+
+    /// Background agents currently blocked on you.
+    var blockedAgents: [LiveSession] {
+        sessions.values.filter { $0.agentNeedsInput && !$0.backgroundAgentId.isEmpty }
+    }
+
     /// Open a background agent in a terminal. It has no terminal of its own, so
     /// this is the only way to see it or answer it.
     func attachBackgroundAgent(id: String, cwd: String) {
+        // Attaching answers it, so it is no longer waiting on you.
+        for (key, var session) in sessions where session.backgroundAgentId == id {
+            session.agentNeedsInput = false
+            sessions[key] = session
+        }
         guard !id.isEmpty else { return }
         TerminalAutomator.attachAgent(id: id, in: cwd)
     }

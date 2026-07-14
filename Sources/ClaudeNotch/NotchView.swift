@@ -1349,16 +1349,22 @@ private struct SessionsList: View {
                                 return session.project.isEmpty ? "session" : session.project
                             }()
                             if !session.backgroundAgentId.isEmpty {
-                                Text("AGENT")
+                                // A blocked agent is not just another running one:
+                                // it has stopped, it is waiting on you, and nothing
+                                // else on the machine will say so.
+                                let blocked = session.agentNeedsInput
+                                Text(blocked ? "AGENT WAITING" : "AGENT")
                                     .font(.system(size: 8, weight: .bold, design: .rounded))
-                                    .foregroundColor(.purple.opacity(0.9))
+                                    .foregroundColor((blocked ? Color.orange : .purple).opacity(0.95))
                                     .padding(.horizontal, 4)
                                     .padding(.vertical, 1)
                                     .background(
                                         RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                            .fill(Color.purple.opacity(0.18))
+                                            .fill((blocked ? Color.orange : Color.purple).opacity(0.18))
                                     )
-                                    .help("Running in the background (claude --bg)")
+                                    .help(blocked
+                                          ? "This background agent is blocked waiting for you"
+                                          : "Running in the background (claude --bg)")
                             }
                             Text(label)
                                 .font(.system(size: 11, weight: .medium, design: .rounded))

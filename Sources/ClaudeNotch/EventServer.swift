@@ -545,8 +545,16 @@ final class EventServer {
     // MARK: - Handlers
 
     private func handleNotification(payload: [String: Any]) {
+        let notice = AgentNotice.classify(payload)
+        let sessionId = (payload["session_id"] as? String) ?? ""
         Task { @MainActor [weak state] in
             guard let state else { return }
+            // A background agent that needs input is stuck, and it has no terminal
+            // to be stuck in front of. Say which agent, say what it was asked to
+            // do, and let the card open it.
+            if let notice {
+                state.noteAgentNotice(notice, sessionId: sessionId)
+            }
             let msg = (payload["message"] as? String)
                 ?? (payload["title"] as? String)
                 ?? "Claude needs your attention"
@@ -555,7 +563,7 @@ final class EventServer {
             let frontBID = Self.capturedOriginator(state: state)
             let req = PermissionRequest(
                 kind: .notification,
-                title: msg,
+                title: notice == .needsInput ? "Background agent needs you" : msg,
                 detail: detail,
                 toolName: "Notification",
                 source: source,
