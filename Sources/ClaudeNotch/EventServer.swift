@@ -447,6 +447,12 @@ final class EventServer {
         // counts as being in it. This is the only place either number is
         // reported: hooks don't carry them, and the transcript doesn't record
         // them. Everything else the app does with a context window is inference.
+        // Claude Code's OWN cost for this session. Everything the app computes
+        // itself is an estimate from public per-token prices; this is the number
+        // Claude Code bills against, so it wins wherever it exists.
+        let costUSD = num("cost_usd")
+        let linesAdded = num("lines_added").map(Int.init)
+        let linesRemoved = num("lines_removed").map(Int.init)
         let contextWindow = num("context_window").map(Int.init)
         let contextTokens = num("context_tokens").map(Int.init)
         // Unix epoch seconds. A percentage says you are in trouble; the reset
@@ -471,12 +477,14 @@ final class EventServer {
         // Nothing usable — don't churn the UI.
         guard contextPct != nil || fiveHourPct != nil || sevenDayPct != nil
                 || contextWindow != nil || !sessionName.isEmpty || !worktree.isEmpty
-                || prNumber != nil || !effort.isEmpty else { return }
+                || prNumber != nil || !effort.isEmpty || costUSD != nil else { return }
         Task { @MainActor [weak state] in
             state?.noteStatusLine(sessionId: sessionId, model: model,
                                   sessionName: sessionName, worktree: worktree,
                                   prNumber: prNumber, prURL: prURL, prState: prState,
                                   effort: effort,
+                                  reportedCostUSD: costUSD,
+                                  linesAdded: linesAdded, linesRemoved: linesRemoved,
                                   contextPct: contextPct,
                                   contextWindow: contextWindow,
                                   contextTokens: contextTokens,

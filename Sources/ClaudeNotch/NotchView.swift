@@ -1491,7 +1491,7 @@ private struct SessionsList: View {
                                 .padding(.leading, 14)
                         } else if session.hasMeter {
                             ContextCostBar(percent: session.contextPercent,
-                                           cost: session.sessionCostUSD,
+                                           cost: session.displayCostUSD,
                                            model: session.model,
                                            costCap: state.sessionCostCap,
                                            tokens: session.contextTokens,

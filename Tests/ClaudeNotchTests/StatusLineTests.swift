@@ -252,3 +252,45 @@ final class PermissionModeBadgeTests: XCTestCase {
         XCTAssertEqual(s.sessions["abc"]?.permissionMode, "bypassPermissions")
     }
 }
+
+/// Cost. Everything the app computes itself is an estimate from public per-token
+/// prices. Claude Code reports the figure it actually bills against, and where
+/// that exists it wins.
+@MainActor
+final class ReportedCostTests: XCTestCase {
+
+    func testTheReportedCostBeatsOurEstimate() {
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/repo", sessionId: "abc")
+        s.noteSessionMeter(sessionId: "abc", contextTokens: 100, costUSD: 226, model: "claude-opus-4-8")
+        XCTAssertEqual(s.currentCostUSD, 226, accuracy: 0.01, "with no reported cost, the estimate is all we have")
+
+        s.noteStatusLine(sessionId: "abc", model: "claude-opus-4-8",
+                         reportedCostUSD: 217.87,
+                         contextPct: nil, fiveHourPct: nil, sevenDayPct: nil)
+        XCTAssertEqual(s.currentCostUSD, 217.87, accuracy: 0.01)
+        XCTAssertEqual(s.sessions["abc"]?.displayCostUSD ?? 0, 217.87, accuracy: 0.01)
+    }
+
+    func testTheEstimateCannotStompTheReportedCost() {
+        // The transcript meter polls constantly. Without a guard it would replace
+        // the real figure with the estimate seconds after every status line.
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/repo", sessionId: "abc")
+        s.noteStatusLine(sessionId: "abc", model: "claude-opus-4-8",
+                         reportedCostUSD: 217.87,
+                         contextPct: nil, fiveHourPct: nil, sevenDayPct: nil)
+        s.noteSessionMeter(sessionId: "abc", contextTokens: 100, costUSD: 226, model: "claude-opus-4-8")
+        XCTAssertEqual(s.currentCostUSD, 217.87, accuracy: 0.01, "the real cost must survive the poll")
+    }
+
+    func testLinesChangedAreCaptured() {
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/repo", sessionId: "abc")
+        s.noteStatusLine(sessionId: "abc", model: "claude-opus-4-8",
+                         linesAdded: 3593, linesRemoved: 340,
+                         contextPct: nil, fiveHourPct: nil, sevenDayPct: nil)
+        XCTAssertEqual(s.sessions["abc"]?.linesAdded, 3593)
+        XCTAssertEqual(s.sessions["abc"]?.linesRemoved, 340)
+    }
+}

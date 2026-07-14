@@ -92,6 +92,19 @@ struct LiveSession: Identifiable, Equatable {
     var taskTotal: Int { createdTaskIds.count }
     var taskDone: Int { completedTaskIds.count }
 
+    // Claude Code's own cost for this session, and the code it has changed.
+    //
+    // `sessionCostUSD` below is an ESTIMATE the app computes from the transcript
+    // at public per-token prices. This is the figure Claude Code itself reports.
+    // Where it exists it wins: an estimate is what you use when you cannot have
+    // the real number, and here we can.
+    var reportedCostUSD: Double = 0
+    var linesAdded: Int = 0
+    var linesRemoved: Int = 0
+
+    /// What to show. The reported cost if Claude Code gave us one, else our own.
+    var displayCostUSD: Double { reportedCostUSD > 0 ? reportedCostUSD : sessionCostUSD }
+
     // Live context + cost meter, parsed from this session's transcript usage.
     var contextPercent: Double = 0   // 0...1 of the context window in use now
     var contextTokens: Int = 0       // raw input-side tokens (for re-deriving % on override)
@@ -1344,6 +1357,8 @@ final class AppState: ObservableObject {
                         sessionName: String = "", worktree: String = "",
                         prNumber: Int? = nil, prURL: String = "", prState: String = "",
                         effort: String = "",
+                        reportedCostUSD: Double? = nil,
+                        linesAdded: Int? = nil, linesRemoved: Int? = nil,
                         contextPct: Double?, contextWindow: Int? = nil, contextTokens: Int? = nil,
                         fiveHourPct: Double?, sevenDayPct: Double?,
                         fiveHourResetsAt: Date? = nil, sevenDayResetsAt: Date? = nil) {
@@ -1372,11 +1387,15 @@ final class AppState: ObservableObject {
                 s.prURL = prURL
                 s.prState = prState
             }
+            if let c = reportedCostUSD, c > 0 { s.reportedCostUSD = c }
+            if let l = linesAdded, l > 0 { s.linesAdded = l }
+            if let l = linesRemoved, l > 0 { s.linesRemoved = l }
         }
         let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
         guard isCurrent else { return }
         if let pct { currentContextPercent = pct }
         if !model.isEmpty { currentModel = model }
+        if let c = reportedCostUSD, c > 0 { currentCostUSD = c }
         if let w = contextWindow, w > 0 {
             currentContextWindow = w
             // Remember it per model, so the next session on this model shows the
@@ -1722,7 +1741,12 @@ final class AppState: ObservableObject {
         guard isCurrent else { return }
         currentContextPercent = contextPercent
         currentContextTokens = contextTokens
-        currentCostUSD = costUSD
+        // Our estimate must not overwrite Claude Code's own figure. This poll runs
+        // constantly, so without the guard the real cost would be replaced by the
+        // estimate seconds after every status line delivered it.
+        let key = !sessionId.isEmpty ? sessionId : currentCwd
+        let reported = sessions[key]?.reportedCostUSD ?? 0
+        currentCostUSD = reported > 0 ? reported : costUSD
         if !model.isEmpty { currentModel = model }
     }
 
