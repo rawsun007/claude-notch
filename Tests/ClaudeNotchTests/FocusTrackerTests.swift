@@ -15,9 +15,21 @@ final class FocusTrackerTests: XCTestCase {
     }
 
     func testAStretchIsMeasuredFromRealActivity() {
+        // Every gap here is inside the break window, so this is one stretch.
+        // (The first draft of this test had a ten-minute gap in it and expected a
+        // single stretch anyway. The tracker was right and the test was wrong: ten
+        // minutes away IS a break, which is the whole point of the rule.)
         var f = FocusTracker()
-        working(&f, minutes: [0, 5, 10, 20, 30])
+        working(&f, minutes: [0, 5, 10, 15, 20, 25, 30])
         XCTAssertEqual(f.stretch(now: at(30)), 30 * 60, accuracy: 1)
+    }
+
+    func testAGapLongerThanTheBreakWindowReallyIsABreak() {
+        var f = FocusTracker()
+        working(&f, minutes: [0, 5, 10])
+        working(&f, minutes: [20])          // ten minutes away
+        XCTAssertEqual(f.stretch(now: at(20)), 0, accuracy: 1,
+                       "the stretch restarts at the moment you came back")
     }
 
     func testBeingAwayEndsTheStretch() {
