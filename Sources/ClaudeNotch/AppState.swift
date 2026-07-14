@@ -2615,14 +2615,35 @@ final class AppState: ObservableObject {
     /// A session is a session if Claude actually did something in it: it burned
     /// tokens, it cost money, or it changed a file. Everything else is noise.
     nonisolated static func isWorthArchiving(_ session: LiveSession) -> Bool {
-        session.contextTokens > 0 || session.sessionCostUSD > 0 || !session.touchedFiles.isEmpty
+        guard isRealProject(session.cwd) else { return false }
+        return session.contextTokens > 0 || session.sessionCostUSD > 0 || !session.touchedFiles.isEmpty
     }
 
     /// The same rule applied to an already-archived row, so history saved under
     /// the old rule gets swept clean on the next launch. A record has no file
     /// list, so the evidence is tokens or money.
     nonisolated static func isWorthKeeping(_ record: SessionRecord) -> Bool {
-        record.contextTokens > 0 || record.costUSD > 0
+        guard isRealProject(record.cwd) else { return false }
+        return record.contextTokens > 0 || record.costUSD > 0
+    }
+
+    /// Whether a working directory is somebody's project, or just a scratch
+    /// directory the machine will delete on its own.
+    ///
+    /// A one-off run in a temp directory is real work — it burns real tokens and
+    /// costs real money, so the "did Claude actually do something" rule keeps it —
+    /// but it is not a PROJECT. It shows up in the Projects tab next to the
+    /// repository you have spent a fortnight in, and it will not exist tomorrow.
+    /// Anything the OS owns (/tmp, /private/tmp, /var/folders) is a scratch space,
+    /// not a project.
+    nonisolated static func isRealProject(_ cwd: String) -> Bool {
+        guard !cwd.isEmpty else { return false }
+        let path = (cwd as NSString).standardizingPath
+        let scratchRoots = ["/tmp", "/private/tmp", "/var/folders", "/private/var/folders"]
+        for root in scratchRoots where path == root || path.hasPrefix(root + "/") {
+            return false
+        }
+        return true
     }
 
     /// Write (or rewrite) this session's history row.

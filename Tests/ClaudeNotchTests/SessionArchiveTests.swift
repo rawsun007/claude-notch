@@ -54,3 +54,41 @@ final class SessionArchiveTests: XCTestCase {
         XCTAssertTrue(AppState.isWorthKeeping(real))
     }
 }
+
+/// Scratch directories are not projects. A one-off run in a temp folder is real
+/// work (it burns tokens and costs money, so the "did Claude do something" rule
+/// keeps it) but it does not belong in a list of projects, next to a repo you have
+/// spent a fortnight in, when it will not exist tomorrow.
+final class ScratchDirectoryTests: XCTestCase {
+
+    func testTempDirectoriesAreNotProjects() {
+        XCTAssertFalse(AppState.isRealProject("/tmp/scratchpad"))
+        XCTAssertFalse(AppState.isRealProject("/private/tmp/claude-501/abc/scratchpad"))
+        XCTAssertFalse(AppState.isRealProject("/var/folders/c7/xyz/T/whatever"))
+        XCTAssertFalse(AppState.isRealProject("/tmp"))
+        XCTAssertFalse(AppState.isRealProject(""))
+    }
+
+    func testRealProjectsAre() {
+        XCTAssertTrue(AppState.isRealProject("/Users/me/claude mac app"))
+        XCTAssertTrue(AppState.isRealProject("/Users/me/dev/repo"))
+        // Not fooled by a project whose name merely starts the same way.
+        XCTAssertTrue(AppState.isRealProject("/Users/me/tmpfiles"))
+        XCTAssertTrue(AppState.isRealProject("/Users/me/var/folders-app"))
+    }
+
+    func testAScratchRunIsNotArchived() {
+        let scratch = SessionRecord(sessionKey: "bg", project: "scratchpad",
+                                    cwd: "/private/tmp/claude-501/abc/scratchpad",
+                                    startedAt: Date(), endedAt: Date(),
+                                    contextTokens: 24_000, costUSD: 0.08, toolCallCount: 1)
+        XCTAssertFalse(AppState.isWorthKeeping(scratch),
+                       "real work, but not a project: it will not exist tomorrow")
+
+        let real = SessionRecord(sessionKey: "abc", project: "claude mac app",
+                                 cwd: "/Users/me/claude mac app",
+                                 startedAt: Date(), endedAt: Date(),
+                                 contextTokens: 600_000, costUSD: 268, toolCallCount: 10)
+        XCTAssertTrue(AppState.isWorthKeeping(real))
+    }
+}

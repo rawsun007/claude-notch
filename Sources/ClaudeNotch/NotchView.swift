@@ -2394,7 +2394,12 @@ private struct HistoryCard: View {
 
     private var allProjectStats: [ProjectStats] {
         var grouped: [String: [SessionRecord]] = [:]
-        for r in state.sessionHistory { grouped[r.project, default: []].append(r) }
+        // A run in a temp directory is real work, but it is not a project: it sits
+        // in this list next to a repo you have spent a fortnight in, and it will
+        // not exist tomorrow.
+        for r in state.sessionHistory where AppState.isRealProject(r.cwd) {
+            grouped[r.project, default: []].append(r)
+        }
         return grouped.map { project, records in
             let cwd = records.first?.cwd ?? ""
             return ProjectStats(
