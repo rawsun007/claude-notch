@@ -221,3 +221,34 @@ final class LimitFreshnessTests: XCTestCase {
         XCTAssertEqual(s.limitsUpdatedAt, stamped)
     }
 }
+
+/// Permission-mode badges. The riskiest modes are the ones worth seeing on a
+/// session you are NOT looking at.
+final class PermissionModeBadgeTests: XCTestCase {
+
+    func testRiskyModesAreBadged() {
+        XCTAssertEqual(permissionModeBadge("bypassPermissions")?.label, "BYPASS")
+        XCTAssertEqual(permissionModeBadge("dontAsk")?.label, "DON'T ASK")
+        XCTAssertEqual(permissionModeBadge("auto")?.label, "AUTO")
+        XCTAssertEqual(permissionModeBadge("plan")?.label, "PLAN")
+    }
+
+    func testTheOrdinaryModesAreNotBadged() {
+        // A badge for the normal case is just noise on every row.
+        XCTAssertNil(permissionModeBadge("default"))
+        XCTAssertNil(permissionModeBadge(""))
+        // acceptEdits is a normal way to work, and badging it permanently was
+        // removed on purpose.
+        XCTAssertNil(permissionModeBadge("acceptEdits"))
+    }
+
+    @MainActor
+    func testASessionCarriesItsOwnMode() {
+        // Not just the current one: a session in another project running with
+        // permissions bypassed is exactly the one you need to see.
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/repo", sessionId: "abc")
+        s.notePermissionMode("bypassPermissions", sessionId: "abc", cwd: "/Users/me/repo")
+        XCTAssertEqual(s.sessions["abc"]?.permissionMode, "bypassPermissions")
+    }
+}

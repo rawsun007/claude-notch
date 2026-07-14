@@ -1378,6 +1378,23 @@ private struct SessionsList: View {
                                 .font(.system(size: 9, design: .rounded))
                                 .foregroundColor(.white.opacity(0.4))
                             }
+                            // The mode this session is running in. The header badge
+                            // only ever describes the CURRENT session, so a session
+                            // in another project running with permissions bypassed
+                            // was invisible — which is the one it is most important
+                            // to be able to see.
+                            if let badge = permissionModeBadge(session.permissionMode) {
+                                Text(badge.label)
+                                    .font(.system(size: 8, weight: .bold, design: .rounded))
+                                    .foregroundColor(badge.color.opacity(0.95))
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                            .fill(badge.color.opacity(0.18))
+                                    )
+                                    .help(badge.help)
+                            }
                             // A background agent has no terminal of its own, so the
                             // only way to watch it or answer it is to attach.
                             if !session.backgroundAgentId.isEmpty {
