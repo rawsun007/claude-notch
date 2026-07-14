@@ -931,7 +931,7 @@ struct StatusBarRow: View {
         guard let updatedAt else { return nil }
         let age = Date().timeIntervalSince(updatedAt)
         guard age >= staleAfter else { return nil }
-        return ClaudeUsageReader.resetCountdown(until: Date().addingTimeInterval(age), now: Date())
+        return ClaudeUsageReader.ageDescription(seconds: age)
     }
 
     private func tint(for pct: CGFloat) -> Color {

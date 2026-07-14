@@ -131,6 +131,27 @@ enum ClaudeUsageReader {
         return rest > 0 ? "\(hours)h \(rest)m" : "\(hours)h"
     }
 
+    /// How long ago something happened, as a glanceable string.
+    ///
+    /// Not the same job as `resetCountdown`, which rounds UP because a window
+    /// that resets in 61 seconds should not read "1m" when you are waiting on it.
+    /// An age rounds DOWN: a reading taken an hour ago is "1h old", not "1h 1m
+    /// old". Using the countdown for both is what made a one-hour-old reading
+    /// render as "1h 1m".
+    static func ageDescription(seconds: Double) -> String {
+        guard seconds >= 60 else { return "just now" }
+        let minutes = Int(seconds / 60)          // rounds down
+        guard minutes >= 60 else { return "\(minutes)m" }
+        let hours = minutes / 60
+        let rest = minutes % 60
+        guard hours < 24 else {
+            let days = hours / 24
+            let restHours = hours % 24
+            return restHours > 0 ? "\(days)d \(restHours)h" : "\(days)d"
+        }
+        return rest > 0 ? "\(hours)h \(rest)m" : "\(hours)h"
+    }
+
     /// Last path component of a working directory, e.g. ".../claude mac app" → "claude mac app".
     static func projectName(_ cwd: String) -> String {
         let name = (cwd as NSString).lastPathComponent

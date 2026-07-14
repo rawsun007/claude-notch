@@ -370,3 +370,30 @@ final class ResetCountdownTests: XCTestCase {
         XCTAssertEqual(ClaudeUsageReader.resetCountdown(until: now, now: now), "now")
     }
 }
+
+/// How old a reading is. A separate job from the reset countdown, and the two
+/// round in opposite directions: a window resetting in 61 seconds must not read
+/// "1m" while you wait on it, but a reading taken an hour ago is "1h old", not
+/// "1h 1m old". Sharing one function between them is what shipped the latter.
+final class AgeDescriptionTests: XCTestCase {
+
+    func testAgeRoundsDown() {
+        XCTAssertEqual(ClaudeUsageReader.ageDescription(seconds: 3600), "1h")
+        XCTAssertEqual(ClaudeUsageReader.ageDescription(seconds: 3599), "59m")
+        XCTAssertEqual(ClaudeUsageReader.ageDescription(seconds: 3660), "1h 1m")
+    }
+
+    func testCountdownRoundsUp() {
+        let now = Date()
+        XCTAssertEqual(ClaudeUsageReader.resetCountdown(until: now.addingTimeInterval(90), now: now), "2m")
+    }
+
+    func testFreshIsJustNow() {
+        XCTAssertEqual(ClaudeUsageReader.ageDescription(seconds: 30), "just now")
+    }
+
+    func testDays() {
+        XCTAssertEqual(ClaudeUsageReader.ageDescription(seconds: 3600 * 26), "1d 2h")
+        XCTAssertEqual(ClaudeUsageReader.ageDescription(seconds: 3600 * 48), "2d")
+    }
+}
