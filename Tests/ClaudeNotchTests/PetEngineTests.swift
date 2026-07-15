@@ -696,3 +696,44 @@ final class SpiderHangTests: XCTestCase {
         XCTAssertFalse(PetEngine.isHanging(.stroll))
     }
 }
+
+/// THWIP. The Spider-Pet shoots webs mid-swing, and only the Spider-Pet does.
+final class WebShotTests: XCTestCase {
+
+    private let stage = PetEngine.Stage(notchInset: 32, halfWidth: 110)
+
+    func testItFiresTwice() {
+        // Two bursts across the hang, each lasting webShotLife of it.
+        var firing = 0
+        for i in 0...1000 where PetEngine.pose(for: .spiderHang, progress: Double(i) / 1000, stage: stage).webShot > 0 {
+            firing += 1
+        }
+        let expected = Int(PetEngine.webShotLife * 2 * 1000)
+        XCTAssertEqual(Double(firing), Double(expected), accuracy: 40, "two shots of webShotLife each")
+    }
+
+    func testAShotExtendsThenFades() {
+        // webShot runs 0 to 1 across a burst — it grows and dies, so the strand
+        // reaches out and then thins away rather than blinking on and off.
+        let early = PetEngine.pose(for: .spiderHang, progress: 0.35, stage: stage).webShot
+        let late  = PetEngine.pose(for: .spiderHang, progress: 0.49, stage: stage).webShot
+        XCTAssertGreaterThan(early, 0)
+        XCTAssertGreaterThan(late, early)
+    }
+
+    func testItFiresLeftThenRight() {
+        // The two shots go opposite ways: toward the corner it swings away from.
+        let first = PetEngine.pose(for: .spiderHang, progress: 0.36, stage: stage)
+        let second = PetEngine.pose(for: .spiderHang, progress: 0.64, stage: stage)
+        XCTAssertLessThan(first.webShotAngle, 0)
+        XCTAssertGreaterThan(second.webShotAngle, 0)
+    }
+
+    func testOnlyTheSpiderShoots() {
+        for i in 0...200 {
+            let t = Double(i) / 200
+            XCTAssertEqual(PetEngine.pose(for: .rope, progress: t, stage: stage).webShot, 0)
+            XCTAssertEqual(PetEngine.pose(for: .peek, progress: t, stage: stage).webShot, 0)
+        }
+    }
+}

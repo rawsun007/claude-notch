@@ -97,6 +97,20 @@ enum PetDemo {
                     NSColor(calibratedWhite: web ? 0.92 : 0.55, alpha: pose.opacity).setStroke()
                     strand.stroke()
                 }
+                // THWIP: the web fired mid-swing.
+                if pose.webShot > 0 {
+                    let sprite = activity.spriteSize
+                    let reach = min(1.0, pose.webShot * 3) * sprite * 1.4
+                    let fade = 1 - pose.webShot
+                    let ang = pose.webShotAngle * .pi / 180
+                    let origin = NSPoint(x: plateX + stageWidth / 2 + pose.x, y: plateY + pose.y)
+                    let tip = NSPoint(x: origin.x + sin(ang) * reach, y: origin.y + cos(ang) * reach)
+                    let shot = NSBezierPath(); shot.move(to: origin); shot.line(to: tip)
+                    shot.lineWidth = 1.5
+                    NSColor(calibratedWhite: 0.95, alpha: fade * pose.opacity).setStroke(); shot.stroke()
+                    NSColor(calibratedWhite: 0.95, alpha: fade * 0.8 * pose.opacity).setFill()
+                    NSBezierPath(ovalIn: NSRect(x: tip.x-3, y: tip.y-3, width: 6, height: 6)).fill()
+                }
                 // Sample the gait clock at the same instant the app would.
                 let rig = PetRigging.rig(for: activity, progress: t, time: t * 2.4)
                 draw(size: activity.spriteSize, pose: pose, rig: rig,

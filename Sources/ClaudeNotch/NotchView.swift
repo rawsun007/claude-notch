@@ -855,6 +855,33 @@ private struct PetStageView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                // THWIP: a web fired mid-swing. Shoots out from the pet, extends
+                // fast, then fades — drawn over the strand but under the sprite so
+                // it reads as coming from his hand.
+                if pose.webShot > 0 {
+                    let life = pose.webShot                       // 0...1
+                    let reach = CGFloat(min(1, life * 3)) * sprite * 1.4   // snaps out early
+                    let fade = 1 - life                           // gone by the end
+                    let ang = pose.webShotAngle * .pi / 180
+                    Canvas { ctx, canvasSize in
+                        let origin = CGPoint(x: canvasSize.width / 2 + CGFloat(pose.x),
+                                             y: CGFloat(pose.y))
+                        // Down and out into open space over the desktop, not up
+                        // into the notch where it would be hidden.
+                        let tip = CGPoint(x: origin.x + CGFloat(sin(ang)) * reach,
+                                          y: origin.y + CGFloat(cos(ang)) * reach)
+                        var path = Path()
+                        path.move(to: origin)
+                        path.addLine(to: tip)
+                        ctx.stroke(path, with: .color(Color(white: 0.95).opacity(fade * pose.opacity)),
+                                   style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
+                        // The sticky splat at the tip.
+                        let r: CGFloat = 3
+                        ctx.fill(Path(ellipseIn: CGRect(x: tip.x - r, y: tip.y - r, width: r * 2, height: r * 2)),
+                                 with: .color(Color(white: 0.95).opacity(fade * 0.8 * pose.opacity)))
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
                 PetSprite(size: sprite, rig: rig,
                           costume: activity == .spiderHang ? .spider : .plain)
                     .shadow(color: .black.opacity(0.55), radius: 4, y: 1)
