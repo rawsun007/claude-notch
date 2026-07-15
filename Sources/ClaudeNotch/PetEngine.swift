@@ -53,6 +53,7 @@ enum PetActivity: String, CaseIterable, Equatable {
     case rope         // dangles from a rope out of the notch, swinging
     case watch        // Claude is working: the pet stays out and keeps it company
     case flinch       // something went wrong: a startled recoil, then a wary peek
+    case spiderHang   // hangs upside-down off the notch on a web, in the suit
 
     /// Sprite size in points. Big enough to read as a creature at arm's length
     /// from the screen, not a favicon: the mascot is the feature, and the notch
@@ -81,7 +82,7 @@ enum PetActivity: String, CaseIterable, Equatable {
 
     /// Length of the rope the pet dangles on (0 for everything else). The pet
     /// hangs this far below the notch's lip before its body starts.
-    var ropeLength: Double { self == .rope ? 26 : 0 }
+    var ropeLength: Double { (self == .rope || self == .spiderHang) ? 26 : 0 }
 
     /// Vertical room the activity needs *above* its resting position — a hop,
     /// a flip, a bob. The pet rests this much lower so the top of its arc still
@@ -104,7 +105,7 @@ enum PetActivity: String, CaseIterable, Equatable {
     /// lip means the hardware notch shears the top off every hop.
     func restCentreY(notchInset: Double) -> Double {
         // On a rope the pet hangs the rope's length below the lip.
-        if self == .rope { return notchInset + ropeLength + spriteSize / 2 }
+        if self == .rope || self == .spiderHang { return notchInset + ropeLength + spriteSize / 2 }
         return notchInset + lipClearance + headroom + spriteSize / 2
     }
 
@@ -115,7 +116,7 @@ enum PetActivity: String, CaseIterable, Equatable {
         guard self != .tucked else { return 0 }
         // A rope hangs straight down at rest (its lowest point), so the stage
         // just has to fit the rope plus the whole sprite.
-        if self == .rope { return ropeLength + spriteSize + 6 }
+        if self == .rope || self == .spiderHang { return ropeLength + spriteSize + 6 }
         // Enough for the sprite at rest, plus the slack its motion needs, plus
         // a little breathing room above the card's bottom curve.
         return lipClearance + spriteSize + headroom + 6
@@ -133,7 +134,7 @@ enum PetActivity: String, CaseIterable, Equatable {
              .spin:      return 44
         case .hangLeft,
              .hangRight: return 40
-        case .rope:      return 60   // room for the pendulum swing
+        case .rope, .spiderHang: return 60   // room for the pendulum swing
         default:         return 28
         }
     }
@@ -151,7 +152,7 @@ enum PetActivity: String, CaseIterable, Equatable {
         case .hangLeft, .hangRight: return .paws     // grips from the top
         // On a rope the body tilts along the line, so it turns about its centre
         // and the rope is drawn to whichever way it's swinging.
-        case .spin, .rope:          return .centre
+        case .spin, .rope, .spiderHang: return .centre
         default:                    return .feet
         }
     }
@@ -251,9 +252,9 @@ enum PetEngine {
         case .sleepy:
             return [(.sleep, 6), (.peek, 1), (.hangLeft, 1)]
         case .calm:
-            return [(.peek, 4), (.lookAround, 3), (.hangLeft, 2), (.hangRight, 2), (.stroll, 2), (.rope, 2), (.sleep, 1)]
+            return [(.peek, 4), (.lookAround, 3), (.hangLeft, 2), (.hangRight, 2), (.stroll, 2), (.rope, 2), (.spiderHang, 1), (.sleep, 1)]
         case .curious:
-            return [(.lookAround, 4), (.peek, 3), (.stroll, 3), (.rope, 3), (.hangRight, 2), (.hangLeft, 2)]
+            return [(.lookAround, 4), (.peek, 3), (.stroll, 3), (.rope, 3), (.spiderHang, 1), (.hangRight, 2), (.hangLeft, 2)]
         case .working:
             // Claude is working, so the pet works: it stays out and watches the
             // job instead of hiding for the whole run. This is the point of
@@ -305,6 +306,7 @@ enum PetEngine {
         case .rope:       return ropeDuration
         case .watch:      return Double.random(in: 3.5...5.0, using: &rng)
         case .flinch:     return 2.0
+        case .spiderHang: return ropeDuration
         }
     }
 
@@ -470,6 +472,12 @@ enum PetEngine {
     /// Anchor-to-sprite-centre distance with the rope hanging straight and slack-free.
     static func ropeRestRadius(_ activity: PetActivity) -> Double {
         activity.ropeLength + activity.spriteSize / 2
+    }
+
+    /// Whether an activity dangles on a line out of the notch (rope or web). Both
+    /// share the same physics; only the costume and the flip differ.
+    static func isHanging(_ activity: PetActivity) -> Bool {
+        activity == .rope || activity == .spiderHang
     }
 
     // MARK: Pose
@@ -670,22 +678,27 @@ enum PetEngine {
             pose.emote = stage.petting ? .heart : (t < 0.55 ? .bang : .dots)
             pose.emoteScale = 1.1 - t * 0.5
 
-        case .rope:
+        case .rope, .spiderHang:
             // Simulated, not keyframed — see `ropeState`. The generic drop-out
-            // spring is deliberately *not* used here: the rope act has its own
+            // spring is deliberately *not* used here: the drop act has its own
             // entry (a fall), and stacking a second spring on top of gravity is
             // what made the old version read as a cartoon bob rather than a
             // weight on a line. Only the retract is shared, to reel it back in.
+            //
+            // Spider-Man hangs the same way, on the same physics, with two
+            // differences: he comes down HEAD FIRST (180° flip) and the renderer
+            // draws a web instead of a rope and puts him in the suit.
             let anchor = stage.notchInset
             let rope = ropeState(seconds: t * ropeDuration, anchor: anchor,
                                  restRadius: ropeRestRadius(activity), dropStart: hiddenY)
             pose.x = rope.x * (1 - retract)
             pose.y = hiddenY + (rope.y - hiddenY) * (1 - retract)
-            // The body trails the rope instead of being welded to it.
-            pose.rotation = (rope.angle - ropeBobLag * rope.angleRate) * 180 / .pi
+            // The body trails the line instead of being welded to it.
+            let swingRotation = (rope.angle - ropeBobLag * rope.angleRate) * 180 / .pi
+            pose.rotation = activity == .spiderHang ? swingRotation + 180 : swingRotation
             pose.flipped = rope.angle < 0
-            // Stretch along the rope: thin while falling and while the rope pulls
-            // it back up, fat as the rope bottoms out under it.
+            // Stretch along the line: thin while falling and while it pulls him
+            // back up, fat as the line bottoms out under him.
             let ropeStretch = clampMag(rope.radialRate * 0.0012, 0.18)
             pose.scaleY = 1 + ropeStretch
             pose.scaleX = 1 - ropeStretch * 0.7

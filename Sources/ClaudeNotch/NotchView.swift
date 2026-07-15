@@ -357,7 +357,7 @@ struct NotchView: View {
         // out of a card that unfurled. The pet draws BEHIND a collapsed black
         // notch (its top hidden by it, exactly like the hardware notch would),
         // and its body hangs below on the transparent panel.
-        if isPetOut, state.petActivity == .rope {
+        if isPetOut, PetEngine.isHanging(state.petActivity) {
             // The black notch must match the HARDWARE cutout exactly, not the
             // (wider) pet stage — otherwise it grows black wings out past the
             // real notch and the whole illusion breaks. The pet stage is wider
@@ -592,12 +592,44 @@ extension NotchView {
 /// Bare mascot artwork (the Claude Code CLI's pixel-art crab). Bob/scale
 /// animation is layered on by callers — this just draws the sprite, falling
 /// back to the plain brand mark if the asset didn't ship for some reason.
+/// What the pet is wearing. `.plain` is the everyday coral mascot; `.spider` is
+/// the red-and-blue suit it puts on to hang upside-down off the notch on a web.
+/// A costume is only colour: the rig, the physics, and the pixel layout are the
+/// same pet underneath.
+enum PetCostume: Equatable {
+    case plain
+    case spider
+
+    static let coral = Color(red: 217.0 / 255, green: 119.0 / 255, blue: 87.0 / 255)
+    static let spiderRed = Color(red: 0.80, green: 0.11, blue: 0.13)
+    static let spiderBlue = Color(red: 0.13, green: 0.20, blue: 0.55)
+    static let darkEye = Color(red: 0.16, green: 0.09, blue: 0.06)
+    static let spiderEye = Color(white: 0.96)
+
+    /// Body colour. Spidey is red on top, blue below the shoulders — arms red,
+    /// legs blue — which is the read even at 16 pixels.
+    func bodyColour(topHalf: Bool) -> Color {
+        switch self {
+        case .plain:  return Self.coral
+        case .spider: return topHalf ? Self.spiderRed : Self.spiderBlue
+        }
+    }
+
+    var eyeColour: Color {
+        switch self {
+        case .plain:  return Self.darkEye
+        case .spider: return Self.spiderEye   // the big white mask lenses
+        }
+    }
+}
+
 private struct PetSprite: View {
     var size: CGFloat
     /// Nil renders the pet standing at rest. Everything animated passes a rig.
     var rig: PetRig = PetRig()
+    var costume: PetCostume = .plain
 
-    static let colour = Color(red: 217.0 / 255, green: 119.0 / 255, blue: 87.0 / 255)
+    static let colour = PetCostume.coral
 
     var body: some View {
         Canvas(rendersAsynchronously: false) { ctx, canvasSize in
@@ -610,13 +642,14 @@ private struct PetSprite: View {
             // Limbs first, torso last: the body then covers every joint, so a
             // swinging arm or a dangling leg stays attached to it instead of
             // opening a gap where it meets the shoulder or hip.
+            let legColour = costume.bodyColour(topHalf: false)
             for (i, leg) in PetBody.legs.enumerated() {
                 let lift = rig.legLift[i] + rig.legTuck[i]
                 var part = leg
                 part.height = max(0, leg.height - rig.legTuck[i])
                 guard part.height > 0.01 else { continue }
                 ctx.fill(Path(rect(part, dx: rig.legSwing[i], dy: -lift + rig.legTuck[i])),
-                         with: .color(Self.colour))
+                         with: .color(legColour))
             }
 
             // Arms pivot at the shoulder — a cell inside the torso, so no angle
@@ -628,7 +661,7 @@ private struct PetSprite: View {
                     layer.translateBy(x: pivot.x, y: pivot.y)
                     layer.rotate(by: .degrees(angle))
                     layer.translateBy(x: -pivot.x, y: -pivot.y)
-                    layer.fill(Path(r), with: .color(Self.colour))
+                    layer.fill(Path(r), with: .color(costume.bodyColour(topHalf: true)))
                 }
             }
             // Mirrored: a positive rig angle raises either arm, so the left one
@@ -636,8 +669,11 @@ private struct PetSprite: View {
             arm(PetBody.armLeft, pivotCell: PetBody.shoulderLeft, angle: rig.armLeftAngle)
             arm(PetBody.armRight, pivotCell: PetBody.shoulderRight, angle: -rig.armRightAngle)
 
+            // Torso: head + shoulders are the top half (red), the belly is the
+            // bottom (blue). The shoulder row (y == 7) is the waist of the suit.
             for slab in PetBody.torso {
-                ctx.fill(Path(rect(slab)), with: .color(Self.colour))
+                let topHalf = slab.y < 9
+                ctx.fill(Path(rect(slab)), with: .color(costume.bodyColour(topHalf: topHalf)))
             }
 
             // Eyes are painted solid dark, not punched through the body. A hole
@@ -652,7 +688,7 @@ private struct PetSprite: View {
                 lid.height = eye.height * open
                 let dy = eye.height - lid.height
                 ctx.fill(Path(rect(lid, dx: rig.eyeShift, dy: dy)),
-                         with: .color(Color(red: 0.16, green: 0.09, blue: 0.06)))
+                         with: .color(costume.eyeColour))
             }
         }
         .frame(width: size, height: size)
@@ -766,16 +802,19 @@ private struct PetStageView: View {
                 // The rope: drawn behind the pet, from the notch's lip down to
                 // where the pet grips it. Its end follows the pet's top along the
                 // swing, so the line and the creature stay joined at every angle.
-                if activity == .rope {
+                if PetEngine.isHanging(activity) {
+                    // The line points along the body. For the rope pet it meets
+                    // the HEAD (paws up, gripping). Spider-Man hangs head-DOWN, so
+                    // the flip already turned his rotation 180°, and the same
+                    // grip vector now lands on the web at his feet — which is
+                    // exactly where a web should attach.
                     let theta: Double = pose.rotation * .pi / 180
-                    // Attach to the pet's HEAD (where the paws grip), not the top
-                    // of the sprite box — the artwork leaves three empty rows up
-                    // there, and measuring to the box left a gap between the rope
-                    // and the creature. Overlap a hair into the head so there's
-                    // never a seam.
                     let grip = CGFloat(-PetBody.headTopFraction + 0.04) * sprite
                     let topX = CGFloat(pose.x) - CGFloat(sin(theta)) * grip
                     let topY = CGFloat(pose.y) - CGFloat(cos(theta)) * grip
+                    // A web is bright and thin; a rope is dark and soft.
+                    let isWeb = activity == .spiderHang
+                    let lineColour = isWeb ? Color(white: 0.92) : Color(white: 0.32)
                     // A rope has a fixed length, so while the pet is still falling
                     // the spare rope has to go somewhere: it sags. Straight line
                     // only once the fall has paid the slack out and the rope is
@@ -797,12 +836,13 @@ private struct PetStageView: View {
                         } else {
                             path.addLine(to: end)
                         }
-                        ctx.stroke(path, with: .color(Color(white: 0.32).opacity(pose.opacity)),
-                                   style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        ctx.stroke(path, with: .color(lineColour.opacity(pose.opacity)),
+                                   style: StrokeStyle(lineWidth: isWeb ? 1.5 : 2, lineCap: .round))
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                PetSprite(size: sprite, rig: rig)
+                PetSprite(size: sprite, rig: rig,
+                          costume: activity == .spiderHang ? .spider : .plain)
                     .shadow(color: .black.opacity(0.55), radius: 4, y: 1)
                     .scaleEffect(x: pose.flipped ? -pose.scaleX : pose.scaleX, y: pose.scaleY, anchor: anchor)
                     .rotationEffect(.degrees(pose.rotation), anchor: anchor)

@@ -71,7 +71,7 @@ enum PetDemo {
                 NSBezierPath(roundedRect: plate, xRadius: 12, yRadius: 12).addClip()
                 // The rope strand, drawn the same way the app draws it: sagging
                 // while there is slack, straight once it is taut.
-                if activity == .rope {
+                if PetEngine.isHanging(activity) {
                     let sprite = activity.spriteSize
                     let theta = pose.rotation * .pi / 180
                     let grip = (-PetBody.headTopFraction + 0.04) * sprite
@@ -91,14 +91,15 @@ enum PetDemo {
                     } else {
                         strand.line(to: end)
                     }
-                    strand.lineWidth = 2
-                    NSColor(calibratedWhite: 0.55, alpha: pose.opacity).setStroke()
+                    let web = activity == .spiderHang
+                    strand.lineWidth = web ? 1.5 : 2
+                    NSColor(calibratedWhite: web ? 0.92 : 0.55, alpha: pose.opacity).setStroke()
                     strand.stroke()
                 }
                 // Sample the gait clock at the same instant the app would.
                 let rig = PetRigging.rig(for: activity, progress: t, time: t * 2.4)
                 draw(size: activity.spriteSize, pose: pose, rig: rig,
-                     pivot: activity.pivot,
+                     pivot: activity.pivot, spider: activity == .spiderHang,
                      centre: NSPoint(x: plateX + stageWidth / 2, y: plateY))
                 NSGraphicsContext.restoreGraphicsState()
             }
@@ -119,10 +120,13 @@ enum PetDemo {
     /// feet (or the paws, when hanging), then place the sprite's centre at
     /// (pose.x, pose.y) measured from the card's top-centre.
     /// Draws the pet's parts from the rig, mirroring PetSprite's Canvas.
-    private static func drawBody(size: Double, rig: PetRig) {
+    private static func drawBody(size: Double, rig: PetRig, spider: Bool = false) {
         let cell = size / PetBody.grid
-        let colour = NSColor(calibratedRed: 217/255, green: 119/255, blue: 87/255, alpha: 1)
-        colour.setFill()
+        let coral = NSColor(calibratedRed: 217/255, green: 119/255, blue: 87/255, alpha: 1)
+        let red = NSColor(calibratedRed: 0.80, green: 0.11, blue: 0.13, alpha: 1)
+        let blue = NSColor(calibratedRed: 0.13, green: 0.20, blue: 0.55, alpha: 1)
+        func colour(top: Bool) -> NSColor { spider ? (top ? red : blue) : coral }
+        colour(top: true).setFill()
         func rect(_ p: PetPart, dx: Double = 0, dy: Double = 0) -> NSRect {
             NSRect(x: -size/2 + (p.x + dx) * cell, y: -size/2 + (p.y + dy) * cell,
                    width: p.width * cell, height: p.height * cell)
@@ -132,6 +136,7 @@ enum PetDemo {
             part.height = max(0, leg.height - rig.legTuck[i])
             guard part.height > 0.01 else { continue }
             let lift = rig.legLift[i] + rig.legTuck[i]
+            colour(top: false).setFill()
             NSBezierPath(rect: rect(part, dx: rig.legSwing[i], dy: -lift + rig.legTuck[i])).fill()
         }
 
@@ -145,7 +150,7 @@ enum PetDemo {
             tf.rotate(byDegrees: CGFloat(angle))
             tf.translateX(by: -pivot.x, yBy: -pivot.y)
             tf.concat()
-            colour.setFill()
+            colour(top: true).setFill()
             NSBezierPath(rect: r).fill()
             NSGraphicsContext.restoreGraphicsState()
         }
@@ -154,10 +159,12 @@ enum PetDemo {
         arm(PetBody.armRight, pivotCell: PetBody.shoulderRight, angle: -rig.armRightAngle)
 
         // Torso last: it covers every shoulder and hip joint.
-        for slab in PetBody.torso { NSBezierPath(rect: rect(slab)).fill() }
+        for slab in PetBody.torso {
+            colour(top: slab.y < 9).setFill()
+            NSBezierPath(rect: rect(slab)).fill()
+        }
 
-        // Eyes are holes; the plate behind the pet is black, so paint black.
-        NSColor.black.setFill()
+        (spider ? NSColor(calibratedWhite: 0.96, alpha: 1) : NSColor.black).setFill()
         for eye in [PetBody.eyeLeft, PetBody.eyeRight] {
             let open = max(0, rig.eyeOpen)
             guard open > 0.02 else { continue }
@@ -167,7 +174,7 @@ enum PetDemo {
         }
     }
 
-    private static func draw(size: Double, pose: PetPose, rig: PetRig, pivot: PetPivot, centre: NSPoint) {
+    private static func draw(size: Double, pose: PetPose, rig: PetRig, pivot: PetPivot, spider: Bool = false, centre: NSPoint) {
         let transform = NSAffineTransform()
         transform.translateX(by: CGFloat(centre.x + pose.x), yBy: CGFloat(centre.y + pose.y))
         let anchorOffset: CGFloat = {
@@ -184,7 +191,7 @@ enum PetDemo {
 
         NSGraphicsContext.saveGraphicsState()
         transform.concat()
-        drawBody(size: size, rig: rig)
+        drawBody(size: size, rig: rig, spider: spider)
         NSGraphicsContext.restoreGraphicsState()
 
         if let emote = pose.emote {

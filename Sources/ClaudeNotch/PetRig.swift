@@ -233,6 +233,19 @@ enum PetRigging {
                 rig.legLift[i] = -0.3
             }
 
+        case .spiderHang:
+            // Head-down (the renderer flips the whole sprite), one arm reaching
+            // for the web overhead, the other cocked ready to shoot, legs bent up
+            // in the classic pose. Eyes wide — he is watching the street.
+            rig.eyeOpen = 1
+            rig.armLeftAngle = 60
+            rig.armRightAngle = -20 + sin(t * 2 * .pi * 1.4) * 8
+            for i in 0..<4 {
+                let bend = 1.0 + Double(i % 2) * 0.4
+                rig.legLift[i] = bend
+                rig.legSwing[i] = sin(t * 2 * .pi * 1.4 + Double(i)) * 0.5
+            }
+
         case .sleep:
             rig.eyeOpen = sleepingEyes
             // Legs folded under, arms slack.

@@ -57,13 +57,13 @@ final class PetEngineTests: XCTestCase {
 
     func testCalmActivitySequenceIsStable() {
         XCTAssertEqual(picks(.calm, seed: 42),
-                       [.stroll, .hangLeft, .hangRight, .rope, .rope,
-                        .peek, .lookAround, .stroll, .peek, .hangRight])
+                       [.stroll, .hangLeft, .hangRight, .spiderHang, .spiderHang,
+                        .peek, .lookAround, .stroll, .peek, .stroll])
     }
 
     func testCuriousActivitySequenceIsStable() {
         XCTAssertEqual(picks(.curious, seed: 7),
-                       [.peek, .peek, .rope, .hangRight, .rope,
+                       [.peek, .peek, .spiderHang, .hangRight, .rope,
                         .hangRight, .peek, .hangLeft, .hangLeft, .lookAround])
     }
 
@@ -652,5 +652,47 @@ final class PetFlinchTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(p.y - PetActivity.flinch.spriteSize / 2, stage.notchInset - 0.001,
                                         "the recoil must not jump the pet up into the notch")
         }
+    }
+}
+
+/// Spider-Pet: the same drop physics as the rope, but head-first and in the suit.
+final class SpiderHangTests: XCTestCase {
+
+    private let stage = PetEngine.Stage(notchInset: 32, halfWidth: 110)
+
+    func testItSharesTheRopePhysics() {
+        // Same anchor, same length: the swing is identical to the rope's, so the
+        // horizontal path matches. Only the render (flip + costume) differs.
+        for i in 0...100 {
+            let t = Double(i) / 100
+            let rope = PetEngine.pose(for: .rope, progress: t, stage: stage)
+            let spider = PetEngine.pose(for: .spiderHang, progress: t, stage: stage)
+            XCTAssertEqual(rope.x, spider.x, accuracy: 0.001, "same swing at t=\(t)")
+        }
+    }
+
+    func testItHangsHeadDown() {
+        // The flip is exactly 180° on top of the rope's own tilt.
+        for i in 20...80 {
+            let t = Double(i) / 100
+            let rope = PetEngine.pose(for: .rope, progress: t, stage: stage)
+            let spider = PetEngine.pose(for: .spiderHang, progress: t, stage: stage)
+            XCTAssertEqual(spider.rotation - rope.rotation, 180, accuracy: 0.001)
+        }
+    }
+
+    func testItStaysOnStage() {
+        for i in 0...100 {
+            let p = PetEngine.pose(for: .spiderHang, progress: Double(i) / 100, stage: stage)
+            let floor = stage.notchInset + PetActivity.spiderHang.stageDrop - PetActivity.spiderHang.spriteSize / 2
+            XCTAssertLessThanOrEqual(p.y, floor + 0.001)
+            XCTAssertLessThanOrEqual(abs(p.x), PetActivity.spiderHang.maxCentreOffset(halfWidth: stage.halfWidth) + 0.001)
+        }
+    }
+
+    func testBothLinesShareOnePhysicsFlag() {
+        XCTAssertTrue(PetEngine.isHanging(.rope))
+        XCTAssertTrue(PetEngine.isHanging(.spiderHang))
+        XCTAssertFalse(PetEngine.isHanging(.stroll))
     }
 }
