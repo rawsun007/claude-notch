@@ -324,3 +324,37 @@ final class SessionLabelTests: XCTestCase {
         XCTAssertTrue(s.sessions["abc"]?.agentNeedsInput == true)
     }
 }
+
+/// One Claude session must be one row. A hook can arrive before the session_id is
+/// known, which creates a fallback entry keyed by the cwd; the real id-keyed entry
+/// arrives later. Both describe the same session.
+@MainActor
+final class SessionDedupTests: XCTestCase {
+
+    func testAPlaceholderAndItsRealSessionCollapseToOneRow() {
+        let s = AppState()
+        // A hook with no session_id: keyed by the cwd (id starts with "/").
+        s.noteSession(cwd: "/Users/me/app", sessionId: "")
+        // The same session, now with its real id.
+        s.noteSession(cwd: "/Users/me/app", sessionId: "real-uuid")
+        let cwds = s.activeSessions.map(\.cwd)
+        XCTAssertEqual(s.activeSessions.count, 1, "same session, one row: \\(s.activeSessions.map(\\.id))")
+        XCTAssertEqual(cwds, ["/Users/me/app"])
+        XCTAssertFalse(s.activeSessions.contains { $0.id.hasPrefix("/") }, "the placeholder is the duplicate")
+    }
+
+    func testTwoRealSessionsInOneProjectStayTwoRows() {
+        // Genuinely two sessions in the same folder must both show.
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/app", sessionId: "uuid-a")
+        s.noteSession(cwd: "/Users/me/app", sessionId: "uuid-b")
+        XCTAssertEqual(s.activeSessions.count, 2)
+    }
+
+    func testAPlaceholderAloneStillShows() {
+        // If nothing real covers the cwd, the placeholder is all we have.
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/app", sessionId: "")
+        XCTAssertEqual(s.activeSessions.count, 1)
+    }
+}

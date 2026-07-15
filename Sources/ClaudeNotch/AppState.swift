@@ -2027,9 +2027,20 @@ final class AppState: ObservableObject {
     /// tiebreaker keeps the order deterministic if two sessions share a tick.
     var activeSessions: [LiveSession] {
         let cutoff = Date().addingTimeInterval(-projectStaleAfter)
-        return sessions.values
-            .filter { $0.lastHookAt > cutoff }
-            .sorted { ($0.createdAt, $0.id) < ($1.createdAt, $1.id) }
+        let live = sessions.values.filter { $0.lastHookAt > cutoff }
+
+        // Collapse the same session listed twice. A hook that arrives before the
+        // session_id is known creates a fallback entry keyed by the cwd (its id is
+        // the path), and a later hook with the real id creates a second entry for
+        // the very same Claude session — so one session showed as two rows, same
+        // project, same branch. When a real (id-keyed) session covers a cwd, the
+        // path-keyed placeholder for that cwd is the duplicate and is dropped.
+        let realCwds = Set(live.filter { !$0.id.hasPrefix("/") }.map(\.cwd))
+        let deduped = live.filter { session in
+            guard session.id.hasPrefix("/") else { return true }   // a real session
+            return !realCwds.contains(session.cwd)                 // keep the placeholder only if nothing real covers it
+        }
+        return deduped.sorted { ($0.createdAt, $0.id) < ($1.createdAt, $1.id) }
     }
 
     var activeSessionCount: Int { activeSessions.count }
