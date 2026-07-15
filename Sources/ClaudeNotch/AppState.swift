@@ -2059,14 +2059,19 @@ final class AppState: ObservableObject {
         // always kept, and two sessions that are both real (each with its own name
         // or meter) both stay, because those are genuinely two sessions.
         func isRich(_ s: LiveSession) -> Bool { !s.title.isEmpty || s.hasMeter }
+        // Folders that have a real, id-keyed session, and folders that have a rich
+        // one (a name or a live meter).
+        let idKeyedCwds = Set(live.filter { !$0.id.hasPrefix("/") }.map(\.cwd))
         let richCwds = Set(live.filter(isRich).map(\.cwd))
         let deduped = live.filter { session in
             if session.id == currentSessionId { return true }   // never hide the one in front of you
-            // A row worth keeping on its own: it has a name or a meter, and it is
-            // not the path-keyed placeholder. Anything else is a phantom, dropped
-            // when a real session already covers its folder.
-            let standsAlone = isRich(session) && !session.id.hasPrefix("/")
-            if standsAlone { return true }
+            // A path-keyed placeholder is a pre-id fallback: drop it the moment any
+            // real id-keyed session shares its folder, rich or not.
+            if session.id.hasPrefix("/") { return !idKeyedCwds.contains(session.cwd) }
+            // A bare id-keyed session (no name, no meter) is a phantom left by an
+            // id that changed under one physical session: drop it when a richer
+            // session covers the same folder. A rich session always stands.
+            if isRich(session) { return true }
             return !richCwds.contains(session.cwd)
         }
         return deduped.sorted { ($0.createdAt, $0.id) < ($1.createdAt, $1.id) }

@@ -368,15 +368,15 @@ final class SessionPhantomTests: XCTestCase {
 
     func testABarePhantomIsDroppedBesideTheRealSession() {
         let s = AppState()
-        // The real session: it has a name and a meter.
+        // The phantom arrives first and goes stale (a changed id lingering).
+        s.noteSession(cwd: "/Users/me/app", sessionId: "phantom")
+        // The real session is the one in front of you now: it has a name + meter.
         s.noteSession(cwd: "/Users/me/app", sessionId: "real")
         s.noteStatusLine(sessionId: "real", model: "claude-opus-4-8",
                          sessionName: "Fix the parser",
                          contextPct: 40, fiveHourPct: nil, sevenDayPct: nil)
-        // A phantom for the same folder: no name, no meter.
-        s.noteSession(cwd: "/Users/me/app", sessionId: "phantom")
-        let ids = s.activeSessions.map(\.id)
-        XCTAssertEqual(ids, ["real"], "the nameless, meterless phantom is dropped")
+        XCTAssertEqual(s.activeSessions.map(\.id), ["real"],
+                       "the nameless, meterless phantom is dropped")
     }
 
     func testTwoRealSessionsInOneFolderBothShow() {
