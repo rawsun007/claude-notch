@@ -904,6 +904,19 @@ final class AppState: ObservableObject {
         petHeldSeconds = 0
         petPettingSince = petPetting ? Date() : nil
         petActivity = activity
+        if activity == .spiderHang { playSpiderTheme() }
+    }
+
+    /// The Spider-Pet's entrance music. Held as a property because a local NSSound
+    /// is deallocated the instant the call returns, which cuts it off before a
+    /// note plays. Respects the same mute as every other sound.
+    private var spiderSound: NSSound?
+    private func playSpiderTheme() {
+        guard !soundMuted else { return }
+        guard let url = Bundle.main.url(forResource: "spiderman-meme-song", withExtension: "mp3") else { return }
+        let sound = NSSound(contentsOf: url, byReference: true)
+        spiderSound = sound
+        sound?.play()
     }
 
     private func endPetActivity() {

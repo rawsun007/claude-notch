@@ -73,7 +73,8 @@ enum PetDemo {
                 // while there is slack, straight once it is taut.
                 if PetEngine.isHanging(activity) {
                     let sprite = activity.spriteSize
-                    let theta = pose.rotation * .pi / 180
+                    let bodyTheta = pose.rotation * .pi / 180
+                    let theta = activity == .spiderHang ? bodyTheta - .pi : bodyTheta
                     let grip = (-PetBody.headTopFraction + 0.04) * sprite
                     let topX = pose.x - sin(theta) * grip
                     let topY = pose.y - cos(theta) * grip
@@ -165,12 +166,17 @@ enum PetDemo {
         }
 
         (spider ? NSColor(calibratedWhite: 0.96, alpha: 1) : NSColor.black).setFill()
-        for eye in [PetBody.eyeLeft, PetBody.eyeRight] {
+        for (i, eye) in [PetBody.eyeLeft, PetBody.eyeRight].enumerated() {
             let open = max(0, rig.eyeOpen)
             guard open > 0.02 else { continue }
-            var lid = eye
-            lid.height = eye.height * open
-            NSBezierPath(rect: rect(lid, dx: rig.eyeShift, dy: eye.height - lid.height)).fill()
+            var lens = eye
+            if spider {
+                lens.width = 2.2; lens.height = 2.6
+                lens.x = (i == 0 ? eye.x - 1.0 : eye.x - 0.2); lens.y = eye.y - 0.3
+            }
+            var lid = lens
+            lid.height = lens.height * open
+            NSBezierPath(rect: rect(lid, dx: rig.eyeShift, dy: lens.height - lid.height)).fill()
         }
     }
 

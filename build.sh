@@ -32,6 +32,10 @@ fi
 if [ -f assets/claude-color.svg ]; then
     cp assets/claude-color.svg "$APP/Contents/Resources/claude-color.svg"
 fi
+
+if [ -f assets/spiderman-meme-song.mp3 ]; then
+    cp assets/spiderman-meme-song.mp3 "$APP/Contents/Resources/spiderman-meme-song.mp3"
+fi
 # Pet Mode's mascot is not shipped as an image: the app rebuilds it from the
 # 16x16 grid in PetRig.swift so its legs, arms, and eyes can move independently.
 # assets/claude-pet.png stays in the repo as the reference artwork.

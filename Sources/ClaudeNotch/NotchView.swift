@@ -681,12 +681,23 @@ private struct PetSprite: View {
             // on the transparent panel — where the rope pet hangs over your
             // desktop — a hole shows the wallpaper instead. Solid eyes read the
             // same everywhere. A blink shrinks the eye from the top, like a lid.
-            for eye in [PetBody.eyeLeft, PetBody.eyeRight] {
+            // The spider mask has big white lenses, wider than the pet's dot eyes
+            // and swept toward the outer edges — the single detail that turns two
+            // eyes into a mask at 16 pixels.
+            let spider = costume == .spider
+            for (i, eye) in [PetBody.eyeLeft, PetBody.eyeRight].enumerated() {
                 let open = max(0, rig.eyeOpen)
                 guard open > 0.02 else { continue }
-                var lid = eye
-                lid.height = eye.height * open
-                let dy = eye.height - lid.height
+                var lens = eye
+                if spider {
+                    lens.width = 2.2
+                    lens.height = 2.6
+                    lens.x = (i == 0 ? eye.x - 1.0 : eye.x - 0.2)   // fan outward
+                    lens.y = eye.y - 0.3
+                }
+                var lid = lens
+                lid.height = lens.height * open
+                let dy = lens.height - lid.height
                 ctx.fill(Path(rect(lid, dx: rig.eyeShift, dy: dy)),
                          with: .color(costume.eyeColour))
             }
@@ -803,15 +814,18 @@ private struct PetStageView: View {
                 // where the pet grips it. Its end follows the pet's top along the
                 // swing, so the line and the creature stay joined at every angle.
                 if PetEngine.isHanging(activity) {
-                    // The line points along the body. For the rope pet it meets
-                    // the HEAD (paws up, gripping). Spider-Man hangs head-DOWN, so
-                    // the flip already turned his rotation 180°, and the same
-                    // grip vector now lands on the web at his feet — which is
-                    // exactly where a web should attach.
-                    let theta: Double = pose.rotation * .pi / 180
+                    // The line follows the SWING, not the body. For the rope pet
+                    // those are the same, and it meets the head (paws gripping up).
+                    // Spider-Man is flipped head-down, so his body rotation carries
+                    // an extra 180° — using it for the web would send the strand to
+                    // the wrong side and pierce him through the chest. Strip the
+                    // flip back out so the web attaches to whatever is actually at
+                    // the top: his feet.
+                    let bodyTheta: Double = pose.rotation * .pi / 180
+                    let swingTheta = activity == .spiderHang ? bodyTheta - .pi : bodyTheta
                     let grip = CGFloat(-PetBody.headTopFraction + 0.04) * sprite
-                    let topX = CGFloat(pose.x) - CGFloat(sin(theta)) * grip
-                    let topY = CGFloat(pose.y) - CGFloat(cos(theta)) * grip
+                    let topX = CGFloat(pose.x) - CGFloat(sin(swingTheta)) * grip
+                    let topY = CGFloat(pose.y) - CGFloat(cos(swingTheta)) * grip
                     // A web is bright and thin; a rope is dark and soft.
                     let isWeb = activity == .spiderHang
                     let lineColour = isWeb ? Color(white: 0.92) : Color(white: 0.32)
