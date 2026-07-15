@@ -167,8 +167,9 @@ enum PetDemo {
         let coral = NSColor(calibratedRed: 217/255, green: 119/255, blue: 87/255, alpha: 1)
         let red = NSColor(calibratedRed: 0.80, green: 0.11, blue: 0.13, alpha: 1)
         let blue = NSColor(calibratedRed: 0.13, green: 0.20, blue: 0.55, alpha: 1)
-        func colour(top: Bool) -> NSColor { spider ? (top ? red : blue) : coral }
-        colour(top: true).setFill()
+        let torsoColour: NSColor = spider ? red : coral
+        let limbColour: NSColor = spider ? blue : coral
+        torsoColour.setFill()
         func rect(_ p: PetPart, dx: Double = 0, dy: Double = 0) -> NSRect {
             NSRect(x: -size/2 + (p.x + dx) * cell, y: -size/2 + (p.y + dy) * cell,
                    width: p.width * cell, height: p.height * cell)
@@ -178,7 +179,7 @@ enum PetDemo {
             part.height = max(0, leg.height - rig.legTuck[i])
             guard part.height > 0.01 else { continue }
             let lift = rig.legLift[i] + rig.legTuck[i]
-            colour(top: false).setFill()
+            limbColour.setFill()
             NSBezierPath(rect: rect(part, dx: rig.legSwing[i], dy: -lift + rig.legTuck[i])).fill()
         }
 
@@ -192,7 +193,7 @@ enum PetDemo {
             tf.rotate(byDegrees: CGFloat(angle))
             tf.translateX(by: -pivot.x, yBy: -pivot.y)
             tf.concat()
-            colour(top: true).setFill()
+            limbColour.setFill()
             NSBezierPath(rect: r).fill()
             NSGraphicsContext.restoreGraphicsState()
         }
@@ -202,7 +203,7 @@ enum PetDemo {
 
         // Torso last: it covers every shoulder and hip joint.
         for slab in PetBody.torso {
-            colour(top: slab.y < 9).setFill()
+            torsoColour.setFill()
             NSBezierPath(rect: rect(slab)).fill()
         }
 

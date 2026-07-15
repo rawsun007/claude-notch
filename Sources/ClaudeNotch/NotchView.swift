@@ -608,10 +608,15 @@ enum PetCostume: Equatable {
 
     /// Body colour. Spidey is red on top, blue below the shoulders — arms red,
     /// legs blue — which is the read even at 16 pixels.
-    func bodyColour(topHalf: Bool) -> Color {
+    /// The suit is coloured by body PART, not by top/half. Spider-Man is a red
+    /// suit with blue arms and blue legs — the earlier top/bottom split painted
+    /// him red with a blue strip, which read as a little red house rather than a
+    /// super-hero. Torso red, limbs blue is the silhouette everyone knows.
+    enum BodyPart { case torso, arm, leg }
+    func bodyColour(_ part: BodyPart) -> Color {
         switch self {
         case .plain:  return Self.coral
-        case .spider: return topHalf ? Self.spiderRed : Self.spiderBlue
+        case .spider: return part == .torso ? Self.spiderRed : Self.spiderBlue
         }
     }
 
@@ -712,7 +717,7 @@ private struct PetSprite: View {
             // Limbs first, torso last: the body then covers every joint, so a
             // swinging arm or a dangling leg stays attached to it instead of
             // opening a gap where it meets the shoulder or hip.
-            let legColour = costume.bodyColour(topHalf: false)
+            let legColour = costume.bodyColour(.leg)
             for (i, leg) in PetBody.legs.enumerated() {
                 let lift = rig.legLift[i] + rig.legTuck[i]
                 var part = leg
@@ -731,7 +736,7 @@ private struct PetSprite: View {
                     layer.translateBy(x: pivot.x, y: pivot.y)
                     layer.rotate(by: .degrees(angle))
                     layer.translateBy(x: -pivot.x, y: -pivot.y)
-                    layer.fill(Path(r), with: .color(costume.bodyColour(topHalf: true)))
+                    layer.fill(Path(r), with: .color(costume.bodyColour(.arm)))
                 }
             }
             // Mirrored: a positive rig angle raises either arm, so the left one
@@ -742,8 +747,7 @@ private struct PetSprite: View {
             // Torso: head + shoulders are the top half (red), the belly is the
             // bottom (blue). The shoulder row (y == 7) is the waist of the suit.
             for slab in PetBody.torso {
-                let topHalf = slab.y < 9
-                ctx.fill(Path(rect(slab)), with: .color(costume.bodyColour(topHalf: topHalf)))
+                ctx.fill(Path(rect(slab)), with: .color(costume.bodyColour(.torso)))
             }
 
             // Eyes are painted solid dark, not punched through the body. A hole
