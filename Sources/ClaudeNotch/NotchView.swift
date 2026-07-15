@@ -702,6 +702,16 @@ private struct PetSprite: View {
                 var lid = lens
                 lid.height = lens.height * open
                 let dy = lens.height - lid.height
+                // The mask lens has a black outline, like the real one. Draw a
+                // slightly larger dark lens first, then the white on top of it, so
+                // a thin black rim shows all the way round.
+                if spider {
+                    var border = lid
+                    border.x -= 0.35; border.y -= 0.35
+                    border.width += 0.7; border.height += 0.7
+                    ctx.fill(Path(rect(border, dx: rig.eyeShift, dy: dy)),
+                             with: .color(PetCostume.darkEye))
+                }
                 ctx.fill(Path(rect(lid, dx: rig.eyeShift, dy: dy)),
                          with: .color(costume.eyeColour))
             }

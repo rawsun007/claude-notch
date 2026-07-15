@@ -166,7 +166,6 @@ enum PetDemo {
             NSBezierPath(rect: rect(slab)).fill()
         }
 
-        (spider ? NSColor(calibratedWhite: 0.96, alpha: 1) : NSColor.black).setFill()
         for (i, eye) in [PetBody.eyeLeft, PetBody.eyeRight].enumerated() {
             let open = max(0, rig.eyeOpen)
             guard open > 0.02 else { continue }
@@ -177,7 +176,14 @@ enum PetDemo {
             }
             var lid = lens
             lid.height = lens.height * open
-            NSBezierPath(rect: rect(lid, dx: rig.eyeShift, dy: lens.height - lid.height)).fill()
+            let dy = lens.height - lid.height
+            if spider {
+                var b = lid; b.x -= 0.35; b.y -= 0.35; b.width += 0.7; b.height += 0.7
+                NSColor(calibratedRed: 0.16, green: 0.09, blue: 0.06, alpha: 1).setFill()
+                NSBezierPath(rect: rect(b, dx: rig.eyeShift, dy: dy)).fill()
+            }
+            (spider ? NSColor(calibratedWhite: 0.96, alpha: 1) : NSColor.black).setFill()
+            NSBezierPath(rect: rect(lid, dx: rig.eyeShift, dy: dy)).fill()
         }
     }
 

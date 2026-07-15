@@ -914,6 +914,9 @@ final class AppState: ObservableObject {
     private func playSpiderTheme() {
         guard !soundMuted else { return }
         guard let url = Bundle.main.url(forResource: "spiderman-meme-song", withExtension: "mp3") else { return }
+        // Stop the previous run before starting a new one, or clicking the demo
+        // twice stacks two tracks playing over each other.
+        spiderSound?.stop()
         let sound = NSSound(contentsOf: url, byReference: true)
         spiderSound = sound
         sound?.play()
