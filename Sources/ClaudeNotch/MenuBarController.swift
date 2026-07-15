@@ -151,9 +151,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         addPetRow("Play All (starts in 5s)", startingIn: 5) { demoable }
         petMenu.addItem(.separator())
         for activity in demoable {
-            // Every row waits five seconds too, so any one can be recorded: click,
-            // close the menu, start the recording, and the pet moves.
-            addPetRow(MenuBarController.petDemoTitle(activity), startingIn: 5) { [activity] }
+            addPetRow(MenuBarController.petDemoTitle(activity)) { [activity] }
         }
         let petItem = NSMenuItem(title: "Pet", action: nil, keyEquivalent: "")
         petItem.submenu = petMenu
