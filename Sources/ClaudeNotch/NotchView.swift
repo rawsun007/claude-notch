@@ -623,6 +623,76 @@ enum PetCostume: Equatable {
     }
 }
 
+/// The Spider-Pet's web-shot. Pulled out of the stage view because the fan of
+/// strands plus the web-net splat is more than the SwiftUI type-checker will chew
+/// on inline. A pure view of the pose: origin at the hand, strand down and out,
+/// a little net at the tip, all fading over the shot's life.
+private struct WebShotView: View {
+    let pose: PetPose
+    let sprite: CGFloat
+
+    var body: some View {
+        let life = pose.webShot                                  // 0...1
+        let reach = CGFloat(min(1, life * 3)) * sprite * 1.5     // snaps out early
+        let fade = 1 - life
+        let ang = pose.webShotAngle * .pi / 180
+        // The shooting hand, carried through the same flip + rotation the sprite
+        // gets, so the strand leaves the fist, not the belly.
+        let side: CGFloat = pose.webShotAngle < 0 ? -1 : 1
+        let handX = side * CGFloat(PetBody.shoulderRightFraction)
+        let handY = CGFloat(PetBody.armLeft.y / PetBody.grid - 0.5)
+        let rot = pose.rotation * .pi / 180
+        let flip = pose.flipped ? -pose.scaleX : pose.scaleX
+        let bx = flip * Double(handX) * Double(sprite)
+        let by = pose.scaleY * Double(handY) * Double(sprite)
+        let handDX = CGFloat(bx * cos(rot) - by * sin(rot))
+        let handDY = CGFloat(bx * sin(rot) + by * cos(rot))
+        let web = Color(white: 0.96)
+
+        Canvas { ctx, canvasSize in
+            let origin = CGPoint(x: canvasSize.width / 2 + CGFloat(pose.x) + handDX,
+                                 y: CGFloat(pose.y) + handDY)
+            let dx = CGFloat(sin(ang)), dy = CGFloat(cos(ang))     // down and out
+            let px = dy, py = -dx                                   // across the strand
+            let tip = CGPoint(x: origin.x + dx * reach, y: origin.y + dy * reach)
+
+            // Three fine strands fanning from the fist to a shared tip.
+            let spread = reach * 0.10
+            for k in [-1.0, 0.0, 1.0] {
+                let kk = CGFloat(k)
+                let near = CGPoint(x: origin.x + px * spread * 0.15 * kk,
+                                   y: origin.y + py * spread * 0.15 * kk)
+                let mid = CGPoint(x: (near.x + tip.x) / 2 + px * spread * kk,
+                                  y: (near.y + tip.y) / 2 + py * spread * kk)
+                var strand = Path()
+                strand.move(to: near)
+                strand.addQuadCurve(to: tip, control: mid)
+                let alpha = fade * pose.opacity * (k == 0 ? 1 : 0.6)
+                ctx.stroke(strand, with: .color(web.opacity(alpha)),
+                           style: StrokeStyle(lineWidth: k == 0 ? 1.6 : 1, lineCap: .round))
+            }
+
+            // A little web-net at the tip: spokes plus a ring, not a plain dot.
+            let splat = CGFloat(min(1, life * 4)) * 4.5
+            guard splat > 0.5 else { return }
+            for i in 0..<6 {
+                let a = Double(i) / 6 * 2 * .pi
+                var spoke = Path()
+                spoke.move(to: tip)
+                spoke.addLine(to: CGPoint(x: tip.x + CGFloat(cos(a)) * splat,
+                                          y: tip.y + CGFloat(sin(a)) * splat))
+                ctx.stroke(spoke, with: .color(web.opacity(fade * 0.8 * pose.opacity)),
+                           style: StrokeStyle(lineWidth: 0.8))
+            }
+            ctx.stroke(Path(ellipseIn: CGRect(x: tip.x - splat * 0.55, y: tip.y - splat * 0.55,
+                                              width: splat * 1.1, height: splat * 1.1)),
+                       with: .color(web.opacity(fade * 0.7 * pose.opacity)),
+                       style: StrokeStyle(lineWidth: 0.8))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
 private struct PetSprite: View {
     var size: CGFloat
     /// Nil renders the pet standing at rest. Everything animated passes a rig.
@@ -855,32 +925,8 @@ private struct PetStageView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                // THWIP: a web fired mid-swing. Shoots out from the pet, extends
-                // fast, then fades — drawn over the strand but under the sprite so
-                // it reads as coming from his hand.
                 if pose.webShot > 0 {
-                    let life = pose.webShot                       // 0...1
-                    let reach = CGFloat(min(1, life * 3)) * sprite * 1.4   // snaps out early
-                    let fade = 1 - life                           // gone by the end
-                    let ang = pose.webShotAngle * .pi / 180
-                    Canvas { ctx, canvasSize in
-                        let origin = CGPoint(x: canvasSize.width / 2 + CGFloat(pose.x),
-                                             y: CGFloat(pose.y))
-                        // Down and out into open space over the desktop, not up
-                        // into the notch where it would be hidden.
-                        let tip = CGPoint(x: origin.x + CGFloat(sin(ang)) * reach,
-                                          y: origin.y + CGFloat(cos(ang)) * reach)
-                        var path = Path()
-                        path.move(to: origin)
-                        path.addLine(to: tip)
-                        ctx.stroke(path, with: .color(Color(white: 0.95).opacity(fade * pose.opacity)),
-                                   style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
-                        // The sticky splat at the tip.
-                        let r: CGFloat = 3
-                        ctx.fill(Path(ellipseIn: CGRect(x: tip.x - r, y: tip.y - r, width: r * 2, height: r * 2)),
-                                 with: .color(Color(white: 0.95).opacity(fade * 0.8 * pose.opacity)))
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    WebShotView(pose: pose, sprite: sprite)
                 }
                 PetSprite(size: sprite, rig: rig,
                           costume: activity == .spiderHang ? .spider : .plain)
