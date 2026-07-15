@@ -199,11 +199,6 @@ struct PetPose: Equatable {
     var opacity: Double = 1
     var emote: PetEmote? = nil
     var emoteScale: Double = 1    // 0 while the emote pops in
-    /// A web being shot right now: 0 = none, else 0...1 through the shot's life
-    /// (extends, then fades). `webShotAngle` is where it fires, degrees clockwise
-    /// from straight up. Only the Spider-Pet ever sets it.
-    var webShot: Double = 0
-    var webShotAngle: Double = 0
 }
 
 // MARK: - Engine
@@ -377,8 +372,6 @@ enum PetEngine {
     ///      in half a second) riding under a damped pendulum across it (slow,
     ///      period sqrt(L/g), bleeds out over the act).
     static let ropeDuration: Double = 5.0
-    /// Fraction of the hang a single web-shot is visible for.
-    static let webShotLife: Double = 0.16
     /// Points per second squared. Not 9.8 — the stage is 40-odd points tall, so
     /// gravity is tuned for the scale, the way it always is in a game.
     static let ropeGravity: Double = 1200
@@ -710,22 +703,6 @@ enum PetEngine {
             pose.scaleY = 1 + ropeStretch
             pose.scaleX = 1 - ropeStretch * 0.7
             pose.emote = stage.petting ? .heart : nil
-
-            // THWIP. Two web-shots, fired near the extremes of the swing where a
-            // real one would sling a line to change direction, each aimed out and
-            // up toward the corner it is swinging away from. A shot lives for
-            // `webShotLife` of the act and is a pure function of t, so a test can
-            // catch it and the render never has to keep state.
-            if activity == .spiderHang {
-                for (fireAt, side) in [(0.34, -1.0), (0.62, 1.0)] {
-                    let age = (t - fireAt) / webShotLife
-                    guard age >= 0, age < 1 else { continue }
-                    pose.webShot = age
-                    // Up and out to the side it is heading toward, in screen space
-                    // (the sprite is flipped, but the strand is drawn in the card).
-                    pose.webShotAngle = side * 52
-                }
-            }
         }
 
         // Hard floor: the entry envelope deliberately overshoots (that's the

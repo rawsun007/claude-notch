@@ -628,76 +628,6 @@ enum PetCostume: Equatable {
     }
 }
 
-/// The Spider-Pet's web-shot. Pulled out of the stage view because the fan of
-/// strands plus the web-net splat is more than the SwiftUI type-checker will chew
-/// on inline. A pure view of the pose: origin at the hand, strand down and out,
-/// a little net at the tip, all fading over the shot's life.
-private struct WebShotView: View {
-    let pose: PetPose
-    let sprite: CGFloat
-
-    var body: some View {
-        let life = pose.webShot                                  // 0...1
-        // Two clean phases: the strand SHOOTS out over the first third, then the
-        // whole thing fades over the rest. Separating them is what stops the old
-        // version from dumping a bright cluster of half-drawn web right at the
-        // hand — which, on an upside-down pet, sat right under his head.
-        let extend = CGFloat(min(1, life / 0.3))                 // 0...1, tip travel
-        let reach = extend * sprite * 1.5
-        let alpha = (life < 0.55 ? 1 : max(0, (1 - life) / 0.45)) * pose.opacity
-        let ang = pose.webShotAngle * .pi / 180
-        // The shooting hand, carried through the same flip + rotation the sprite
-        // gets, so the strand leaves the fist, not the belly.
-        let side: CGFloat = pose.webShotAngle < 0 ? -1 : 1
-        let handX = side * CGFloat(PetBody.shoulderRightFraction)
-        let handY = CGFloat(PetBody.armLeft.y / PetBody.grid - 0.5)
-        let rot = pose.rotation * .pi / 180
-        let flip = pose.flipped ? -pose.scaleX : pose.scaleX
-        let bx = flip * Double(handX) * Double(sprite)
-        let by = pose.scaleY * Double(handY) * Double(sprite)
-        let handDX = CGFloat(bx * cos(rot) - by * sin(rot))
-        let handDY = CGFloat(bx * sin(rot) + by * cos(rot))
-        let web = Color(white: 0.96)
-
-        Canvas { ctx, canvasSize in
-            let origin = CGPoint(x: canvasSize.width / 2 + CGFloat(pose.x) + handDX,
-                                 y: CGFloat(pose.y) + handDY)
-            let dx = CGFloat(sin(ang)), dy = CGFloat(cos(ang))     // down and out
-            let px = dy, py = -dx                                   // across the strand
-            let tip = CGPoint(x: origin.x + dx * reach, y: origin.y + dy * reach)
-
-            // One crisp strand from the fist, with a faint twin for body.
-            for (k, w, a) in [(0.0, 1.6, 1.0), (1.0, 0.8, 0.45)] {
-                let off = CGFloat(k) * 1.4
-                var strand = Path()
-                strand.move(to: origin)
-                strand.addLine(to: CGPoint(x: tip.x + px * off, y: tip.y + py * off))
-                ctx.stroke(strand, with: .color(web.opacity(alpha * a)),
-                           style: StrokeStyle(lineWidth: w, lineCap: .round))
-            }
-
-            // The web-net at the tip, only once the strand has actually landed —
-            // spokes plus a ring, drawn out there rather than clustered at the hand.
-            guard extend > 0.85 else { return }
-            let splat = CGFloat(4.5)
-            for i in 0..<6 {
-                let a = Double(i) / 6 * 2 * .pi
-                var spoke = Path()
-                spoke.move(to: tip)
-                spoke.addLine(to: CGPoint(x: tip.x + CGFloat(cos(a)) * splat,
-                                          y: tip.y + CGFloat(sin(a)) * splat))
-                ctx.stroke(spoke, with: .color(web.opacity(alpha * 0.8)),
-                           style: StrokeStyle(lineWidth: 0.8))
-            }
-            ctx.stroke(Path(ellipseIn: CGRect(x: tip.x - splat * 0.55, y: tip.y - splat * 0.55,
-                                              width: splat * 1.1, height: splat * 1.1)),
-                       with: .color(web.opacity(alpha * 0.7)),
-                       style: StrokeStyle(lineWidth: 0.8))
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
 private struct PetSprite: View {
     var size: CGFloat
     /// Nil renders the pet standing at rest. Everything animated passes a rig.
@@ -928,9 +858,6 @@ private struct PetStageView: View {
                                    style: StrokeStyle(lineWidth: isWeb ? 1.5 : 2, lineCap: .round))
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                if pose.webShot > 0 {
-                    WebShotView(pose: pose, sprite: sprite)
                 }
                 PetSprite(size: sprite, rig: rig,
                           costume: activity == .spiderHang ? .spider : .plain)

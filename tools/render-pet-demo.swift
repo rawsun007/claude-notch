@@ -97,47 +97,6 @@ enum PetDemo {
                     NSColor(calibratedWhite: web ? 0.92 : 0.55, alpha: pose.opacity).setStroke()
                     strand.stroke()
                 }
-                // THWIP: shoots out, then fades. Net only once it lands.
-                if pose.webShot > 0 {
-                    let sprite = activity.spriteSize
-                    let life = pose.webShot
-                    let extend = min(1.0, life / 0.3)
-                    let reach = extend * sprite * 1.5
-                    let alpha = (life < 0.55 ? 1.0 : max(0.0, (1 - life) / 0.45)) * pose.opacity
-                    let ang = pose.webShotAngle * .pi / 180
-                    let sd: Double = pose.webShotAngle < 0 ? -1 : 1
-                    let hbx = sd * PetBody.shoulderRightFraction
-                    let hby = PetBody.armLeft.y / PetBody.grid - 0.5
-                    let rot = pose.rotation * .pi / 180
-                    let bx = (pose.flipped ? -pose.scaleX : pose.scaleX) * hbx * sprite
-                    let by = pose.scaleY * hby * sprite
-                    let handDX = bx * cos(rot) - by * sin(rot)
-                    let handDY = bx * sin(rot) + by * cos(rot)
-                    let origin = NSPoint(x: plateX + stageWidth/2 + pose.x + handDX, y: plateY + pose.y + handDY)
-                    let dx = sin(ang), dy = cos(ang)
-                    let px = dy, py = -dx
-                    let tip = NSPoint(x: origin.x + dx*reach, y: origin.y + dy*reach)
-                    for (k, w, a) in [(0.0, 1.6, 1.0), (1.0, 0.8, 0.45)] {
-                        let off = k * 1.4
-                        let strand = NSBezierPath(); strand.move(to: origin)
-                        strand.line(to: NSPoint(x: tip.x + px*off, y: tip.y + py*off))
-                        strand.lineWidth = w
-                        NSColor(calibratedWhite: 0.96, alpha: alpha*a).setStroke(); strand.stroke()
-                    }
-                    if extend > 0.85 {
-                        let splat = 4.5
-                        for i in 0..<6 {
-                            let a = Double(i)/6 * 2 * .pi
-                            let spoke = NSBezierPath(); spoke.move(to: tip)
-                            spoke.line(to: NSPoint(x: tip.x + cos(a)*splat, y: tip.y + sin(a)*splat))
-                            spoke.lineWidth = 0.8
-                            NSColor(calibratedWhite: 0.96, alpha: alpha*0.8).setStroke(); spoke.stroke()
-                        }
-                        let ring = NSBezierPath(ovalIn: NSRect(x: tip.x-splat*0.55, y: tip.y-splat*0.55, width: splat*1.1, height: splat*1.1))
-                        ring.lineWidth = 0.8
-                        NSColor(calibratedWhite: 0.96, alpha: alpha*0.7).setStroke(); ring.stroke()
-                    }
-                }
                 // Sample the gait clock at the same instant the app would.
                 let rig = PetRigging.rig(for: activity, progress: t, time: t * 2.4)
                 draw(size: activity.spriteSize, pose: pose, rig: rig,
