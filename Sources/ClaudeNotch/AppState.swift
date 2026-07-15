@@ -932,6 +932,9 @@ final class AppState: ObservableObject {
         petHeldSeconds = 0
         petPettingSince = nil
         petPetting = false
+        // The Spider-Pet's theme goes with him: when he climbs back into the
+        // notch, the music stops instead of playing on to an empty notch.
+        if finished == .spiderHang { spiderSound?.stop() }
         petNextActionAt = Date().addingTimeInterval(
             PetEngine.nextDelay(mood: petMood, after: finished, lasting: lasted, using: &petRNG)
         )
@@ -2042,16 +2045,29 @@ final class AppState: ObservableObject {
         let cutoff = Date().addingTimeInterval(-projectStaleAfter)
         let live = sessions.values.filter { $0.lastHookAt > cutoff }
 
-        // Collapse the same session listed twice. A hook that arrives before the
-        // session_id is known creates a fallback entry keyed by the cwd (its id is
-        // the path), and a later hook with the real id creates a second entry for
-        // the very same Claude session — so one session showed as two rows, same
-        // project, same branch. When a real (id-keyed) session covers a cwd, the
-        // path-keyed placeholder for that cwd is the duplicate and is dropped.
-        let realCwds = Set(live.filter { !$0.id.hasPrefix("/") }.map(\.cwd))
+        // Collapse phantom rows for the same folder. One physical Claude session
+        // can leave more than one entry behind: a hook that arrives before the
+        // session_id is known keys a fallback by the cwd (its id is the path), and
+        // a session that got a new id (after /clear, a compact, a resume) lingers
+        // under the old one until it ages out. Both show as a bare row — no
+        // session name, no cost/context meter — beside the real one, same project
+        // and same branch.
+        //
+        // So within a folder, a bare session is treated as a duplicate of a richer
+        // one: if any session in a cwd has a name or a live meter, the nameless,
+        // meterless siblings for that same cwd are dropped. The current session is
+        // always kept, and two sessions that are both real (each with its own name
+        // or meter) both stay, because those are genuinely two sessions.
+        func isRich(_ s: LiveSession) -> Bool { !s.title.isEmpty || s.hasMeter }
+        let richCwds = Set(live.filter(isRich).map(\.cwd))
         let deduped = live.filter { session in
-            guard session.id.hasPrefix("/") else { return true }   // a real session
-            return !realCwds.contains(session.cwd)                 // keep the placeholder only if nothing real covers it
+            if session.id == currentSessionId { return true }   // never hide the one in front of you
+            // A row worth keeping on its own: it has a name or a meter, and it is
+            // not the path-keyed placeholder. Anything else is a phantom, dropped
+            // when a real session already covers its folder.
+            let standsAlone = isRich(session) && !session.id.hasPrefix("/")
+            if standsAlone { return true }
+            return !richCwds.contains(session.cwd)
         }
         return deduped.sorted { ($0.createdAt, $0.id) < ($1.createdAt, $1.id) }
     }

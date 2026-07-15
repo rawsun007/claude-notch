@@ -358,3 +358,43 @@ final class SessionDedupTests: XCTestCase {
         XCTAssertEqual(s.activeSessions.count, 1)
     }
 }
+
+/// One folder, one row unless there are genuinely two sessions in it. A single
+/// physical Claude session can leave phantom entries behind (a hook before the id
+/// is known, an id that changed after a compact or resume), and they show as bare
+/// rows beside the real one.
+@MainActor
+final class SessionPhantomTests: XCTestCase {
+
+    func testABarePhantomIsDroppedBesideTheRealSession() {
+        let s = AppState()
+        // The real session: it has a name and a meter.
+        s.noteSession(cwd: "/Users/me/app", sessionId: "real")
+        s.noteStatusLine(sessionId: "real", model: "claude-opus-4-8",
+                         sessionName: "Fix the parser",
+                         contextPct: 40, fiveHourPct: nil, sevenDayPct: nil)
+        // A phantom for the same folder: no name, no meter.
+        s.noteSession(cwd: "/Users/me/app", sessionId: "phantom")
+        let ids = s.activeSessions.map(\.id)
+        XCTAssertEqual(ids, ["real"], "the nameless, meterless phantom is dropped")
+    }
+
+    func testTwoRealSessionsInOneFolderBothShow() {
+        // Each has its own identity, so both are genuine.
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/app", sessionId: "a")
+        s.noteStatusLine(sessionId: "a", model: "claude-opus-4-8", sessionName: "Task A",
+                         contextPct: 10, fiveHourPct: nil, sevenDayPct: nil)
+        s.noteSession(cwd: "/Users/me/app", sessionId: "b")
+        s.noteStatusLine(sessionId: "b", model: "claude-opus-4-8", sessionName: "Task B",
+                         contextPct: 20, fiveHourPct: nil, sevenDayPct: nil)
+        XCTAssertEqual(s.activeSessions.count, 2)
+    }
+
+    func testALoneBareSessionStillShows() {
+        // If nothing richer covers the folder, the bare row is all there is.
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/app", sessionId: "only")
+        XCTAssertEqual(s.activeSessions.count, 1)
+    }
+}
