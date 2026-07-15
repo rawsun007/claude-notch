@@ -97,45 +97,45 @@ enum PetDemo {
                     NSColor(calibratedWhite: web ? 0.92 : 0.55, alpha: pose.opacity).setStroke()
                     strand.stroke()
                 }
-                // THWIP: fanned web-shot from the hand, with a web-net splat.
+                // THWIP: shoots out, then fades. Net only once it lands.
                 if pose.webShot > 0 {
                     let sprite = activity.spriteSize
                     let life = pose.webShot
-                    let reach = min(1.0, life * 3) * sprite * 1.5
-                    let fade = 1 - life
+                    let extend = min(1.0, life / 0.3)
+                    let reach = extend * sprite * 1.5
+                    let alpha = (life < 0.55 ? 1.0 : max(0.0, (1 - life) / 0.45)) * pose.opacity
                     let ang = pose.webShotAngle * .pi / 180
-                    let side: Double = pose.webShotAngle < 0 ? -1 : 1
-                    let hbx = side * PetBody.shoulderRightFraction
+                    let sd: Double = pose.webShotAngle < 0 ? -1 : 1
+                    let hbx = sd * PetBody.shoulderRightFraction
                     let hby = PetBody.armLeft.y / PetBody.grid - 0.5
                     let rot = pose.rotation * .pi / 180
                     let bx = (pose.flipped ? -pose.scaleX : pose.scaleX) * hbx * sprite
                     let by = pose.scaleY * hby * sprite
                     let handDX = bx * cos(rot) - by * sin(rot)
                     let handDY = bx * sin(rot) + by * cos(rot)
-                    let origin = NSPoint(x: plateX + stageWidth / 2 + pose.x + handDX, y: plateY + pose.y + handDY)
-                    let dir = (sin(ang), cos(ang))
-                    let perp = (cos(ang), -sin(ang))
-                    let tip = NSPoint(x: origin.x + dir.0 * reach, y: origin.y + dir.1 * reach)
-                    let spread = reach * 0.10
-                    for k in [-1.0, 0.0, 1.0] {
-                        let near = NSPoint(x: origin.x + perp.0*spread*0.15*k, y: origin.y + perp.1*spread*0.15*k)
-                        let mid = NSPoint(x: (near.x+tip.x)/2 + perp.0*spread*k, y: (near.y+tip.y)/2 + perp.1*spread*k)
-                        let strand = NSBezierPath(); strand.move(to: near); strand.curve(to: tip, controlPoint1: mid, controlPoint2: mid)
-                        strand.lineWidth = k == 0 ? 1.6 : 1
-                        NSColor(calibratedWhite: 0.96, alpha: fade * pose.opacity * (k == 0 ? 1 : 0.6)).setStroke(); strand.stroke()
+                    let origin = NSPoint(x: plateX + stageWidth/2 + pose.x + handDX, y: plateY + pose.y + handDY)
+                    let dx = sin(ang), dy = cos(ang)
+                    let px = dy, py = -dx
+                    let tip = NSPoint(x: origin.x + dx*reach, y: origin.y + dy*reach)
+                    for (k, w, a) in [(0.0, 1.6, 1.0), (1.0, 0.8, 0.45)] {
+                        let off = k * 1.4
+                        let strand = NSBezierPath(); strand.move(to: origin)
+                        strand.line(to: NSPoint(x: tip.x + px*off, y: tip.y + py*off))
+                        strand.lineWidth = w
+                        NSColor(calibratedWhite: 0.96, alpha: alpha*a).setStroke(); strand.stroke()
                     }
-                    let splat = min(1.0, life * 4) * 4.5
-                    if splat > 0.5 {
+                    if extend > 0.85 {
+                        let splat = 4.5
                         for i in 0..<6 {
                             let a = Double(i)/6 * 2 * .pi
                             let spoke = NSBezierPath(); spoke.move(to: tip)
                             spoke.line(to: NSPoint(x: tip.x + cos(a)*splat, y: tip.y + sin(a)*splat))
                             spoke.lineWidth = 0.8
-                            NSColor(calibratedWhite: 0.96, alpha: fade*0.8*pose.opacity).setStroke(); spoke.stroke()
+                            NSColor(calibratedWhite: 0.96, alpha: alpha*0.8).setStroke(); spoke.stroke()
                         }
                         let ring = NSBezierPath(ovalIn: NSRect(x: tip.x-splat*0.55, y: tip.y-splat*0.55, width: splat*1.1, height: splat*1.1))
                         ring.lineWidth = 0.8
-                        NSColor(calibratedWhite: 0.96, alpha: fade*0.7*pose.opacity).setStroke(); ring.stroke()
+                        NSColor(calibratedWhite: 0.96, alpha: alpha*0.7).setStroke(); ring.stroke()
                     }
                 }
                 // Sample the gait clock at the same instant the app would.

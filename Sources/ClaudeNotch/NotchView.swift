@@ -633,8 +633,13 @@ private struct WebShotView: View {
 
     var body: some View {
         let life = pose.webShot                                  // 0...1
-        let reach = CGFloat(min(1, life * 3)) * sprite * 1.5     // snaps out early
-        let fade = 1 - life
+        // Two clean phases: the strand SHOOTS out over the first third, then the
+        // whole thing fades over the rest. Separating them is what stops the old
+        // version from dumping a bright cluster of half-drawn web right at the
+        // hand — which, on an upside-down pet, sat right under his head.
+        let extend = CGFloat(min(1, life / 0.3))                 // 0...1, tip travel
+        let reach = extend * sprite * 1.5
+        let alpha = (life < 0.55 ? 1 : max(0, (1 - life) / 0.45)) * pose.opacity
         let ang = pose.webShotAngle * .pi / 180
         // The shooting hand, carried through the same flip + rotation the sprite
         // gets, so the strand leaves the fist, not the belly.
@@ -656,37 +661,32 @@ private struct WebShotView: View {
             let px = dy, py = -dx                                   // across the strand
             let tip = CGPoint(x: origin.x + dx * reach, y: origin.y + dy * reach)
 
-            // Three fine strands fanning from the fist to a shared tip.
-            let spread = reach * 0.10
-            for k in [-1.0, 0.0, 1.0] {
-                let kk = CGFloat(k)
-                let near = CGPoint(x: origin.x + px * spread * 0.15 * kk,
-                                   y: origin.y + py * spread * 0.15 * kk)
-                let mid = CGPoint(x: (near.x + tip.x) / 2 + px * spread * kk,
-                                  y: (near.y + tip.y) / 2 + py * spread * kk)
+            // One crisp strand from the fist, with a faint twin for body.
+            for (k, w, a) in [(0.0, 1.6, 1.0), (1.0, 0.8, 0.45)] {
+                let off = CGFloat(k) * 1.4
                 var strand = Path()
-                strand.move(to: near)
-                strand.addQuadCurve(to: tip, control: mid)
-                let alpha = fade * pose.opacity * (k == 0 ? 1 : 0.6)
-                ctx.stroke(strand, with: .color(web.opacity(alpha)),
-                           style: StrokeStyle(lineWidth: k == 0 ? 1.6 : 1, lineCap: .round))
+                strand.move(to: origin)
+                strand.addLine(to: CGPoint(x: tip.x + px * off, y: tip.y + py * off))
+                ctx.stroke(strand, with: .color(web.opacity(alpha * a)),
+                           style: StrokeStyle(lineWidth: w, lineCap: .round))
             }
 
-            // A little web-net at the tip: spokes plus a ring, not a plain dot.
-            let splat = CGFloat(min(1, life * 4)) * 4.5
-            guard splat > 0.5 else { return }
+            // The web-net at the tip, only once the strand has actually landed —
+            // spokes plus a ring, drawn out there rather than clustered at the hand.
+            guard extend > 0.85 else { return }
+            let splat = CGFloat(4.5)
             for i in 0..<6 {
                 let a = Double(i) / 6 * 2 * .pi
                 var spoke = Path()
                 spoke.move(to: tip)
                 spoke.addLine(to: CGPoint(x: tip.x + CGFloat(cos(a)) * splat,
                                           y: tip.y + CGFloat(sin(a)) * splat))
-                ctx.stroke(spoke, with: .color(web.opacity(fade * 0.8 * pose.opacity)),
+                ctx.stroke(spoke, with: .color(web.opacity(alpha * 0.8)),
                            style: StrokeStyle(lineWidth: 0.8))
             }
             ctx.stroke(Path(ellipseIn: CGRect(x: tip.x - splat * 0.55, y: tip.y - splat * 0.55,
                                               width: splat * 1.1, height: splat * 1.1)),
-                       with: .color(web.opacity(fade * 0.7 * pose.opacity)),
+                       with: .color(web.opacity(alpha * 0.7)),
                        style: StrokeStyle(lineWidth: 0.8))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
