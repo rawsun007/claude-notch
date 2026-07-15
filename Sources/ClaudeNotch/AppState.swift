@@ -549,6 +549,7 @@ final class AppState: ObservableObject {
     private var petBoopStreak = 0
     private var petLastBoopAt: Date = .distantPast
     private var petTimer: Timer?
+    private var petDemoStartTimer: Timer?
     /// Demo mode: an activity was requested from the Demos menu, so it plays
     /// even while Claude is busy (the whole point is to watch it on demand).
     private var petDemoing = false
@@ -991,15 +992,27 @@ final class AppState: ObservableObject {
     /// Demos menu: perform these activities back to back, right now, whatever
     /// else is going on. Turns Pet Mode on if it was off — you asked to see the
     /// pet, so here is the pet.
-    func demoPet(_ activities: [PetActivity]) {
+    func demoPet(_ activities: [PetActivity], startingIn delay: TimeInterval = 0) {
         guard let first = activities.first else { return }
         if !petEnabled { setPetEnabled(true) }
         petDemoQueue = Array(activities.dropFirst())
         petDemoing = true
         petInterrupted = nil
-        // Starts on the spot: the Demos > Pet rows keep the menu open, so the
-        // pet performs in the notch while you pick the next one.
-        beginPetActivity(first)
+        petDemoStartTimer?.invalidate()
+        guard delay > 0 else {
+            // Starts on the spot: the Demos > Pet rows keep the menu open, so the
+            // pet performs in the notch while you pick the next one.
+            beginPetActivity(first)
+            return
+        }
+        // A countdown so you can close the menu and start a screen recording
+        // before the pet moves.
+        petDemoStartTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.petDemoing else { return }
+                self.beginPetActivity(first)
+            }
+        }
     }
 
     func setPetEnabled(_ on: Bool) {
@@ -1009,6 +1022,8 @@ final class AppState: ObservableObject {
         } else {
             petTimer?.invalidate()
             petTimer = nil
+            petDemoStartTimer?.invalidate()
+            petDemoStartTimer = nil
             endPetActivity()
         }
         schedulePersist()
