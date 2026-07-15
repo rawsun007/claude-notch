@@ -279,9 +279,12 @@ struct NotchView: View {
             return CGSize(width: 560, height: inset + 100)
         case .question(let q):
             // Header strip ≈ 30, button row ≈ 44, outer padding/spacing ≈ 30.
-            // Each question heading ≈ 26 + 6 spacing; each option row ≈ 48
-            // (icon + 12pt label + 10pt description + 5pt vertical padding ×2).
-            let perOption: CGFloat = 48
+            // Each question heading ≈ 26 + 6 spacing; each option row is a 12pt
+            // label plus a description that now WRAPS instead of clipping, so it
+            // is budgeted for roughly two lines of description rather than one.
+            // Underestimating only means the scroll kicks in sooner; it never
+            // hides text.
+            let perOption: CGFloat = 66
             // +44 for the "Something else…" free-text row each question carries.
             let perQuestion: CGFloat = 26 + 6 + CGFloat(q.questions.first?.options.count ?? 1) * perOption + 44
             let want = 104 + CGFloat(q.questions.count) * perQuestion
@@ -3357,7 +3360,7 @@ private struct QuestionCard: View {
                                 Text(q.text)
                                     .font(.system(size: 13, weight: .semibold))
                                     .foregroundColor(.white)
-                                    .lineLimit(2)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                             ForEach(q.options) { opt in
                                 optionRow(qIdx: idx, q: q, opt: opt)
@@ -3450,10 +3453,13 @@ private struct QuestionCard: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.white)
                     if !opt.description.isEmpty {
+                        // The description is the answer to "what does this option
+                        // do". Clipping it to one line hides exactly the part you
+                        // open the card to read. The card scrolls, so it can wrap.
                         Text(opt.description)
                             .font(.system(size: 10))
                             .foregroundColor(.white.opacity(0.5))
-                            .lineLimit(1)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 Spacer()
