@@ -32,6 +32,7 @@ enum ClaudeUsageReader {
                    cacheCreation: a.cacheCreation + b.cacheCreation,
                    costUSD: a.costUSD + b.costUSD)
         }
+        static func += (a: inout Tokens, b: Tokens) { a = a + b }
     }
 
     struct Usage {
@@ -290,6 +291,64 @@ enum ClaudeUsageReader {
         return ""
     }
 
+    /// One assistant turn's usage, parsed once and kept so the file it came from
+    /// need not be read and JSON-parsed again while it is unchanged. Bucketing
+    /// these into the rolling day/week/5h windows is cheap and still happens every
+    /// call, because those windows move with the clock; the read and the parse are
+    /// the expensive part, and that is what the cache skips.
+    struct UsageRecord {
+        let ts: Date
+        let model: String
+        let tokens: Tokens
+        let sessionId: String?
+        let cwd: String
+    }
+
+    private struct CachedFile { let mod: Date; let size: Int; let records: [UsageRecord] }
+    private static var fileCache: [String: CachedFile] = [:]
+    private static let fileCacheLock = NSLock()
+
+    private static let recordISO: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]; return f
+    }()
+    private static let recordISOPlain: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter(); f.formatOptions = [.withInternetDateTime]; return f
+    }()
+
+    /// Parse one transcript into its billable usage records. Dedupes within the
+    /// file (a turn is written as several lines that repeat the same usage), which
+    /// is enough: message ids are unique to a session, and a session is one file.
+    private static func parseRecords(_ url: URL) -> [UsageRecord] {
+        guard let data = try? Data(contentsOf: url),
+              let text = String(data: data, encoding: .utf8) else { return [] }
+        var billed = Set<String>()
+        var out: [UsageRecord] = []
+        for line in text.split(separator: "\n") {
+            guard let ld = line.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: ld) as? [String: Any],
+                  let msg = obj["message"] as? [String: Any],
+                  (msg["role"] as? String) == "assistant",
+                  let u = msg["usage"] as? [String: Any],
+                  let tsStr = obj["timestamp"] as? String,
+                  let ts = recordISO.date(from: tsStr) ?? recordISOPlain.date(from: tsStr),
+                  isFirstLine(of: msg, seen: &billed)
+            else { continue }
+            let model = (msg["model"] as? String) ?? "unknown"
+            let input = (u["input_tokens"] as? Int) ?? 0
+            let output = (u["output_tokens"] as? Int) ?? 0
+            let cacheRead = (u["cache_read_input_tokens"] as? Int) ?? 0
+            let cacheCreation = (u["cache_creation_input_tokens"] as? Int) ?? 0
+            let c = cost(input: input, output: output, cacheRead: cacheRead, cacheCreation: cacheCreation, model: model)
+            out.append(UsageRecord(
+                ts: ts,
+                model: model,
+                tokens: Tokens(input: input, output: output, cacheRead: cacheRead, cacheCreation: cacheCreation, costUSD: c),
+                sessionId: obj["sessionId"] as? String,
+                cwd: (obj["cwd"] as? String) ?? ""))
+        }
+        return out
+    }
+
     /// Parse recent transcripts. Reads files off disk, so call off the main thread.
     static func compute() -> Usage {
         var usage = Usage()
@@ -302,75 +361,60 @@ enum ClaudeUsageReader {
         let weekAgo = cal.date(byAdding: .day, value: -7, to: startOfToday) ?? startOfToday
         let fiveHoursAgo = now.addingTimeInterval(-5 * 3600)
 
-        guard let en = fm.enumerator(at: projects, includingPropertiesForKeys: [.contentModificationDateKey]) else {
+        guard let en = fm.enumerator(at: projects,
+                                     includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey]) else {
             return usage
         }
 
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let isoPlain = ISO8601DateFormatter()
-        isoPlain.formatOptions = [.withInternetDateTime]
         let dayFmt = DateFormatter()
         dayFmt.locale = Locale(identifier: "en_US_POSIX")
         dayFmt.dateFormat = "yyyy-MM-dd"
 
         var sessionsTodaySet = Set<String>()
         var sessionsWeekSet = Set<String>()
-        var billed = Set<String>()   // message.id — see `isFirstLine(of:seen:)`
+        var seenPaths = Set<String>()
 
         for case let url as URL in en {
             guard url.pathExtension == "jsonl" else { continue }
+            let vals = try? url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
+            let mod = vals?.contentModificationDate ?? .distantPast
+            let size = vals?.fileSize ?? 0
             // Skip files untouched in the last 7 days — they can't hold recent usage.
-            if let mod = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate,
-               mod < weekAgo {
-                continue
+            if mod < weekAgo { continue }
+            seenPaths.insert(url.path)
+
+            // Reuse the parse if the file is byte-for-byte the same as last time.
+            let cached = fileCacheLock.withLock { fileCache[url.path] }
+            let records: [UsageRecord]
+            if let cached, cached.mod == mod, cached.size == size {
+                records = cached.records
+            } else {
+                records = parseRecords(url)
+                fileCacheLock.withLock { fileCache[url.path] = CachedFile(mod: mod, size: size, records: records) }
             }
-            guard let data = try? Data(contentsOf: url),
-                  let text = String(data: data, encoding: .utf8) else { continue }
 
-            for line in text.split(separator: "\n") {
-                guard let ld = line.data(using: .utf8),
-                      let obj = try? JSONSerialization.jsonObject(with: ld) as? [String: Any],
-                      let msg = obj["message"] as? [String: Any],
-                      (msg["role"] as? String) == "assistant",
-                      let u = msg["usage"] as? [String: Any],
-                      let tsStr = obj["timestamp"] as? String,
-                      let ts = iso.date(from: tsStr) ?? isoPlain.date(from: tsStr),
-                      ts >= weekAgo,
-                      isFirstLine(of: msg, seen: &billed)
-                else { continue }
-
-                let model = (msg["model"] as? String) ?? "unknown"
-                let input = (u["input_tokens"] as? Int) ?? 0
-                let output = (u["output_tokens"] as? Int) ?? 0
-                let cacheRead = (u["cache_read_input_tokens"] as? Int) ?? 0
-                let cacheCreation = (u["cache_creation_input_tokens"] as? Int) ?? 0
-                let c = cost(input: input, output: output, cacheRead: cacheRead, cacheCreation: cacheCreation, model: model)
-                let t = Tokens(input: input, output: output, cacheRead: cacheRead, cacheCreation: cacheCreation, costUSD: c)
-                let key = shortModel(model)
-                let sid = obj["sessionId"] as? String
-                let cwd = (obj["cwd"] as? String) ?? ""
-
+            for r in records where r.ts >= weekAgo {
+                let t = r.tokens
                 usage.week = usage.week + t
-                usage.weekByModel[key, default: Tokens()] = usage.weekByModel[key, default: Tokens()] + t
-                if !cwd.isEmpty {
-                    usage.weekByProject[cwd, default: Tokens()] = usage.weekByProject[cwd, default: Tokens()] + t
-                }
-                let day = dayFmt.string(from: ts)
+                usage.weekByModel[shortModel(r.model), default: Tokens()] += t
+                if !r.cwd.isEmpty { usage.weekByProject[r.cwd, default: Tokens()] += t }
+                let day = dayFmt.string(from: r.ts)
                 usage.dailyTokens[day, default: 0] += t.total
-                usage.dailyCostUSD[day, default: 0] += c
-                usage.hourCounts[cal.component(.hour, from: ts), default: 0] += 1
-                usage.cacheSavingsUSD += cacheSavings(cacheRead: cacheRead, model: model)
-                if let sid { sessionsWeekSet.insert(sid) }
-                if ts >= startOfToday {
+                usage.dailyCostUSD[day, default: 0] += t.costUSD
+                usage.hourCounts[cal.component(.hour, from: r.ts), default: 0] += 1
+                usage.cacheSavingsUSD += cacheSavings(cacheRead: t.cacheRead, model: r.model)
+                if let sid = r.sessionId { sessionsWeekSet.insert(sid) }
+                if r.ts >= startOfToday {
                     usage.today = usage.today + t
-                    if let sid { sessionsTodaySet.insert(sid) }
+                    if let sid = r.sessionId { sessionsTodaySet.insert(sid) }
                 }
-                if ts >= fiveHoursAgo {
-                    usage.fiveHour = usage.fiveHour + t
-                }
+                if r.ts >= fiveHoursAgo { usage.fiveHour = usage.fiveHour + t }
             }
         }
+
+        // Drop cache entries for files that have aged out or been removed, so the
+        // cache tracks the working set rather than growing without bound.
+        fileCacheLock.withLock { fileCache = fileCache.filter { seenPaths.contains($0.key) } }
 
         usage.sessionsToday = sessionsTodaySet.count
         usage.sessionsWeek = sessionsWeekSet.count

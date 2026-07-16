@@ -16,6 +16,21 @@ enum DebugLog {
     private static let queue = DispatchQueue(label: "com.claudenotch.debuglog")
     private static let maxBytes: UInt64 = 512 * 1024
 
+    /// Off by default. The log is a diagnostic aid, not a normal-operation
+    /// artefact — writing session ids, working directories, transcript paths and
+    /// costs to disk on every hook is a privacy cost and a steady trickle of IO
+    /// nobody asked for. Turn it on for a session by launching with
+    /// CLAUDENOTCH_DEBUG=1 (or dropping a `debug-logging` marker file next to the
+    /// log), and it stays silent otherwise.
+    static let isEnabled: Bool = {
+        if let v = ProcessInfo.processInfo.environment["CLAUDENOTCH_DEBUG"],
+           v == "1" || v.lowercased() == "true" {
+            return true
+        }
+        let marker = fileURL.deletingLastPathComponent().appendingPathComponent("debug-logging")
+        return FileManager.default.fileExists(atPath: marker.path)
+    }()
+
     static let fileURL: URL = {
         let base = FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -27,6 +42,7 @@ enum DebugLog {
     }()
 
     static func append(_ category: String, _ message: String) {
+        guard isEnabled else { return }
         let line = "[\(Date())] \(category): \(message)\n"
         guard let data = line.data(using: .utf8) else { return }
         queue.async {
