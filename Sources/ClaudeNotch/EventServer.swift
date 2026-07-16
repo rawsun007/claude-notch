@@ -202,11 +202,25 @@ final class EventServer {
         receive(conn, buffer: Data())
     }
 
+    /// Hard ceiling on a single request. Real hook payloads are a few KB; the
+    /// largest (a status line) is tens of KB. Anything past a megabyte is either
+    /// broken or a local process trying to make us buffer without end — a
+    /// connection that never sends the CRLFCRLF terminator, or one that declares a
+    /// giant Content-Length, would otherwise grow `buf` until the app is out of
+    /// memory. Loopback-only, so this is a misbehaving-local-process guard, not a
+    /// network one, but it is cheap and it closes the one unbounded path in here.
+    static let maxRequestBytes = 1024 * 1024
+
     private func receive(_ conn: NWConnection, buffer: Data) {
         conn.receive(minimumIncompleteLength: 1, maximumLength: 256 * 1024) { [weak self] data, _, isComplete, error in
             guard let self else { conn.cancel(); return }
             var buf = buffer
             if let data, !data.isEmpty { buf.append(data) }
+            if buf.count > EventServer.maxRequestBytes {
+                NSLog("ClaudeNotch: dropping oversized request (%d bytes)", buf.count)
+                conn.cancel()
+                return
+            }
             if let req = EventServer.parseRequest(buf) {
                 self.handle(req, on: conn)
                 return
@@ -249,6 +263,10 @@ final class EventServer {
                 if name == "content-length" { contentLength = Int(value) ?? 0 }
             }
         }
+        // A declared length past the ceiling is refused outright rather than
+        // waited on: otherwise the reader keeps asking for more of a body that is
+        // never coming, and the buffer grows unbounded.
+        guard contentLength >= 0, contentLength <= maxRequestBytes else { return nil }
 
         let bodyStart = split.upperBound
         if data.count - bodyStart < contentLength { return nil }

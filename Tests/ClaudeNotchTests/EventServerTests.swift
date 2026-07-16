@@ -184,3 +184,30 @@ final class EventServerFormattingTests: XCTestCase {
         XCTAssertEqual(detailFromHookPayload([:]), "")
     }
 }
+
+extension EventServerTests {
+
+    /// A local process must not be able to make the server buffer without end by
+    /// declaring a giant body and dribbling bytes, or by never terminating.
+
+    func testAbsurdContentLengthIsRefusedNotAwaited() {
+        // Well over the ceiling: this must be rejected, not treated as "keep
+        // waiting for a gigabyte of body".
+        let r = parse("POST /hook HTTP/1.1\r\nContent-Length: 999999999\r\n\r\nhi")
+        XCTAssertNil(r)
+    }
+
+    func testNegativeContentLengthIsRejected() {
+        let r = parse("POST /hook HTTP/1.1\r\nContent-Length: -5\r\n\r\nhi")
+        XCTAssertNil(r)
+    }
+
+    func testALengthRightAtTheCeilingIsStillParseable() {
+        // The cap rejects *over* the ceiling; a body declared at exactly the
+        // ceiling is legal (even if we never actually receive one that big).
+        let header = "POST /x HTTP/1.1\r\nContent-Length: \(EventServer.maxRequestBytes)\r\n\r\n"
+        let full = Data(header.utf8) + Data(count: EventServer.maxRequestBytes)
+        let r = EventServer.parseRequest(full)
+        XCTAssertEqual(r?.body.count, EventServer.maxRequestBytes)
+    }
+}
