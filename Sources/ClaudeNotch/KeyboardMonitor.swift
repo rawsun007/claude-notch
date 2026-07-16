@@ -91,13 +91,7 @@ final class KeyboardMonitor {
         dbg("event tap CREATED")
     }
 
-    private func dbg(_ s: String) {
-        let url = URL(fileURLWithPath: "/tmp/claudenotch-debug.log")
-        let line = "[\(Date())] kbd: \(s)\n"
-        guard let d = line.data(using: .utf8) else { return }
-        if let h = try? FileHandle(forWritingTo: url) { h.seekToEndOfFile(); h.write(d); try? h.close() }
-        else { try? d.write(to: url) }
-    }
+    private func dbg(_ s: String) { DebugLog.append("kbd", s) }
 
     private func tapCallback(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         // macOS disables the tap if our callback ever stalls — re-enable.

@@ -455,9 +455,18 @@ enum ClaudeUsageReader {
     /// take the latest turn's input-side tokens as the live context occupancy.
     /// Reads the file off disk — call off the main thread. Returns nil if the
     /// file can't be read or has no assistant usage yet.
+    /// A transcript this big is not a real session — it is either broken or a
+    /// path the app was pointed at to make it read something huge into memory.
+    /// (`transcriptPath` arrives on the hook, so it is not fully under our
+    /// control.) Real transcripts run to tens of megabytes; a quarter of a
+    /// gigabyte is a comfortable ceiling that still refuses the abuse case.
+    static let maxTranscriptBytes = 256 * 1024 * 1024
+
     static func sessionMeter(transcriptPath path: String) -> SessionMeter? {
-        guard !path.isEmpty,
-              let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+        guard !path.isEmpty else { return nil }
+        if let size = (try? FileManager.default.attributesOfItem(atPath: path)[.size]) as? Int,
+           size > maxTranscriptBytes { return nil }
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
               let text = String(data: data, encoding: .utf8) else { return nil }
 
         var meter = SessionMeter()

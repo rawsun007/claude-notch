@@ -62,8 +62,9 @@ func render(size: CGFloat) -> NSImage {
     ctx.restoreGState()
 
     // --- Claude logo (coral), centred a little below middle ---
-    if let logo = NSImage(contentsOfFile: "assets/claude-color.svg")
-        ?? NSImage(contentsOfFile: "/Users/roshanramani/Downloads/claude-color.svg") {
+    // Repo asset by default; override with CLAUDE_LOGO=/path/to/claude-color.svg.
+    let logoPath = ProcessInfo.processInfo.environment["CLAUDE_LOGO"] ?? "assets/claude-color.svg"
+    if let logo = NSImage(contentsOfFile: logoPath) {
         let logoSize = bgRect.width * 0.50
         let logoRect = CGRect(
             x: bgRect.midX - logoSize / 2,

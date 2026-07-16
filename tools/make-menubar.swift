@@ -25,8 +25,9 @@ func render(_ px: CGFloat) -> Data? {
     // tint it as a template image).
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
-    if let logo = NSImage(contentsOfFile: "assets/claude.svg")
-        ?? NSImage(contentsOfFile: "/Users/roshanramani/Downloads/claude.svg") {
+    // Repo asset by default; override with CLAUDE_LOGO=/path/to/claude.svg.
+    let logoPath = ProcessInfo.processInfo.environment["CLAUDE_LOGO"] ?? "assets/claude.svg"
+    if let logo = NSImage(contentsOfFile: logoPath) {
         let s = px * 0.66
         let rect = CGRect(x: (px - s)/2, y: px*0.40 - s/2, width: s, height: s)
         logo.size = NSSize(width: s, height: s)

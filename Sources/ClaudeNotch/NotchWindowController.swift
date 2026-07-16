@@ -259,17 +259,5 @@ final class NotchWindowController {
         debugAppend(lines.joined(separator: "\n") + "\n")
     }
 
-    private func debugAppend(_ text: String) {
-        let url = URL(fileURLWithPath: "/tmp/claudenotch-debug.log")
-        if let data = text.data(using: .utf8) {
-            if FileManager.default.fileExists(atPath: url.path),
-               let handle = try? FileHandle(forWritingTo: url) {
-                handle.seekToEndOfFile()
-                handle.write(data)
-                try? handle.close()
-            } else {
-                try? data.write(to: url)
-            }
-        }
-    }
+    private func debugAppend(_ text: String) { DebugLog.append("geometry", text) }
 }

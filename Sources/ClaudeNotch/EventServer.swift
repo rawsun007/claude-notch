@@ -817,17 +817,7 @@ final class EventServer {
         return nil
     }
 
-    private func debugLog(_ msg: String) {
-        let url = URL(fileURLWithPath: "/tmp/claudenotch-debug.log")
-        let line = "[\(Date())] server: \(msg)\n"
-        guard let data = line.data(using: .utf8) else { return }
-        if FileManager.default.fileExists(atPath: url.path),
-           let h = try? FileHandle(forWritingTo: url) {
-            h.seekToEndOfFile(); h.write(data); try? h.close()
-        } else {
-            try? data.write(to: url)
-        }
-    }
+    private func debugLog(_ msg: String) { DebugLog.append("server", msg) }
 
     /// PreToolUse: tool was just approved and is now executing. Update the
     /// activity strip live so the user sees what's running while it runs.
