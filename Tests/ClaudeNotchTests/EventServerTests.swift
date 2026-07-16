@@ -185,7 +185,7 @@ final class EventServerFormattingTests: XCTestCase {
     }
 }
 
-extension EventServerTests {
+extension EventServerParseTests {
 
     /// A local process must not be able to make the server buffer without end by
     /// declaring a giant body and dribbling bytes, or by never terminating.
@@ -193,12 +193,12 @@ extension EventServerTests {
     func testAbsurdContentLengthIsRefusedNotAwaited() {
         // Well over the ceiling: this must be rejected, not treated as "keep
         // waiting for a gigabyte of body".
-        let r = parse("POST /hook HTTP/1.1\r\nContent-Length: 999999999\r\n\r\nhi")
+        let r = req("POST /hook HTTP/1.1\r\nContent-Length: 999999999\r\n\r\nhi")
         XCTAssertNil(r)
     }
 
     func testNegativeContentLengthIsRejected() {
-        let r = parse("POST /hook HTTP/1.1\r\nContent-Length: -5\r\n\r\nhi")
+        let r = req("POST /hook HTTP/1.1\r\nContent-Length: -5\r\n\r\nhi")
         XCTAssertNil(r)
     }
 
