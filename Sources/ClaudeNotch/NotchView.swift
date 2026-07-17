@@ -1120,12 +1120,14 @@ private struct IdlePill: View {
                     .font(.system(size: 10, design: .rounded))
                     .foregroundStyle(Self.shimmerGradient(phase: phase))
                     .lineLimit(1)
+                    .accessibilityLabel("Claude Code, \(statusText)")
             }
         } else {
             Text(statusText)
                 .font(.system(size: 10, design: .rounded))
                 .foregroundColor(.white.opacity(0.38))
                 .lineLimit(1)
+                .accessibilityLabel("Claude Code, \(statusText)")
         }
     }
 
@@ -1990,6 +1992,17 @@ private struct ThinkingPill: View {
 // MARK: - Permission (blocking, tool use)
 
 private struct PermissionCard: View {
+    /// A whole permission ask as one spoken sentence for VoiceOver. Pure so it
+    /// can be tested, and so the phrasing lives in one place.
+    static func spokenAsk(for r: PermissionRequest) -> String {
+        var parts: [String] = []
+        if r.isDangerous { parts.append("Dangerous.") }
+        parts.append(r.title)
+        if !r.toolName.isEmpty, r.toolName != "Notification" { parts.append("Tool: \(r.toolName).") }
+        if !r.detail.isEmpty { parts.append(r.detail) }
+        return parts.joined(separator: " ")
+    }
+
     let request: PermissionRequest
     var pendingCount: Int = 1
     let onResolve: (PermissionDecision, AllowScope) -> Void
@@ -2056,11 +2069,15 @@ private struct PermissionCard: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(.white)
                 .lineLimit(1)
+                // VoiceOver reads the whole ask as one phrase: what it is, the
+                // tool, the command, and a spoken warning when it is dangerous.
+                .accessibilityLabel(Self.spokenAsk(for: request))
 
             if !request.detail.isEmpty {
                 Text(request.detail)
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundColor(.white.opacity(0.78))
+                    .accessibilityHidden(true)
                     .lineLimit(2)
                     .truncationMode(.middle)
                     .padding(.horizontal, 10)
@@ -3367,6 +3384,11 @@ private struct NotchButton: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
+        // VoiceOver reads the plain label, not the "Copied ✓" state text or the
+        // "⌘↩" glyph, and hears "destructive" as a warning on Deny.
+        .accessibilityLabel(label.replacingOccurrences(of: " ✓", with: ""))
+        .accessibilityHint(shortcut.map { "shortcut \($0)" } ?? "")
+        .accessibilityAddTraits(style == .destructive ? [.isButton] : .isButton)
     }
 
     private var textColor: Color {

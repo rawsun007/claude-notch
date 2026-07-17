@@ -19,6 +19,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var persistentNotchItem: NSMenuItem!
     private var petModeItem: NSMenuItem!
     private var breakRemindersItem: NSMenuItem!
+    private var longRunItem: NSMenuItem!
     private var autoApproveItem: NSMenuItem!
     private var autoApproveMenu: NSMenu!
     private var snoozeItem: NSMenuItem!
@@ -253,6 +254,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         breakRemindersItem.target = self
         breakRemindersItem.toolTip = "Nudge you once after a long unbroken stretch of work. Measured from Claude Code's own activity, so there is no timer to start."
         menu.addItem(breakRemindersItem)
+
+        longRunItem = NSMenuItem(title: "Alert on Long Tool Runs",
+                                 action: #selector(toggleLongRun), keyEquivalent: "")
+        longRunItem.target = self
+        longRunItem.toolTip = "Notify once when a single tool call runs past five minutes, so a stuck agent does not sit unnoticed. Fires again only for a new long run."
+        menu.addItem(longRunItem)
 
         menuSpendItem = NSMenuItem(title: "Show Today's Spend in Menu Bar",
                                    action: #selector(toggleMenuSpend), keyEquivalent: "")
@@ -879,6 +886,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshPrefs()
     }
 
+    @objc private func toggleLongRun() {
+        state.setLongRunAlertsEnabled(!state.longRunAlertsEnabled)
+        refreshPrefs()
+    }
+
     @objc private func toggleTouchID() {
         state.setRequireTouchID(!state.requireTouchID)
         touchIDItem?.state = state.requireTouchID ? .on : .off
@@ -960,6 +972,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         persistentNotchItem.state = state.persistentNotchDisplay ? .on : .off
         petModeItem.state = state.petEnabled ? .on : .off
         breakRemindersItem.state = state.breakRemindersEnabled ? .on : .off
+        longRunItem.state = state.longRunAlertsEnabled ? .on : .off
         // Say how long you have actually been at it, so the toggle is not an
         // abstraction: it is describing the stretch you are in right now.
         let stretch = Int(state.focusStretch / 60)

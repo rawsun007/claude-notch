@@ -762,6 +762,7 @@ final class AppState: ObservableObject {
             self.weeklyResetAt = snapshot.weeklyResetAt
             self.limitsUpdatedAt = snapshot.limitsUpdatedAt
             self.breakRemindersEnabled = snapshot.breakRemindersEnabled ?? false
+            self.longRunAlertsEnabled = snapshot.longRunAlertsEnabled ?? false
         } else {
             self.requireTouchID = BiometricAuth.isAvailable
         }
@@ -1617,7 +1618,8 @@ final class AppState: ObservableObject {
             fiveHourResetAt: fiveHourResetAt,
             weeklyResetAt: weeklyResetAt,
             limitsUpdatedAt: limitsUpdatedAt,
-            breakRemindersEnabled: breakRemindersEnabled
+            breakRemindersEnabled: breakRemindersEnabled,
+            longRunAlertsEnabled: longRunAlertsEnabled
         ))
     }
 
@@ -2432,6 +2434,59 @@ final class AppState: ObservableObject {
         schedulePersist()
     }
 
+    /// Warn when a single tool call has been running a long time. Off by default,
+    /// like every other unprompted nudge. This is the answer to the one thing the
+    /// whole notch-app ecosystem keeps asking for — "is this long agent run stuck"
+    /// — without your having to watch the notch: it fires once, past the
+    /// threshold, and does not fire again until a NEW tool call goes long.
+    @Published var longRunAlertsEnabled: Bool = false
+    static let longRunThreshold: TimeInterval = 5 * 60
+    /// The activityStartedAt we have already alerted for, so one stuck tool alerts
+    /// once rather than every heartbeat.
+    private var longRunAlertedFor: Date?
+
+    func setLongRunAlertsEnabled(_ on: Bool) {
+        longRunAlertsEnabled = on
+        schedulePersist()
+    }
+
+    /// Called on the stale heartbeat. Fires one alert when the running tool passes
+    /// the threshold; the flag is keyed to the run's start, so a new tool call
+    /// (which resets `activityStartedAt`) can alert again.
+    /// Whether a long-run alert should fire right now. Pure so the timing rule
+    /// can be pinned without a clock: fires once when a run passes the threshold,
+    /// and not again for the same run (keyed by its start).
+    nonisolated static func shouldAlertLongRun(enabled: Bool, working: Bool,
+                                               startedAt: Date?, alertedFor: Date?,
+                                               now: Date, threshold: TimeInterval) -> Bool {
+        guard enabled, working, let started = startedAt else { return false }
+        guard alertedFor != started else { return false }
+        return now.timeIntervalSince(started) >= threshold
+    }
+
+    private func checkLongRun() {
+        guard Self.shouldAlertLongRun(enabled: longRunAlertsEnabled, working: isClaudeWorking,
+                                      startedAt: activityStartedAt, alertedFor: longRunAlertedFor,
+                                      now: Date(), threshold: Self.longRunThreshold),
+              let started = activityStartedAt else { return }
+        let elapsed = Date().timeIntervalSince(started)
+        longRunAlertedFor = started
+        let minutes = Int(elapsed / 60)
+        let req = PermissionRequest(
+            kind: .notification,
+            title: "Still running — \(minutes)m",
+            detail: lastActivity.isEmpty
+                ? "This tool call has been going for \(minutes) minutes."
+                : "\(lastActivity) has been running for \(minutes) minutes.",
+            toolName: "LongRun",
+            source: "ClaudeNotch",
+            cwd: currentCwd,
+            originatorBundleID: nil,
+            resolver: { _, _ in }
+        )
+        enqueuePermission(req)
+    }
+
     /// How long you have been working without a break, in seconds. 0 when you are
     /// on one. Measured from Claude Code's hooks rather than a timer you start:
     /// the app already knows when work is happening.
@@ -2767,6 +2822,7 @@ final class AppState: ObservableObject {
         staleTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.checkStale()
+                self?.checkLongRun()
                 // Same heartbeat: an agent can start or die without any hook
                 // reaching us (it is a daemon, not a terminal).
                 self?.refreshBackgroundAgents()

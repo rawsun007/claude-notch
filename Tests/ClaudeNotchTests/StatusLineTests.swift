@@ -421,3 +421,71 @@ final class RunningDurationTests: XCTestCase {
         XCTAssertEqual(AppState.runningDuration(seconds: -5), "0s")
     }
 }
+
+/// The long-run alert. One nudge when a single tool call passes the threshold,
+/// the answer to "is this agent stuck" without watching the notch.
+final class LongRunAlertTests: XCTestCase {
+
+    private let t0 = Date(timeIntervalSince1970: 1_000_000)
+    private let threshold: TimeInterval = 300
+
+    private func should(_ enabled: Bool = true, working: Bool = true,
+                        started: Date?, alerted: Date? = nil, at seconds: Double) -> Bool {
+        AppState.shouldAlertLongRun(enabled: enabled, working: working, startedAt: started,
+                                    alertedFor: alerted, now: t0.addingTimeInterval(seconds),
+                                    threshold: threshold)
+    }
+
+    func testFiresOncePastTheThreshold() {
+        XCTAssertFalse(should(started: t0, at: 299))
+        XCTAssertTrue(should(started: t0, at: 300))
+    }
+
+    func testDoesNotFireAgainForTheSameRun() {
+        // Once we have alerted for this run's start, no more.
+        XCTAssertFalse(should(started: t0, alerted: t0, at: 600))
+    }
+
+    func testANewRunCanAlertAgain() {
+        // A fresh tool call resets startedAt, so it earns its own alert.
+        let newRun = t0.addingTimeInterval(700)
+        XCTAssertTrue(should(started: newRun, alerted: t0, at: 700 + 300))
+    }
+
+    func testOffAndIdleNeverFire() {
+        XCTAssertFalse(should(false, started: t0, at: 999))
+        XCTAssertFalse(should(working: false, started: t0, at: 999))
+        XCTAssertFalse(should(started: nil, at: 999))
+    }
+}
+
+/// VoiceOver phrasing for a permission ask. Blind users get one clear sentence,
+/// with the danger flagged first.
+final class SpokenAskTests: XCTestCase {
+
+    private func ask(title: String, tool: String, detail: String, dangerous: Bool) -> PermissionRequest {
+        PermissionRequest(kind: .toolUse, title: title, detail: detail, toolName: tool,
+                          source: "Claude Code", cwd: "/x", originatorBundleID: nil,
+                          isDangerous: dangerous, resolver: { _, _ in })
+    }
+
+    func testDangerIsSpokenFirst() {
+        let s = PermissionCard.spokenAsk(for: ask(title: "Run command", tool: "Bash",
+                                                  detail: "rm -rf build", dangerous: true))
+        XCTAssertTrue(s.hasPrefix("Dangerous."))
+        XCTAssertTrue(s.contains("Bash"))
+        XCTAssertTrue(s.contains("rm -rf build"))
+    }
+
+    func testAnOrdinaryAskReadsCleanly() {
+        let s = PermissionCard.spokenAsk(for: ask(title: "Edit main.swift", tool: "Edit",
+                                                  detail: "", dangerous: false))
+        XCTAssertEqual(s, "Edit main.swift Tool: Edit.")
+    }
+
+    func testNotificationToolIsNotAnnouncedAsATool() {
+        let s = PermissionCard.spokenAsk(for: ask(title: "Task finished", tool: "Notification",
+                                                  detail: "", dangerous: false))
+        XCTAssertEqual(s, "Task finished")
+    }
+}
