@@ -561,7 +561,10 @@ final class DropLaunchTests: XCTestCase {
         XCTAssertEqual(r?.message, "@main.swift", "the dropped file is handed to Claude to look at")
     }
 
-    func testEmptyPathIsIgnored() {
-        XCTAssertNil(AppState.dropLaunch(for: URL(fileURLWithPath: "/"), isDirectory: true).map { $0.dir == "" ? nil : $0 } ?? nil)
+    func testAFileWithSpacesInItsNameMentionsThatName() {
+        let r = AppState.dropLaunch(for: URL(fileURLWithPath: "/Users/me/my app/read me.md"),
+                                    isDirectory: false)
+        XCTAssertEqual(r?.dir, "/Users/me/my app")
+        XCTAssertEqual(r?.message, "@read me.md")
     }
 }
