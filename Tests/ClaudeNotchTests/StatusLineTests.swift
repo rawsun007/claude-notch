@@ -398,3 +398,26 @@ final class SessionPhantomTests: XCTestCase {
         XCTAssertEqual(s.activeSessions.count, 1)
     }
 }
+
+/// The run timer. A ticking count is the answer to "is this long tool call stuck
+/// or still working", which is the most-asked question about a long agent run.
+final class RunningDurationTests: XCTestCase {
+
+    func testSecondsUnderAMinute() {
+        XCTAssertEqual(AppState.runningDuration(seconds: 0), "0s")
+        XCTAssertEqual(AppState.runningDuration(seconds: 42), "42s")
+        XCTAssertEqual(AppState.runningDuration(seconds: 59.9), "59s")
+    }
+
+    func testMinutesAndSecondsAreZeroPadded() {
+        // "3m 5s" reads worse at a glance than "3m 05s" when it is ticking.
+        XCTAssertEqual(AppState.runningDuration(seconds: 65), "1m 05s")
+        XCTAssertEqual(AppState.runningDuration(seconds: 185), "3m 05s")
+        XCTAssertEqual(AppState.runningDuration(seconds: 600), "10m 00s")
+    }
+
+    func testNegativeClampsToZero() {
+        // A clock skew must not print a negative timer.
+        XCTAssertEqual(AppState.runningDuration(seconds: -5), "0s")
+    }
+}

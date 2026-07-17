@@ -1698,11 +1698,25 @@ final class AppState: ObservableObject {
         return head.count >= 7 ? String(head.prefix(7)) : head
     }
 
+    /// When the tool named in `lastActivity` started running. Nil when nothing
+    /// is running. This is what lets the notch answer the question every long
+    /// agent run raises: is it still doing something, and for how long?
+    @Published private(set) var activityStartedAt: Date?
+
+    /// "42s" / "3m 05s" — a live run timer, not an age. Seconds matter here:
+    /// the whole point is seeing it move.
+    nonisolated static func runningDuration(seconds: TimeInterval) -> String {
+        let s = max(0, Int(seconds))
+        if s < 60 { return "\(s)s" }
+        return String(format: "%dm %02ds", s / 60, s % 60)
+    }
+
     func noteActivity(_ label: String, sessionId: String = "") {
         // A tool is starting: the turn is live again, so late hooks from the
         // previous turn stop being ignored.
         turnGate.workStarted(TurnGate.key(sessionId: sessionId, cwd: currentCwd))
         lastActivity = label
+        activityStartedAt = Date()   // each tool call restarts the run clock
         let status = Self.statusLabel(fromActivity: label)
         claudeActionStatus = status
         lastActivityAt = Date()
@@ -1726,6 +1740,7 @@ final class AppState: ObservableObject {
         guard !turnGate.isLate(TurnGate.key(sessionId: sessionId, cwd: currentCwd)) else { return }
         claudeActionStatus = "thinking"
         lastActivity = ""
+        activityStartedAt = nil
         lastHookAt = Date()
         upsertSession(id: sessionId, cwd: currentCwd) { s in
             s.activity = ""
@@ -1971,6 +1986,7 @@ final class AppState: ObservableObject {
         currentProject = ""
         currentCwd = ""
         lastActivity = ""
+        activityStartedAt = nil
         lastUserPrompt = ""
         lastClaudeResponse = ""
         claudeActionStatus = "ready"
@@ -2787,6 +2803,9 @@ final class AppState: ObservableObject {
             currentCwd = newest.cwd
             currentProject = newest.project
             lastActivity = newest.activity
+            // Approximate: this session's last hook is the best start we have for
+            // a run we did not watch begin. Off by seconds, never by minutes.
+            activityStartedAt = newest.activity.isEmpty ? nil : newest.lastHookAt
             claudeActionStatus = newest.status
             lastClaudeResponse = newest.lastResponse
             fullClaudeResponse = newest.fullResponse
@@ -2800,6 +2819,7 @@ final class AppState: ObservableObject {
             currentProject = ""
             currentCwd = ""
             lastActivity = ""
+            activityStartedAt = nil
             lastUserPrompt = ""
             claudeActionStatus = lastClaudeResponse.isEmpty ? "ready" : "last reply"
             lastHookAt = nil
@@ -2853,6 +2873,7 @@ final class AppState: ObservableObject {
             currentProject = ""
             currentCwd = ""
             lastActivity = ""
+            activityStartedAt = nil
             lastUserPrompt = ""
             claudeActionStatus = lastClaudeResponse.isEmpty ? "ready" : "last reply"
             lastHookAt = nil
@@ -2861,6 +2882,7 @@ final class AppState: ObservableObject {
         } else if age > activityStaleAfter {
             // Just drop the volatile fields.
             if !lastActivity.isEmpty { lastActivity = "" }
+            if activityStartedAt != nil { activityStartedAt = nil }
             if !lastUserPrompt.isEmpty { lastUserPrompt = "" }
             if !lastClaudeResponse.isEmpty {
                 claudeActionStatus = "last reply"

@@ -1326,7 +1326,8 @@ private struct IdlePill: View {
             // Row 3 — command strip, visible only while Claude is active
             if state.isClaudeWorking && !state.lastActivity.isEmpty {
                 let parsed = parseActivity(state.lastActivity)
-                CommandLineBlock(icon: parsed.icon, text: parsed.text)
+                CommandLineBlock(icon: parsed.icon, text: parsed.text,
+                                 startedAt: state.activityStartedAt)
             }
 
             if isOpen && hasMultipleSessions {
@@ -1353,12 +1354,18 @@ private struct IdlePill: View {
 private struct CommandLineBlock: View {
     let icon: String
     let text: String
+    var startedAt: Date? = nil
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: false)) { tl in
             let phase = CGFloat(tl.date.timeIntervalSinceReferenceDate
                 .truncatingRemainder(dividingBy: 2.5) / 2.5)
             let border = IdlePill.shimmerGradient(phase: phase, base: 0.07, peak: 0.28)
+            // How long the running tool has been going. The single most asked-for
+            // thing about a long agent run is "is it stuck or still working" — a
+            // ticking timer answers it at a glance. Once it passes a minute it
+            // warms to amber, so a genuinely long run stands out from a quick one.
+            let running = startedAt.map { tl.date.timeIntervalSince($0) }
             HStack(spacing: 5) {
                 Spacer(minLength: 0)
                 Image(systemName: icon)
@@ -1369,6 +1376,13 @@ private struct CommandLineBlock: View {
                     .foregroundColor(.white.opacity(0.42))
                     .lineLimit(1)
                     .truncationMode(.middle)
+                if let running, running >= 1 {
+                    Text(AppState.runningDuration(seconds: running))
+                        .font(.system(size: 9, design: .rounded).monospacedDigit())
+                        .foregroundColor((running >= 60 ? Color.orange : .white).opacity(0.5))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                }
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 10)
