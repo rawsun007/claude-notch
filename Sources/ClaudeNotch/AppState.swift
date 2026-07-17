@@ -2446,7 +2446,7 @@ final class AppState: ObservableObject {
     func closeResponseDetail() {
         isResponseDetailOpen = false
         recompute()
-        returnKeyboardToTerminal()
+        returnToPreviousApp()
     }
 
     /// Copy the reply currently shown in the detail card (⌘C / Copy button).
@@ -2635,7 +2635,7 @@ final class AppState: ObservableObject {
     func closeHistory() {
         isHistoryOpen = false
         recompute()
-        returnKeyboardToTerminal()
+        returnToPreviousApp()
     }
 
     func clearHistory() {
@@ -2657,13 +2657,13 @@ final class AppState: ObservableObject {
         panel.canCreateDirectories = true
         NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK, let url = panel.url else {
-            returnKeyboardToTerminal()
+            returnToPreviousApp()
             return
         }
         let csv = url.pathExtension.lowercased() == "csv"
         let data = csv ? Self.historyCSV(history) : Self.historyJSON(history)
         try? data.write(to: url, options: .atomic)
-        returnKeyboardToTerminal()
+        returnToPreviousApp()
     }
 
     private static func outcomeString(_ o: HistoryEntry.Outcome) -> String {
@@ -2720,13 +2720,13 @@ final class AppState: ObservableObject {
         panel.canCreateDirectories = true
         NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK, let url = panel.url else {
-            returnKeyboardToTerminal()
+            returnToPreviousApp()
             return
         }
         let json = url.pathExtension.lowercased() == "json"
         let data = json ? Self.sessionsJSON(sessionHistory) : Self.sessionsCSV(sessionHistory)
         try? data.write(to: url, options: .atomic)
-        returnKeyboardToTerminal()
+        returnToPreviousApp()
     }
 
     private static func sessionsJSON(_ records: [SessionRecord]) -> Data {
@@ -3416,6 +3416,22 @@ final class AppState: ObservableObject {
         }
         let bid = preferred ?? lastOriginatorBundleID
         openOriginator(bid)
+    }
+
+    /// After the user CLOSES a panel they opened themselves (history, the response
+    /// detail, an export), return to whatever app they were actually using —
+    /// which is the last app that was frontmost before the notch took focus, not
+    /// the terminal that happened to run Claude. Closing history from a
+    /// full-screen browser must land you back in that browser, not yank you into
+    /// the terminal.
+    func returnToPreviousApp() {
+        switch mode {
+        case .permission, .question, .compose, .completed, .responseDetail, .history:
+            return   // another interactive card is still up — keep focus here
+        default:
+            break
+        }
+        frontmost.activateLastApp()
     }
 
     func playSound(_ name: String) {
