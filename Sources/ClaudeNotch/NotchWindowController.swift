@@ -84,11 +84,20 @@ final class NotchWindowController {
         // the cursor to the notch inside a full-screen app did nothing: the notch
         // was behind the app, not ignoring the mouse.
         panel.isFloatingPanel = true
-        // Set the level LAST so it is the one that survives. Above the shielding
-        // level, which is what puts it over a full-screen window; .canJoinAllSpaces
-        // is what stops it staying behind on the desktop's Space while the
-        // full-screen app owns its own.
-        panel.level = NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()))
+        // Set the level LAST so it is the one that survives.
+        //
+        // It used to be CGShieldingWindowLevel() (~2.1 billion). That does put
+        // the panel over everything, but the WindowServer excludes windows at or
+        // above the shielding level from drag-and-drop destination routing — a
+        // dragged file is never delivered to such a window, which is exactly why
+        // dropping a folder on the notch did nothing and the file fell to the
+        // desktop. `.mainMenu + 3` (~27) is what boring.notch uses: it still sits
+        // above the menu bar, and .fullScreenAuxiliary + .canJoinAllSpaces (set
+        // in collectionBehavior above) are what actually float it over a
+        // full-screen app's Space — the level does not need to be astronomical
+        // for that. This level keeps the notch over full screen AND makes it a
+        // real drag destination.
+        panel.level = .mainMenu + 3
         panel.becomesKeyOnlyIfNeeded = false
         panel.hidesOnDeactivate = false
         panel.worksWhenModal = true
