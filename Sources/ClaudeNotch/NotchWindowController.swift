@@ -20,20 +20,56 @@ final class PassThroughHostingView: NSHostingView<NotchView> {
     weak var appState: AppState?
     var screenProvider: () -> NSScreen = { NSScreen.main ?? NSScreen.screens.first ?? NSScreen() }
 
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        guard let state = appState else { return super.hitTest(point) }
+    /// The clickable / droppable region: the notch card, pinned top-centre, with
+    /// slack for a content-fit height that can run over the formula.
+    private func cardRect() -> NSRect {
+        guard let state = appState else { return .zero }
         let card = NotchView.size(for: state.mode, hovering: state.persistentNotchDisplay || state.isHovering, on: screenProvider(), state: state)
-        // The card is pinned to the top-centre of our bounds. Add slack so
-        // the card's actual (content-fit) height — which can exceed the
-        // formula a touch — is always clickable.
         let slack: CGFloat = 18
         let w = card.width + slack * 2
         let h = card.height + slack * 2
-        let x = bounds.midX - w / 2
-        let y = isFlipped ? 0 : (bounds.height - h)
-        let cardRect = NSRect(x: x, y: y, width: w, height: h)
+        return NSRect(x: bounds.midX - w / 2,
+                      y: isFlipped ? 0 : (bounds.height - h),
+                      width: w, height: h)
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard appState != nil else { return super.hitTest(point) }
         let local = convert(point, from: superview)
-        return cardRect.contains(local) ? super.hitTest(point) : nil
+        return cardRect().contains(local) ? super.hitTest(point) : nil
+    }
+
+    // MARK: - Drop a file/folder onto the notch to open Claude there
+
+    func enableDrops() { registerForDraggedTypes([.fileURL]) }
+
+    private func overNotch(_ sender: NSDraggingInfo) -> Bool {
+        cardRect().contains(convert(sender.draggingLocation, from: nil))
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        updateDropTarget(sender)
+    }
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        updateDropTarget(sender)
+    }
+    private func updateDropTarget(_ sender: NSDraggingInfo) -> NSDragOperation {
+        let ok = overNotch(sender)
+            && (sender.draggingPasteboard.canReadObject(forClasses: [NSURL.self]))
+        appState?.isDropTarget = ok
+        return ok ? .copy : []
+    }
+    override func draggingExited(_ sender: NSDraggingInfo?) {
+        appState?.isDropTarget = false
+    }
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        overNotch(sender)
+    }
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let urls = sender.draggingPasteboard
+            .readObjects(forClasses: [NSURL.self], options: nil) as? [URL] ?? []
+        appState?.handleDrop(urls: urls)
+        return !urls.isEmpty
     }
 }
 
@@ -92,6 +128,7 @@ final class NotchWindowController {
 
         let host = PassThroughHostingView(rootView: NotchView(state: state))
         host.appState = state
+        host.enableDrops()
         host.frame = NSRect(origin: .zero, size: winSize)
         host.autoresizingMask = [.width, .height]
         panel.contentView = host

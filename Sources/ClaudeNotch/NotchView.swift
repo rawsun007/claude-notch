@@ -215,6 +215,11 @@ struct NotchView: View {
         case .idle:
             guard hovering else {
                 let base = collapsedSize(on: s)
+                // A file is being dragged over the notch: grow it into a clear
+                // drop target with room for the "Open in Claude" hint.
+                if state?.isDropTarget == true {
+                    return CGSize(width: max(base.width, 220), height: inset + 26)
+                }
                 // Pet mode: the card grows just enough to be the stage for
                 // whatever the pet is currently doing. It's not "opening" —
                 // the notch swells a little and the mascot moves in it.
@@ -425,10 +430,25 @@ struct NotchView: View {
                     //
                     // Clicking the bare notch still wakes the pet — the notch is
                     // where it lives.
-                    Color.clear
-                        .frame(width: card.width, height: card.height)
-                        .contentShape(Rectangle())
-                        .onTapGesture { state.petBoop() }
+                    ZStack {
+                        Color.clear
+                        // Dragging a file over the notch: it becomes a drop target
+                        // that opens Claude Code where the file lives. Nobody else
+                        // uses the notch as a place to throw a folder.
+                        if state.isDropTarget {
+                            HStack(spacing: 4) {
+                                Image(systemName: "plus.circle.fill")
+                                Text("Open in Claude")
+                                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                                    .lineLimit(1)
+                            }
+                            .foregroundColor(.green)
+                            .transition(.opacity)
+                        }
+                    }
+                    .frame(width: card.width, height: card.height)
+                    .contentShape(Rectangle())
+                    .onTapGesture { state.petBoop() }
                 }
             }
             // Black fill + clip apply AT the animating frame size, so the
@@ -437,7 +457,10 @@ struct NotchView: View {
             .frame(width: w, height: h, alignment: .top)
             .background(Color.black)
             .clipShape(shape)
-            .overlay(shape.stroke(Color.white.opacity(collapsed ? 0 : 0.05), lineWidth: 0.5))
+            .overlay(shape.stroke(state.isDropTarget ? Color.green.opacity(0.9)
+                                  : Color.white.opacity(collapsed ? 0 : 0.05),
+                                  lineWidth: state.isDropTarget ? 1.5 : 0.5))
+            .animation(.easeOut(duration: 0.15), value: state.isDropTarget)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear { sizer.set(target) }

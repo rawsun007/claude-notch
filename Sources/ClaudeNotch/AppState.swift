@@ -488,6 +488,34 @@ final class AppState: ObservableObject {
     @Published private(set) var questionQueue: [QuestionRequest] = []
     @Published private(set) var allowRules: Set<AllowRule> = []
     @Published var isHovering: Bool = false
+    /// True while a file or folder is being dragged over the notch, so the card
+    /// can show it is a drop target.
+    @Published var isDropTarget: Bool = false
+
+    /// A file or folder was dropped on the notch: open a Claude Code session
+    /// where it lives. A folder opens Claude in that folder; a file opens Claude
+    /// in its parent folder and hands the file straight to Claude as an @-mention,
+    /// so a dropped file lands you in a session already looking at it.
+    func handleDrop(urls: [URL]) {
+        isDropTarget = false
+        guard let url = urls.first,
+              let launch = Self.dropLaunch(for: url, isDirectory: Self.isDirectory(url)) else { return }
+        TerminalAutomator.startClaude(in: launch.dir, message: launch.message)
+    }
+
+    private static func isDirectory(_ url: URL) -> Bool {
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue
+    }
+
+    /// Where to open Claude for a dropped path, and what to say. A folder opens a
+    /// session there; a file opens one in its parent and hands the file to Claude
+    /// as an @-mention, so you land already looking at it. Pure and testable.
+    nonisolated static func dropLaunch(for url: URL, isDirectory: Bool) -> (dir: String, message: String?)? {
+        guard !url.path.isEmpty else { return nil }
+        if isDirectory { return (url.path, nil) }
+        return (url.deletingLastPathComponent().path, "@\(url.lastPathComponent)")
+    }
 
     // User preferences (persisted).
     @Published var autoApprove: Bool = false   // auto-allow every permission

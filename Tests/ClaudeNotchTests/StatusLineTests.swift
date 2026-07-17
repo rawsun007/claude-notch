@@ -544,3 +544,24 @@ final class SessionDetailFallbackTests: XCTestCase {
         XCTAssertTrue(s.currentTouchedFiles.isEmpty)
     }
 }
+
+/// Dropping a file or folder onto the notch opens Claude Code where it lives.
+final class DropLaunchTests: XCTestCase {
+
+    func testAFolderOpensASessionThere() {
+        let r = AppState.dropLaunch(for: URL(fileURLWithPath: "/Users/me/app"), isDirectory: true)
+        XCTAssertEqual(r?.dir, "/Users/me/app")
+        XCTAssertNil(r?.message, "a folder just opens Claude, no prompt")
+    }
+
+    func testAFileOpensInItsParentAndMentionsItself() {
+        let r = AppState.dropLaunch(for: URL(fileURLWithPath: "/Users/me/app/main.swift"),
+                                    isDirectory: false)
+        XCTAssertEqual(r?.dir, "/Users/me/app")
+        XCTAssertEqual(r?.message, "@main.swift", "the dropped file is handed to Claude to look at")
+    }
+
+    func testEmptyPathIsIgnored() {
+        XCTAssertNil(AppState.dropLaunch(for: URL(fileURLWithPath: "/"), isDirectory: true).map { $0.dir == "" ? nil : $0 } ?? nil)
+    }
+}
