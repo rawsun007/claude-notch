@@ -1991,7 +1991,7 @@ private struct ThinkingPill: View {
 
 // MARK: - Permission (blocking, tool use)
 
-private struct PermissionCard: View {
+struct PermissionCard: View {
     /// A whole permission ask as one spoken sentence for VoiceOver. Pure so it
     /// can be tested, and so the phrasing lives in one place.
     static func spokenAsk(for r: PermissionRequest) -> String {

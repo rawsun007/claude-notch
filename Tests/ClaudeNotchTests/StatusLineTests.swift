@@ -466,7 +466,7 @@ final class SpokenAskTests: XCTestCase {
     private func ask(title: String, tool: String, detail: String, dangerous: Bool) -> PermissionRequest {
         PermissionRequest(kind: .toolUse, title: title, detail: detail, toolName: tool,
                           source: "Claude Code", cwd: "/x", originatorBundleID: nil,
-                          isDangerous: dangerous, resolver: { _, _ in })
+                          dangerReasons: dangerous ? ["rm -rf"] : [], resolver: { _, _ in })
     }
 
     func testDangerIsSpokenFirst() {
