@@ -646,6 +646,43 @@ final class AppState: ObservableObject {
     /// until one arrives (and for anyone not on a subscription plan).
     @Published private(set) var fiveHourResetAt: Date?
     @Published private(set) var weeklyResetAt: Date?
+    /// Warn as a plan limit fills, so hitting it is not a surprise mid-task. On
+    /// by default: this is protective and rare (it fires at most twice per window,
+    /// at 80% and 95%), the kind of thing you want without opting in.
+    @Published var rateLimitWarningsEnabled: Bool = true
+    static let rateLimitThresholds: [Double] = [0.80, 0.95]
+    /// The highest threshold already warned for in the current window, keyed by
+    /// that window's reset instant so a fresh window re-arms.
+    private var fiveHourWarned: (reset: Date?, level: Double) = (nil, 0)
+    private var weeklyWarned: (reset: Date?, level: Double) = (nil, 0)
+
+    func setRateLimitWarningsEnabled(_ on: Bool) {
+        rateLimitWarningsEnabled = on
+        schedulePersist()
+    }
+
+    /// The threshold to warn at, or nil, for a given usage and what has already
+    /// been warned this window. Pure so the arming rule is testable.
+    nonisolated static func rateLimitWarning(pct: Double, alreadyWarned: Double) -> Double? {
+        rateLimitThresholds.last { pct >= $0 && $0 > alreadyWarned }
+    }
+
+    private func checkRateLimit(name: String, pct: Double, resetAt: Date?,
+                                armed: inout (reset: Date?, level: Double)) {
+        guard rateLimitWarningsEnabled else { return }
+        // A new window (different reset instant) re-arms every threshold.
+        if armed.reset != resetAt { armed = (resetAt, 0) }
+        guard let level = Self.rateLimitWarning(pct: pct, alreadyWarned: armed.level) else { return }
+        armed.level = level
+        let left = resetAt.map { " · resets in \(ClaudeUsageReader.resetCountdown(until: $0))" } ?? ""
+        enqueuePermission(PermissionRequest(
+            kind: .notification,
+            title: "\(Int(level * 100))% of your \(name) limit used",
+            detail: "You are at \(Int(pct * 100))% of the \(name) plan limit\(left).",
+            toolName: "RateLimit", source: "ClaudeNotch", cwd: currentCwd,
+            originatorBundleID: nil, resolver: { _, _ in }))
+    }
+
     /// When the limits above were last reported.
     ///
     /// They only arrive while a Claude session is actively redrawing its status
@@ -763,6 +800,7 @@ final class AppState: ObservableObject {
             self.limitsUpdatedAt = snapshot.limitsUpdatedAt
             self.breakRemindersEnabled = snapshot.breakRemindersEnabled ?? false
             self.longRunAlertsEnabled = snapshot.longRunAlertsEnabled ?? false
+            self.rateLimitWarningsEnabled = snapshot.rateLimitWarningsEnabled ?? true
         } else {
             self.requireTouchID = BiometricAuth.isAvailable
         }
@@ -1390,6 +1428,9 @@ final class AppState: ObservableObject {
         noteLiveEffort(effort)
         if let d = fiveHourResetsAt { fiveHourResetAt = d }
         if let d = sevenDayResetsAt { weeklyResetAt = d }
+        // Warn before a plan limit runs out, so a lockout is not a surprise.
+        if let p = fiveHourPct { checkRateLimit(name: "5-hour", pct: p / 100, resetAt: fiveHourResetAt, armed: &fiveHourWarned) }
+        if let p = sevenDayPct { checkRateLimit(name: "weekly", pct: p / 100, resetAt: weeklyResetAt, armed: &weeklyWarned) }
         if fiveHourPct != nil || sevenDayPct != nil {
             limitsUpdatedAt = Date()
             schedulePersist()
@@ -1619,7 +1660,8 @@ final class AppState: ObservableObject {
             weeklyResetAt: weeklyResetAt,
             limitsUpdatedAt: limitsUpdatedAt,
             breakRemindersEnabled: breakRemindersEnabled,
-            longRunAlertsEnabled: longRunAlertsEnabled
+            longRunAlertsEnabled: longRunAlertsEnabled,
+            rateLimitWarningsEnabled: rateLimitWarningsEnabled
         ))
     }
 

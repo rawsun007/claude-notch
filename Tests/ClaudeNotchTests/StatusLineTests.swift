@@ -489,3 +489,26 @@ final class SpokenAskTests: XCTestCase {
         XCTAssertEqual(s, "Task finished")
     }
 }
+
+/// Warning before a plan limit runs out. Fires at 80% then 95%, once each per
+/// window, so a lockout mid-task is not a surprise and you are not nagged.
+final class RateLimitWarningTests: XCTestCase {
+
+    func testWarnsAtEachThresholdOnce() {
+        // Below the first threshold: nothing.
+        XCTAssertNil(AppState.rateLimitWarning(pct: 0.5, alreadyWarned: 0))
+        // Crossing 80%: warn at 80.
+        XCTAssertEqual(AppState.rateLimitWarning(pct: 0.82, alreadyWarned: 0), 0.80)
+        // Already warned at 80, still under 95: nothing.
+        XCTAssertNil(AppState.rateLimitWarning(pct: 0.90, alreadyWarned: 0.80))
+        // Crossing 95: warn at 95.
+        XCTAssertEqual(AppState.rateLimitWarning(pct: 0.96, alreadyWarned: 0.80), 0.95)
+        // Both fired: nothing more.
+        XCTAssertNil(AppState.rateLimitWarning(pct: 0.99, alreadyWarned: 0.95))
+    }
+
+    func testAJumpStraightToTheTopWarnsAtTheHighestCrossed() {
+        // Going from nothing to 97% in one reading fires the 95, not the 80.
+        XCTAssertEqual(AppState.rateLimitWarning(pct: 0.97, alreadyWarned: 0), 0.95)
+    }
+}

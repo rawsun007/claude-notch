@@ -20,6 +20,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var petModeItem: NSMenuItem!
     private var breakRemindersItem: NSMenuItem!
     private var longRunItem: NSMenuItem!
+    private var rateLimitItem: NSMenuItem!
     private var autoApproveItem: NSMenuItem!
     private var autoApproveMenu: NSMenu!
     private var snoozeItem: NSMenuItem!
@@ -260,6 +261,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         longRunItem.target = self
         longRunItem.toolTip = "Notify once when a single tool call runs past five minutes, so a stuck agent does not sit unnoticed. Fires again only for a new long run."
         menu.addItem(longRunItem)
+
+        rateLimitItem = NSMenuItem(title: "Warn Near Rate Limits",
+                                   action: #selector(toggleRateLimit), keyEquivalent: "")
+        rateLimitItem.target = self
+        rateLimitItem.toolTip = "Warn as a plan limit fills (at 80% and 95%), so a lockout mid-task is not a surprise. Re-arms each new window."
+        menu.addItem(rateLimitItem)
 
         menuSpendItem = NSMenuItem(title: "Show Today's Spend in Menu Bar",
                                    action: #selector(toggleMenuSpend), keyEquivalent: "")
@@ -891,6 +898,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshPrefs()
     }
 
+    @objc private func toggleRateLimit() {
+        state.setRateLimitWarningsEnabled(!state.rateLimitWarningsEnabled)
+        refreshPrefs()
+    }
+
     @objc private func toggleTouchID() {
         state.setRequireTouchID(!state.requireTouchID)
         touchIDItem?.state = state.requireTouchID ? .on : .off
@@ -973,6 +985,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         petModeItem.state = state.petEnabled ? .on : .off
         breakRemindersItem.state = state.breakRemindersEnabled ? .on : .off
         longRunItem.state = state.longRunAlertsEnabled ? .on : .off
+        rateLimitItem.state = state.rateLimitWarningsEnabled ? .on : .off
         // Say how long you have actually been at it, so the toggle is not an
         // abstraction: it is describing the stretch you are in right now.
         let stretch = Int(state.focusStretch / 60)

@@ -47,6 +47,7 @@ enum Persistence {
         var limitsUpdatedAt: Date? = nil
         var breakRemindersEnabled: Bool? = nil
         var longRunAlertsEnabled: Bool? = nil
+        var rateLimitWarningsEnabled: Bool? = nil
     }
 
     static let storeURL: URL = {
@@ -119,7 +120,8 @@ extension Persistence.Snapshot {
             weeklyResetAt: try? c.decode(Date.self, forKey: .weeklyResetAt),
             limitsUpdatedAt: try? c.decode(Date.self, forKey: .limitsUpdatedAt),
             breakRemindersEnabled: try? c.decode(Bool.self, forKey: .breakRemindersEnabled),
-            longRunAlertsEnabled: try? c.decode(Bool.self, forKey: .longRunAlertsEnabled)
+            longRunAlertsEnabled: try? c.decode(Bool.self, forKey: .longRunAlertsEnabled),
+            rateLimitWarningsEnabled: try? c.decode(Bool.self, forKey: .rateLimitWarningsEnabled)
         )
     }
 }
