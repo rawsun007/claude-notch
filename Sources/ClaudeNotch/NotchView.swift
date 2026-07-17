@@ -3168,6 +3168,13 @@ private struct NotificationCard: View {
                         .foregroundColor(.white.opacity(0.45))
                 }
                 Spacer(minLength: 0)
+                // Same spot the done card puts its dancing pet: top-right of the
+                // header. Here the mascot cries over the limit instead.
+                if showPet, request.toolName == "RateLimit" {
+                    PetCardBadge(size: 32, activity: .fret, loop: 1.6, emote: .teardrop)
+                        .frame(width: 32, height: 32)
+                        .accessibilityHidden(true)
+                }
             }
 
             HStack(alignment: .center, spacing: 16) {
@@ -3187,13 +3194,6 @@ private struct NotificationCard: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-
-                // The mascot takes the bad news, so a limit warning is not grim.
-                if showPet, request.toolName == "RateLimit" {
-                    PetCardBadge(size: 30, activity: .fret, loop: 1.6, emote: .teardrop)
-                        .frame(width: 34, height: 30)
-                        .accessibilityHidden(true)
-                }
 
                 HStack(spacing: 8) {
                     NotchButton(label: "Dismiss", style: .secondary, action: onDismiss)
