@@ -157,6 +157,16 @@ enum PetRigging {
         case .tucked:
             break
 
+        case .fret:
+            // Crying: eyes squeezed to sad slits, arms up wiping its face, a
+            // little sob-wobble in the shoulders.
+            rig.eyeOpen = 0.35
+            rig.eyeShift = 0
+            let wob = sin(t * 2 * .pi * 1.6)
+            rig.armLeftAngle = 42 + wob * 6      // hands near the face
+            rig.armRightAngle = 42 - wob * 6
+            for i in 0..<4 { rig.legSwing[i] = wob * 0.4 }
+
         case .flinch:
             // Eyes wide, arms thrown up, legs braced.
             rig.eyeOpen = 1

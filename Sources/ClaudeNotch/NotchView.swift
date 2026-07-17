@@ -735,6 +735,7 @@ private struct ClaudeIconView: View {
         case .thinking:    return (1.1, 1.2)
         case .celebrating: return (0.45, 2.4)   // bouncing
         case .startled:    return (0.3, 2.0)    // jittery
+        case .fretting:    return (1.4, 0.8)    // soft sob
         case .sleepy:      return (3.2, 0.5)    // barely breathing
         case .curious:     return (1.5, 1.0)
         case .calm, .none: return (1.8, 0.9)
@@ -770,6 +771,7 @@ private struct PetEmoteView: View {
         case .sparkle: return "sparkles"
         case .bang:    return "exclamationmark"
         case .dots:    return "ellipsis"
+        case .teardrop: return "drop.fill"
         }
     }
 
@@ -777,6 +779,7 @@ private struct PetEmoteView: View {
         switch emote {
         case .heart:   return Color(red: 1.0, green: 0.42, blue: 0.55)
         case .sparkle: return Color(red: 1.0, green: 0.80, blue: 0.35)
+        case .teardrop: return Color(red: 0.45, green: 0.70, blue: 1.0)
         default:       return .white.opacity(0.55)
         }
     }

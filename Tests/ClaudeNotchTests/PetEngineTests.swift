@@ -696,3 +696,37 @@ final class SpiderHangTests: XCTestCase {
         XCTAssertFalse(PetEngine.isHanging(.stroll))
     }
 }
+
+/// The pet cries when a plan limit is nearly gone — the emotional half of the
+/// rate-limit warning.
+final class PetFretTests: XCTestCase {
+
+    private let stage = PetEngine.Stage(notchInset: 32, halfWidth: 110)
+
+    func testLimitWorryOutranksEverything() {
+        var ctx = PetEngine.Context()
+        ctx.limitWorry = true
+        ctx.justFailed = true      // even a dead turn
+        ctx.justFinished = true    // even a completion
+        XCTAssertEqual(PetEngine.mood(for: ctx), .fretting)
+    }
+
+    func testFrettingPicksFret() {
+        var rng = SeededRNG(seed: 3)
+        XCTAssertEqual(PetEngine.pickActivity(mood: .fretting, using: &rng), .fret)
+    }
+
+    func testFretShowsATeardrop() {
+        // Mid-cry, not being petted: a teardrop.
+        let p = PetEngine.pose(for: .fret, progress: 0.5, stage: stage)
+        XCTAssertEqual(p.emote, .teardrop)
+    }
+
+    func testFretStaysOnStage() {
+        for i in 0...100 {
+            let p = PetEngine.pose(for: .fret, progress: Double(i) / 100, stage: stage)
+            let floor = stage.notchInset + PetActivity.fret.stageDrop - PetActivity.fret.spriteSize / 2
+            XCTAssertLessThanOrEqual(p.y, floor + 0.001)
+        }
+    }
+}

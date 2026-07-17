@@ -222,6 +222,7 @@ enum PetDemo {
         case .sparkle: glyph = "✦"
         case .bang:    glyph = "!"
         case .dots:    glyph = "…"
+        case .teardrop: glyph = ","
         }
         let colour: NSColor = emote == .heart
             ? NSColor(calibratedRed: 1, green: 0.42, blue: 0.55, alpha: CGFloat(opacity))

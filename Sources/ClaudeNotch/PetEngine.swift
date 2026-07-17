@@ -28,6 +28,7 @@ struct SeededRNG: RandomNumberGenerator {
 /// What the pet *feels*, derived entirely from what Claude is doing. Mood
 /// picks the activity table and the tempo; it never picks an activity itself.
 enum PetMood: String, CaseIterable, Equatable {
+    case fretting     // a plan limit is nearly used up
     case startled     // a turn just died, or you denied a command
     case sleepy       // nothing has happened for a long while
     case calm         // idle, recently used
@@ -54,6 +55,7 @@ enum PetActivity: String, CaseIterable, Equatable {
     case watch        // Claude is working: the pet stays out and keeps it company
     case flinch       // something went wrong: a startled recoil, then a wary peek
     case spiderHang   // hangs upside-down off the notch on a web, in the suit
+    case fret         // slumps and cries: a plan limit is almost gone
 
     /// Sprite size in points. Big enough to read as a creature at arm's length
     /// from the screen, not a favicon: the mascot is the feature, and the notch
@@ -181,6 +183,7 @@ enum PetEmote: String, Equatable {
     case sparkle   // celebrating / just booped
     case bang      // startled
     case dots      // idly thinking
+    case teardrop  // worried / crying (a limit is nearly up)
 }
 
 // MARK: - Pose
@@ -218,6 +221,7 @@ enum PetEngine {
         var isThinking: Bool = false
         var justFinished: Bool = false       // a task completed in the last few seconds
         var justFailed: Bool = false         // a turn died, or a command was denied
+        var limitWorry: Bool = false         // a plan limit is nearly used up
         var secondsSinceActivity: Double = 0 // since the last hook event
 
         /// The pet only acts when the notch is genuinely at rest. Never over an
@@ -233,6 +237,9 @@ enum PetEngine {
     static let sleepAfter: Double = 300
 
     static func mood(for ctx: Context) -> PetMood {
+        // Worry about a limit outranks everything: it is the one thing the pet
+        // knows that you might act on right now.
+        if ctx.limitWorry { return .fretting }
         // A failure outranks a completion: if the turn died, it did not finish.
         if ctx.justFailed { return .startled }
         if ctx.justFinished { return .celebrating }
@@ -268,6 +275,8 @@ enum PetEngine {
             return [(.celebrate, 1)]
         case .startled:
             return [(.flinch, 1)]
+        case .fretting:
+            return [(.fret, 1)]
         }
     }
 
@@ -306,6 +315,7 @@ enum PetEngine {
         case .rope:       return ropeDuration
         case .watch:      return Double.random(in: 3.5...5.0, using: &rng)
         case .flinch:     return 2.0
+        case .fret:       return 3.2
         case .spiderHang: return ropeDuration
         }
     }
@@ -330,6 +340,7 @@ enum PetEngine {
              .thinking:    return Double.random(in: 0.5...2.0, using: &rng)
         case .celebrating: return 6
         case .startled:    return 5
+        case .fretting:    return 5
         }
     }
 
@@ -677,6 +688,19 @@ enum PetEngine {
             pose.scaleX = 1 - stretch * 0.35 + abs(recoil) * 0.08
             pose.emote = stage.petting ? .heart : (t < 0.55 ? .bang : .dots)
             pose.emoteScale = 1.1 - t * 0.5
+
+        case .fret:
+            // Slumps and cries. It hunches down, wobbles gently side to side the
+            // way a good sob does, and a teardrop hangs at its cheek. Slow and
+            // soft — worry, not a fright.
+            let sob = sin(t * 2 * .pi * 1.6)
+            pose.x = sob * 2.5 * envelope
+            pose.y -= (1 - abs(sob)) * 1.2 * envelope    // sinks on the out-breath
+            pose.rotation = sob * 3
+            pose.scaleY = (0.94 + abs(sob) * 0.04)       // shoulders drop
+            pose.scaleX = 1.04 - abs(sob) * 0.03
+            pose.emote = stage.petting ? .heart : .teardrop
+            pose.emoteScale = 0.8 + abs(sob) * 0.3
 
         case .rope, .spiderHang:
             // Simulated, not keyframed — see `ropeState`. The generic drop-out

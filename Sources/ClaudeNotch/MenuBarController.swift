@@ -640,6 +640,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         case .watch:      return "Watch Claude Work"
         case .flinch:     return "Flinch (something broke)"
         case .spiderHang: return "Spider-Pet (hang upside-down)"
+        case .fret:       return "Fret (limit almost up)"
         }
     }
 
