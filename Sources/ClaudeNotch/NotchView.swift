@@ -511,7 +511,7 @@ struct NotchView: View {
                 .id(req.id)
                 .transition(.opacity)
             } else {
-                NotificationCard(request: req, onOpen: {
+                NotificationCard(request: req, showPet: state.petEnabled, onOpen: {
                     state.openOriginator(req.originatorBundleID)
                     state.resolveCurrentPermission(.ask)
                 }, onDismiss: {
@@ -2052,14 +2052,6 @@ struct PermissionCard: View {
                     }
                 }
                 Spacer()
-                // A little crying pet on the limit warning: the mascot takes the
-                // bad news so the card does not have to be grim about it. Lives on
-                // the card, not as a separate performance in the notch.
-                if showPet, request.toolName == "RateLimit" {
-                    PetCardBadge(size: 26, activity: .fret, loop: 1.6, emote: .teardrop)
-                        .frame(width: 30, height: 26)
-                        .accessibilityHidden(true)
-                }
                 if !request.cwd.isEmpty {
                     Text((request.cwd as NSString).lastPathComponent)
                         .font(.system(size: 10, design: .rounded))
@@ -3154,6 +3146,7 @@ private struct HistoryRow: View {
 
 private struct NotificationCard: View {
     let request: PermissionRequest
+    var showPet: Bool = false
     let onOpen: () -> Void
     let onDismiss: () -> Void
     private let rowSpacing: CGFloat = 14
@@ -3194,6 +3187,13 @@ private struct NotificationCard: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+                // The mascot takes the bad news, so a limit warning is not grim.
+                if showPet, request.toolName == "RateLimit" {
+                    PetCardBadge(size: 30, activity: .fret, loop: 1.6, emote: .teardrop)
+                        .frame(width: 34, height: 30)
+                        .accessibilityHidden(true)
+                }
 
                 HStack(spacing: 8) {
                     NotchButton(label: "Dismiss", style: .secondary, action: onDismiss)
