@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 /// Carries the measured natural height of a compact card's content up to the
 /// body so the card frame can be an EXPLICIT (animatable) height that exactly
@@ -462,6 +463,29 @@ struct NotchView: View {
                                   lineWidth: state.isDropTarget ? 1.5 : 0.5))
             .animation(.easeOut(duration: 0.15), value: state.isDropTarget)
         }
+        // Drop a file or folder on the notch to open Claude there. This is a
+        // GENEROUS invisible catcher over the notch area, not the tiny visible
+        // card — the same trick boring.notch uses. A drag has somewhere real to
+        // land, and the drop is caught even though clicks elsewhere pass through.
+        .background(
+            Color.clear
+                // Cover the WHOLE visible card, not a thin strip at the very top.
+                // The card expands on hover, and a dragged folder lands on the
+                // body of the expanded card (well below the notch lip). A 70pt
+                // top strip missed every real drop, so the file fell through to
+                // the desktop. Match the animating card size so wherever on the
+                // card the folder is dropped, it is caught.
+                .frame(width: max(w, 240), height: max(h, state.notchTopInset + 30))
+                .contentShape(Rectangle())
+                .onDrop(of: [UTType.fileURL], isTargeted: Binding(
+                    get: { state.isDropTarget },
+                    set: { state.isDropTarget = $0 }
+                )) { providers in
+                    loadDroppedURLs(providers) { urls in state.handleDrop(urls: urls) }
+                    return true
+                },
+            alignment: .top
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear { sizer.set(target) }
         .onPreferenceChange(ContentHeightKey.self) { h in
@@ -3623,6 +3647,22 @@ private struct QuestionCard: View {
 }
 
 // MARK: - Markdown rendering
+
+/// Pull file URLs out of the providers a SwiftUI onDrop hands over. Each load is
+/// async, so the results are gathered and delivered once on the main actor.
+func loadDroppedURLs(_ providers: [NSItemProvider], _ done: @escaping ([URL]) -> Void) {
+    let group = DispatchGroup()
+    var urls: [URL] = []
+    let lock = NSLock()
+    for provider in providers {
+        group.enter()
+        _ = provider.loadObject(ofClass: URL.self) { url, _ in
+            if let url { lock.withLock { urls.append(url) } }
+            group.leave()
+        }
+    }
+    group.notify(queue: .main) { done(urls) }
+}
 
 enum MarkdownBlock {
     case heading(level: Int, text: String)

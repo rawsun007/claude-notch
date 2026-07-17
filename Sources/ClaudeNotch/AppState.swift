@@ -498,8 +498,13 @@ final class AppState: ObservableObject {
     /// so a dropped file lands you in a session already looking at it.
     func handleDrop(urls: [URL]) {
         isDropTarget = false
+        DebugLog.append("drop", "handleDrop urls=\(urls.map(\.path))")
         guard let url = urls.first,
-              let launch = Self.dropLaunch(for: url, isDirectory: Self.isDirectory(url)) else { return }
+              let launch = Self.dropLaunch(for: url, isDirectory: Self.isDirectory(url)) else {
+            DebugLog.append("drop", "handleDrop: no launch resolved")
+            return
+        }
+        DebugLog.append("drop", "startClaude dir=\(launch.dir) msg=\(launch.message ?? "nil")")
         TerminalAutomator.startClaude(in: launch.dir, message: launch.message)
     }
 
