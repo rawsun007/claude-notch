@@ -535,8 +535,6 @@ final class AppState: ObservableObject {
     private var petCelebrateUntil: Date = .distantPast
     /// The pet is startled until this instant (a turn died, or you said no).
     private var petStartleUntil: Date = .distantPast
-    /// The pet frets over a nearly-full plan limit until this instant.
-    private var petFretUntil: Date = .distantPast
     private var petActivityStart: Date = .distantPast
     private var petActivityDuration: Double = 0
     /// Seconds the current activity spent frozen under the user's cursor.
@@ -683,7 +681,6 @@ final class AppState: ObservableObject {
             detail: "You are at \(Int(pct * 100))% of the \(name) plan limit\(left).",
             toolName: "RateLimit", source: "ClaudeNotch", cwd: currentCwd,
             originatorBundleID: nil, resolver: { _, _ in }))
-        petFret()
     }
 
     /// When the limits above were last reported.
@@ -843,7 +840,6 @@ final class AppState: ObservableObject {
         ctx.isThinking = claudeActionStatus == "thinking"
         ctx.justFinished = Date() < petCelebrateUntil
         ctx.justFailed = Date() < petStartleUntil
-        ctx.limitWorry = Date() < petFretUntil
         ctx.secondsSinceActivity = lastHookAt.map { Date().timeIntervalSince($0) } ?? PetEngine.sleepAfter
         return ctx
     }
@@ -1028,13 +1024,6 @@ final class AppState: ObservableObject {
         guard petEnabled else { return }
         petStartleUntil = Date().addingTimeInterval(14)
         petCelebrateUntil = .distantPast   // a dead turn did not finish
-        petNextActionAt = Date()
-    }
-
-    /// A plan limit is nearly gone: the pet comes out and cries about it.
-    func petFret() {
-        guard petEnabled else { return }
-        petFretUntil = Date().addingTimeInterval(14)
         petNextActionAt = Date()
     }
 

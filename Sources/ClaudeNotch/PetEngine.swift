@@ -28,7 +28,6 @@ struct SeededRNG: RandomNumberGenerator {
 /// What the pet *feels*, derived entirely from what Claude is doing. Mood
 /// picks the activity table and the tempo; it never picks an activity itself.
 enum PetMood: String, CaseIterable, Equatable {
-    case fretting     // a plan limit is nearly used up
     case startled     // a turn just died, or you denied a command
     case sleepy       // nothing has happened for a long while
     case calm         // idle, recently used
@@ -221,7 +220,6 @@ enum PetEngine {
         var isThinking: Bool = false
         var justFinished: Bool = false       // a task completed in the last few seconds
         var justFailed: Bool = false         // a turn died, or a command was denied
-        var limitWorry: Bool = false         // a plan limit is nearly used up
         var secondsSinceActivity: Double = 0 // since the last hook event
 
         /// The pet only acts when the notch is genuinely at rest. Never over an
@@ -237,9 +235,6 @@ enum PetEngine {
     static let sleepAfter: Double = 300
 
     static func mood(for ctx: Context) -> PetMood {
-        // Worry about a limit outranks everything: it is the one thing the pet
-        // knows that you might act on right now.
-        if ctx.limitWorry { return .fretting }
         // A failure outranks a completion: if the turn died, it did not finish.
         if ctx.justFailed { return .startled }
         if ctx.justFinished { return .celebrating }
@@ -275,8 +270,6 @@ enum PetEngine {
             return [(.celebrate, 1)]
         case .startled:
             return [(.flinch, 1)]
-        case .fretting:
-            return [(.fret, 1)]
         }
     }
 
@@ -340,7 +333,6 @@ enum PetEngine {
              .thinking:    return Double.random(in: 0.5...2.0, using: &rng)
         case .celebrating: return 6
         case .startled:    return 5
-        case .fretting:    return 5
         }
     }
 
