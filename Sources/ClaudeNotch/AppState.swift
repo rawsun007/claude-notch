@@ -650,7 +650,7 @@ final class AppState: ObservableObject {
     /// by default: this is protective and rare (it fires at most twice per window,
     /// at 80% and 95%), the kind of thing you want without opting in.
     @Published var rateLimitWarningsEnabled: Bool = true
-    static let rateLimitThresholds: [Double] = [0.80, 0.95]
+    nonisolated static let rateLimitThresholds: [Double] = [0.80, 0.95]
     /// The highest threshold already warned for in the current window, keyed by
     /// that window's reset instant so a fresh window re-arms.
     private var fiveHourWarned: (reset: Date?, level: Double) = (nil, 0)
@@ -1961,20 +1961,36 @@ final class AppState: ObservableObject {
         }
     }
 
-    /// Files touched by the session the notch header is currently showing.
-    var currentTouchedFiles: [String] {
-        if !currentSessionId.isEmpty, let s = sessions[currentSessionId] {
-            return s.touchedFiles
-        }
-        return sessions.values.max(by: { $0.lastHookAt < $1.lastHookAt })?.touchedFiles ?? []
+    /// The session the header is showing, plus any sibling in the same folder,
+    /// newest first. A long session that compacts or resumes gets a NEW id and a
+    /// fresh, empty entry: its cost and context survive (they are read from the
+    /// transcript) but its touched-files and branch, which live in memory per id,
+    /// start blank — so the notch would suddenly show no files and no branch
+    /// halfway through real work. Falling back to a sibling in the same cwd that
+    /// still has them restores that detail across the id change.
+    private var currentAndSiblings: [LiveSession] {
+        let current = currentSessionId.isEmpty ? nil : sessions[currentSessionId]
+        let cwd = current?.cwd
+            ?? sessions.values.max(by: { $0.lastHookAt < $1.lastHookAt })?.cwd
+        guard let cwd, !cwd.isEmpty else { return current.map { [$0] } ?? [] }
+        let inFolder = sessions.values.filter { $0.cwd == cwd }
+            .sorted { $0.lastHookAt > $1.lastHookAt }
+        // Current first (it is the one being shown), then its folder-mates.
+        if let current { return [current] + inFolder.filter { $0.id != current.id } }
+        return inFolder
     }
 
-    /// Git branch of the session the notch header is currently showing.
+    /// Files touched by the session the notch header is currently showing, or the
+    /// most recent sibling in its folder that has any.
+    var currentTouchedFiles: [String] {
+        for s in currentAndSiblings where !s.touchedFiles.isEmpty { return s.touchedFiles }
+        return []
+    }
+
+    /// Git branch of the session the notch header is showing, or a sibling's.
     var currentGitBranch: String {
-        if !currentSessionId.isEmpty, let s = sessions[currentSessionId] {
-            return s.gitBranch
-        }
-        return sessions.values.max(by: { $0.lastHookAt < $1.lastHookAt })?.gitBranch ?? ""
+        for s in currentAndSiblings where !s.gitBranch.isEmpty { return s.gitBranch }
+        return ""
     }
 
     /// Record the permission mode carried on every hook payload. Cheap no-op

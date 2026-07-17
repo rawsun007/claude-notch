@@ -512,3 +512,35 @@ final class RateLimitWarningTests: XCTestCase {
         XCTAssertEqual(AppState.rateLimitWarning(pct: 0.97, alreadyWarned: 0), 0.95)
     }
 }
+
+/// The header keeps showing a session's branch and touched files across an id
+/// change (a compact or resume gives the session a new, empty entry).
+@MainActor
+final class SessionDetailFallbackTests: XCTestCase {
+
+    func testBranchAndFilesSurviveAnIdChange() {
+        let s = AppState()
+        // The original session, in a repo, having edited a file.
+        s.noteSession(cwd: "/Users/me/app", sessionId: "old")
+        s.noteFileTouched("/Users/me/app/main.swift", sessionId: "old", cwd: "/Users/me/app")
+        // The header shows the original: branch/files present (branch is resolved
+        // async in the app; here we assert the file at least survives).
+        XCTAssertEqual(s.currentTouchedFiles, ["/Users/me/app/main.swift"])
+
+        // Compact: a new id, fresh empty entry, now the current one.
+        s.noteSession(cwd: "/Users/me/app", sessionId: "new")
+        // Its own entry has no files, but the folder's older session does, so the
+        // header still shows them rather than going blank mid-work.
+        XCTAssertEqual(s.currentTouchedFiles, ["/Users/me/app/main.swift"],
+                       "files must not vanish when the session id changes")
+    }
+
+    func testADifferentFolderDoesNotBorrow() {
+        let s = AppState()
+        s.noteSession(cwd: "/Users/me/app", sessionId: "a")
+        s.noteFileTouched("/Users/me/app/x.swift", sessionId: "a", cwd: "/Users/me/app")
+        // A session in another folder must not show the first folder's files.
+        s.noteSession(cwd: "/Users/me/other", sessionId: "b")
+        XCTAssertTrue(s.currentTouchedFiles.isEmpty)
+    }
+}
