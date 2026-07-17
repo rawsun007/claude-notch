@@ -218,8 +218,8 @@ struct NotchView: View {
                 let base = collapsedSize(on: s)
                 // A file is being dragged over the notch: grow it into a clear
                 // drop target with room for the "Open in Claude" hint.
-                if state?.isDropTarget == true {
-                    return CGSize(width: max(base.width, 220), height: inset + 26)
+                if state?.isDropTarget == true || state?.isDropHot == true {
+                    return CGSize(width: max(base.width, 260), height: inset + 70)
                 }
                 // Pet mode: the card grows just enough to be the stage for
                 // whatever the pet is currently doing. It's not "opening" —
@@ -414,7 +414,7 @@ struct NotchView: View {
                                 )
                             }
                         )
-                } else if isPetOut {
+                } else if isPetOut && !state.isDropTarget && !state.isDropHot {
                     // The mascot living its own life on the notch's lip.
                     PetStageView(state: state, stageWidth: card.width, notchInset: state.notchTopInset)
                         .frame(width: card.width, height: card.height, alignment: .top)
@@ -433,19 +433,6 @@ struct NotchView: View {
                     // where it lives.
                     ZStack {
                         Color.clear
-                        // Dragging a file over the notch: it becomes a drop target
-                        // that opens Claude Code where the file lives. Nobody else
-                        // uses the notch as a place to throw a folder.
-                        if state.isDropTarget {
-                            HStack(spacing: 4) {
-                                Image(systemName: "plus.circle.fill")
-                                Text("Open in Claude")
-                                    .font(.system(size: 9, weight: .semibold, design: .rounded))
-                                    .lineLimit(1)
-                            }
-                            .foregroundColor(.green)
-                            .transition(.opacity)
-                        }
                     }
                     .frame(width: card.width, height: card.height)
                     .contentShape(Rectangle())
@@ -457,10 +444,19 @@ struct NotchView: View {
             // stays at full size underneath (revealed by the growing clip).
             .frame(width: w, height: h, alignment: .top)
             .background(Color.black)
+            // A drag over the notch takes over the WHOLE card: a black panel with
+            // the Apple-style drop zone, on top of and masking whatever the card
+            // was showing (status, pet, anything). Driven only by the drop flags,
+            // so it appears whether or not the card was already open on hover.
+            .overlay(alignment: .top) {
+                if state.isDropTarget || state.isDropHot {
+                    dropZone(width: w, height: h)
+                        .transition(.opacity)
+                }
+            }
             .clipShape(shape)
-            .overlay(shape.stroke(state.isDropTarget ? Color.green.opacity(0.9)
-                                  : Color.white.opacity(collapsed ? 0 : 0.05),
-                                  lineWidth: state.isDropTarget ? 1.5 : 0.5))
+            .overlay(shape.stroke(Color.white.opacity(collapsed ? 0 : 0.05),
+                                  lineWidth: 0.5))
             .animation(.easeOut(duration: 0.15), value: state.isDropTarget)
         }
         // Drop a file or folder on the notch to open Claude there. This is a
@@ -477,13 +473,19 @@ struct NotchView: View {
                 // card the folder is dropped, it is caught.
                 .frame(width: max(w, 240), height: max(h, state.notchTopInset + 30))
                 .contentShape(Rectangle())
-                .onDrop(of: [UTType.fileURL], isTargeted: Binding(
-                    get: { state.isDropTarget },
-                    set: { state.isDropTarget = $0 }
-                )) { providers in
-                    loadDroppedURLs(providers) { urls in state.handleDrop(urls: urls) }
-                    return true
-                },
+                // ONE drop target for the whole card. A DropDelegate (not a second
+                // onDrop) reports the live drag location, so the inner icon box can
+                // glow green from geometry — no competing drop views fighting over
+                // targeting, which was flickering the panel and eating the drop.
+                .onDrop(of: [UTType.fileURL], delegate: NotchDropDelegate(
+                    state: state,
+                    hotRect: CGRect(
+                        x: 14,
+                        y: state.notchTopInset + 8,
+                        width: max(max(w, 240) - 28, 0),
+                        height: max(max(h, state.notchTopInset + 30) - (state.notchTopInset + 8) - 12, 0)
+                    )
+                )),
             alignment: .top
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -511,6 +513,46 @@ struct NotchView: View {
 
     private var isIdleOpen: Bool {
         state.persistentNotchDisplay || state.isHovering
+    }
+
+    /// The Apple-style drop panel: a black fill covering the card with a centred
+    /// dashed box and drop-doc glyph. Blue by default; glows green (`isDropHot`)
+    /// while the file is right over the box, as a "let go here" cue.
+    @ViewBuilder
+    private func dropZone(width w: CGFloat, height h: CGFloat) -> some View {
+        let hot = state.isDropHot
+        let tint = hot ? Color.green : Color(red: 0.29, green: 0.56, blue: 1.0)
+        ZStack {
+            Color.black
+            VStack(spacing: 3) {
+                Image(systemName: "square.and.arrow.down.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                Text(hot ? "Release to open" : "Drop here")
+                    .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                    .lineLimit(1)
+            }
+            .foregroundColor(tint)
+            // Space around the glyph so it sits comfortably inside the dashes,
+            // not cramped against them.
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(tint.opacity(hot ? 0.16 : 0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(tint.opacity(hot ? 0.95 : 0.7),
+                                          style: StrokeStyle(lineWidth: 1.6, dash: [5, 4]))
+                    )
+            )
+            // Even margin on all four sides so the dashed box floats inside the
+            // black card with breathing room top, bottom and sides.
+            .padding(.horizontal, 14)
+            .padding(.top, state.notchTopInset + 8)
+            .padding(.bottom, 12)
+            .animation(.easeOut(duration: 0.12), value: hot)
+        }
+        .frame(width: w, height: h, alignment: .top)
     }
 
     /// Modes that wrap a ScrollView and need a bounded (fixed) height so the
@@ -3662,6 +3704,42 @@ func loadDroppedURLs(_ providers: [NSItemProvider], _ done: @escaping ([URL]) ->
         }
     }
     group.notify(queue: .main) { done(urls) }
+}
+
+/// The single drop target for the notch. Reports the live drag location so the
+/// inner icon box can glow green (`isDropHot`) only when the file is over it,
+/// while a drag anywhere over the card opens the black drop panel
+/// (`isDropTarget`). One delegate, so no competing drop views flicker the panel.
+struct NotchDropDelegate: DropDelegate {
+    let state: AppState
+    /// The inner icon box, in the drop view's local coordinates (origin top-left).
+    let hotRect: CGRect
+
+    func validateDrop(info: DropInfo) -> Bool {
+        info.hasItemsConforming(to: [UTType.fileURL])
+    }
+    func dropEntered(info: DropInfo) {
+        state.isDropTarget = true
+        state.isDropHot = hotRect.contains(info.location)
+    }
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        state.isDropTarget = true
+        state.isDropHot = hotRect.contains(info.location)
+        return DropProposal(operation: .copy)
+    }
+    func dropExited(info: DropInfo) {
+        state.isDropTarget = false
+        state.isDropHot = false
+    }
+    func performDrop(info: DropInfo) -> Bool {
+        // Clear the cue immediately so the panel collapses now, not after the
+        // async URL load returns (which was leaving it stuck green).
+        state.isDropTarget = false
+        state.isDropHot = false
+        let providers = info.itemProviders(for: [UTType.fileURL])
+        loadDroppedURLs(providers) { urls in state.handleDrop(urls: urls) }
+        return true
+    }
 }
 
 enum MarkdownBlock {

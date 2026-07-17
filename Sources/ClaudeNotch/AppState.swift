@@ -489,8 +489,11 @@ final class AppState: ObservableObject {
     @Published private(set) var allowRules: Set<AllowRule> = []
     @Published var isHovering: Bool = false
     /// True while a file or folder is being dragged over the notch, so the card
-    /// can show it is a drop target.
+    /// can open into a black drop panel showing the drop zone.
     @Published var isDropTarget: Bool = false
+    /// True while the drag is right over the drop-zone icon itself (the inner
+    /// target), so it can glow green as a "let go here" cue. Blue otherwise.
+    @Published var isDropHot: Bool = false
 
     /// A file or folder was dropped on the notch: open a Claude Code session
     /// where it lives. A folder opens Claude in that folder; a file opens Claude
@@ -498,13 +501,11 @@ final class AppState: ObservableObject {
     /// so a dropped file lands you in a session already looking at it.
     func handleDrop(urls: [URL]) {
         isDropTarget = false
-        DebugLog.append("drop", "handleDrop urls=\(urls.map(\.path))")
+        isDropHot = false
         guard let url = urls.first,
               let launch = Self.dropLaunch(for: url, isDirectory: Self.isDirectory(url)) else {
-            DebugLog.append("drop", "handleDrop: no launch resolved")
             return
         }
-        DebugLog.append("drop", "startClaude dir=\(launch.dir) msg=\(launch.message ?? "nil")")
         TerminalAutomator.startClaude(in: launch.dir, message: launch.message)
     }
 

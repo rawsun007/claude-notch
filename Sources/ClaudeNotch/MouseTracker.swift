@@ -69,8 +69,26 @@ final class MouseTracker {
         guard let state else { return }
         let mouse = NSEvent.mouseLocation
         let screen = notchScreen()
+
+        // A held mouse button over the notch means a drag (dragging a file in),
+        // not a hover. Opening the normal status card in that moment is the
+        // "usual notch flashes for a split second" bug. Suppress hover while a
+        // button is down; the drop panel is driven by the drop flags instead.
+        let dragging = NSEvent.pressedMouseButtons != 0
+
+        // Once the button is released the drag is over. SwiftUI's DropDelegate
+        // does not always deliver dropExited (a fast release, a drop just off the
+        // target), which left the panel stuck green. The cursor's button state is
+        // the authority: no button down means no live drag, so clear the flags.
+        if !dragging {
+            if state.isDropTarget { state.isDropTarget = false }
+            if state.isDropHot { state.isDropHot = false }
+        }
+
         let inside: Bool
-        if state.isHovering {
+        if dragging {
+            inside = false
+        } else if state.isHovering {
             inside = keepRegion(for: state).contains(mouse)
         } else {
             inside = Self.triggerZone(on: screen).contains(mouse)
