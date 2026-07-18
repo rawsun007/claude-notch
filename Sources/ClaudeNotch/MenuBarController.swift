@@ -110,11 +110,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         // Migrated to Settings > Session; created (refresh code still runs on it)
         // but no longer shown in the slimmed menu.
 
-        // Send message to current Claude session
-        let sendMsg = NSMenuItem(title: "Send Message to Claude…", action: #selector(sendMessagePrompt), keyEquivalent: "m")
-        sendMsg.target = self
-        menu.addItem(sendMsg)
-
         menu.addItem(.separator())
 
         // EVERYTHING below is created but NOT added to the menu. All of these
