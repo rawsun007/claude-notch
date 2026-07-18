@@ -153,6 +153,7 @@ struct SettingsView: View {
     @State private var claudeUsage: ClaudeUsageReader.Usage?
     @State private var heatTip: String?
     @State private var search = ""
+    @State private var healthTick = 0
 
     private var searchResults: [SettingsSearchItem] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
@@ -249,7 +250,29 @@ struct SettingsView: View {
     // MARK: pages
 
     private var general: some View {
-        page("General") {
+        // Reading healthTick makes this page re-render after a Fix.
+        let _ = healthTick
+        let hooksOK = HookInstaller.isInstalled
+        let statusLineOK = HookInstaller.statusLineWired
+        return page("General") {
+            sectionLabel("Setup")
+            group {
+                healthRow("Claude Code hooks", ok: hooksOK,
+                          "Lets the notch receive Claude's permission prompts and events.")
+                divider
+                healthRow("Status-line forwarder", ok: statusLineOK,
+                          "Feeds live cost, context, and plan-limit numbers to the notch.")
+            }
+            if !hooksOK || !statusLineOK {
+                Button {
+                    try? HookInstaller.install()
+                    healthTick += 1
+                } label: {
+                    Label("Fix setup", systemImage: "wrench.and.screwdriver")
+                }
+                .padding(.top, 2)
+            }
+
             group {
                 row("Launch at login",
                     "Start ClaudeNotch automatically when you log in.",
@@ -557,6 +580,22 @@ struct SettingsView: View {
                     .padding(.top, 2)
             }
         }
+    }
+
+    private func healthRow(_ title: String, ok: Bool, _ subtitle: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .foregroundStyle(ok ? .green : .orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                Text(subtitle).font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(ok ? "Connected" : "Not set up")
+                .font(.caption).foregroundStyle(ok ? .green : .orange)
+        }
+        .padding(.vertical, 8).padding(.horizontal, 14)
     }
 
     private func permissionRow(_ title: String, granted: Bool, _ action: @escaping () -> Void) -> some View {
