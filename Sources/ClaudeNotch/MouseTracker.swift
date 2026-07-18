@@ -86,7 +86,7 @@ final class MouseTracker {
         }
 
         let inside: Bool
-        if dragging {
+        if dragging || Date() < state.suppressHoverUntil {
             inside = false
         } else if state.isHovering {
             inside = keepRegion(for: state).contains(mouse)

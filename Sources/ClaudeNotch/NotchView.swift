@@ -3719,10 +3719,20 @@ struct NotchDropDelegate: DropDelegate {
         info.hasItemsConforming(to: [UTType.fileURL])
     }
     func dropEntered(info: DropInfo) {
+        guard Date() >= state.suppressHoverUntil else { return }
         state.isDropTarget = true
         state.isDropHot = hotRect.contains(info.location)
     }
     func dropUpdated(info: DropInfo) -> DropProposal? {
+        // After a drop the OS can send a few more enter/update events (the drag
+        // image settling), which re-opened the notch as a blue drop panel for a
+        // frame — the "notch flickers open a second time" bug. Ignore them during
+        // the brief post-drop cooldown.
+        guard Date() >= state.suppressHoverUntil else {
+            state.isDropTarget = false
+            state.isDropHot = false
+            return DropProposal(operation: .copy)
+        }
         state.isDropTarget = true
         state.isDropHot = hotRect.contains(info.location)
         return DropProposal(operation: .copy)
@@ -3733,9 +3743,12 @@ struct NotchDropDelegate: DropDelegate {
     }
     func performDrop(info: DropInfo) -> Bool {
         // Clear the cue immediately so the panel collapses now, not after the
-        // async URL load returns (which was leaving it stuck green).
+        // async URL load returns (which was leaving it stuck green). Start the
+        // cooldown here (synchronously at release), so trailing enter/update
+        // events can't re-open the panel before the async handleDrop runs.
         state.isDropTarget = false
         state.isDropHot = false
+        state.suppressHoverUntil = Date().addingTimeInterval(0.7)
         let providers = info.itemProviders(for: [UTType.fileURL])
         loadDroppedURLs(providers) { urls in state.handleDrop(urls: urls) }
         return true

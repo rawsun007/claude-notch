@@ -499,6 +499,10 @@ final class AppState: ObservableObject {
     /// where it lives. A folder opens Claude in that folder; a file opens Claude
     /// in its parent folder and hands the file straight to Claude as an @-mention,
     /// so a dropped file lands you in a session already looking at it.
+    private var lastDropLaunch: Date = .distantPast
+    /// Hover is ignored until this time — set just after a drop so the notch does
+    /// not immediately re-open under the still-parked cursor.
+    var suppressHoverUntil: Date = .distantPast
     func handleDrop(urls: [URL]) {
         isDropTarget = false
         isDropHot = false
@@ -506,6 +510,19 @@ final class AppState: ObservableObject {
               let launch = Self.dropLaunch(for: url, isDirectory: Self.isDirectory(url)) else {
             return
         }
+        // A single drop can be delivered more than once (the async provider load
+        // resolves multiple representations of one folder, or the delegate fires
+        // twice), which was opening Claude in two terminals. Debounce: ignore a
+        // second launch within a second of the last.
+        let now = Date()
+        guard now.timeIntervalSince(lastDropLaunch) > 1.0 else { return }
+        lastDropLaunch = now
+        // Right after a drop the cursor is still sitting over the notch, so the
+        // hover check would instantly re-open it as the normal status card — the
+        // notch flickered open/closed twice. Suppress hover briefly so the drop
+        // panel just closes cleanly.
+        suppressHoverUntil = now.addingTimeInterval(0.7)
+        isHovering = false
         TerminalAutomator.startClaude(in: launch.dir, message: launch.message)
     }
 
