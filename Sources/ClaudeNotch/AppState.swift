@@ -4,6 +4,54 @@ import UniformTypeIdentifiers
 
 /// An individual item that can appear in the always-visible bottom status bar.
 /// The user picks up to two. Order is preserved (first item on the left).
+/// Groups tools into a handful of categories, each with its own alert sound
+/// when "Per-tool sounds" is on. Users can override the default per category.
+enum ToolSoundCategory: String, CaseIterable, Identifiable {
+    case bash, edit, write, notification, other
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .bash:         return "Shell commands"
+        case .edit:         return "Edits"
+        case .write:        return "New files"
+        case .notification: return "Notifications"
+        case .other:        return "Everything else"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .bash:         return "Bash"
+        case .edit:         return "Edit, MultiEdit"
+        case .write:        return "Write, NotebookEdit"
+        case .notification: return "Notification prompts"
+        case .other:        return "All other tools"
+        }
+    }
+
+    var defaultSound: String {
+        switch self {
+        case .bash:         return "Funk"
+        case .edit:         return "Pop"
+        case .write:        return "Tink"
+        case .notification: return "Submarine"
+        case .other:        return "Funk"
+        }
+    }
+
+    static func category(for tool: String) -> ToolSoundCategory {
+        switch tool {
+        case "Bash":                  return .bash
+        case "Edit", "MultiEdit":     return .edit
+        case "Write", "NotebookEdit": return .write
+        case "Notification":          return .notification
+        default:                      return .other
+        }
+    }
+}
+
 enum StatusBarItem: String, Codable, CaseIterable {
     case fiveHourLimit  // real 5-hour plan-limit usage % (from Claude Code statusLine)
     case weeklyLimit    // real weekly plan-limit usage %
@@ -567,6 +615,9 @@ final class AppState: ObservableObject {
     // Sound preferences (persisted).
     @Published var alertSound: String = "Funk"
     @Published var perToolSounds: Bool = false
+    /// Per-category sound overrides (category key -> sound name). Empty entries
+    /// fall back to ToolSoundCategory.defaultSound. Persisted.
+    @Published private(set) var perToolSoundMap: [String: String] = [:]
     @Published var persistentNotchDisplay: Bool = false
     // Pet mode: the idle icon is the animated Claude Code mascot, and it lives
     // its own little life in and around the notch while the notch is at rest.
@@ -822,6 +873,7 @@ final class AppState: ObservableObject {
             self.stats = snapshot.stats ?? UsageStats()
             self.alertSound = snapshot.alertSound ?? "Funk"
             self.perToolSounds = snapshot.perToolSounds ?? false
+            self.perToolSoundMap = snapshot.perToolSoundMap ?? [:]
             self.persistentNotchDisplay = snapshot.persistentNotchDisplay ?? false
             self.petEnabled = snapshot.petEnabled ?? true
             self.lastDigestDate = snapshot.lastDigestDate
@@ -1684,6 +1736,7 @@ final class AppState: ObservableObject {
             stats: stats,
             alertSound: alertSound,
             perToolSounds: perToolSounds,
+            perToolSoundMap: perToolSoundMap,
             persistentNotchDisplay: persistentNotchDisplay,
             petEnabled: petEnabled,
             lastDigestDate: lastDigestDate,
@@ -3509,22 +3562,32 @@ final class AppState: ObservableObject {
     private func playAlert(toolName: String? = nil) {
         let name: String
         if perToolSounds, let t = toolName {
-            name = Self.soundForTool(t)
+            name = soundForTool(t)
         } else {
             name = alertSound
         }
         playSound(name)
     }
 
-    /// Distinct chime per tool when "Per-tool sounds" is enabled.
-    static func soundForTool(_ tool: String) -> String {
-        switch tool {
-        case "Bash":                  return "Funk"
-        case "Edit", "MultiEdit":     return "Pop"
-        case "Write", "NotebookEdit": return "Tink"
-        case "Notification":          return "Submarine"
-        default:                      return "Funk"
+    /// The user-set (or default) chime for a tool when "Per-tool sounds" is on.
+    func soundForTool(_ tool: String) -> String {
+        let category = ToolSoundCategory.category(for: tool)
+        return perToolSoundMap[category.rawValue] ?? category.defaultSound
+    }
+
+    /// Set (or clear, when equal to the default) the sound for a category.
+    func setToolSound(_ category: ToolSoundCategory, _ sound: String) {
+        if sound == category.defaultSound {
+            perToolSoundMap.removeValue(forKey: category.rawValue)
+        } else {
+            perToolSoundMap[category.rawValue] = sound
         }
+        schedulePersist()
+    }
+
+    /// The current sound for a category (override or default).
+    func toolSound(_ category: ToolSoundCategory) -> String {
+        perToolSoundMap[category.rawValue] ?? category.defaultSound
     }
 
     /// The set of system sounds we offer in the picker. macOS ships these

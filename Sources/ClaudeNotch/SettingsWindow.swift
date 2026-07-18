@@ -307,28 +307,54 @@ struct SettingsView: View {
                     Binding(get: { state.perToolSounds }, set: { state.setPerToolSounds($0) }))
             }
 
-            sectionLabel("Alert sound")
-            group {
-                HStack {
-                    Text("Alert sound")
-                    Spacer()
-                    Picker("", selection: Binding(
-                        get: { state.alertSound },
-                        set: { state.setAlertSound($0); NSSound(named: NSSound.Name($0))?.play() }
-                    )) {
-                        ForEach(AppState.availableSounds, id: \.self) { Text($0).tag($0) }
+            if state.perToolSounds {
+                sectionLabel("Sound per pop-up type")
+                Text("With per-tool sounds on, each kind of pop-up plays its own sound. Change any of them; the default is shown when you have not.")
+                    .font(.callout).foregroundStyle(.secondary)
+                group {
+                    let cats = ToolSoundCategory.allCases
+                    ForEach(Array(cats.enumerated()), id: \.element) { idx, cat in
+                        soundPickerRow(cat.label, cat.detail,
+                                       get: { state.toolSound(cat) },
+                                       set: { state.setToolSound(cat, $0) })
+                        if idx < cats.count - 1 { divider }
                     }
-                    .labelsHidden().fixedSize()
-                    Button {
-                        NSSound(named: NSSound.Name(state.alertSound))?.play()
-                    } label: { Image(systemName: "play.circle") }
-                    .buttonStyle(.plain)
                 }
-                .padding(.vertical, 8).padding(.horizontal, 14)
+                .disabled(state.soundMuted)
+                .opacity(state.soundMuted ? 0.5 : 1)
+            } else {
+                sectionLabel("Alert sound")
+                group {
+                    soundPickerRow("Alert sound", nil,
+                                   get: { state.alertSound },
+                                   set: { state.setAlertSound($0) })
+                }
+                .disabled(state.soundMuted)
+                .opacity(state.soundMuted ? 0.5 : 1)
             }
-            .disabled(state.soundMuted)
-            .opacity(state.soundMuted ? 0.5 : 1)
         }
+    }
+
+    private func soundPickerRow(_ title: String, _ subtitle: String?, get: @escaping () -> String, set: @escaping (String) -> Void) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                if let subtitle { Text(subtitle).font(.caption).foregroundStyle(.secondary) }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Picker("", selection: Binding(
+                get: get,
+                set: { set($0); NSSound(named: NSSound.Name($0))?.play() }
+            )) {
+                ForEach(AppState.availableSounds, id: \.self) { Text($0).tag($0) }
+            }
+            .labelsHidden().fixedSize()
+            Button { NSSound(named: NSSound.Name(get()))?.play() } label: {
+                Image(systemName: "play.circle")
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 8).padding(.horizontal, 14)
     }
 
     private var budget: some View {
