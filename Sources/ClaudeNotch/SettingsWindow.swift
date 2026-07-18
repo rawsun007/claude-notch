@@ -526,6 +526,11 @@ struct SettingsView: View {
                         if idx < files.count - 1 { divider }
                     }
                 }
+                Button("Reveal all in Finder") {
+                    let urls = state.currentTouchedFiles.map { URL(fileURLWithPath: $0) }
+                    NSWorkspace.shared.activateFileViewerSelecting(urls)
+                }
+                .padding(.top, 2)
             }
         }
     }
@@ -617,6 +622,10 @@ struct SettingsView: View {
                 divider
                 actionRow("Destructive command", "exclamationmark.triangle") { demoDangerous() }
                 divider
+                actionRow("Edit with diff preview", "doc.text.magnifyingglass") { demoDiff() }
+                divider
+                actionRow("Auto-approve (live activity)", "bolt.badge.a") { demoAutoApprove() }
+                divider
                 actionRow("Notification", "bell") { demoNotification() }
                 divider
                 actionRow("Task complete", "checkmark.seal") { demoCompleted() }
@@ -685,6 +694,25 @@ struct SettingsView: View {
             title: "Done — 14 files changed, tests green",
             detail: "Refactored auth middleware and re-ran the suite.",
             source: "Demo", cwd: NSHomeDirectory()))
+    }
+    private func demoDiff() {
+        let preview = ToolPreviewParser.preview(for: "Edit", input: [
+            "file_path": "/Users/example/main.swift",
+            "old_string": "let x = 42\nprint(\"hello\")\nreturn x",
+            "new_string": "let x = 100\nprint(\"hello, world\")\nreturn x * 2"])
+        state.enqueuePermission(PermissionRequest(
+            kind: .toolUse, title: "Edit file", detail: "/Users/example/main.swift",
+            toolName: "Edit", source: "Demo", cwd: "/Users/example",
+            preview: preview, resolver: { _, _ in }), bypassRules: true)
+    }
+    private func demoAutoApprove() {
+        let preview = ToolPreviewParser.preview(for: "Edit", input: [
+            "file_path": "/Users/example/config.swift",
+            "old_string": "timeout = 30", "new_string": "timeout = 60"])
+        state.demoAutoApprove(PermissionRequest(
+            kind: .toolUse, title: "Edit file", detail: "/Users/example/config.swift",
+            toolName: "Edit", source: "Demo", cwd: "/Users/example",
+            preview: preview, resolver: { _, _ in }))
     }
 
     private var about: some View {
