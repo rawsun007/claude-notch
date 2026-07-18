@@ -212,7 +212,8 @@ struct SettingsView: View {
                             set: { state.setCustomNotchTitle($0) }
                         ))
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 200)
+                        .controlSize(.small)
+                        .frame(width: 180)
                     }
                     .padding(.vertical, 8).padding(.horizontal, 14)
                 }
@@ -383,10 +384,11 @@ struct SettingsView: View {
         HStack {
             Text(title)
             Spacer()
-            Text("$")
+            Text("$").foregroundStyle(.secondary)
             TextField("0", value: Binding(get: get, set: set), format: .number)
                 .textFieldStyle(.roundedBorder)
-                .frame(width: 80)
+                .controlSize(.small)
+                .frame(width: 64)
                 .multilineTextAlignment(.trailing)
         }
         .padding(.vertical, 8).padding(.horizontal, 14)
