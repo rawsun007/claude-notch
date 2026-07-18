@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import ServiceManagement
+import IOKit.hid
 
 /// The ClaudeNotch settings window: a sidebar of sections and a detail pane of
 /// grouped toggle rows, in the shape of a standard macOS System Settings window
@@ -349,7 +350,59 @@ struct SettingsView: View {
                     "Ask for Touch ID before allowing a tool request from the notch.",
                     bind(\.requireTouchID, state.setRequireTouchID))
             }
+
+            sectionLabel("System permissions")
+            group {
+                permissionRow("Accessibility",
+                              granted: AXIsProcessTrusted()) { state.promptAccessibility() }
+                divider
+                permissionRow("Input Monitoring",
+                              granted: IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted) {
+                    _ = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+            }
+
+            sectionLabel("Always-allow rules")
+            if state.allowRules.isEmpty {
+                Text("No always-allow rules. Approve a request with \u{201C}Always allow\u{201D} to add one.")
+                    .font(.callout).foregroundStyle(.secondary)
+            } else {
+                group {
+                    let rules = state.allowRules.sorted { $0.displayLabel < $1.displayLabel }
+                    ForEach(Array(rules.enumerated()), id: \.element.id) { idx, rule in
+                        HStack {
+                            Text(rule.displayLabel).lineLimit(1)
+                            Spacer()
+                            Button {
+                                state.removeAllowRule(rule)
+                            } label: { Image(systemName: "trash").foregroundStyle(.red) }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.vertical, 8).padding(.horizontal, 14)
+                        if idx < rules.count - 1 { divider }
+                    }
+                }
+                Button("Remove all rules") { state.clearAllowlist() }
+                    .padding(.top, 2)
+            }
         }
+    }
+
+    private func permissionRow(_ title: String, granted: Bool, _ action: @escaping () -> Void) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Text(granted ? "Granted" : "Not granted")
+                .font(.caption)
+                .foregroundStyle(granted ? .green : .secondary)
+            if !granted {
+                Button("Grant…", action: action)
+            }
+        }
+        .padding(.vertical, 8).padding(.horizontal, 14)
     }
 
     private var about: some View {
