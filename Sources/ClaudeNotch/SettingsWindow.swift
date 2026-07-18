@@ -599,11 +599,36 @@ struct SettingsView: View {
                 divider
                 actionRow("Budget hard-stop", "hand.raised") { state.demoBudgetBlock() }
             }
+            sectionLabel("Pet animations")
             group {
-                actionRow("Play a pet animation", "pawprint") {
-                    state.demoPet(PetActivity.allCases.filter { $0 != .tucked })
+                let demoable = PetActivity.allCases.filter { $0 != .tucked }
+                actionRow("Play all", "play.circle") { state.demoPet(demoable) }
+                divider
+                ForEach(Array(demoable.enumerated()), id: \.element) { idx, activity in
+                    actionRow(Self.petDemoTitle(activity), "pawprint") { state.demoPet([activity]) }
+                    if idx < demoable.count - 1 { divider }
                 }
             }
+        }
+    }
+
+    private static func petDemoTitle(_ activity: PetActivity) -> String {
+        switch activity {
+        case .tucked:     return "Tucked"
+        case .peek:       return "Peek"
+        case .lookAround: return "Look around"
+        case .hangLeft:   return "Hang off left corner"
+        case .hangRight:  return "Hang off right corner"
+        case .stroll:     return "Stroll"
+        case .sleep:      return "Sleep"
+        case .celebrate:  return "Celebrate"
+        case .boop:       return "Boop"
+        case .spin:       return "Backflip"
+        case .rope:       return "Dangle on a rope"
+        case .watch:      return "Watch Claude work"
+        case .flinch:     return "Flinch (something broke)"
+        case .spiderHang: return "Spider-Pet (hang upside-down)"
+        case .fret:       return "Fret (limit almost up)"
         }
     }
 
