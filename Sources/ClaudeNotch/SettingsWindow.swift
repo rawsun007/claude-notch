@@ -25,8 +25,10 @@ final class SettingsWindowController {
         let host = NSHostingController(rootView: SettingsView(state: appState, onOpenSetup: onOpenSetup))
         let w = NSWindow(contentViewController: host)
         w.title = "ClaudeNotch Settings"
-        w.styleMask = [.titled, .closable, .resizable, .fullSizeContentView]
-        w.titlebarAppearsTransparent = true
+        // A normal opaque title bar (not full-size content) so scrolled page
+        // content stays below the bar instead of sliding up under the title.
+        w.styleMask = [.titled, .closable, .resizable]
+        w.titlebarAppearsTransparent = false
         w.isReleasedWhenClosed = false
         w.setContentSize(NSSize(width: 720, height: 560))
         w.minSize = NSSize(width: 640, height: 460)
