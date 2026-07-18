@@ -1,6 +1,6 @@
 cask "claudenotch" do
-  version "0.7.0"
-  sha256 "c82b16e862549b2ed6c004868a4a93460fda5af1dc11ee2580f832dd730bd778"
+  version "0.7.1"
+  sha256 "b1d80e2ac197b2553110a235ecc731829fa7daad577aa9b1331c2a8b727e559d"
 
   url "https://github.com/rawsun007/claude-notch/releases/download/v#{version}/ClaudeNotch.dmg",
       verified: "github.com/rawsun007/claude-notch/"
