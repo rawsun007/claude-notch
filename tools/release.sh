@@ -39,14 +39,17 @@ echo "  version ${OLD_SHORT} → ${VERSION} (build ${OLD_BUILD} → ${NEW_BUILD}
 DMG="dist/ClaudeNotch.dmg"
 [ -f "$DMG" ] || { echo "DMG build failed"; exit 1; }
 
-# 3. sha256 + update the Homebrew cask.
+# 3. sha256 + generate the Homebrew cask into dist/ (NOT the repo root — the
+#    cask is served only from rawsun007/homebrew-tap now, so the main repo no
+#    longer carries a Casks/ dir that would make it a second, conflicting tap).
 SHA=$(shasum -a 256 "$DMG" | cut -d' ' -f1)
-sed -i '' "s/version \"[^\"]*\"/version \"${VERSION}\"/" Casks/claudenotch.rb
-sed -i '' "s/sha256 \"[^\"]*\"/sha256 \"${SHA}\"/" Casks/claudenotch.rb
-echo "  cask updated: version ${VERSION}, sha256 ${SHA:0:12}…"
+mkdir -p dist
+sed -e "s/__VERSION__/${VERSION}/" -e "s/__SHA__/${SHA}/" \
+    tools/claudenotch.rb.tmpl > dist/claudenotch.rb
+echo "  cask generated: version ${VERSION}, sha256 ${SHA:0:12}…"
 
-# 4. Commit the bump + cask and push so the tag points at this commit.
-git add build.sh Casks/claudenotch.rb
+# 4. Commit the bump and push so the tag points at this commit.
+git add build.sh
 git commit -m "Release v${VERSION}" >/dev/null
 
 # Resolve a token for the GitHub API: prefer an explicit env var, else the

@@ -104,16 +104,6 @@ One line:
 brew install --cask rawsun007/tap/claudenotch
 ```
 
-<details>
-<summary>Alternative: tap this repo directly</summary>
-
-```bash
-brew tap rawsun007/claudenotch https://github.com/rawsun007/claude-notch
-brew install --cask claudenotch
-```
-
-</details>
-
 ### Build from source (for developers)
 
 <details>
