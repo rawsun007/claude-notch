@@ -490,10 +490,12 @@ struct SettingsView: View {
             Text(title).font(.largeTitle.weight(.bold))
             content()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func group<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         VStack(spacing: 0) { content() }
+            .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
             .background(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -541,7 +543,7 @@ struct SettingsView: View {
     }
 
     private func row(_ title: String, _ subtitle: String?, _ isOn: Binding<Bool>) -> some View {
-        Toggle(isOn: isOn) {
+        HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                 if let subtitle {
@@ -549,9 +551,12 @@ struct SettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
         }
-        .toggleStyle(.switch)
+        .padding(.vertical, 10)
         .padding(.horizontal, 14)
     }
 
