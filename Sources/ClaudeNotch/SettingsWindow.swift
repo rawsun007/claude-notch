@@ -162,15 +162,64 @@ struct SettingsView: View {
 
     private var notch: some View {
         page("Notch") {
+            sectionLabel("Title")
+            group {
+                pickerRow("What the title shows",
+                          selection: Binding(get: { state.notchTitleMode },
+                                             set: { state.setNotchTitleMode($0) })) {
+                    Text("Claude").tag(NotchTitleMode.claude)
+                    Text("Project name").tag(NotchTitleMode.project)
+                    Text("Custom").tag(NotchTitleMode.custom)
+                }
+                if state.notchTitleMode == .custom {
+                    divider
+                    HStack {
+                        Text("Custom title")
+                        Spacer()
+                        TextField("ClaudeNotch", text: Binding(
+                            get: { state.customNotchTitle },
+                            set: { state.setCustomNotchTitle($0) }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 200)
+                    }
+                    .padding(.vertical, 8).padding(.horizontal, 14)
+                }
+            }
+
+            sectionLabel("Status bar")
+            group {
+                let items = StatusBarItem.allCases
+                ForEach(Array(items.enumerated()), id: \.element) { idx, item in
+                    row(item.menuLabel, nil, Binding(
+                        get: { state.statusBarItems.contains(item) },
+                        set: { on in
+                            var next = StatusBarItem.allCases.filter { state.statusBarItems.contains($0) }
+                            if on { if !next.contains(item) { next.append(item) } }
+                            else { next.removeAll { $0 == item } }
+                            state.setStatusBarItems(StatusBarItem.allCases.filter { next.contains($0) })
+                        }))
+                    if idx < items.count - 1 { divider }
+                }
+            }
+
+            sectionLabel("Context window")
+            group {
+                pickerRow("Context window size",
+                          selection: Binding(get: { state.contextWindowMode },
+                                             set: { state.setContextWindowMode($0) })) {
+                    Text("Auto").tag(ContextWindowMode.auto)
+                    Text("200K").tag(ContextWindowMode.w200k)
+                    Text("1M").tag(ContextWindowMode.w1M)
+                }
+            }
+
             group {
                 row("Drop files to open Claude",
-                    "This is always on: drag a file or folder onto the notch to open Claude Code there. Shown here for reference.",
+                    "Always on: drag a file or folder onto the notch to open Claude there.",
                     .constant(true))
                     .disabled(true)
             }
-            Text("Notch title and status-bar contents are set from the menu-bar menu for now.")
-                .font(.caption).foregroundStyle(.secondary)
-                .padding(.top, 4)
         }
     }
 
@@ -298,6 +347,17 @@ struct SettingsView: View {
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
             .padding(.top, 6)
+    }
+
+    private func pickerRow<T: Hashable, Content: View>(_ title: String, selection: Binding<T>, @ViewBuilder _ content: () -> Content) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Picker("", selection: selection) { content() }
+                .labelsHidden()
+                .fixedSize()
+        }
+        .padding(.vertical, 8).padding(.horizontal, 14)
     }
 
     private func actionRow(_ title: String, _ symbol: String, _ action: @escaping () -> Void) -> some View {
