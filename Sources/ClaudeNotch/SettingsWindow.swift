@@ -617,31 +617,49 @@ struct SettingsView: View {
     }
     private func usd(_ v: Double) -> String { String(format: "$%.2f", v) }
 
+    private static let weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
     private var activityHeatmap: some View {
         let cal = Calendar.current
-        // 7 weeks x 7 days, oldest week on the left, filled column-major so each
-        // column is a week (same shape as the old text heatmap).
-        var levels = Array(repeating: Array(repeating: 0, count: 7), count: 7)
-        for i in 0..<49 {
-            guard let day = cal.date(byAdding: .day, value: -(48 - i), to: Date()) else { continue }
+        let weeks = 7
+        let today = Date()
+        // 0 = Sunday ... 6 = Saturday, matching the calendar grid rows.
+        let todayWeekday = cal.component(.weekday, from: today) - 1
+
+        // level(row, col): row = weekday (0..6), col = week (0..weeks-1, newest
+        // on the right). -1 marks a future cell (after today), drawn empty.
+        func level(row: Int, col: Int) -> Int {
+            let daysBack = (todayWeekday - row) + (weeks - 1 - col) * 7
+            guard daysBack >= 0, let day = cal.date(byAdding: .day, value: -daysBack, to: today) else { return -1 }
             let n = state.stats.dailyCounts[AppState.dayKey(day)]?.tools ?? 0
-            let level: Int
             switch n {
-            case 0: level = 0
-            case 1...5: level = 1
-            case 6...15: level = 2
-            case 16...30: level = 3
-            default: level = 4
+            case 0: return 0
+            case 1...5: return 1
+            case 6...15: return 2
+            case 16...30: return 3
+            default: return 4
             }
-            levels[i / 7][i % 7] = level
         }
+
         return VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 4) {
-                ForEach(0..<7, id: \.self) { week in
+            HStack(alignment: .top, spacing: 4) {
+                // Weekday labels down the left, aligned to the rows.
+                VStack(alignment: .trailing, spacing: 4) {
+                    ForEach(0..<7, id: \.self) { row in
+                        Text(row % 2 == 1 ? Self.weekdayLabels[row] : "")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                            .frame(height: 16)
+                    }
+                }
+                .frame(width: 26, alignment: .trailing)
+
+                ForEach(0..<weeks, id: \.self) { col in
                     VStack(spacing: 4) {
-                        ForEach(0..<7, id: \.self) { day in
+                        ForEach(0..<7, id: \.self) { row in
+                            let l = level(row: row, col: col)
                             RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                .fill(heatColor(levels[week][day]))
+                                .fill(l < 0 ? Color.clear : heatColor(l))
                                 .frame(width: 16, height: 16)
                         }
                     }
@@ -655,6 +673,7 @@ struct SettingsView: View {
                 }
                 Text("More").font(.caption2).foregroundStyle(.secondary)
             }
+            .padding(.leading, 30)
         }
     }
 
