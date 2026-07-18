@@ -321,6 +321,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(loginItem)
 
         let settingsItem = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
+        settingsItem.keyEquivalentModifierMask = [.command, .option]
         settingsItem.target = self
         menu.addItem(settingsItem)
 
