@@ -190,7 +190,10 @@ struct NotchView: View {
                 row2.append(textWidth("\(state.currentEffort) effort", size: 10))
             }
             if !state.currentGitBranch.isEmpty {
-                row2.append(min(110, 11 + textWidth(state.currentGitBranch, size: 10)))
+                // Reserve exactly what renders (the branch is elided to 12 chars),
+                // so a long branch no longer over-reserves and crushes the context
+                // meter / cost that follow it.
+                row2.append(11 + textWidth(NotchView.elide(state.currentGitBranch, to: 12), size: 10))
             }
         }
         var bar: [CGFloat] = [36]   // context capsule
@@ -235,7 +238,9 @@ struct NotchView: View {
             // +12 slack on top of the 56pt content padding — NSFont measuring
             // and SwiftUI's actual Text layout don't agree to the pixel, and
             // running short here is what truncates the model name.
-            let width = min(380, max(230, idleContentWidth(for: state, hovering: true) + 56 + 12))
+            // Cap raised to 404 so a busy row (model + effort + branch + meter +
+            // cost) has room instead of overflowing the card on a long branch.
+            let width = min(404, max(230, idleContentWidth(for: state, hovering: true) + 56 + 12))
             return CGSize(width: width, height: inset + 64)
         case .thinking:
             return CGSize(width: 340, height: inset + 64)
@@ -1383,7 +1388,7 @@ private struct IdlePill: View {
                             // stop at "ma…" — it went all the way down to "m",
                             // which reads as a glyph nobody ordered rather than
                             // as a branch.
-                            Text(NotchView.elide(state.currentGitBranch, to: 18))
+                            Text(NotchView.elide(state.currentGitBranch, to: 12))
                                 .font(.system(size: 10, design: .rounded))
                                 .foregroundColor(.white.opacity(0.45))
                                 .lineLimit(1)
