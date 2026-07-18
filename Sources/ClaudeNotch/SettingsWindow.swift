@@ -90,6 +90,7 @@ struct SettingsView: View {
     var onOpenSetup: (() -> Void)? = nil
     @State private var section: SettingsSection = .general
     @State private var claudeUsage: ClaudeUsageReader.Usage?
+    @State private var heatTip: String?
 
     var body: some View {
         NavigationSplitView {
@@ -647,27 +648,41 @@ struct SettingsView: View {
             return (level, tip)
         }
 
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 4) {
-                // Weekday labels down the left, aligned to the rows.
-                VStack(alignment: .trailing, spacing: 4) {
+        let cellSize: CGFloat = 16
+        let gap: CGFloat = 4
+        let labelWidth: CGFloat = 32
+        return VStack(alignment: .leading, spacing: 10) {
+            // Live readout: shows the hovered day, or a hint.
+            Text(heatTip ?? "Hover a day to see its activity")
+                .font(.caption)
+                .foregroundStyle(heatTip == nil ? .secondary : .primary)
+                .padding(.leading, labelWidth + gap)
+
+            HStack(alignment: .top, spacing: gap) {
+                // Weekday labels down the left, each occupying one cell pitch so
+                // they line up with the rows.
+                VStack(alignment: .trailing, spacing: gap) {
                     ForEach(0..<7, id: \.self) { row in
                         Text(row % 2 == 1 ? Self.weekdayLabels[row] : "")
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
-                            .frame(height: 16)
+                            .frame(height: cellSize, alignment: .center)
                     }
                 }
-                .frame(width: 26, alignment: .trailing)
+                .frame(width: labelWidth, alignment: .trailing)
 
                 ForEach(0..<weeks, id: \.self) { col in
-                    VStack(spacing: 4) {
+                    VStack(spacing: gap) {
                         ForEach(0..<7, id: \.self) { row in
                             let c = cell(row: row, col: col)
                             RoundedRectangle(cornerRadius: 3, style: .continuous)
                                 .fill(c.level < 0 ? Color.clear : heatColor(c.level))
-                                .frame(width: 16, height: 16)
-                                .help(c.tip)
+                                .frame(width: cellSize, height: cellSize)
+                                .contentShape(Rectangle())
+                                .onHover { inside in
+                                    if inside, !c.tip.isEmpty { heatTip = c.tip }
+                                    else if heatTip == c.tip { heatTip = nil }
+                                }
                         }
                     }
                 }
@@ -680,7 +695,7 @@ struct SettingsView: View {
                 }
                 Text("More").font(.caption2).foregroundStyle(.secondary)
             }
-            .padding(.leading, 30)
+            .padding(.leading, labelWidth + gap)
         }
     }
 
