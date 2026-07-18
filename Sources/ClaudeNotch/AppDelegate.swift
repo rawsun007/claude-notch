@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var keys: KeyboardMonitor!
     let notifications = NotificationBridge()
     let onboarding = OnboardingWindowController()
+    let settings = SettingsWindowController()
     private var activityToken: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -25,11 +26,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installEditMenu()
 
         onboarding.appState = state
+        settings.appState = state
 
         notch = NotchWindowController(state: state)
         notch.show()
 
-        menu = MenuBarController(state: state, onboarding: onboarding)
+        menu = MenuBarController(state: state, onboarding: onboarding, settings: settings)
 
         mouse = MouseTracker(state: state, window: notch.window)
         mouse.start()

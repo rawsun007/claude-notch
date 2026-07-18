@@ -59,10 +59,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var isMenuOpen = false
 
     private let onboarding: OnboardingWindowController
+    private let settings: SettingsWindowController
 
-    init(state: AppState, onboarding: OnboardingWindowController) {
+    init(state: AppState, onboarding: OnboardingWindowController, settings: SettingsWindowController) {
         self.state = state
         self.onboarding = onboarding
+        self.settings = settings
         self.item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -318,7 +320,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         loginItem.target = self
         menu.addItem(loginItem)
 
-        let setupItem = NSMenuItem(title: "Setup…", action: #selector(showOnboarding), keyEquivalent: ",")
+        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
+        let setupItem = NSMenuItem(title: "Setup…", action: #selector(showOnboarding), keyEquivalent: "")
         setupItem.target = self
         menu.addItem(setupItem)
 
@@ -749,6 +755,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func showOnboarding() {
         onboarding.show()
+    }
+
+    @objc private func showSettings() {
+        settings.show()
     }
 
     // MARK: - Updates
