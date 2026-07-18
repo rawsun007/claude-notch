@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import ServiceManagement
 
 /// The ClaudeNotch settings window: a sidebar of sections and a detail pane of
 /// grouped toggle rows, in the shape of a standard macOS System Settings window
@@ -106,6 +107,10 @@ struct SettingsView: View {
     private var general: some View {
         page("General") {
             group {
+                row("Launch at login",
+                    "Start ClaudeNotch automatically when you log in.",
+                    Binding(get: { launchAtLoginEnabled }, set: { setLaunchAtLogin($0) }))
+                divider
                 row("Keep the notch open",
                     "Always show the notch card instead of hiding it behind the hardware notch until something happens.",
                     bind(\.persistentNotchDisplay, state.setPersistentNotchDisplay))
@@ -118,6 +123,40 @@ struct SettingsView: View {
                     "Put the running session cost next to the menu-bar bell.",
                     bind(\.showSpendInMenuBar, state.setShowSpendInMenuBar))
             }
+
+            sectionLabel("Quick actions")
+            group {
+                actionRow("Start Claude in a folder…", "play.circle") { startClaudePicker() }
+                divider
+                actionRow("Check for updates…", "arrow.down.circle") { UpdateChecker.shared.check(userInitiated: true) }
+            }
+        }
+    }
+
+    // Launch-at-login state and toggle, via ServiceManagement.
+    private var launchAtLoginEnabled: Bool {
+        SMAppService.mainApp.status == .enabled
+    }
+    private func setLaunchAtLogin(_ on: Bool) {
+        let svc = SMAppService.mainApp
+        do {
+            if on { try svc.register() } else { try svc.unregister() }
+        } catch {
+            NSLog("ClaudeNotch: settings login toggle failed — \(error)")
+        }
+        if svc.status == .requiresApproval {
+            SMAppService.openSystemSettingsLoginItems()
+        }
+    }
+
+    private func startClaudePicker() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Start Claude"
+        if panel.runModal() == .OK, let url = panel.url {
+            TerminalAutomator.startClaude(in: url.path, message: nil)
         }
     }
 
@@ -252,6 +291,26 @@ struct SettingsView: View {
 
     private var divider: some View {
         Divider().padding(.leading, 14)
+    }
+
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.top, 6)
+    }
+
+    private func actionRow(_ title: String, _ symbol: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: symbol).frame(width: 18)
+                Text(title)
+                Spacer()
+            }
+            .padding(.vertical, 10).padding(.horizontal, 14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private func row(_ title: String, _ subtitle: String?, _ isOn: Binding<Bool>) -> some View {
