@@ -87,28 +87,138 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     ]
 }
 
+/// One searchable setting: what it's called, extra keywords, and the page it
+/// lives on. Powers the sidebar search box.
+private struct SettingsSearchItem: Identifiable {
+    let title: String
+    let keywords: String
+    let section: SettingsSection
+    var id: String { "\(section.rawValue)\u{0001}\(title)" }
+
+    static let all: [SettingsSearchItem] = [
+        .init(title: "Launch at login", keywords: "startup boot open", section: .general),
+        .init(title: "Keep the notch open", keywords: "persistent always show display", section: .general),
+        .init(title: "Auto-approve permissions", keywords: "allow automatic bypass", section: .general),
+        .init(title: "Show spend in the menu bar", keywords: "cost money dollars", section: .general),
+        .init(title: "Start Claude in a folder", keywords: "open launch project", section: .general),
+        .init(title: "Check for updates", keywords: "version upgrade", section: .general),
+
+        .init(title: "Notch title", keywords: "name label claude project custom", section: .notch),
+        .init(title: "Status bar items", keywords: "5 hour weekly limit session cost", section: .notch),
+        .init(title: "Context window size", keywords: "200k 1m auto tokens", section: .notch),
+
+        .init(title: "Pet Mode", keywords: "mascot creature animation boop", section: .pet),
+
+        .init(title: "Send a message to Claude", keywords: "compose prompt", section: .session),
+        .init(title: "Clear the active session", keywords: "reset", section: .session),
+        .init(title: "Auto-approve for a while", keywords: "timed window minutes", section: .session),
+        .init(title: "Snooze passive cards", keywords: "mute pause quiet", section: .session),
+        .init(title: "Recent projects", keywords: "folders open", section: .session),
+        .init(title: "Files touched", keywords: "edited reveal finder", section: .session),
+
+        .init(title: "Plan-limit warnings", keywords: "rate limit 80 95 percent", section: .alerts),
+        .init(title: "Long-run alerts", keywords: "stuck slow", section: .alerts),
+        .init(title: "Break reminders", keywords: "rest stretch", section: .alerts),
+        .init(title: "Completion notifications", keywords: "done finished banner", section: .alerts),
+        .init(title: "Daily digest", keywords: "summary morning spend", section: .alerts),
+        .init(title: "Mirror to Notification Center", keywords: "banner macos", section: .alerts),
+
+        .init(title: "Mute all sounds", keywords: "silence quiet", section: .sounds),
+        .init(title: "Per-tool sounds", keywords: "pop up chime bash edit", section: .sounds),
+        .init(title: "Alert sound", keywords: "chime funk pop tink", section: .sounds),
+
+        .init(title: "Cost caps", keywords: "budget session day week dollars limit", section: .budget),
+        .init(title: "Hard-stop at the cap", keywords: "block enforce", section: .budget),
+
+        .init(title: "Hide from screen capture", keywords: "recording screenshot privacy", section: .privacy),
+        .init(title: "Require Touch ID", keywords: "biometric fingerprint", section: .privacy),
+        .init(title: "Accessibility permission", keywords: "system", section: .privacy),
+        .init(title: "Input Monitoring permission", keywords: "system keys", section: .privacy),
+        .init(title: "Always-allow rules", keywords: "allowlist regex", section: .privacy),
+
+        .init(title: "Activity heatmap", keywords: "usage graph history", section: .usage),
+        .init(title: "Token usage and cost", keywords: "spend dollars", section: .usage),
+
+        .init(title: "Sample cards", keywords: "demo test", section: .developer),
+        .init(title: "Pet animations", keywords: "demo peek stroll", section: .developer),
+
+        .init(title: "Version and links", keywords: "about changelog github setup", section: .about),
+    ]
+}
+
 struct SettingsView: View {
     @ObservedObject var state: AppState
     var onOpenSetup: (() -> Void)? = nil
     @State private var section: SettingsSection = .general
     @State private var claudeUsage: ClaudeUsageReader.Usage?
     @State private var heatTip: String?
+    @State private var search = ""
+
+    private var searchResults: [SettingsSearchItem] {
+        let q = search.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return [] }
+        return SettingsSearchItem.all.filter {
+            $0.title.lowercased().contains(q)
+                || $0.keywords.lowercased().contains(q)
+                || $0.section.rawValue.lowercased().contains(q)
+        }
+    }
 
     var body: some View {
         NavigationSplitView {
-            List(selection: Binding(
-                get: { section },
-                set: { if let v = $0 { section = v } }
-            )) {
-                ForEach(SettingsSection.nav, id: \.title) { group in
-                    Section(group.title) {
-                        ForEach(group.items) { s in
-                            Label(s.rawValue, systemImage: s.symbol).tag(s)
+            VStack(spacing: 0) {
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary).font(.system(size: 12))
+                    TextField("Search settings", text: $search)
+                        .textFieldStyle(.plain)
+                    if !search.isEmpty {
+                        Button { search = "" } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                        }.buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 8).padding(.vertical, 5)
+                .background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(0.06)))
+                .padding(.horizontal, 10).padding(.top, 8).padding(.bottom, 4)
+
+                if search.isEmpty {
+                    List(selection: Binding(
+                        get: { section },
+                        set: { if let v = $0 { section = v } }
+                    )) {
+                        ForEach(SettingsSection.nav, id: \.title) { group in
+                            Section(group.title) {
+                                ForEach(group.items) { s in
+                                    Label(s.rawValue, systemImage: s.symbol).tag(s)
+                                }
+                            }
                         }
+                    }
+                } else if searchResults.isEmpty {
+                    VStack { Spacer(); Text("No matches").foregroundStyle(.secondary).font(.callout); Spacer() }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List(searchResults) { item in
+                        Button {
+                            section = item.section
+                            search = ""
+                        } label: {
+                            HStack {
+                                Image(systemName: item.section.symbol)
+                                    .foregroundStyle(.secondary).frame(width: 18)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(item.title)
+                                    Text(item.section.rawValue).font(.caption2).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
-            .navigationSplitViewColumnWidth(190)
+            .navigationSplitViewColumnWidth(200)
         } detail: {
             ScrollView {
                 detail
