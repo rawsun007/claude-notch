@@ -48,6 +48,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     case pet = "Pet"
     case alerts = "Alerts"
     case sounds = "Sounds"
+    case budget = "Budget"
     case privacy = "Privacy"
     case about = "About"
 
@@ -59,6 +60,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .pet: return "pawprint"
         case .alerts: return "bell.badge"
         case .sounds: return "speaker.wave.2"
+        case .budget: return "dollarsign.circle"
         case .privacy: return "lock.shield"
         case .about: return "info.circle"
         }
@@ -97,6 +99,7 @@ struct SettingsView: View {
         case .pet:     pet
         case .alerts:  alerts
         case .sounds:  sounds
+        case .budget:  budget
         case .privacy: privacy
         case .about:   about
         }
@@ -298,6 +301,41 @@ struct SettingsView: View {
             .disabled(state.soundMuted)
             .opacity(state.soundMuted ? 0.5 : 1)
         }
+    }
+
+    private var budget: some View {
+        page("Budget") {
+            Text("Warn when estimated cost crosses a cap. Set a cap to 0 to disable it.")
+                .font(.callout).foregroundStyle(.secondary)
+            sectionLabel("Caps (USD)")
+            group {
+                capRow("Per session", get: { state.sessionCostCap }, set: { state.setSessionCostCap($0) })
+                divider
+                capRow("Per day", get: { state.dailyCostCap }, set: { state.setDailyCostCap($0) })
+                divider
+                capRow("Per 5-hour window", get: { state.fiveHourCostCap }, set: { state.setFiveHourCostCap($0) })
+                divider
+                capRow("Per week", get: { state.weeklyCostCap }, set: { state.setWeeklyCostCap($0) })
+            }
+            group {
+                row("Hard-stop at the cap",
+                    "Block new tool runs once a cap is crossed, instead of only warning.",
+                    Binding(get: { state.enforceBudget }, set: { state.setEnforceBudget($0) }))
+            }
+        }
+    }
+
+    private func capRow(_ title: String, get: @escaping () -> Double, set: @escaping (Double) -> Void) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Text("$")
+            TextField("0", value: Binding(get: get, set: set), format: .number)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 80)
+                .multilineTextAlignment(.trailing)
+        }
+        .padding(.vertical, 8).padding(.horizontal, 14)
     }
 
     private var privacy: some View {
