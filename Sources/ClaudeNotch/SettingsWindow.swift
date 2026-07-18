@@ -275,6 +275,28 @@ struct SettingsView: View {
                     "Different sound for different kinds of tool request.",
                     Binding(get: { state.perToolSounds }, set: { state.setPerToolSounds($0) }))
             }
+
+            sectionLabel("Alert sound")
+            group {
+                HStack {
+                    Text("Alert sound")
+                    Spacer()
+                    Picker("", selection: Binding(
+                        get: { state.alertSound },
+                        set: { state.setAlertSound($0); NSSound(named: NSSound.Name($0))?.play() }
+                    )) {
+                        ForEach(AppState.availableSounds, id: \.self) { Text($0).tag($0) }
+                    }
+                    .labelsHidden().fixedSize()
+                    Button {
+                        NSSound(named: NSSound.Name(state.alertSound))?.play()
+                    } label: { Image(systemName: "play.circle") }
+                    .buttonStyle(.plain)
+                }
+                .padding(.vertical, 8).padding(.horizontal, 14)
+            }
+            .disabled(state.soundMuted)
+            .opacity(state.soundMuted ? 0.5 : 1)
         }
     }
 
