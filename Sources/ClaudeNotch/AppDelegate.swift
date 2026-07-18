@@ -98,10 +98,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func installEditMenu() {
         let mainMenu = NSMenu()
 
-        // Conventional first submenu (the app menu). Left empty — we only need
-        // its presence so the Edit menu sits where AppKit expects it.
+        // Conventional first submenu (the app menu). Carries the standard
+        // Settings… ⌘, so the shortcut opens the settings window whenever a
+        // ClaudeNotch window is focused or the app is active (an accessory app
+        // can't claim ⌘, globally, but this covers every in-app case).
         let appItem = NSMenuItem()
-        appItem.submenu = NSMenu()
+        let appMenu = NSMenu()
+        let settingsMI = appMenu.addItem(withTitle: "Settings…",
+                                         action: #selector(openSettingsFromMenu),
+                                         keyEquivalent: ",")
+        settingsMI.target = self
+        appItem.submenu = appMenu
         mainMenu.addItem(appItem)
 
         let editItem = NSMenuItem()
@@ -119,5 +126,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
 
         NSApp.mainMenu = mainMenu
+    }
+
+    @objc private func openSettingsFromMenu() {
+        settings.show()
     }
 }
