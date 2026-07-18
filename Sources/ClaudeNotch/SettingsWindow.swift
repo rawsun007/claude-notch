@@ -628,17 +628,23 @@ struct SettingsView: View {
 
         // level(row, col): row = weekday (0..6), col = week (0..weeks-1, newest
         // on the right). -1 marks a future cell (after today), drawn empty.
-        func level(row: Int, col: Int) -> Int {
+        func cell(row: Int, col: Int) -> (level: Int, tip: String) {
             let daysBack = (todayWeekday - row) + (weeks - 1 - col) * 7
-            guard daysBack >= 0, let day = cal.date(byAdding: .day, value: -daysBack, to: today) else { return -1 }
-            let n = state.stats.dailyCounts[AppState.dayKey(day)]?.tools ?? 0
-            switch n {
-            case 0: return 0
-            case 1...5: return 1
-            case 6...15: return 2
-            case 16...30: return 3
-            default: return 4
+            guard daysBack >= 0, let day = cal.date(byAdding: .day, value: -daysBack, to: today) else {
+                return (-1, "")
             }
+            let n = state.stats.dailyCounts[AppState.dayKey(day)]?.tools ?? 0
+            let level: Int
+            switch n {
+            case 0: level = 0
+            case 1...5: level = 1
+            case 6...15: level = 2
+            case 16...30: level = 3
+            default: level = 4
+            }
+            let date = day.formatted(.dateTime.month(.abbreviated).day().year())
+            let tip = "\(date): \(n) tool call\(n == 1 ? "" : "s")"
+            return (level, tip)
         }
 
         return VStack(alignment: .leading, spacing: 8) {
@@ -657,10 +663,11 @@ struct SettingsView: View {
                 ForEach(0..<weeks, id: \.self) { col in
                     VStack(spacing: 4) {
                         ForEach(0..<7, id: \.self) { row in
-                            let l = level(row: row, col: col)
+                            let c = cell(row: row, col: col)
                             RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                .fill(l < 0 ? Color.clear : heatColor(l))
+                                .fill(c.level < 0 ? Color.clear : heatColor(c.level))
                                 .frame(width: 16, height: 16)
+                                .help(c.tip)
                         }
                     }
                 }
