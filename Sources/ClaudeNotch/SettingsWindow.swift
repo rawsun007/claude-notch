@@ -348,7 +348,7 @@ struct SettingsView: View {
             )) {
                 ForEach(AppState.availableSounds, id: \.self) { Text($0).tag($0) }
             }
-            .labelsHidden().fixedSize()
+            .labelsHidden().fixedSize().controlSize(.small)
             Button { NSSound(named: NSSound.Name(get()))?.play() } label: {
                 Image(systemName: "play.circle")
             }
@@ -758,6 +758,7 @@ struct SettingsView: View {
             Picker("", selection: selection) { content() }
                 .labelsHidden()
                 .fixedSize()
+                .controlSize(.small)
         }
         .padding(.vertical, 8).padding(.horizontal, 14)
     }
@@ -788,6 +789,7 @@ struct SettingsView: View {
             Toggle("", isOn: isOn)
                 .labelsHidden()
                 .toggleStyle(.switch)
+                .controlSize(.small)
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 14)
