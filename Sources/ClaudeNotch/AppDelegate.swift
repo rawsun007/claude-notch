@@ -125,6 +125,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
         edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
 
+        // Window menu so ⌘W closes and ⌘M minimizes the focused window (the
+        // settings and onboarding windows had no way to close from the keyboard).
+        let windowItem = NSMenuItem()
+        let windowMenu = NSMenu(title: "Window")
+        windowItem.submenu = windowMenu
+        windowMenu.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        mainMenu.addItem(windowItem)
+        NSApp.windowsMenu = windowMenu
+
         NSApp.mainMenu = mainMenu
     }
 
