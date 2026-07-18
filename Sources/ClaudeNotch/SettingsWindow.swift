@@ -545,6 +545,19 @@ struct SettingsView: View {
 
     private var usage: some View {
         page("Usage") {
+            sectionLabel("Activity — last 7 weeks")
+            activityHeatmap
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color(nsColor: .controlBackgroundColor))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                )
+
             Text("All-time counters, kept locally on this Mac.")
                 .font(.callout).foregroundStyle(.secondary)
             group {
@@ -603,6 +616,57 @@ struct SettingsView: View {
         return "\(n)"
     }
     private func usd(_ v: Double) -> String { String(format: "$%.2f", v) }
+
+    private var activityHeatmap: some View {
+        let cal = Calendar.current
+        // 7 weeks x 7 days, oldest week on the left, filled column-major so each
+        // column is a week (same shape as the old text heatmap).
+        var levels = Array(repeating: Array(repeating: 0, count: 7), count: 7)
+        for i in 0..<49 {
+            guard let day = cal.date(byAdding: .day, value: -(48 - i), to: Date()) else { continue }
+            let n = state.stats.dailyCounts[AppState.dayKey(day)]?.tools ?? 0
+            let level: Int
+            switch n {
+            case 0: level = 0
+            case 1...5: level = 1
+            case 6...15: level = 2
+            case 16...30: level = 3
+            default: level = 4
+            }
+            levels[i / 7][i % 7] = level
+        }
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 4) {
+                ForEach(0..<7, id: \.self) { week in
+                    VStack(spacing: 4) {
+                        ForEach(0..<7, id: \.self) { day in
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .fill(heatColor(levels[week][day]))
+                                .frame(width: 16, height: 16)
+                        }
+                    }
+                }
+            }
+            HStack(spacing: 5) {
+                Text("Less").font(.caption2).foregroundStyle(.secondary)
+                ForEach(0..<5, id: \.self) { l in
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(heatColor(l)).frame(width: 11, height: 11)
+                }
+                Text("More").font(.caption2).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func heatColor(_ level: Int) -> Color {
+        switch level {
+        case 0:  return Color.green.opacity(0.10)
+        case 1:  return Color.green.opacity(0.30)
+        case 2:  return Color.green.opacity(0.50)
+        case 3:  return Color.green.opacity(0.72)
+        default: return Color.green.opacity(0.95)
+        }
+    }
 
     private func statRow(_ title: String, _ value: String) -> some View {
         HStack {
