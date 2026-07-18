@@ -87,7 +87,7 @@ enum TerminalAutomator {
     /// Resolve the absolute path to the `claude` CLI by asking an interactive
     /// login shell (so PATH additions from .zshrc/.zprofile are honoured —
     /// e.g. ~/.local/bin). Returns nil if it can't be found.
-    static func resolveClaudePath() -> String? {
+    nonisolated static func resolveClaudePath() -> String? {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/zsh")
         task.arguments = ["-ilc", "command -v claude"]
@@ -128,7 +128,7 @@ enum TerminalAutomator {
 
     /// Write a script and hand it to Terminal. Both entry points do the same
     /// thing, and doing it twice is how they drift apart.
-    private static func openInTerminal(_ body: String, label: String) {
+    nonisolated private static func openInTerminal(_ body: String, label: String) {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("ClaudeNotch-start-\(UUID().uuidString).command")
         do {
@@ -142,20 +142,28 @@ enum TerminalAutomator {
     }
 
     static func startClaude(in directory: String, message: String? = nil) {
-        let claude = resolveClaudePath() ?? "claude"
-        let trimmed = message?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let launch = trimmed.isEmpty
-            ? "exec \(shellQuote(claude))"
-            : "exec \(shellQuote(claude)) \(shellQuote(trimmed))"
-        openInTerminal("""
-        #!/bin/zsh
-        cd \(shellQuote(directory)) || exit 1
-        clear
-        \(launch)
-        """, label: "start in \(directory)")
+        // resolveClaudePath() spawns an interactive login shell and blocks on
+        // waitUntilExit(), which can take a second or more (it sources .zshrc).
+        // On the main thread that freezes the UI — after a drag-and-drop the
+        // dragged file image and the drop panel stayed frozen on screen until
+        // the shell finally returned. Do the blocking work off the main thread
+        // so the drop completes and the panel clears immediately.
+        DispatchQueue.global(qos: .userInitiated).async {
+            let claude = resolveClaudePath() ?? "claude"
+            let trimmed = message?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let launch = trimmed.isEmpty
+                ? "exec \(shellQuote(claude))"
+                : "exec \(shellQuote(claude)) \(shellQuote(trimmed))"
+            openInTerminal("""
+            #!/bin/zsh
+            cd \(shellQuote(directory)) || exit 1
+            clear
+            \(launch)
+            """, label: "start in \(directory)")
+        }
     }
 
-    private static func shellQuote(_ s: String) -> String {
+    nonisolated private static func shellQuote(_ s: String) -> String {
         "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 }
