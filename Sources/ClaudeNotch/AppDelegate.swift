@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -11,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let notifications = NotificationBridge()
     let onboarding = OnboardingWindowController()
     let settings = SettingsWindowController()
+    let settingsHotkey = GlobalHotkey()
     private var activityToken: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -82,6 +84,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.notch.window.makeKey()
         }
         GlobalHotkey.shared.registerDefault()
+
+        // ⌥⌘, anywhere → open settings (leaves the normal ⌘, alone).
+        settingsHotkey.onFire = { [weak self] in self?.settings.show() }
+        settingsHotkey.register(keyCode: UInt32(kVK_ANSI_Comma),
+                                modifiers: UInt32(cmdKey | optionKey))
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
