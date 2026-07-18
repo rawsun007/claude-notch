@@ -49,11 +49,13 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     case general = "General"
     case notch = "Notch"
     case pet = "Pet"
+    case session = "Session"
     case alerts = "Alerts"
     case sounds = "Sounds"
     case budget = "Budget"
     case privacy = "Privacy"
     case usage = "Usage"
+    case developer = "Developer"
     case about = "About"
 
     var id: String { rawValue }
@@ -62,14 +64,25 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: return "gearshape"
         case .notch: return "menubar.rectangle"
         case .pet: return "pawprint"
+        case .session: return "bubble.left.and.text.bubble.right"
         case .alerts: return "bell.badge"
         case .sounds: return "speaker.wave.2"
         case .budget: return "dollarsign.circle"
         case .privacy: return "lock.shield"
         case .usage: return "chart.bar"
+        case .developer: return "hammer"
         case .about: return "info.circle"
         }
     }
+
+    /// Grouped sidebar layout for easy navigation.
+    static let nav: [(title: String, items: [SettingsSection])] = [
+        ("Workspace", [.general, .notch, .pet]),
+        ("Session", [.session]),
+        ("Alerts & Cost", [.alerts, .sounds, .budget]),
+        ("Info", [.usage, .privacy, .about]),
+        ("Advanced", [.developer]),
+    ]
 }
 
 struct SettingsView: View {
@@ -79,14 +92,19 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(SettingsSection.allCases, selection: Binding(
+            List(selection: Binding(
                 get: { section },
                 set: { if let v = $0 { section = v } }
-            )) { s in
-                Label(s.rawValue, systemImage: s.symbol)
-                    .tag(s)
+            )) {
+                ForEach(SettingsSection.nav, id: \.title) { group in
+                    Section(group.title) {
+                        ForEach(group.items) { s in
+                            Label(s.rawValue, systemImage: s.symbol).tag(s)
+                        }
+                    }
+                }
             }
-            .navigationSplitViewColumnWidth(180)
+            .navigationSplitViewColumnWidth(190)
         } detail: {
             ScrollView {
                 detail
@@ -100,15 +118,17 @@ struct SettingsView: View {
     @ViewBuilder
     private var detail: some View {
         switch section {
-        case .general: general
-        case .notch:   notch
-        case .pet:     pet
-        case .alerts:  alerts
-        case .sounds:  sounds
-        case .budget:  budget
-        case .privacy: privacy
-        case .usage:   usage
-        case .about:   about
+        case .general:   general
+        case .notch:     notch
+        case .pet:       pet
+        case .session:   session
+        case .alerts:    alerts
+        case .sounds:    sounds
+        case .budget:    budget
+        case .privacy:   privacy
+        case .usage:     usage
+        case .developer: developer
+        case .about:     about
         }
     }
 
@@ -411,6 +431,84 @@ struct SettingsView: View {
         .padding(.vertical, 8).padding(.horizontal, 14)
     }
 
+    private var session: some View {
+        page("Session") {
+            sectionLabel("Current session")
+            group {
+                actionRow("Send a message to Claude…", "paperplane") {
+                    state.beginCompose()
+                    window()?.close()
+                }
+                divider
+                actionRow("Clear the active session", "xmark.circle") { state.clearSession() }
+            }
+
+            sectionLabel("Auto-approve for a while")
+            Text("Turn on auto-approve for a set time, then it switches itself back off.")
+                .font(.callout).foregroundStyle(.secondary)
+            group {
+                let windows = [15, 30, 60, 120]
+                ForEach(Array(windows.enumerated()), id: \.element) { idx, m in
+                    actionRow(windowLabel(m), "clock") { state.enableAutoApprove(forMinutes: m) }
+                    if idx < windows.count - 1 { divider }
+                }
+            }
+            if let until = state.autoApproveUntil {
+                Text("Auto-approve on until \(until.formatted(date: .omitted, time: .shortened)).")
+                    .font(.caption).foregroundStyle(.orange)
+                Button("Turn off now") { state.setAutoApprove(false) }
+            }
+
+            sectionLabel("Snooze passive cards")
+            group {
+                let windows = [15, 30, 60]
+                ForEach(Array(windows.enumerated()), id: \.element) { idx, m in
+                    actionRow("Snooze for \(windowLabel(m))", "moon.zzz") { state.snooze(forMinutes: m) }
+                    if idx < windows.count - 1 { divider }
+                }
+            }
+            if let until = state.snoozedUntil {
+                Text("Snoozed until \(until.formatted(date: .omitted, time: .shortened)).")
+                    .font(.caption).foregroundStyle(.orange)
+                Button("Cancel snooze") { state.cancelSnooze() }
+            }
+
+            if !state.recentProjects.isEmpty {
+                sectionLabel("Recent projects")
+                group {
+                    let projects = Array(state.recentProjects.prefix(8))
+                    ForEach(Array(projects.enumerated()), id: \.element) { idx, path in
+                        actionRow((path as NSString).lastPathComponent, "folder") {
+                            TerminalAutomator.startClaude(in: path, message: nil)
+                        }
+                        if idx < projects.count - 1 { divider }
+                    }
+                }
+            }
+
+            if !state.currentTouchedFiles.isEmpty {
+                sectionLabel("Files touched this session")
+                group {
+                    let files = Array(state.currentTouchedFiles.prefix(10))
+                    ForEach(Array(files.enumerated()), id: \.element) { idx, path in
+                        actionRow((path as NSString).lastPathComponent, "doc") {
+                            NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                        }
+                        if idx < files.count - 1 { divider }
+                    }
+                }
+            }
+        }
+    }
+
+    private func windowLabel(_ minutes: Int) -> String {
+        minutes < 60 ? "\(minutes) minutes" : "\(minutes / 60) hour\(minutes >= 120 ? "s" : "")"
+    }
+
+    private func window() -> NSWindow? {
+        NSApp.windows.first { $0.title == "ClaudeNotch Settings" }
+    }
+
     private var usage: some View {
         page("Usage") {
             Text("All-time counters, kept locally on this Mac.")
@@ -450,6 +548,60 @@ struct SettingsView: View {
             Text(value).foregroundStyle(.secondary).monospacedDigit()
         }
         .padding(.vertical, 8).padding(.horizontal, 14)
+    }
+
+    private var developer: some View {
+        page("Developer") {
+            Text("Fire a sample card to see what the notch looks like.")
+                .font(.callout).foregroundStyle(.secondary)
+            group {
+                actionRow("Tool permission", "terminal") { demoPermission() }
+                divider
+                actionRow("Destructive command", "exclamationmark.triangle") { demoDangerous() }
+                divider
+                actionRow("Notification", "bell") { demoNotification() }
+                divider
+                actionRow("Task complete", "checkmark.seal") { demoCompleted() }
+                divider
+                actionRow("Thinking pulse", "brain") { state.pingThinking(label: "Editing AuthMiddleware.swift") }
+                divider
+                actionRow("Cost budget alert", "dollarsign.circle") { state.demoBudgetAlert() }
+                divider
+                actionRow("Budget hard-stop", "hand.raised") { state.demoBudgetBlock() }
+            }
+            group {
+                actionRow("Play a pet animation", "pawprint") {
+                    state.demoPet(PetActivity.allCases.filter { $0 != .tucked })
+                }
+            }
+        }
+    }
+
+    private func demoPermission() {
+        state.enqueuePermission(PermissionRequest(
+            kind: .toolUse, title: "Run shell command", detail: "npm install",
+            toolName: "Bash", source: "Demo", cwd: NSHomeDirectory(),
+            dangerReasons: [], resolver: { _, _ in }), bypassRules: true)
+    }
+    private func demoDangerous() {
+        let cmd = "rm -rf /tmp/cache && sudo chmod -R 777 /Library/LaunchAgents"
+        let reasons = ToolPreviewParser.dangerReasons(for: "Bash", input: ["command": cmd])
+        state.enqueuePermission(PermissionRequest(
+            kind: .toolUse, title: "Run shell command", detail: cmd,
+            toolName: "Bash", source: "Demo", cwd: NSHomeDirectory(),
+            dangerReasons: reasons, resolver: { _, _ in }), bypassRules: true)
+    }
+    private func demoNotification() {
+        state.enqueuePermission(PermissionRequest(
+            kind: .notification, title: "Claude is waiting for your input",
+            detail: "Open IDE to continue", toolName: "Notification",
+            source: "Demo", cwd: "", resolver: { _, _ in }), bypassRules: true)
+    }
+    private func demoCompleted() {
+        state.enqueueCompleted(CompletedTask(
+            title: "Done — 14 files changed, tests green",
+            detail: "Refactored auth middleware and re-ran the suite.",
+            source: "Demo", cwd: NSHomeDirectory()))
     }
 
     private var about: some View {
