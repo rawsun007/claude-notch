@@ -690,9 +690,9 @@ struct SettingsView: View {
     private var about: some View {
         page("About") {
             HStack(spacing: 14) {
-                Image(systemName: "bell.fill")
-                    .font(.system(size: 34))
-                    .foregroundStyle(.orange)
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .frame(width: 56, height: 56)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("ClaudeNotch").font(.title2.weight(.semibold))
                     Text("Claude Code, living in your notch.")
