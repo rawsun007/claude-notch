@@ -89,6 +89,7 @@ struct SettingsView: View {
     @ObservedObject var state: AppState
     var onOpenSetup: (() -> Void)? = nil
     @State private var section: SettingsSection = .general
+    @State private var claudeUsage: ClaudeUsageReader.Usage?
 
     var body: some View {
         NavigationSplitView {
@@ -538,8 +539,37 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            sectionLabel("Claude usage (from transcripts)")
+            if let u = claudeUsage {
+                group {
+                    statRow("Today", "\(formatTokens(u.today.total)) tok · \(usd(u.today.costUSD))")
+                    divider
+                    statRow("Last 5 hours", "\(formatTokens(u.fiveHour.total)) tok · \(usd(u.fiveHour.costUSD))")
+                    divider
+                    statRow("This week", "\(formatTokens(u.week.total)) tok · \(usd(u.week.costUSD))")
+                    divider
+                    statRow("Sessions this week", "\(u.sessionsWeek)")
+                    divider
+                    statRow("Cache hit rate", "\(Int(u.cacheHitRate * 100))%")
+                }
+            } else {
+                Text("Reading transcripts…").font(.callout).foregroundStyle(.secondary)
+            }
+        }
+        .task(id: section) {
+            guard section == .usage else { return }
+            let usage = await Task.detached(priority: .utility) { ClaudeUsageReader.compute() }.value
+            claudeUsage = usage
         }
     }
+
+    private func formatTokens(_ n: Int) -> String {
+        if n >= 1_000_000 { return String(format: "%.1fM", Double(n) / 1_000_000) }
+        if n >= 1_000 { return String(format: "%.1fK", Double(n) / 1_000) }
+        return "\(n)"
+    }
+    private func usd(_ v: Double) -> String { String(format: "$%.2f", v) }
 
     private func statRow(_ title: String, _ value: String) -> some View {
         HStack {
