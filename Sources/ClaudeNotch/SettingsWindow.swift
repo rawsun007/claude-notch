@@ -11,6 +11,8 @@ import IOKit.hid
 final class SettingsWindowController {
     private var window: NSWindow?
     weak var appState: AppState?
+    /// Invoked by the About page's "Run setup again" button.
+    var onOpenSetup: (() -> Void)?
 
     func show() {
         guard let appState else { return }
@@ -20,7 +22,7 @@ final class SettingsWindowController {
             return
         }
 
-        let host = NSHostingController(rootView: SettingsView(state: appState))
+        let host = NSHostingController(rootView: SettingsView(state: appState, onOpenSetup: onOpenSetup))
         let w = NSWindow(contentViewController: host)
         w.title = "ClaudeNotch Settings"
         w.styleMask = [.titled, .closable, .resizable, .fullSizeContentView]
@@ -72,6 +74,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
 
 struct SettingsView: View {
     @ObservedObject var state: AppState
+    var onOpenSetup: (() -> Void)? = nil
     @State private var section: SettingsSection = .general
 
     var body: some View {
@@ -469,6 +472,13 @@ struct SettingsView: View {
                 aboutLink("Changelog", "https://rawsun007.github.io/claude-notch/changelog/")
                 divider
                 aboutLink("Source on GitHub", "https://github.com/rawsun007/claude-notch")
+            }
+            group {
+                actionRow("Check for updates…", "arrow.down.circle") { UpdateChecker.shared.check(userInitiated: true) }
+                if onOpenSetup != nil {
+                    divider
+                    actionRow("Run setup again…", "wand.and.stars") { onOpenSetup?() }
+                }
             }
         }
     }

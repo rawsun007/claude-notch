@@ -27,6 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         onboarding.appState = state
         settings.appState = state
+        settings.onOpenSetup = { [weak self] in self?.onboarding.show() }
 
         notch = NotchWindowController(state: state)
         notch.show()
