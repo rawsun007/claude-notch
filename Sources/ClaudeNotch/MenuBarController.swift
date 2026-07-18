@@ -107,7 +107,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         touchedFilesItem = NSMenuItem(title: "Files Touched", action: nil, keyEquivalent: "")
         touchedFilesItem.submenu = touchedFilesMenu
         touchedFilesItem.isHidden = true
-        menu.addItem(touchedFilesItem)
+        // Migrated to Settings > Session; created (refresh code still runs on it)
+        // but no longer shown in the slimmed menu.
 
         // Send message to current Claude session
         let sendMsg = NSMenuItem(title: "Send Message to Claude…", action: #selector(sendMessagePrompt), keyEquivalent: "m")
@@ -115,6 +116,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(sendMsg)
 
         menu.addItem(.separator())
+
+        // EVERYTHING below is created but NOT added to the menu. All of these
+        // settings, toggles, and submenus now live in the Settings window
+        // (⌥⌘,). The objects stay alive so the existing menu-refresh code and
+        // the @objc toggle handlers keep compiling and running untouched; they
+        // simply aren't shown. The menu is now: session status, quick task
+        // actions, Settings, Quit.
 
         // Demos — grouped into a single submenu instead of cluttering the
         // top level.
@@ -162,20 +170,18 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         let demosItem = NSMenuItem(title: "Demos", action: nil, keyEquivalent: "")
         demosItem.submenu = demosMenu
-        menu.addItem(demosItem)
+        _ = demosItem
 
         // Insights — local usage stats (rebuilt each time the menu opens).
         insightsMenu = NSMenu()
         insightsItem = NSMenuItem(title: "Insights", action: nil, keyEquivalent: "")
         insightsItem.submenu = insightsMenu
-        menu.addItem(insightsItem)
 
         // Claude Usage — token usage + estimated cost from Claude Code's own
         // transcripts. Rebuilt on open; the parse runs off the main thread.
         claudeUsageMenu = NSMenu()
         claudeUsageItem = NSMenuItem(title: "Claude Usage", action: nil, keyEquivalent: "")
         claudeUsageItem.submenu = claudeUsageMenu
-        menu.addItem(claudeUsageItem)
 
         // Permissions & setup — grouped into a submenu.
         let permsMenu = NSMenu()
@@ -239,99 +245,72 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         let permsItem = NSMenuItem(title: "Permissions", action: nil, keyEquivalent: "")
         permsItem.submenu = permsMenu
-        menu.addItem(permsItem)
-
-        menu.addItem(.separator())
+        _ = permsItem
 
         persistentNotchItem = NSMenuItem(title: "Persistent Notch Display", action: #selector(togglePersistentNotchDisplay), keyEquivalent: "")
         persistentNotchItem.target = self
-        menu.addItem(persistentNotchItem)
 
         petModeItem = NSMenuItem(title: "Pet Mode", action: #selector(togglePetMode), keyEquivalent: "")
         petModeItem.target = self
-        petModeItem.toolTip = "Let the Claude mascot live in the notch: it peeks, strolls, hangs off the edge, naps, and celebrates finished tasks. Click it to boop it."
-        menu.addItem(petModeItem)
 
         breakRemindersItem = NSMenuItem(title: "Break Reminders",
                                        action: #selector(toggleBreakReminders), keyEquivalent: "")
         breakRemindersItem.target = self
-        breakRemindersItem.toolTip = "Nudge you once after a long unbroken stretch of work. Measured from Claude Code's own activity, so there is no timer to start."
-        menu.addItem(breakRemindersItem)
 
         longRunItem = NSMenuItem(title: "Alert on Long Tool Runs",
                                  action: #selector(toggleLongRun), keyEquivalent: "")
         longRunItem.target = self
-        longRunItem.toolTip = "Notify once when a single tool call runs past five minutes, so a stuck agent does not sit unnoticed. Fires again only for a new long run."
-        menu.addItem(longRunItem)
 
         rateLimitItem = NSMenuItem(title: "Warn Near Rate Limits",
                                    action: #selector(toggleRateLimit), keyEquivalent: "")
         rateLimitItem.target = self
-        rateLimitItem.toolTip = "Warn as a plan limit fills (at 80% and 95%), so a lockout mid-task is not a surprise. Re-arms each new window."
-        menu.addItem(rateLimitItem)
 
         menuSpendItem = NSMenuItem(title: "Show Today's Spend in Menu Bar",
                                    action: #selector(toggleMenuSpend), keyEquivalent: "")
         menuSpendItem.target = self
-        menuSpendItem.toolTip = "Append today's estimated cost next to the menu bar icon, live."
         menuSpendItem.state = state.showSpendInMenuBar ? .on : .off
-        menu.addItem(menuSpendItem)
 
         // Auto-Approve submenu: permanent toggle + timed windows.
         autoApproveMenu = NSMenu()
         autoApproveItem = NSMenuItem(title: "Auto-Approve", action: nil, keyEquivalent: "")
         autoApproveItem.submenu = autoApproveMenu
-        menu.addItem(autoApproveItem)
 
         // Snooze submenu: pause non-blocking cards for a window.
         snoozeMenu = NSMenu()
         snoozeItem = NSMenuItem(title: "Snooze", action: nil, keyEquivalent: "")
         snoozeItem.submenu = snoozeMenu
-        menu.addItem(snoozeItem)
 
-        // Sound submenu: mute + per-tool toggle + alert sound picker, all as
-        // keep-open rows so you can audition multiple sounds in one go.
+        // Sound submenu: mute + per-tool toggle + alert sound picker.
         soundMenu = NSMenu()
         soundItem = NSMenuItem(title: "Sound", action: nil, keyEquivalent: "")
         soundItem.submenu = soundMenu
-        menu.addItem(soundItem)
 
         // Cost Budget submenu: per-session + daily $ caps with a heads-up alert.
         costBudgetMenu = NSMenu()
         costBudgetItem = NSMenuItem(title: "Cost Budget", action: nil, keyEquivalent: "")
         costBudgetItem.submenu = costBudgetMenu
-        menu.addItem(costBudgetItem)
 
         // Status Bar submenu: what the bottom bar shows + context-window override.
         statusBarMenu = NSMenu()
         statusBarItem = NSMenuItem(title: "Status Bar", action: nil, keyEquivalent: "")
         statusBarItem.submenu = statusBarMenu
-        menu.addItem(statusBarItem)
 
         // Notch Title submenu: what the first segment of the title shows.
         notchTitleMenu = NSMenu()
         notchTitleItem = NSMenuItem(title: "Notch Title", action: nil, keyEquivalent: "")
         notchTitleItem.submenu = notchTitleMenu
-        menu.addItem(notchTitleItem)
-
-        menu.addItem(.separator())
 
         loginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
         loginItem.target = self
-        menu.addItem(loginItem)
 
+        checkUpdateItem = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdatesNow), keyEquivalent: "")
+        checkUpdateItem.target = self
+
+        // The one config entry the menu keeps: open the full settings window.
         let settingsItem = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.keyEquivalentModifierMask = [.command, .option]
         settingsItem.target = self
         menu.addItem(settingsItem)
-
-        let setupItem = NSMenuItem(title: "Setup…", action: #selector(showOnboarding), keyEquivalent: "")
-        setupItem.target = self
-        menu.addItem(setupItem)
-
-        checkUpdateItem = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdatesNow), keyEquivalent: "")
-        checkUpdateItem.target = self
-        menu.addItem(checkUpdateItem)
 
         menu.addItem(.separator())
 
@@ -400,22 +379,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         Task { @MainActor [weak self] in
             guard let self else { return }
             self.isMenuOpen = true
-            self.refreshPermissions()
+            // The menu now shows only the session status and the recent-projects
+            // launcher; everything else moved to Settings. Refresh just those two
+            // (and skip the expensive insights / Claude-usage parses that fed the
+            // now-hidden submenus).
             self.refreshStatusLine()
             self.refreshRecentProjects()
-            self.refreshTouchedFiles()
-            self.refreshPrefs()
-            self.refreshInsights()
-            self.refreshClaudeUsage()
-            // The notch-title submenu resolves its label from live state (the
-            // project name comes from whichever session is running), so it has to
-            // be rebuilt when the menu opens. It used to be rebuilt only when you
-            // clicked one of its rows, which was invisible for "Claude" and
-            // "Custom" — those do not depend on session state, so a stale label
-            // was still the right one. "Project name" does depend on it, and at
-            // launch there is no project yet, so it showed the "Claude" fallback
-            // and then never corrected itself.
-            self.refreshNotchTitleMenu()
         }
     }
 
