@@ -51,6 +51,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
     case sounds = "Sounds"
     case budget = "Budget"
     case privacy = "Privacy"
+    case usage = "Usage"
     case about = "About"
 
     var id: String { rawValue }
@@ -63,6 +64,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .sounds: return "speaker.wave.2"
         case .budget: return "dollarsign.circle"
         case .privacy: return "lock.shield"
+        case .usage: return "chart.bar"
         case .about: return "info.circle"
         }
     }
@@ -102,6 +104,7 @@ struct SettingsView: View {
         case .sounds:  sounds
         case .budget:  budget
         case .privacy: privacy
+        case .usage:   usage
         case .about:   about
         }
     }
@@ -401,6 +404,47 @@ struct SettingsView: View {
             if !granted {
                 Button("Grant…", action: action)
             }
+        }
+        .padding(.vertical, 8).padding(.horizontal, 14)
+    }
+
+    private var usage: some View {
+        page("Usage") {
+            Text("All-time counters, kept locally on this Mac.")
+                .font(.callout).foregroundStyle(.secondary)
+            group {
+                statRow("Permissions allowed", "\(state.stats.allowed)")
+                divider
+                statRow("Permissions denied", "\(state.stats.denied)")
+                divider
+                statRow("Auto-approved", "\(state.stats.autoApproved)")
+                divider
+                statRow("Dangerous commands flagged", "\(state.stats.dangerousFlagged)")
+                divider
+                statRow("Questions answered", "\(state.stats.questionsAnswered)")
+                divider
+                statRow("Active days", "\(state.stats.activeDays.count)")
+                divider
+                statRow("Sessions recorded", "\(state.sessionHistory.count)")
+            }
+            if !state.stats.toolCounts.isEmpty {
+                sectionLabel("Top tools")
+                group {
+                    let top = state.stats.toolCounts.sorted { $0.value > $1.value }.prefix(6)
+                    ForEach(Array(top.enumerated()), id: \.element.key) { idx, kv in
+                        statRow(kv.key, "\(kv.value)")
+                        if idx < top.count - 1 { divider }
+                    }
+                }
+            }
+        }
+    }
+
+    private func statRow(_ title: String, _ value: String) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Text(value).foregroundStyle(.secondary).monospacedDigit()
         }
         .padding(.vertical, 8).padding(.horizontal, 14)
     }
