@@ -154,6 +154,10 @@ struct SettingsView: View {
     @State private var heatTip: String?
     @State private var search = ""
     @State private var healthTick = 0
+    // Past Claude Code sessions grouped by project (read off disk), and which
+    // project rows the user has expanded to reveal their resumable sessions.
+    @State private var projectSessions: [(cwd: String, project: String, sessions: [ResumableSession])] = []
+    @State private var expandedProjects: Set<String> = []
 
     private var searchResults: [SettingsSearchItem] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
@@ -654,14 +658,23 @@ struct SettingsView: View {
                 Button("Cancel snooze") { state.cancelSnooze() }
             }
 
-            if !state.recentProjects.isEmpty {
-                sectionLabel("Recent projects")
+            sectionLabel("Projects & recent sessions")
+            Text("Closed a terminal by accident? Expand a project and resume right where you left off.")
+                .font(.callout).foregroundStyle(.secondary)
+            if projectSessions.isEmpty {
                 group {
-                    let projects = Array(state.recentProjects.prefix(8))
-                    ForEach(Array(projects.enumerated()), id: \.element) { idx, path in
-                        actionRow((path as NSString).lastPathComponent, "folder") {
-                            TerminalAutomator.startClaude(in: path, message: nil)
-                        }
+                    HStack {
+                        Text("No past sessions found yet.")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                    .padding(.vertical, 10).padding(.horizontal, 14)
+                }
+            } else {
+                group {
+                    let projects = Array(projectSessions.prefix(10))
+                    ForEach(Array(projects.enumerated()), id: \.element.cwd) { idx, proj in
+                        projectRow(proj)
                         if idx < projects.count - 1 { divider }
                     }
                 }
@@ -685,6 +698,68 @@ struct SettingsView: View {
                 .padding(.top, 2)
             }
         }
+        .task(id: section) {
+            guard section == .session else { return }
+            let loaded = await Task.detached(priority: .utility) {
+                SessionResumer.sessionsByProject()
+            }.value
+            projectSessions = loaded
+        }
+    }
+
+    /// One project row in the Session page: a folder header that toggles open to
+    /// reveal that project's resumable sessions, each with a Resume button.
+    @ViewBuilder
+    private func projectRow(_ proj: (cwd: String, project: String, sessions: [ResumableSession])) -> some View {
+        let isOpen = expandedProjects.contains(proj.cwd)
+        Button {
+            if isOpen { expandedProjects.remove(proj.cwd) }
+            else { expandedProjects.insert(proj.cwd) }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "folder").frame(width: 18)
+                Text(proj.project)
+                Text("\(proj.sessions.count)")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .padding(.horizontal, 6).padding(.vertical, 1)
+                    .background(Capsule().fill(Color.primary.opacity(0.08)))
+                Spacer()
+                Image(systemName: isOpen ? "chevron.down" : "chevron.right")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 10).padding(.horizontal, 14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+
+        if isOpen {
+            let shown = Array(proj.sessions.prefix(8))
+            ForEach(Array(shown.enumerated()), id: \.element.id) { _, s in
+                sessionRow(s)
+            }
+        }
+    }
+
+    /// A single resumable session under a project: title + when + Resume.
+    private func sessionRow(_ s: ResumableSession) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "clock.arrow.circlepath")
+                .font(.caption).foregroundStyle(.secondary).frame(width: 18)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(s.title).lineLimit(1)
+                Text(s.relativeLastActive)
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Button("Resume") {
+                TerminalAutomator.resumeClaude(sessionId: s.id, in: s.cwd)
+                window()?.close()
+            }
+            .controlSize(.small)
+        }
+        .padding(.vertical, 8)
+        .padding(.leading, 40).padding(.trailing, 14)
+        .background(Color.primary.opacity(0.03))
     }
 
     private func windowLabel(_ minutes: Int) -> String {
