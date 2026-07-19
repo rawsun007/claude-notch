@@ -158,6 +158,7 @@ struct SettingsView: View {
     // project rows the user has expanded to reveal their resumable sessions.
     @State private var projectSessions: [(cwd: String, project: String, sessions: [ResumableSession])] = []
     @State private var expandedProjects: Set<String> = []
+    @State private var sessionSearch = ""
 
     private var searchResults: [SettingsSearchItem] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
@@ -671,11 +672,44 @@ struct SettingsView: View {
                     .padding(.vertical, 10).padding(.horizontal, 14)
                 }
             } else {
-                group {
-                    let projects = Array(projectSessions.prefix(10))
-                    ForEach(Array(projects.enumerated()), id: \.element.cwd) { idx, proj in
-                        projectRow(proj)
-                        if idx < projects.count - 1 { divider }
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary).font(.callout)
+                    TextField("Filter by project or prompt…", text: $sessionSearch)
+                        .textFieldStyle(.plain)
+                    if !sessionSearch.isEmpty {
+                        Button { sessionSearch = "" } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 7).padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color(nsColor: .controlBackgroundColor))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                )
+
+                let matches = filteredProjectSessions
+                if matches.isEmpty {
+                    group {
+                        HStack {
+                            Text("No sessions match “\(sessionSearch)”.")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                        }
+                        .padding(.vertical, 10).padding(.horizontal, 14)
+                    }
+                } else {
+                    group {
+                        ForEach(Array(matches.enumerated()), id: \.element.cwd) { idx, proj in
+                            projectRow(proj, forceOpen: !sessionSearch.isEmpty)
+                            if idx < matches.count - 1 { divider }
+                        }
                     }
                 }
             }
@@ -707,11 +741,31 @@ struct SettingsView: View {
         }
     }
 
+    /// Projects filtered by the search box. Empty search returns the first 10
+    /// projects untouched; otherwise every project whose name matches, plus
+    /// projects with a matching session (narrowed to just the matches).
+    private var filteredProjectSessions: [(cwd: String, project: String, sessions: [ResumableSession])] {
+        let q = sessionSearch.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return Array(projectSessions.prefix(10)) }
+        var out: [(cwd: String, project: String, sessions: [ResumableSession])] = []
+        for proj in projectSessions {
+            if proj.project.lowercased().contains(q) {
+                out.append(proj)
+            } else {
+                let hits = proj.sessions.filter { $0.title.lowercased().contains(q) }
+                if !hits.isEmpty { out.append((proj.cwd, proj.project, hits)) }
+            }
+        }
+        return out
+    }
+
     /// One project row in the Session page: a folder header that toggles open to
     /// reveal that project's resumable sessions, each with a Resume button.
+    /// `forceOpen` keeps a row expanded during an active search regardless of
+    /// the manual toggle state.
     @ViewBuilder
-    private func projectRow(_ proj: (cwd: String, project: String, sessions: [ResumableSession])) -> some View {
-        let isOpen = expandedProjects.contains(proj.cwd)
+    private func projectRow(_ proj: (cwd: String, project: String, sessions: [ResumableSession]), forceOpen: Bool = false) -> some View {
+        let isOpen = forceOpen || expandedProjects.contains(proj.cwd)
         Button {
             if isOpen { expandedProjects.remove(proj.cwd) }
             else { expandedProjects.insert(proj.cwd) }
