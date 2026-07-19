@@ -163,6 +163,22 @@ enum TerminalAutomator {
         }
     }
 
+    /// Reopen a past Claude Code session in a fresh terminal
+    /// (`claude --resume <session-id>`), run from its original working
+    /// directory — `--resume` is scoped to the project dir, so the cd matters.
+    /// This is the recovery path after a terminal was closed by accident.
+    static func resumeClaude(sessionId: String, in directory: String) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let claude = resolveClaudePath() ?? "claude"
+            openInTerminal("""
+            #!/bin/zsh
+            cd \(shellQuote(directory)) || exit 1
+            clear
+            exec \(shellQuote(claude)) --resume \(shellQuote(sessionId))
+            """, label: "resume \(sessionId)")
+        }
+    }
+
     nonisolated private static func shellQuote(_ s: String) -> String {
         "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }

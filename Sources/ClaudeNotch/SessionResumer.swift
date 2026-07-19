@@ -1,0 +1,154 @@
+import Foundation
+
+/// One past Claude Code session found on disk, resumable via `claude --resume`.
+///
+/// Claude Code writes every session to
+/// `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl`. The filename is the
+/// `session_id` you pass to `--resume`; the real working directory and a title
+/// live inside the file (the directory name is a lossy dash-encoding of the
+/// path, so we never trust it for the cwd).
+struct ResumableSession: Identifiable, Equatable {
+    let id: String            // session_id == filename stem, passed to --resume
+    let cwd: String           // real working directory, read from the transcript
+    let project: String       // basename of cwd
+    let title: String         // first user prompt, trimmed to one line
+    let lastActive: Date      // file modification time
+    let model: String         // most recent model id seen in the head
+
+    var relativeLastActive: String {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .abbreviated
+        return f.localizedString(for: lastActive, relativeTo: Date())
+    }
+}
+
+/// Reads the on-disk Claude Code session transcripts so the app can offer to
+/// resume one after a terminal was closed. All work is `nonisolated` and meant
+/// to run off the main thread — the project directory can hold hundreds of
+/// multi-megabyte files, so each is parsed from a bounded head chunk only.
+enum SessionResumer {
+
+    private static var projectsDir: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".claude/projects", isDirectory: true)
+    }
+
+    /// Every resumable session on disk, newest first. Sessions whose transcript
+    /// carries no real cwd (scratch/stub files) are skipped — they can't be
+    /// meaningfully resumed in a project directory.
+    nonisolated static func allSessions(limit: Int = 400) -> [ResumableSession] {
+        let fm = FileManager.default
+        guard let projectDirs = try? fm.contentsOfDirectory(
+            at: projectsDir, includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]) else { return [] }
+
+        var files: [(url: URL, mtime: Date)] = []
+        for dir in projectDirs {
+            guard (try? dir.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true,
+                  let entries = try? fm.contentsOfDirectory(
+                    at: dir, includingPropertiesForKeys: [.contentModificationDateKey],
+                    options: [.skipsHiddenFiles]) else { continue }
+            for f in entries where f.pathExtension == "jsonl" {
+                let m = (try? f.resourceValues(forKeys: [.contentModificationDateKey]))?
+                    .contentModificationDate ?? .distantPast
+                files.append((f, m))
+            }
+        }
+
+        // Newest first, and cap the number we actually parse.
+        files.sort { $0.mtime > $1.mtime }
+        var out: [ResumableSession] = []
+        for (url, mtime) in files.prefix(limit) {
+            if let s = parse(url: url, mtime: mtime) { out.append(s) }
+        }
+        return out
+    }
+
+    /// Sessions grouped by cwd, each group newest-first, groups ordered by their
+    /// most-recent session. Drives the "expand a project to its sessions" UI.
+    nonisolated static func sessionsByProject(limit: Int = 400) -> [(cwd: String, project: String, sessions: [ResumableSession])] {
+        let all = allSessions(limit: limit)
+        var order: [String] = []
+        var byCwd: [String: [ResumableSession]] = [:]
+        for s in all {
+            if byCwd[s.cwd] == nil { order.append(s.cwd) }
+            byCwd[s.cwd, default: []].append(s)
+        }
+        return order.map { cwd in
+            (cwd, (cwd as NSString).lastPathComponent, byCwd[cwd] ?? [])
+        }
+    }
+
+    /// The single most recent resumable session overall, if any. Powers a
+    /// one-click "resume where I left off" after an accidental terminal close.
+    nonisolated static func mostRecent() -> ResumableSession? {
+        allSessions(limit: 40).first
+    }
+
+    // MARK: - Parsing
+
+    /// Pull cwd, first user prompt and model from the head of a transcript.
+    /// Only the first ~256 KB is read — enough to reach the first real message
+    /// without loading a huge file.
+    private nonisolated static func parse(url: URL, mtime: Date) -> ResumableSession? {
+        guard let head = readHead(url, bytes: 256 * 1024) else { return nil }
+
+        var cwd: String?
+        var title: String?
+        var model: String?
+
+        for line in head.split(separator: "\n") {
+            guard let data = line.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            else { continue }
+
+            if cwd == nil, let c = obj["cwd"] as? String, !c.isEmpty { cwd = c }
+
+            if let msg = obj["message"] as? [String: Any] {
+                if let m = msg["model"] as? String, !m.isEmpty, m != "<synthetic>" { model = m }
+                if title == nil, (msg["role"] as? String) == "user" {
+                    title = firstText(from: msg["content"])
+                }
+            }
+            // Stop early once we have everything worth showing.
+            if cwd != nil, title != nil, model != nil { break }
+        }
+
+        guard let realCwd = cwd else { return nil }   // stub/scratch session
+        let id = url.deletingPathExtension().lastPathComponent
+        let cleaned = (title ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\n", with: " ")
+        return ResumableSession(
+            id: id,
+            cwd: realCwd,
+            project: (realCwd as NSString).lastPathComponent,
+            title: cleaned.isEmpty ? "(no prompt yet)" : String(cleaned.prefix(120)),
+            lastActive: mtime,
+            model: model ?? "")
+    }
+
+    /// Extract the first text fragment from a message `content`, which is either
+    /// a plain string or an array of typed parts.
+    private nonisolated static func firstText(from content: Any?) -> String? {
+        if let s = content as? String { return s }
+        if let parts = content as? [[String: Any]] {
+            for p in parts where (p["type"] as? String) == "text" {
+                if let t = p["text"] as? String { return t }
+            }
+        }
+        return nil
+    }
+
+    /// Read at most `bytes` from the start of a file as UTF-8. Truncated at the
+    /// last newline so no partial JSON line is handed to the parser.
+    private nonisolated static func readHead(_ url: URL, bytes: Int) -> String? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        let data = (try? handle.read(upToCount: bytes)) ?? Data()
+        guard var s = String(data: data, encoding: .utf8) else { return nil }
+        if data.count == bytes, let nl = s.lastIndex(of: "\n") {
+            s = String(s[..<nl])
+        }
+        return s
+    }
+}
