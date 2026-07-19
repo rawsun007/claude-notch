@@ -635,9 +635,11 @@ struct SettingsView: View {
             }
 
             sectionLabel("Auto-approve for a while")
-            Text("Turn on auto-approve for a set time, then it switches itself back off.")
+            Text("Turn on auto-approve for a set time, then it switches itself back off — or keep it on until you turn it off.")
                 .font(.callout).foregroundStyle(.secondary)
             group {
+                actionRow("Keep on until I turn it off", "infinity") { state.setAutoApprove(true) }
+                divider
                 let windows = [15, 30, 60, 120]
                 ForEach(Array(windows.enumerated()), id: \.element) { idx, m in
                     actionRow(windowLabel(m), "clock") { state.enableAutoApprove(forMinutes: m) }
@@ -646,6 +648,10 @@ struct SettingsView: View {
             }
             if let until = state.autoApproveUntil {
                 Text("Auto-approve on until \(until.formatted(date: .omitted, time: .shortened)).")
+                    .font(.caption).foregroundStyle(.orange)
+                Button("Turn off now") { state.setAutoApprove(false) }
+            } else if state.autoApprove {
+                Text("Auto-approve is on until you turn it off.")
                     .font(.caption).foregroundStyle(.orange)
                 Button("Turn off now") { state.setAutoApprove(false) }
             }
