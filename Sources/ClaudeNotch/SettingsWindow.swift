@@ -159,6 +159,7 @@ struct SettingsView: View {
     @State private var projectSessions: [(cwd: String, project: String, sessions: [ResumableSession])] = []
     @State private var expandedProjects: Set<String> = []
     @State private var sessionSearch = ""
+    @State private var copiedSessionId: String?
 
     private var searchResults: [SettingsSearchItem] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
@@ -805,6 +806,18 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                let cmd = "claude --resume \(s.id)"
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(cmd, forType: .string)
+                copiedSessionId = s.id
+            } label: {
+                Image(systemName: copiedSessionId == s.id ? "checkmark" : "doc.on.doc")
+                    .font(.caption)
+                    .foregroundStyle(copiedSessionId == s.id ? Color.green : .secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Copy: claude --resume \(s.id)")
             Button("Resume") {
                 TerminalAutomator.resumeClaude(sessionId: s.id, in: s.cwd)
                 window()?.close()
