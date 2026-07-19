@@ -2885,7 +2885,7 @@ private struct HistoryCard: View {
                 ScrollView {
                     VStack(spacing: 4) {
                         ForEach(filteredSessions) { record in
-                            SessionHistoryRow(record: record, onResume: { resume(in: record.cwd) })
+                            SessionHistoryRow(record: record, onResume: { resume(record: record) })
                         }
                     }
                 }
@@ -2938,6 +2938,20 @@ private struct HistoryCard: View {
         guard !cwd.isEmpty else { return }
         state.closeHistory()
         TerminalAutomator.startClaude(in: cwd)
+    }
+
+    /// Resume the exact session behind a history row: when its key is a real
+    /// session id (a UUID, not a cwd), reopen it with `claude --resume`; else
+    /// fall back to starting fresh in the directory.
+    private func resume(record: SessionRecord) {
+        guard !record.cwd.isEmpty else { return }
+        state.closeHistory()
+        let key = record.sessionKey
+        if !key.isEmpty, !key.contains("/") {
+            TerminalAutomator.resumeClaude(sessionId: key, in: record.cwd)
+        } else {
+            TerminalAutomator.startClaude(in: record.cwd)
+        }
     }
 
     private var footer: some View {

@@ -14,6 +14,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var accessibilityItem: NSMenuItem!
     private var inputMonitoringItem: NSMenuItem!
     private var recentProjectsItem: NSMenuItem!
+    private var resumeLastItem: NSMenuItem!
+    // Cached most-recent session so the menu handler doesn't have to re-scan
+    // disk on click; refreshed off-main in menuWillOpen.
+    private var lastResumable: ResumableSession?
     private var recentProjectsMenu: NSMenu!
     private var statusItem: NSMenuItem!
     private var persistentNotchItem: NSMenuItem!
@@ -95,6 +99,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let startHere = NSMenuItem(title: "Start Claude in Folder…", action: #selector(startClaudePicker), keyEquivalent: "o")
         startHere.target = self
         menu.addItem(startHere)
+
+        // Resume the most recent Claude Code session on disk — one click back
+        // into where you were after a terminal was closed by accident. Title +
+        // enabled state are refreshed in menuWillOpen from what's on disk.
+        resumeLastItem = NSMenuItem(title: "Resume Last Session", action: #selector(resumeLast), keyEquivalent: "")
+        resumeLastItem.target = self
+        menu.addItem(resumeLastItem)
 
         // Recent projects submenu (populated dynamically)
         recentProjectsMenu = NSMenu()
@@ -380,7 +391,33 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             // now-hidden submenus).
             self.refreshStatusLine()
             self.refreshRecentProjects()
+            self.refreshResumeLast()
         }
+    }
+
+    /// Load the newest resumable session off-main and reflect it in the menu:
+    /// the item names the project and is disabled when there is nothing to
+    /// resume.
+    private func refreshResumeLast() {
+        Task.detached(priority: .utility) {
+            let recent = SessionResumer.mostRecent()
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                self.lastResumable = recent
+                if let recent {
+                    self.resumeLastItem.title = "Resume Last Session — \(recent.project)"
+                    self.resumeLastItem.isEnabled = true
+                } else {
+                    self.resumeLastItem.title = "Resume Last Session"
+                    self.resumeLastItem.isEnabled = false
+                }
+            }
+        }
+    }
+
+    @objc private func resumeLast() {
+        guard let s = lastResumable else { return }
+        TerminalAutomator.resumeClaude(sessionId: s.id, in: s.cwd)
     }
 
     nonisolated func menuDidClose(_ menu: NSMenu) {
