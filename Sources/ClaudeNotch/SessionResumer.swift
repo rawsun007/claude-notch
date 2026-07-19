@@ -86,6 +86,13 @@ enum SessionResumer {
         allSessions(limit: 40).first
     }
 
+    /// Move a session transcript to the Trash (recoverable — never a hard
+    /// delete). Returns true on success.
+    @discardableResult
+    nonisolated static func trash(_ url: URL) -> Bool {
+        (try? FileManager.default.trashItem(at: url, resultingItemURL: nil)) != nil
+    }
+
     // MARK: - Parsing
 
     /// Pull cwd, first user prompt and model from the head of a transcript.

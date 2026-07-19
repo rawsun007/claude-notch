@@ -162,6 +162,8 @@ struct SettingsView: View {
     @State private var copiedSessionId: String?
     // Lazily-loaded last-assistant-reply previews, keyed by session id.
     @State private var sessionPreviews: [String: String] = [:]
+    // Session the user tapped delete on, awaiting confirmation.
+    @State private var pendingDelete: ResumableSession?
 
     private var searchResults: [SettingsSearchItem] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
@@ -742,6 +744,28 @@ struct SettingsView: View {
             }.value
             projectSessions = loaded
         }
+        .confirmationDialog(
+            "Move this session to the Trash?",
+            isPresented: Binding(get: { pendingDelete != nil },
+                                 set: { if !$0 { pendingDelete = nil } }),
+            presenting: pendingDelete
+        ) { s in
+            Button("Move to Trash", role: .destructive) { deleteSession(s) }
+            Button("Cancel", role: .cancel) { pendingDelete = nil }
+        } message: { s in
+            Text("“\(s.title)” goes to the Trash. You can restore it from there; Claude Code won't be able to resume it while it's trashed.")
+        }
+    }
+
+    /// Trash a session transcript and drop it from the in-memory list.
+    private func deleteSession(_ s: ResumableSession) {
+        SessionResumer.trash(s.fileURL)
+        for i in projectSessions.indices {
+            projectSessions[i].sessions.removeAll { $0.id == s.id }
+        }
+        projectSessions.removeAll { $0.sessions.isEmpty }
+        sessionPreviews[s.id] = nil
+        pendingDelete = nil
     }
 
     /// Projects filtered by the search box. Empty search returns the first 10
@@ -857,6 +881,13 @@ struct SettingsView: View {
                 window()?.close()
             }
             .controlSize(.small)
+            Button {
+                pendingDelete = s
+            } label: {
+                Image(systemName: "trash").font(.caption).foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Move this session's transcript to the Trash")
         }
         .padding(.vertical, 8)
         .padding(.leading, 24).padding(.trailing, 14)
