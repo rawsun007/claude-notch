@@ -758,7 +758,7 @@ struct SettingsView: View {
             .controlSize(.small)
         }
         .padding(.vertical, 8)
-        .padding(.leading, 40).padding(.trailing, 14)
+        .padding(.leading, 24).padding(.trailing, 14)
         .background(Color.primary.opacity(0.03))
     }
 
