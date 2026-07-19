@@ -803,7 +803,18 @@ struct SettingsView: View {
             Image(systemName: "clock.arrow.circlepath")
                 .font(.caption).foregroundStyle(.secondary).frame(width: 18)
             VStack(alignment: .leading, spacing: 2) {
-                Text(s.title).lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(s.title).lineLimit(1)
+                    if state.sessions[s.id] != nil {
+                        HStack(spacing: 3) {
+                            Circle().fill(Color.green).frame(width: 6, height: 6)
+                            Text("running").font(.caption2)
+                        }
+                        .foregroundStyle(.green)
+                        .padding(.horizontal, 6).padding(.vertical, 1)
+                        .background(Capsule().fill(Color.green.opacity(0.12)))
+                    }
+                }
                 if let preview = sessionPreviews[s.id], !preview.isEmpty {
                     Text(preview)
                         .font(.caption).foregroundStyle(.secondary).lineLimit(2)
