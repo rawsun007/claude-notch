@@ -160,6 +160,8 @@ struct SettingsView: View {
     @State private var expandedProjects: Set<String> = []
     @State private var sessionSearch = ""
     @State private var copiedSessionId: String?
+    // Lazily-loaded last-assistant-reply previews, keyed by session id.
+    @State private var sessionPreviews: [String: String] = [:]
 
     private var searchResults: [SettingsSearchItem] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
@@ -802,8 +804,12 @@ struct SettingsView: View {
                 .font(.caption).foregroundStyle(.secondary).frame(width: 18)
             VStack(alignment: .leading, spacing: 2) {
                 Text(s.title).lineLimit(1)
+                if let preview = sessionPreviews[s.id], !preview.isEmpty {
+                    Text(preview)
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                }
                 Text(s.relativeLastActive)
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption2).foregroundStyle(.tertiary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Button {
@@ -827,6 +833,14 @@ struct SettingsView: View {
         .padding(.vertical, 8)
         .padding(.leading, 24).padding(.trailing, 14)
         .background(Color.primary.opacity(0.03))
+        .task(id: s.id) {
+            guard sessionPreviews[s.id] == nil else { return }
+            let url = s.fileURL
+            let reply = await Task.detached(priority: .utility) {
+                SessionResumer.lastReply(from: url)
+            }.value
+            sessionPreviews[s.id] = reply ?? ""
+        }
     }
 
     private func windowLabel(_ minutes: Int) -> String {

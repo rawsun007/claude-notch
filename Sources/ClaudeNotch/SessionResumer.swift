@@ -14,6 +14,7 @@ struct ResumableSession: Identifiable, Equatable {
     let title: String         // first user prompt, trimmed to one line
     let lastActive: Date      // file modification time
     let model: String         // most recent model id seen in the head
+    let fileURL: URL          // transcript path, for lazy preview / delete
 
     var relativeLastActive: String {
         let f = RelativeDateTimeFormatter()
@@ -124,7 +125,45 @@ enum SessionResumer {
             project: (realCwd as NSString).lastPathComponent,
             title: cleaned.isEmpty ? "(no prompt yet)" : String(cleaned.prefix(120)),
             lastActive: mtime,
-            model: model ?? "")
+            model: model ?? "",
+            fileURL: url)
+    }
+
+    /// The last assistant reply in a transcript, trimmed to one short line, so a
+    /// row can preview what the session was doing before you resume it. Reads
+    /// only the tail of the file, scanning lines from the end for the newest
+    /// assistant text.
+    nonisolated static func lastReply(from url: URL, tailBytes: Int = 128 * 1024) -> String? {
+        guard let tail = readTail(url, bytes: tailBytes) else { return nil }
+        for line in tail.split(separator: "\n").reversed() {
+            guard let data = line.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let msg = obj["message"] as? [String: Any],
+                  (msg["role"] as? String) == "assistant",
+                  let text = firstText(from: msg["content"])
+            else { continue }
+            let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: "\n", with: " ")
+            if cleaned.isEmpty { continue }
+            return String(cleaned.prefix(160))
+        }
+        return nil
+    }
+
+    /// Read at most `bytes` from the END of a file as UTF-8, dropping a leading
+    /// partial line so the parser only sees whole JSON objects.
+    private nonisolated static func readTail(_ url: URL, bytes: Int) -> String? {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        let size = (try? handle.seekToEnd()) ?? 0
+        let start = size > UInt64(bytes) ? size - UInt64(bytes) : 0
+        try? handle.seek(toOffset: start)
+        let data = (try? handle.readToEnd()) ?? Data()
+        guard var s = String(data: data, encoding: .utf8) else { return nil }
+        if start > 0, let nl = s.firstIndex(of: "\n") {
+            s = String(s[s.index(after: nl)...])
+        }
+        return s
     }
 
     /// Extract the first text fragment from a message `content`, which is either
