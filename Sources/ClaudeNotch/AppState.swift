@@ -713,6 +713,8 @@ final class AppState: ObservableObject {
     @Published private(set) var lastActivity: String = ""          // "Bash: ls -la" etc.
     @Published private(set) var lastUserPrompt: String = ""
     @Published private(set) var recentProjects: [String] = []      // ordered, deduped cwds (newest first)
+    // Project directories the user pinned to the top of the sessions list.
+    @Published private(set) var pinnedProjects: Set<String> = []
     @Published private(set) var lastOriginatorBundleID: String? = nil
     @Published private(set) var lastHookAt: Date? = nil
     @Published private(set) var lastClaudeResponse: String = ""        // truncated for hover
@@ -868,6 +870,7 @@ final class AppState: ObservableObject {
             self.archivedSessionKeys = Set(self.sessionHistory.map(\.sessionKey))
             self.allowRules = snapshot.allowRules
             self.recentProjects = snapshot.recentProjects
+            self.pinnedProjects = Set(snapshot.pinnedProjects ?? [])
             self.autoApprove = snapshot.autoApprove ?? false
             self.soundMuted = snapshot.soundMuted ?? false
             self.stats = snapshot.stats ?? UsageStats()
@@ -1765,8 +1768,16 @@ final class AppState: ObservableObject {
             limitsUpdatedAt: limitsUpdatedAt,
             breakRemindersEnabled: breakRemindersEnabled,
             longRunAlertsEnabled: longRunAlertsEnabled,
-            rateLimitWarningsEnabled: rateLimitWarningsEnabled
+            rateLimitWarningsEnabled: rateLimitWarningsEnabled,
+            pinnedProjects: Array(pinnedProjects)
         ))
+    }
+
+    /// Pin or unpin a project directory to the top of the sessions list.
+    func togglePinnedProject(_ cwd: String) {
+        if pinnedProjects.contains(cwd) { pinnedProjects.remove(cwd) }
+        else { pinnedProjects.insert(cwd) }
+        schedulePersist()
     }
 
     func setHovering(_ value: Bool) {

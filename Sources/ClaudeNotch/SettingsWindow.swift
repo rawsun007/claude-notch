@@ -749,17 +749,24 @@ struct SettingsView: View {
     /// projects with a matching session (narrowed to just the matches).
     private var filteredProjectSessions: [(cwd: String, project: String, sessions: [ResumableSession])] {
         let q = sessionSearch.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !q.isEmpty else { return Array(projectSessions.prefix(10)) }
-        var out: [(cwd: String, project: String, sessions: [ResumableSession])] = []
-        for proj in projectSessions {
-            if proj.project.lowercased().contains(q) {
-                out.append(proj)
-            } else {
-                let hits = proj.sessions.filter { $0.title.lowercased().contains(q) }
-                if !hits.isEmpty { out.append((proj.cwd, proj.project, hits)) }
+        var out: [(cwd: String, project: String, sessions: [ResumableSession])]
+        if q.isEmpty {
+            out = projectSessions
+        } else {
+            out = []
+            for proj in projectSessions {
+                if proj.project.lowercased().contains(q) {
+                    out.append(proj)
+                } else {
+                    let hits = proj.sessions.filter { $0.title.lowercased().contains(q) }
+                    if !hits.isEmpty { out.append((proj.cwd, proj.project, hits)) }
+                }
             }
         }
-        return out
+        // Pinned projects float to the top, keeping their relative order.
+        let pinned = out.filter { state.pinnedProjects.contains($0.cwd) }
+        let rest = out.filter { !state.pinnedProjects.contains($0.cwd) }
+        return Array((pinned + rest).prefix(q.isEmpty ? 10 : out.count))
     }
 
     /// One project row in the Session page: a folder header that toggles open to
@@ -781,6 +788,16 @@ struct SettingsView: View {
                     .padding(.horizontal, 6).padding(.vertical, 1)
                     .background(Capsule().fill(Color.primary.opacity(0.08)))
                 Spacer()
+                let pinned = state.pinnedProjects.contains(proj.cwd)
+                Button {
+                    state.togglePinnedProject(proj.cwd)
+                } label: {
+                    Image(systemName: pinned ? "pin.fill" : "pin")
+                        .font(.caption)
+                        .foregroundStyle(pinned ? Color.accentColor : .secondary)
+                }
+                .buttonStyle(.plain)
+                .help(pinned ? "Unpin project" : "Pin project to top")
                 Image(systemName: isOpen ? "chevron.down" : "chevron.right")
                     .font(.caption).foregroundStyle(.secondary)
             }
