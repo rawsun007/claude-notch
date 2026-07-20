@@ -1436,8 +1436,10 @@ private struct IdlePill: View {
             // Task-list progress — a thin bar showing how far through the
             // current task list Claude is, shown whenever the card is open and
             // there is a list.
+            // Only worth a bar for a real multi-step list — a lone 1/1 task is
+            // just a full green bar that says nothing.
             let progress = state.currentTaskProgress
-            if isOpen, progress.total > 0 {
+            if isOpen, progress.total > 1 {
                 let done = min(progress.done, progress.total)
                 let frac = Double(done) / Double(progress.total)
                 HStack(spacing: 6) {
