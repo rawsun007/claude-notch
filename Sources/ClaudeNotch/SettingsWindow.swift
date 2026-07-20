@@ -512,11 +512,13 @@ struct SettingsView: View {
                     .font(.callout).foregroundStyle(.secondary)
                 group {
                     if state.fiveHourLimitPercent >= 0 {
-                        limitRow("5-hour limit", pct: state.fiveHourLimitPercent, resetAt: state.fiveHourResetAt)
+                        limitRow("5-hour limit", pct: state.fiveHourLimitPercent,
+                                 resetAt: state.fiveHourResetAt, window: 5 * 3600)
                     }
                     if state.fiveHourLimitPercent >= 0, state.weeklyLimitPercent >= 0 { divider }
                     if state.weeklyLimitPercent >= 0 {
-                        limitRow("Weekly limit", pct: state.weeklyLimitPercent, resetAt: state.weeklyResetAt)
+                        limitRow("Weekly limit", pct: state.weeklyLimitPercent,
+                                 resetAt: state.weeklyResetAt, window: 7 * 24 * 3600)
                     }
                 }
                 if let updated = state.limitsUpdatedAt {
@@ -545,9 +547,11 @@ struct SettingsView: View {
         }
     }
 
-    /// A plan-usage limit as a labelled progress bar plus a reset countdown.
-    /// `pct` is 0...1; the bar tints amber past 75% and red past 90%.
-    private func limitRow(_ title: String, pct: Double, resetAt: Date?) -> some View {
+    /// A plan-usage limit as a labelled progress bar plus a reset countdown and
+    /// a burn-rate forecast. `pct` is 0...1; the bar tints amber past 75% and
+    /// red past 90%. `window` is the limit's period (5h or 7d) used to estimate
+    /// how fast usage is climbing.
+    private func limitRow(_ title: String, pct: Double, resetAt: Date?, window: TimeInterval) -> some View {
         let clamped = min(1, max(0, pct))
         let tint: Color = clamped >= 0.9 ? .red : (clamped >= 0.75 ? .orange : .accentColor)
         return VStack(alignment: .leading, spacing: 6) {
@@ -564,12 +568,47 @@ struct SettingsView: View {
                 }
             }
             .frame(height: 6)
+            if let forecast = limitForecast(pct: clamped, resetAt: resetAt, window: window) {
+                Text(forecast)
+                    .font(.caption)
+                    .foregroundStyle(clamped >= 0.75 ? tint : .secondary)
+            }
             if let resetAt {
                 Text("Resets \(resetAt.formatted(.relative(presentation: .named))).")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 10).padding(.horizontal, 14)
+    }
+
+    /// Estimate, from the current percent and how far into the window we are,
+    /// whether usage is on track to hit the limit before it resets. Assumes a
+    /// steady rate since the window opened. Returns nil when there isn't enough
+    /// to project (no reset time, window not started, or already at 0/100%).
+    private func limitForecast(pct: Double, resetAt: Date?, window: TimeInterval) -> String? {
+        guard let resetAt, pct > 0.01, pct < 1 else { return nil }
+        let remainingWindow = resetAt.timeIntervalSinceNow
+        guard remainingWindow > 0 else { return nil }
+        let elapsed = window - remainingWindow
+        guard elapsed > 60 else { return nil }           // too early to project
+        let rate = pct / elapsed                          // fraction per second
+        let secondsToLimit = (1 - pct) / rate
+        if secondsToLimit >= remainingWindow {
+            return "At this pace you stay under the limit this window."
+        }
+        return "At this pace you hit the limit in about \(shortDuration(secondsToLimit))."
+    }
+
+    /// Compact human duration: "45m", "2h", "1d 3h".
+    private func shortDuration(_ seconds: TimeInterval) -> String {
+        let s = Int(seconds)
+        if s < 3600 { return "\(max(1, s / 60))m" }
+        if s < 24 * 3600 {
+            let h = s / 3600, m = (s % 3600) / 60
+            return m > 0 ? "\(h)h \(m)m" : "\(h)h"
+        }
+        let d = s / (24 * 3600), h = (s % (24 * 3600)) / 3600
+        return h > 0 ? "\(d)d \(h)h" : "\(d)d"
     }
 
     private func capRow(_ title: String, get: @escaping () -> Double, set: @escaping (Double) -> Void) -> some View {
