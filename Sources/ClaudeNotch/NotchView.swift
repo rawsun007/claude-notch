@@ -217,13 +217,18 @@ struct NotchView: View {
         // curve dominates the whole visible area and looks like a wedge).
         switch mode {
         case .idle:
-            guard hovering else {
-                let base = collapsedSize(on: s)
-                // A file is being dragged over the notch: grow it into a clear
-                // drop target with room for the "Open in Claude" hint.
-                if state?.isDropTarget == true || state?.isDropHot == true {
-                    return CGSize(width: max(base.width, 260), height: inset + 70)
-                }
+            let base = collapsedSize(on: s)
+            // A file is being dragged over the notch: grow it into a clear
+            // drop target with room for the "Open in Claude" hint. Checked
+            // first so it wins even when the card is being held open.
+            if state?.isDropTarget == true || state?.isDropHot == true {
+                return CGSize(width: max(base.width, 260), height: inset + 70)
+            }
+            // The card is "open" — and shows the full meter + detail — whenever
+            // the cursor is on the notch OR persistentNotchDisplay is holding it
+            // open. Both states get the same size so they show the same data.
+            let full = hovering || (state?.persistentNotchDisplay == true)
+            guard full else {
                 // Pet mode: the card grows just enough to be the stage for
                 // whatever the pet is currently doing. It's not "opening" —
                 // the notch swells a little and the mascot moves in it.
@@ -1295,10 +1300,10 @@ private struct IdlePill: View {
                         .cornerRadius(4)
                         .help(badge.help)
                 }
-                // Secondary counts — real noise, low urgency. Only worth the
-                // pixels when the cursor is actually on the notch (not just
-                // when persistentNotchDisplay keeps the card open ambiently).
-                if state.isHovering {
+                // Secondary counts — shown whenever the card is open, whether
+                // the cursor is on the notch or persistentNotchDisplay is
+                // holding it open, so the two states show the same detail.
+                if isOpen {
                     let agentCount = state.totalRunningAgentCount
                     if agentCount > 0 {
                         Text(agentCount == 1 ? "1 agent" : "\(agentCount) agents")
@@ -1354,7 +1359,7 @@ private struct IdlePill: View {
                         .foregroundColor(.white.opacity(0.65))
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
-                    if state.isHovering {
+                    if isOpen {
                         if !modelVer.isEmpty {
                             Text(modelVer)
                                 .font(.system(size: 10, design: .rounded))
@@ -1369,7 +1374,7 @@ private struct IdlePill: View {
                         }
                     }
                 }
-                if state.isHovering {
+                if isOpen {
                     if !state.currentEffort.isEmpty {
                         Text("\(state.currentEffort) effort")
                             .font(.system(size: 10, design: .rounded))
