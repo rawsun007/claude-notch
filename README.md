@@ -48,6 +48,22 @@ system, and shows no Dock icon — just a small bell in your menu bar.
 
 ---
 
+## 🎬 In motion
+
+**Start a session from the notch** — drag a project folder onto the notch and a Claude Code session opens in that directory. No terminal, no `cd`.
+
+<img src="assets/start-from-notch.gif" alt="Dragging a folder onto the notch to start a Claude Code session" width="640" />
+
+**A pet that reacts to your session** — the mascot lives in the notch and animates around what Claude is doing.
+
+<img src="assets/pet-demo.gif" alt="The ClaudeNotch pet animating in the notch" width="560" />
+
+**Little moments of delight** — playful touches that make the notch feel alive while you work.
+
+<img src="assets/spiderman.gif" alt="A playful animation in the notch" width="720" />
+
+---
+
 ## ✨ Features
 
 | | |
