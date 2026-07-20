@@ -3667,12 +3667,15 @@ final class AppState: ObservableObject {
     // MARK: - Waiting-on-you re-alert
 
     // One missed chime shouldn't cost 20 minutes: while a blocking card sits
-    // unanswered, nudge once more after `reAlertAfter` — replay the sound and
-    // re-post the native notification (same identifier, so it replaces rather
-    // than stacks). One nudge per request, never a nag loop.
+    // unanswered, keep nudging every `reAlertAfter` — replay the sound, re-post
+    // the native notification (same identifier, so it replaces rather than
+    // stacks), and request user attention. Capped at `maxReAlerts` nudges per
+    // request so it escalates without turning into an endless nag.
     static let reAlertAfter: TimeInterval = 180
+    static let maxReAlerts = 3
     private var reAlertTimer: Timer?
-    private var reAlertedIds: Set<UUID> = []
+    // Per-request nudge bookkeeping: how many times nudged, and when last.
+    private var reAlertState: [UUID: (count: Int, lastAt: Date)] = [:]
 
     private func updateReAlertTimer() {
         let hasPending = permissionQueue.contains { $0.kind == .toolUse } || !questionQueue.isEmpty
@@ -3682,27 +3685,53 @@ final class AppState: ObservableObject {
             }
         } else if !hasPending, reAlertTimer != nil {
             reAlertTimer?.invalidate(); reAlertTimer = nil
-            reAlertedIds.removeAll()
+            reAlertState.removeAll()
         }
+    }
+
+    /// True when a request that has waited `reAlertAfter` since it arrived is
+    /// also due for its next nudge (never nudged, or last nudge was a full
+    /// interval ago) and hasn't used up its nudge budget.
+    private func reAlertDue(id: UUID, receivedAt: Date, now: Date) -> Bool {
+        guard now.timeIntervalSince(receivedAt) >= Self.reAlertAfter else { return false }
+        let s = reAlertState[id]
+        guard (s?.count ?? 0) < Self.maxReAlerts else { return false }
+        if let last = s?.lastAt, now.timeIntervalSince(last) < Self.reAlertAfter { return false }
+        return true
+    }
+
+    private func noteReAlert(id: UUID, now: Date) {
+        let prior = reAlertState[id]?.count ?? 0
+        reAlertState[id] = (prior + 1, now)
     }
 
     private func checkReAlert() {
         let now = Date()
         for req in permissionQueue where req.kind == .toolUse {
-            guard !reAlertedIds.contains(req.id),
-                  now.timeIntervalSince(req.receivedAt) >= Self.reAlertAfter else { continue }
-            reAlertedIds.insert(req.id)
+            guard reAlertDue(id: req.id, receivedAt: req.receivedAt, now: now) else { continue }
+            noteReAlert(id: req.id, now: now)
             playAlert(toolName: req.toolName)
             if mirrorToNotificationCenter { permissionMirror?.mirror(req) }
+            bounceDockForAttention()
             return   // one nudge per tick
         }
         for q in questionQueue {
-            guard !reAlertedIds.contains(q.id),
-                  now.timeIntervalSince(q.receivedAt) >= Self.reAlertAfter else { continue }
-            reAlertedIds.insert(q.id)
+            guard reAlertDue(id: q.id, receivedAt: q.receivedAt, now: now) else { continue }
+            noteReAlert(id: q.id, now: now)
             playAlert()
+            bounceDockForAttention()
             return
         }
+    }
+
+    /// Ask the OS to draw the user to the app (a critical attention request:
+    /// bounces the Dock icon until the app is activated). This is a menu-bar
+    /// (LSUIElement) app so there is usually no Dock icon to bounce — the call
+    /// is a harmless no-op then, and the replayed sound + re-posted notification
+    /// carry the nudge. It still fires for the rare case the app is run with a
+    /// Dock presence, and documents the intent in one place.
+    private func bounceDockForAttention() {
+        NSApp.requestUserAttention(.criticalRequest)
     }
 
     /// Oldest unanswered blocking request for a session (matched by cwd) —
