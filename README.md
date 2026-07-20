@@ -8,7 +8,7 @@
 
 ClaudeNotch puts every Claude Code permission prompt, question, and notification
 right in your Mac's notch. Read the diff, allow or deny with one key, and stay in
-your editor — no more tabbing back to the terminal every few seconds.
+your editor, no more tabbing back to the terminal every few seconds.
 
 <br/>
 
@@ -25,7 +25,7 @@ your editor — no more tabbing back to the terminal every few seconds.
 
 <br/>
 
-<img src="assets/demo.gif" alt="ClaudeNotch demo — approving Claude Code permissions from the notch" width="720" />
+<img src="assets/demo.gif" alt="ClaudeNotch demo, approving Claude Code permissions from the notch" width="720" />
 
 </div>
 
@@ -34,31 +34,31 @@ your editor — no more tabbing back to the terminal every few seconds.
 ## What is ClaudeNotch?
 
 When you use [Claude Code](https://claude.com/claude-code), it constantly stops to
-ask permission — *"Can I run this command?"*, *"Can I edit this file?"* Every prompt
+ask permission, *"Can I run this command?"*, *"Can I edit this file?"* Every prompt
 pulls you back to the terminal and breaks your flow.
 
 **ClaudeNotch is a tiny macOS menu-bar app that surfaces those prompts in a
 Dynamic-Island-style overlay at the top of your screen.** The notch quietly
 expands with the command (or a diff of the change), you click **Allow** or
-**Deny** — or just tap a key — and your keyboard pops right back to where you
+**Deny**, or just tap a key, and your keyboard pops right back to where you
 were. You never switch apps.
 
 It runs entirely on your machine, talks to Claude Code through its official hook
-system, and shows no Dock icon — just a small bell in your menu bar.
+system, and shows no Dock icon, just a small bell in your menu bar.
 
 ---
 
 ## 🎬 In motion
 
-**Start a session from the notch** — drag a project folder onto the notch and a Claude Code session opens in that directory. No terminal, no `cd`.
+**Start a session from the notch**: drag a project folder onto the notch and a Claude Code session opens in that directory. No terminal, no `cd`.
 
 <img src="assets/start-from-notch.gif" alt="Dragging a folder onto the notch to start a Claude Code session" width="640" />
 
-**A pet that reacts to your session** — the mascot lives in the notch and animates around what Claude is doing.
+**A pet that reacts to your session**: the mascot lives in the notch and animates around what Claude is doing.
 
 <img src="assets/pet-demo.gif" alt="The ClaudeNotch pet animating in the notch" width="560" />
 
-**Little moments of delight** — playful touches that make the notch feel alive while you work.
+**Little moments of delight**: playful touches that make the notch feel alive while you work.
 
 <img src="assets/spiderman.gif" alt="A playful animation in the notch" width="720" />
 
@@ -83,8 +83,8 @@ system, and shows no Dock icon — just a small bell in your menu bar.
 | 🕘 **Activity history** | Click the notch for a timeline of everything you've allowed, denied, or answered. |
 | ✅ **Smart always-allow** | Approve a tool for the whole session, or just one exact command. Your rules stick around between launches. |
 | 📁 **Start Claude in any folder** | Launch Claude Code in any project straight from the menu bar, or jump back into a recent one. |
-| 🐾 **Pet Mode** | The Claude mascot lives in your notch. While nothing is happening it peeks out, looks around, hangs off the corner, strolls along the edge, and naps after a quiet spell — then hops with sparkles when a task finishes. It watches your cursor and leans toward it, holds still to be petted, and boops when you click it. Boop it five times fast. It never appears over an active session or a card you're reading, it respects **Reduce Motion**, and the **Pet Mode** menu item turns it off. |
-| 🏷️ **Personalise the notch title** | Pick what the notch calls itself from the **Notch Title** menu — keep **Claude**, track the active **project name**, or type your own **custom** label. It updates live and sticks between launches. |
+| 🐾 **Pet Mode** | The Claude mascot lives in your notch. While nothing is happening it peeks out, looks around, hangs off the corner, strolls along the edge, and naps after a quiet spell, then hops with sparkles when a task finishes. It watches your cursor and leans toward it, holds still to be petted, and boops when you click it. Boop it five times fast. It never appears over an active session or a card you're reading, it respects **Reduce Motion**, and the **Pet Mode** menu item turns it off. |
+| 🏷️ **Personalise the notch title** | Pick what the notch calls itself from the **Notch Title** menu, keep **Claude**, track the active **project name**, or type your own **custom** label. It updates live and sticks between launches. |
 
 ---
 
@@ -105,7 +105,7 @@ system, and shows no Dock icon — just a small bell in your menu bar.
 
 > 💡 **Skip the warning entirely:** install with **Homebrew** (see below).
 > ClaudeNotch is ad-hoc signed (no Apple Developer ID at all), which macOS
-> treats more leniently than an unnotarized Developer ID app — Homebrew
+> treats more leniently than an unnotarized Developer ID app, Homebrew
 > casks in that tier launch straight away with no Gatekeeper prompt,
 > confirmed on a clean install with Gatekeeper and SIP both enabled.
 
@@ -135,7 +135,7 @@ cd claude-notch
 ```
 
 Want your macOS permission grants (Accessibility) to survive every rebuild? Run
-this once before building — it creates a stable self-signed identity so the app's
+this once before building, it creates a stable self-signed identity so the app's
 signature stops changing:
 
 ```bash
@@ -158,7 +158,7 @@ Then, with a real session:
 1. Open Claude Code in any project.
 2. Ask it to run a command, write a file, or edit something.
 3. The notch expands at the top of your screen with the details and buttons.
-   **Whatever you click is what Claude does next** — no need to switch back.
+   **Whatever you click is what Claude does next**, no need to switch back.
 
 ClaudeNotch surfaces the prompts that matter: command runs, file writes and
 edits, plan approvals, to-do updates, and `AskUserQuestion`. Quiet tools like
@@ -206,7 +206,7 @@ Claude Code  ──▶  PreToolUse hook  ──▶  POST /permission  ──▶ 
 ```
 
 The hook holds the connection open while it waits for your click. If anything
-goes wrong — app not running, timeout, missing dependency — it safely falls back
+goes wrong, app not running, timeout, missing dependency, it safely falls back
 to Claude Code's own prompt, so there's no way to get stuck.
 
 ---
@@ -214,8 +214,8 @@ to Claude Code's own prompt, so there's no way to get stuck.
 ## ❓ FAQ
 
 **Is it free?**
-Yes — free for personal and any noncommercial use, and the full source lives right
-here on GitHub. **Commercial use isn't allowed without permission** — if you want to
+Yes, free for personal and any noncommercial use, and the full source lives right
+here on GitHub. **Commercial use isn't allowed without permission**, if you want to
 sell it or make money from it, [ask me first](https://www.linkedin.com/in/roshan-ramani-0510102b2).
 
 **Why does macOS warn me on first open?**
@@ -229,7 +229,7 @@ No. Everything runs locally over a localhost hook. Nothing leaves your machine.
 Claude Code today. Support for more agents may come as the project grows.
 
 **Can I uninstall the hooks?**
-Yes — your `settings.json` is backed up during setup, and there's an uninstall
+Yes, your `settings.json` is backed up during setup, and there's an uninstall
 script (below) to remove everything cleanly.
 
 ---
@@ -243,39 +243,39 @@ rm -rf /Applications/ClaudeNotch.app ~/.claudenotch
 
 ---
 
-## 🛠️ For the curious — project layout
+## 🛠️ For the curious: project layout
 
 <details>
 <summary>Click to expand</summary>
 
 ```
 Sources/ClaudeNotch/
-  main.swift                       — boots as a menu-bar accessory app (no Dock)
-  AppDelegate.swift                — wires window, menu bar, HTTP server, hotkey
-  AppState.swift                   — app state, live sessions, frontmost tracking
-  NotchView.swift                  — the SwiftUI notch UI + animations
-  NotchShape.swift                 — the concave "Dynamic Island" shape
-  NotchWindowController.swift      — borderless panel that follows your screen
-  KeyboardMonitor.swift            — Enter/Esc handling without stealing focus
-  GlobalHotkey.swift               — the ⌥⌘N composer shortcut
-  MouseTracker.swift               — hover detection over the notch
-  EventServer.swift                — localhost HTTP server + blocking permission
-  ClaudeUsageReader.swift          — context + cost meter from session transcripts
-  ToolPreviewParser.swift          — diff/danger preview for a tool call
-  BiometricAuth.swift              — Touch ID / Face ID confirm for dangerous commands
-  MenuBarController.swift          — the menu-bar bell and its menu
-  HookInstaller.swift              — wires/unwires Claude Code hooks in-app
-  TerminalAutomator.swift          — types into your session + "Start Claude in folder"
-  OnboardingView.swift             — first-run setup flow
-  OnboardingState.swift            — permission checks for onboarding
-  OnboardingWindowController.swift — the onboarding window
-  UpdateChecker.swift              — checks GitHub for new releases
-  Persistence.swift                — saves your always-allow rules, history & stats
+  main.swift                       : boots as a menu-bar accessory app (no Dock)
+  AppDelegate.swift                : wires window, menu bar, HTTP server, hotkey
+  AppState.swift                   : app state, live sessions, frontmost tracking
+  NotchView.swift                  : the SwiftUI notch UI + animations
+  NotchShape.swift                 : the concave "Dynamic Island" shape
+  NotchWindowController.swift      : borderless panel that follows your screen
+  KeyboardMonitor.swift            : Enter/Esc handling without stealing focus
+  GlobalHotkey.swift               : the ⌥⌘N composer shortcut
+  MouseTracker.swift               : hover detection over the notch
+  EventServer.swift                : localhost HTTP server + blocking permission
+  ClaudeUsageReader.swift          : context + cost meter from session transcripts
+  ToolPreviewParser.swift          : diff/danger preview for a tool call
+  BiometricAuth.swift              : Touch ID / Face ID confirm for dangerous commands
+  MenuBarController.swift          : the menu-bar bell and its menu
+  HookInstaller.swift              : wires/unwires Claude Code hooks in-app
+  TerminalAutomator.swift          : types into your session + "Start Claude in folder"
+  OnboardingView.swift             : first-run setup flow
+  OnboardingState.swift            : permission checks for onboarding
+  OnboardingWindowController.swift : the onboarding window
+  UpdateChecker.swift              : checks GitHub for new releases
+  Persistence.swift                : saves your always-allow rules, history & stats
 
-bin/                          — the Claude Code hook scripts
-build.sh                      — builds ClaudeNotch.app
-install.sh                    — installs to /Applications + wires hooks
-tools/                        — DMG builder, icon generators, signing cert, releaser
+bin/                          : the Claude Code hook scripts
+build.sh                      : builds ClaudeNotch.app
+install.sh                    : installs to /Applications + wires hooks
+tools/                        : DMG builder, icon generators, signing cert, releaser
 ```
 
 **Localhost endpoints** (for tinkering):
@@ -305,7 +305,7 @@ If ClaudeNotch saves you a few context switches, a ⭐ on the repo means a lot.
 &nbsp;
 [![X](https://img.shields.io/badge/X-@roshanramani007-000000?logo=x&logoColor=white)](https://x.com/roshanramani007)
 
-Found a bug or have an idea? [Open an issue](https://github.com/rawsun007/claude-notch/issues) — feedback welcome.
+Found a bug or have an idea? [Open an issue](https://github.com/rawsun007/claude-notch/issues), feedback welcome.
 
 ---
 
@@ -314,11 +314,11 @@ Found a bug or have an idea? [Open an issue](https://github.com/rawsun007/claude
 **PolyForm Noncommercial License 1.0.0** © 2026 Roshan Ramani.
 
 Free to use, modify, and share for **personal, educational, and other noncommercial
-purposes**. **Commercial use is not permitted without a separate license** — if you'd
+purposes**. **Commercial use is not permitted without a separate license**, if you'd
 like to use ClaudeNotch commercially or build a paid product on it, please
 [reach out first](https://www.linkedin.com/in/roshan-ramani-0510102b2). See
 [LICENSE](LICENSE) for full terms.
 
 <div align="center">
-<sub><b>ClaudeNotch</b> — a Dynamic Island / notch overlay for Claude Code on macOS · permission prompts, diffs &amp; notifications in your menu bar · Swift · noncommercial &amp; source-available</sub>
+<sub><b>ClaudeNotch</b>, a Dynamic Island / notch overlay for Claude Code on macOS · permission prompts, diffs &amp; notifications in your menu bar · Swift · noncommercial &amp; source-available</sub>
 </div>
