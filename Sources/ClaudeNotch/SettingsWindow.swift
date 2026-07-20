@@ -972,44 +972,43 @@ struct SettingsView: View {
                     .font(.caption2).foregroundStyle(.tertiary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Button {
-                let cmd = "claude --resume \(s.id)"
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(cmd, forType: .string)
-                copiedSessionId = s.id
-            } label: {
-                Image(systemName: copiedSessionId == s.id ? "checkmark" : "doc.on.doc")
-                    .font(.caption)
-                    .foregroundStyle(copiedSessionId == s.id ? Color.green : .secondary)
-            }
-            .buttonStyle(.plain)
-            .help("Copy: claude --resume \(s.id)")
-            Button {
-                if editingNoteId == s.id {
-                    commitNote(for: s.id)
-                } else {
-                    editingNoteId = s.id
-                    editingNoteText = state.sessionNotes[s.id] ?? ""
+            // Two controls only: the primary Resume, and a compact menu that
+            // holds the secondary actions so the row doesn't sprout loose icons.
+            if editingNoteId == s.id {
+                Button("Done") { commitNote(for: s.id) }
+                    .controlSize(.small)
+            } else {
+                Button("Resume") {
+                    TerminalAutomator.resumeClaude(sessionId: s.id, in: s.cwd)
+                    window()?.close()
                 }
-            } label: {
-                Image(systemName: editingNoteId == s.id ? "checkmark" : "pencil")
-                    .font(.caption)
-                    .foregroundStyle(editingNoteId == s.id ? Color.green : .secondary)
+                .controlSize(.small)
+                Menu {
+                    Button {
+                        editingNoteId = s.id
+                        editingNoteText = state.sessionNotes[s.id] ?? ""
+                    } label: { Label("Rename session", systemImage: "pencil") }
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString("claude --resume \(s.id)", forType: .string)
+                        copiedSessionId = s.id
+                    } label: { Label("Copy resume command", systemImage: "doc.on.doc") }
+                    Button {
+                        NSWorkspace.shared.activateFileViewerSelecting([s.fileURL])
+                    } label: { Label("Reveal transcript in Finder", systemImage: "folder") }
+                    Divider()
+                    Button(role: .destructive) {
+                        pendingDelete = s
+                    } label: { Label("Move to Trash", systemImage: "trash") }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("More actions")
             }
-            .buttonStyle(.plain)
-            .help("Name this session")
-            Button("Resume") {
-                TerminalAutomator.resumeClaude(sessionId: s.id, in: s.cwd)
-                window()?.close()
-            }
-            .controlSize(.small)
-            Button {
-                pendingDelete = s
-            } label: {
-                Image(systemName: "trash").font(.caption).foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-            .help("Move this session's transcript to the Trash")
         }
         .padding(.vertical, 8)
         .padding(.leading, 24).padding(.trailing, 14)
