@@ -506,6 +506,25 @@ struct SettingsView: View {
 
     private var budget: some View {
         page("Budget") {
+            if state.fiveHourLimitPercent >= 0 || state.weeklyLimitPercent >= 0 {
+                sectionLabel("Plan usage limits")
+                Text("Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps.")
+                    .font(.callout).foregroundStyle(.secondary)
+                group {
+                    if state.fiveHourLimitPercent >= 0 {
+                        limitRow("5-hour limit", pct: state.fiveHourLimitPercent, resetAt: state.fiveHourResetAt)
+                    }
+                    if state.fiveHourLimitPercent >= 0, state.weeklyLimitPercent >= 0 { divider }
+                    if state.weeklyLimitPercent >= 0 {
+                        limitRow("Weekly limit", pct: state.weeklyLimitPercent, resetAt: state.weeklyResetAt)
+                    }
+                }
+                if let updated = state.limitsUpdatedAt {
+                    Text("Updated \(updated.formatted(.relative(presentation: .named))).")
+                        .font(.caption2).foregroundStyle(.tertiary)
+                }
+            }
+
             Text("Warn when estimated cost crosses a cap. Set a cap to 0 to disable it.")
                 .font(.callout).foregroundStyle(.secondary)
             sectionLabel("Caps (USD)")
@@ -524,6 +543,33 @@ struct SettingsView: View {
                     Binding(get: { state.enforceBudget }, set: { state.setEnforceBudget($0) }))
             }
         }
+    }
+
+    /// A plan-usage limit as a labelled progress bar plus a reset countdown.
+    /// `pct` is 0...1; the bar tints amber past 75% and red past 90%.
+    private func limitRow(_ title: String, pct: Double, resetAt: Date?) -> some View {
+        let clamped = min(1, max(0, pct))
+        let tint: Color = clamped >= 0.9 ? .red : (clamped >= 0.75 ? .orange : .accentColor)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text("\(Int((clamped * 100).rounded()))%")
+                    .font(.callout.weight(.semibold)).foregroundStyle(tint)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.primary.opacity(0.1))
+                    Capsule().fill(tint).frame(width: max(3, geo.size.width * clamped))
+                }
+            }
+            .frame(height: 6)
+            if let resetAt {
+                Text("Resets \(resetAt.formatted(.relative(presentation: .named))).")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 10).padding(.horizontal, 14)
     }
 
     private func capRow(_ title: String, get: @escaping () -> Double, set: @escaping (Double) -> Void) -> some View {
