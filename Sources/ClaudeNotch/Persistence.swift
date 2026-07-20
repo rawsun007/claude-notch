@@ -51,6 +51,8 @@ enum Persistence {
         var rateLimitWarningsEnabled: Bool? = nil
         /// Project directories the user pinned to the top of the sessions list.
         var pinnedProjects: [String]? = nil
+        /// User-given names/notes for sessions, keyed by session id.
+        var sessionNotes: [String: String]? = nil
     }
 
     static let storeURL: URL = {
@@ -126,7 +128,8 @@ extension Persistence.Snapshot {
             breakRemindersEnabled: try? c.decode(Bool.self, forKey: .breakRemindersEnabled),
             longRunAlertsEnabled: try? c.decode(Bool.self, forKey: .longRunAlertsEnabled),
             rateLimitWarningsEnabled: try? c.decode(Bool.self, forKey: .rateLimitWarningsEnabled),
-            pinnedProjects: try? c.decode([String].self, forKey: .pinnedProjects)
+            pinnedProjects: try? c.decode([String].self, forKey: .pinnedProjects),
+            sessionNotes: try? c.decode([String: String].self, forKey: .sessionNotes)
         )
     }
 }

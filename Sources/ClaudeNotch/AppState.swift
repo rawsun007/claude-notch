@@ -715,6 +715,8 @@ final class AppState: ObservableObject {
     @Published private(set) var recentProjects: [String] = []      // ordered, deduped cwds (newest first)
     // Project directories the user pinned to the top of the sessions list.
     @Published private(set) var pinnedProjects: Set<String> = []
+    // User-given names/notes for sessions, keyed by session id.
+    @Published private(set) var sessionNotes: [String: String] = [:]
     @Published private(set) var lastOriginatorBundleID: String? = nil
     @Published private(set) var lastHookAt: Date? = nil
     @Published private(set) var lastClaudeResponse: String = ""        // truncated for hover
@@ -884,6 +886,7 @@ final class AppState: ObservableObject {
             self.allowRules = snapshot.allowRules
             self.recentProjects = snapshot.recentProjects
             self.pinnedProjects = Set(snapshot.pinnedProjects ?? [])
+            self.sessionNotes = snapshot.sessionNotes ?? [:]
             self.autoApprove = snapshot.autoApprove ?? false
             self.soundMuted = snapshot.soundMuted ?? false
             self.stats = snapshot.stats ?? UsageStats()
@@ -1782,7 +1785,8 @@ final class AppState: ObservableObject {
             breakRemindersEnabled: breakRemindersEnabled,
             longRunAlertsEnabled: longRunAlertsEnabled,
             rateLimitWarningsEnabled: rateLimitWarningsEnabled,
-            pinnedProjects: Array(pinnedProjects)
+            pinnedProjects: Array(pinnedProjects),
+            sessionNotes: sessionNotes
         ))
     }
 
@@ -1790,6 +1794,14 @@ final class AppState: ObservableObject {
     func togglePinnedProject(_ cwd: String) {
         if pinnedProjects.contains(cwd) { pinnedProjects.remove(cwd) }
         else { pinnedProjects.insert(cwd) }
+        schedulePersist()
+    }
+
+    /// Set (or clear, when empty) a user-given name for a session.
+    func setSessionNote(id: String, _ note: String) {
+        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { sessionNotes[id] = nil }
+        else { sessionNotes[id] = trimmed }
         schedulePersist()
     }
 

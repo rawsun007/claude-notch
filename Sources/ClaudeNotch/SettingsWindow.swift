@@ -164,6 +164,9 @@ struct SettingsView: View {
     @State private var sessionPreviews: [String: String] = [:]
     // Session the user tapped delete on, awaiting confirmation.
     @State private var pendingDelete: ResumableSession?
+    // Inline session-rename editor state.
+    @State private var editingNoteId: String?
+    @State private var editingNoteText = ""
 
     private var searchResults: [SettingsSearchItem] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
@@ -935,16 +938,30 @@ struct SettingsView: View {
             Image(systemName: "clock.arrow.circlepath")
                 .font(.caption).foregroundStyle(.secondary).frame(width: 18)
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(s.title).lineLimit(1)
-                    if state.sessions[s.id] != nil {
-                        HStack(spacing: 3) {
-                            Circle().fill(Color.green).frame(width: 6, height: 6)
-                            Text("running").font(.caption2)
+                let note = state.sessionNotes[s.id]
+                if editingNoteId == s.id {
+                    TextField("Name this session", text: $editingNoteText)
+                        .textFieldStyle(.roundedBorder).controlSize(.small)
+                        .onSubmit { commitNote(for: s.id) }
+                } else {
+                    HStack(spacing: 6) {
+                        Text(note?.isEmpty == false ? note! : s.title)
+                            .lineLimit(1)
+                            .fontWeight(note?.isEmpty == false ? .semibold : .regular)
+                        if state.sessions[s.id] != nil {
+                            HStack(spacing: 3) {
+                                Circle().fill(Color.green).frame(width: 6, height: 6)
+                                Text("running").font(.caption2)
+                            }
+                            .foregroundStyle(.green)
+                            .padding(.horizontal, 6).padding(.vertical, 1)
+                            .background(Capsule().fill(Color.green.opacity(0.12)))
                         }
-                        .foregroundStyle(.green)
-                        .padding(.horizontal, 6).padding(.vertical, 1)
-                        .background(Capsule().fill(Color.green.opacity(0.12)))
+                    }
+                    // When a note is set, keep the original first prompt visible
+                    // underneath so the session is still identifiable.
+                    if note?.isEmpty == false {
+                        Text(s.title).font(.caption2).foregroundStyle(.tertiary).lineLimit(1)
                     }
                 }
                 if let preview = sessionPreviews[s.id], !preview.isEmpty {
@@ -967,6 +984,20 @@ struct SettingsView: View {
             }
             .buttonStyle(.plain)
             .help("Copy: claude --resume \(s.id)")
+            Button {
+                if editingNoteId == s.id {
+                    commitNote(for: s.id)
+                } else {
+                    editingNoteId = s.id
+                    editingNoteText = state.sessionNotes[s.id] ?? ""
+                }
+            } label: {
+                Image(systemName: editingNoteId == s.id ? "checkmark" : "pencil")
+                    .font(.caption)
+                    .foregroundStyle(editingNoteId == s.id ? Color.green : .secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Name this session")
             Button("Resume") {
                 TerminalAutomator.resumeClaude(sessionId: s.id, in: s.cwd)
                 window()?.close()
@@ -991,6 +1022,13 @@ struct SettingsView: View {
             }.value
             sessionPreviews[s.id] = reply ?? ""
         }
+    }
+
+    /// Save the inline-edited name for a session and close the editor.
+    private func commitNote(for id: String) {
+        state.setSessionNote(id: id, editingNoteText)
+        editingNoteId = nil
+        editingNoteText = ""
     }
 
     private func windowLabel(_ minutes: Int) -> String {
