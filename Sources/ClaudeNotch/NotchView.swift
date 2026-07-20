@@ -1433,6 +1433,32 @@ private struct IdlePill: View {
                                  startedAt: state.activityStartedAt)
             }
 
+            // Task-list progress — a thin bar showing how far through the
+            // current task list Claude is, shown whenever the card is open and
+            // there is a list.
+            let progress = state.currentTaskProgress
+            if isOpen, progress.total > 0 {
+                let done = min(progress.done, progress.total)
+                let frac = Double(done) / Double(progress.total)
+                HStack(spacing: 6) {
+                    Image(systemName: done >= progress.total ? "checkmark.circle.fill" : "checklist")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(done >= progress.total ? .green.opacity(0.8) : .white.opacity(0.5))
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color.white.opacity(0.12))
+                            Capsule().fill(done >= progress.total ? Color.green : Color(red: 0.29, green: 0.56, blue: 1.0))
+                                .frame(width: max(3, geo.size.width * frac))
+                        }
+                    }
+                    .frame(height: 4)
+                    Text("\(done)/\(progress.total)")
+                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.55))
+                        .fixedSize()
+                }
+            }
+
             if isOpen && hasMultipleSessions {
                 SessionsList(state: state, pulsePhase: pulsePhase)
             }

@@ -730,6 +730,19 @@ final class AppState: ObservableObject {
     @Published private(set) var currentModel: String = ""
     @Published private(set) var currentPermissionMode: String = ""
 
+    /// Task-list progress for what the notch should show: the current session's
+    /// counts, or, when there is no clear current session, whichever live
+    /// session has the most tasks. (done, total); total 0 means "no task list".
+    var currentTaskProgress: (done: Int, total: Int) {
+        if !currentSessionId.isEmpty, let s = sessions[currentSessionId], s.taskTotal > 0 {
+            return (s.taskDone, s.taskTotal)
+        }
+        if let s = sessions.values.filter({ $0.taskTotal > 0 }).max(by: { $0.taskTotal < $1.taskTotal }) {
+            return (s.taskDone, s.taskTotal)
+        }
+        return (0, 0)
+    }
+
     // Cost budgets (USD, estimated from public pricing). 0 = off. Persisted.
     // sessionCostCap warns on any single session; dailyCostCap on today's total.
     @Published private(set) var sessionCostCap: Double = 0
