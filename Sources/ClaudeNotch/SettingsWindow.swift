@@ -1044,6 +1044,22 @@ struct SettingsView: View {
                 }
             }
 
+            let spendLeaders = state.weekCostByProject
+                .filter { $0.value > 0 && AppState.isRealProject($0.key) }
+                .sorted { $0.value > $1.value }
+                .prefix(6)
+            if !spendLeaders.isEmpty {
+                sectionLabel("Top projects by spend (last 7 days)")
+                let maxSpend = spendLeaders.first?.value ?? 1
+                group {
+                    ForEach(Array(spendLeaders.enumerated()), id: \.element.key) { idx, kv in
+                        spendLeaderRow(project: (kv.key as NSString).lastPathComponent,
+                                       cost: kv.value, fraction: maxSpend > 0 ? kv.value / maxSpend : 0)
+                        if idx < spendLeaders.count - 1 { divider }
+                    }
+                }
+            }
+
             sectionLabel("Claude usage (from transcripts)")
             if let u = claudeUsage {
                 group {
@@ -1164,6 +1180,25 @@ struct SettingsView: View {
         case 3:  return Color.green.opacity(0.72)
         default: return Color.green.opacity(0.95)
         }
+    }
+
+    /// A ranked project-spend row: name, a proportional bar, and the dollar
+    /// amount. `fraction` is this project's spend over the top project's.
+    private func spendLeaderRow(project: String, cost: Double, fraction: Double) -> some View {
+        HStack(spacing: 10) {
+            Text(project).lineLimit(1).frame(width: 130, alignment: .leading)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.primary.opacity(0.08))
+                    Capsule().fill(Color.accentColor.opacity(0.7))
+                        .frame(width: max(3, geo.size.width * min(1, max(0, fraction))))
+                }
+            }
+            .frame(height: 6)
+            Text(usd(cost)).font(.callout.weight(.semibold).monospacedDigit())
+                .frame(width: 64, alignment: .trailing)
+        }
+        .padding(.vertical, 9).padding(.horizontal, 14)
     }
 
     private func statRow(_ title: String, _ value: String) -> some View {
