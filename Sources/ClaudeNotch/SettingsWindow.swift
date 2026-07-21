@@ -168,6 +168,8 @@ struct SettingsView: View {
     @State private var editingNoteId: String?
     @State private var editingNoteText = ""
     @State private var updateCmdCopied = false
+    @State private var devSampleCardsOpen = false
+    @State private var devPetDemosOpen = false
 
     private var searchResults: [SettingsSearchItem] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
@@ -1360,34 +1362,44 @@ struct SettingsView: View {
         page("Developer") {
             Text("Fire a sample card to see what the notch looks like.")
                 .font(.callout).foregroundStyle(.secondary)
-            group {
-                actionRow("Tool permission", "terminal") { demoPermission() }
-                divider
-                actionRow("Destructive command", "exclamationmark.triangle") { demoDangerous() }
-                divider
-                actionRow("Edit with diff preview", "doc.text.magnifyingglass") { demoDiff() }
-                divider
-                actionRow("Auto-approve (live activity)", "bolt.badge.a") { demoAutoApprove() }
-                divider
-                actionRow("Notification", "bell") { demoNotification() }
-                divider
-                actionRow("Task complete", "checkmark.seal") { demoCompleted() }
-                divider
-                actionRow("Thinking pulse", "brain") { state.pingThinking(label: "Editing AuthMiddleware.swift") }
-                divider
-                actionRow("Cost budget alert", "dollarsign.circle") { state.demoBudgetAlert() }
-                divider
-                actionRow("Budget hard-stop", "hand.raised") { state.demoBudgetBlock() }
-            }
-            sectionLabel("Pet animations")
-            group {
-                let demoable = PetActivity.allCases.filter { $0 != .tucked }
-                actionRow("Play all", "play.circle") { state.demoPet(demoable) }
-                divider
-                ForEach(Array(demoable.enumerated()), id: \.element) { idx, activity in
-                    actionRow(Self.petDemoTitle(activity), "pawprint") { state.demoPet([activity]) }
-                    if idx < demoable.count - 1 { divider }
+            DisclosureGroup(isExpanded: $devSampleCardsOpen) {
+                group {
+                    actionRow("Tool permission", "terminal") { demoPermission() }
+                    divider
+                    actionRow("Destructive command", "exclamationmark.triangle") { demoDangerous() }
+                    divider
+                    actionRow("Edit with diff preview", "doc.text.magnifyingglass") { demoDiff() }
+                    divider
+                    actionRow("Auto-approve (live activity)", "bolt.badge.a") { demoAutoApprove() }
+                    divider
+                    actionRow("Notification", "bell") { demoNotification() }
+                    divider
+                    actionRow("Task complete", "checkmark.seal") { demoCompleted() }
+                    divider
+                    actionRow("Thinking pulse", "brain") { state.pingThinking(label: "Editing AuthMiddleware.swift") }
+                    divider
+                    actionRow("Cost budget alert", "dollarsign.circle") { state.demoBudgetAlert() }
+                    divider
+                    actionRow("Budget hard-stop", "hand.raised") { state.demoBudgetBlock() }
                 }
+                .padding(.top, 6)
+            } label: {
+                Text("Sample cards").font(.callout.weight(.semibold))
+            }
+
+            DisclosureGroup(isExpanded: $devPetDemosOpen) {
+                group {
+                    let demoable = PetActivity.allCases.filter { $0 != .tucked }
+                    actionRow("Play all", "play.circle") { state.demoPet(demoable) }
+                    divider
+                    ForEach(Array(demoable.enumerated()), id: \.element) { idx, activity in
+                        actionRow(Self.petDemoTitle(activity), "pawprint") { state.demoPet([activity]) }
+                        if idx < demoable.count - 1 { divider }
+                    }
+                }
+                .padding(.top, 6)
+            } label: {
+                Text("Pet animations").font(.callout.weight(.semibold))
             }
         }
     }
