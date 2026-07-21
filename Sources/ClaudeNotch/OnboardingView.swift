@@ -12,7 +12,7 @@ struct OnboardingView: View {
             VStack(spacing: 10) {
                 StepRow(
                     title: "Accessibility",
-                    description: "Lets ClaudeNotch type your answers and messages into the terminal — needed for AskUserQuestion replies and the Send-to-Claude composer.",
+                    description: "Lets ClaudeNotch type your answers and messages into the terminal, needed for AskUserQuestion replies and the Send-to-Claude composer.",
                     done: state.accessibility,
                     actionLabel: state.accessibility ? "Granted" : "Open Settings",
                     action: state.requestAccessibility,
@@ -52,7 +52,7 @@ struct OnboardingView: View {
                 )
                 StepRow(
                     title: "Auto-approve everything",
-                    description: "Optional. Skip the Allow/Deny buttons — every tool is allowed automatically and the notch just shows what's changing. Destructive commands still ask. Toggle anytime from the menu bar.",
+                    description: "Optional. Skip the Allow/Deny buttons, every tool is allowed automatically and the notch just shows what's changing. Destructive commands still ask. Toggle anytime from the menu bar.",
                     done: state.autoApprove,
                     actionLabel: state.autoApprove ? "Turn Off" : "Turn On",
                     action: state.toggleAutoApprove,
@@ -89,7 +89,7 @@ struct OnboardingView: View {
         HStack(spacing: 12) {
             ProgressDots(done: state.allRequiredDone)
             Text(state.allRequiredDone
-                 ? "All set — you're ready to go."
+                 ? "All set. Tip: drag any folder onto the notch to start Claude there."
                  : "Finish the required steps to start using ClaudeNotch.")
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
@@ -138,7 +138,7 @@ private struct StepRow: View {
                         Image(systemName: "arrow.clockwise.circle.fill")
                             .foregroundColor(.orange)
                             .font(.system(size: 12))
-                        Text("Granted in Settings but not picked up yet — macOS sometimes needs a relaunch.")
+                        Text("Granted in Settings but not picked up yet. macOS sometimes needs a relaunch.")
                             .font(.system(size: 11))
                             .foregroundColor(.orange)
                             .fixedSize(horizontal: false, vertical: true)
