@@ -1134,7 +1134,10 @@ struct SettingsView: View {
             if let u = claudeUsage {
                 let trend = spendTrendData(u)
                 if trend.contains(where: { $0.cost > 0 }) {
-                    sectionLabel("Spend, last 7 days")
+                    sectionLabel("Estimated cost, last 7 days")
+                    Text("Estimated at public API (pay-as-you-go) prices. On a Pro, Max, Team, or Enterprise subscription you pay a flat fee, so this is not your actual bill, it is what the usage would cost per token.")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                     spendTrend(trend)
                         .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1195,7 +1198,7 @@ struct SettingsView: View {
                 .sorted { $0.value > $1.value }
                 .prefix(6)
             if !spendLeaders.isEmpty {
-                sectionLabel("Top projects by spend (last 7 days)")
+                sectionLabel("Top projects by estimated cost (7 days)")
                 let maxSpend = spendLeaders.first?.value ?? 1
                 group {
                     ForEach(Array(spendLeaders.enumerated()), id: \.element.key) { idx, kv in
@@ -1207,6 +1210,8 @@ struct SettingsView: View {
             }
 
             sectionLabel("Claude usage (from transcripts)")
+            Text("Costs are estimates at public API prices, not your subscription bill.")
+                .font(.caption).foregroundStyle(.secondary)
             if let u = claudeUsage {
                 group {
                     statRow("Today", "\(formatTokens(u.today.total)) tok · \(usd(u.today.costUSD))")

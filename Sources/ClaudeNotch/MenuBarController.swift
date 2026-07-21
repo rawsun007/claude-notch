@@ -419,11 +419,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                     mi.isEnabled = false
                     self.spendMenu.addItem(mi)
                 }
+                let note = NSMenuItem(title: "Estimated at API prices, not your subscription bill", action: nil, keyEquivalent: "")
+                note.isEnabled = false
+                self.spendMenu.addItem(note)
                 self.spendMenu.addItem(.separator())
                 let more = NSMenuItem(title: "Full usage in Settings…", action: #selector(self.showSettings), keyEquivalent: "")
                 more.target = self
                 self.spendMenu.addItem(more)
-                self.spendItem.title = "Spend  ·  \(ClaudeUsageReader.fmtMoney(u.today.costUSD)) today"
+                self.spendItem.title = "Est. cost  ·  \(ClaudeUsageReader.fmtMoney(u.today.costUSD)) today"
             }
         }
     }
