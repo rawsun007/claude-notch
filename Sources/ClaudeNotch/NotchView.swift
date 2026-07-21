@@ -1323,7 +1323,26 @@ private struct IdlePill: View {
                             .padding(.vertical, 2)
                             .background(Color.cyan.opacity(0.15))
                             .cornerRadius(4)
-                            .help("Files Claude edited this session — full list in the menu bar")
+                            .help("Files Claude edited this session, full list in the menu bar")
+                    }
+                    // Diff stat: lines this session has added / removed, from the
+                    // status line. Green for additions, red for deletions.
+                    let diff = state.currentDiffStat
+                    if diff.added > 0 || diff.removed > 0 {
+                        HStack(spacing: 3) {
+                            if diff.added > 0 {
+                                Text("+\(diff.added)").foregroundColor(.green.opacity(0.95))
+                            }
+                            if diff.removed > 0 {
+                                Text("-\(diff.removed)").foregroundColor(.red.opacity(0.9))
+                            }
+                        }
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.white.opacity(0.08))
+                        .cornerRadius(4)
+                        .help("Lines changed this session")
                     }
                 }
                 Spacer(minLength: 0)

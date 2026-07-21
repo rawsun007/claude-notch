@@ -745,6 +745,27 @@ final class AppState: ObservableObject {
         return (0, 0)
     }
 
+    /// Lines this session has added/removed, from the current session (or the
+    /// busiest live session when there is no clear current one). (0,0) means
+    /// nothing changed yet or the status line hasn't reported it.
+    var currentDiffStat: (added: Int, removed: Int) {
+        if !currentSessionId.isEmpty, let s = sessions[currentSessionId], (s.linesAdded + s.linesRemoved) > 0 {
+            return (s.linesAdded, s.linesRemoved)
+        }
+        if let s = sessions.values.max(by: { ($0.linesAdded + $0.linesRemoved) < ($1.linesAdded + $1.linesRemoved) }),
+           (s.linesAdded + s.linesRemoved) > 0 {
+            return (s.linesAdded, s.linesRemoved)
+        }
+        return (0, 0)
+    }
+
+    /// Whether the current session's displayed cost is Claude Code's own
+    /// reported figure (true) or the app's transcript estimate (false).
+    var currentCostIsReported: Bool {
+        guard !currentSessionId.isEmpty, let s = sessions[currentSessionId] else { return false }
+        return s.reportedCostUSD > 0
+    }
+
     // Cost budgets (USD, estimated from public pricing). 0 = off. Persisted.
     // sessionCostCap warns on any single session; dailyCostCap on today's total.
     @Published private(set) var sessionCostCap: Double = 0
