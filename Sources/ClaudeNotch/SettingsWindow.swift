@@ -1474,8 +1474,23 @@ struct SettingsView: View {
                 Spacer()
             }
             .padding(.vertical, 4)
+            if !Self.whatsNew.isEmpty {
+                sectionLabel("What's new in v\(Self.appVersion)")
+                group {
+                    ForEach(Array(Self.whatsNew.enumerated()), id: \.offset) { idx, line in
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "sparkle").font(.caption).foregroundStyle(Color.accentColor)
+                                .padding(.top, 2)
+                            Text(line).font(.callout)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.vertical, 8).padding(.horizontal, 14)
+                        if idx < Self.whatsNew.count - 1 { divider }
+                    }
+                }
+            }
             group {
-                aboutLink("Changelog", "https://rawsun007.github.io/claude-notch/changelog/")
+                aboutLink("Full changelog", "https://rawsun007.github.io/claude-notch/changelog/")
                 divider
                 aboutLink("Source on GitHub", "https://github.com/rawsun007/claude-notch")
             }
@@ -1596,4 +1611,12 @@ struct SettingsView: View {
         let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
         return "\(v) (\(b))"
     }
+
+    /// Highlights for the current release, shown on the About page. Keep this in
+    /// sync with the top changelog entry when cutting a release.
+    static let whatsNew: [String] = [
+        "Lines changed this session and code-churn-today on the Usage page.",
+        "The cost tooltip now says whether a figure is Claude Code's own or an estimate.",
+        "An in-app update banner with one-click download and a brew upgrade command.",
+    ]
 }
