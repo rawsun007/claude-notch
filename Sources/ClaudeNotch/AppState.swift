@@ -735,6 +735,9 @@ final class AppState: ObservableObject {
     @Published private(set) var currentCostUSD: Double = 0
     @Published private(set) var currentModel: String = ""
     @Published private(set) var currentPermissionMode: String = ""
+    // Newer release version when the update checker has found one, else nil.
+    // Drives the in-app update banner in Settings. Transient (not persisted).
+    @Published var availableUpdateVersion: String?
 
     /// Task-list progress for what the notch should show: the current session's
     /// counts, or, when there is no clear current session, whichever live

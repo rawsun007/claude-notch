@@ -766,7 +766,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     // MARK: - Updates
 
     private func handleUpdateAvailable(_ version: String, userInitiated: Bool) {
-        updateItem.title = "↑ Update available: v\(version) — Download"
+        state.availableUpdateVersion = version
+        updateItem.title = "↑ Update available: v\(version), Download"
         updateItem.isHidden = false
         checkUpdateItem.title = "Check for Updates…"
         checkUpdateItem.isEnabled = true

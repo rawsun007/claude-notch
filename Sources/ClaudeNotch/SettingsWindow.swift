@@ -167,6 +167,7 @@ struct SettingsView: View {
     // Inline session-rename editor state.
     @State private var editingNoteId: String?
     @State private var editingNoteText = ""
+    @State private var updateCmdCopied = false
 
     private var searchResults: [SettingsSearchItem] {
         let q = search.trimmingCharacters(in: .whitespaces).lowercased()
@@ -268,6 +269,9 @@ struct SettingsView: View {
         let hooksOK = HookInstaller.isInstalled
         let statusLineOK = HookInstaller.statusLineWired
         return page("General") {
+            if let v = state.availableUpdateVersion {
+                updateBanner(version: v)
+            }
             sectionLabel("Setup")
             group {
                 healthRow("Claude Code hooks", ok: hooksOK,
@@ -311,6 +315,62 @@ struct SettingsView: View {
                 actionRow("Check for updates…", "arrow.down.circle") { UpdateChecker.shared.check(userInitiated: true) }
             }
         }
+    }
+
+    /// In-app update banner shown at the top of General when a newer release
+    /// is found: the version, a one-click Download, and a copyable Homebrew
+    /// upgrade command for cask users.
+    private func updateBanner(version: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.down.circle.fill").foregroundStyle(.white)
+                Text("Update available: v\(version)")
+                    .font(.headline).foregroundStyle(.white)
+                Spacer()
+                Text("You have v\(UpdateChecker.shared.currentVersion)")
+                    .font(.caption).foregroundStyle(.white.opacity(0.8))
+            }
+            HStack(spacing: 8) {
+                Button {
+                    if let url = URL(string: "https://github.com/rawsun007/claude-notch/releases/latest/download/ClaudeNotch.dmg") {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    Label("Download", systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                Button("Release notes") {
+                    if let url = URL(string: "https://rawsun007.github.io/claude-notch/changelog/") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                .controlSize(.small)
+                Spacer()
+            }
+            HStack(spacing: 8) {
+                Text("Homebrew:").font(.caption).foregroundStyle(.white.opacity(0.8))
+                Text("brew upgrade --cask claudenotch")
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.white)
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString("brew upgrade --cask claudenotch", forType: .string)
+                    updateCmdCopied = true
+                } label: {
+                    Image(systemName: updateCmdCopied ? "checkmark" : "doc.on.doc")
+                        .font(.caption).foregroundStyle(.white)
+                }
+                .buttonStyle(.plain)
+                Spacer()
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.accentColor)
+        )
     }
 
     // Launch-at-login state and toggle, via ServiceManagement.
