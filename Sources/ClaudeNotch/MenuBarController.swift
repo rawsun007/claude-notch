@@ -51,6 +51,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var muteRowView: KeepOpenRowView?
     private var perToolRowView: KeepOpenRowView?
     private var updateItem: NSMenuItem!
+    private var spendItem: NSMenuItem!
+    private var spendMenu: NSMenu!
     private var checkUpdateItem: NSMenuItem!
     private var insightsMenu: NSMenu!
     private var insightsItem: NSMenuItem!
@@ -92,6 +94,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         updateItem.target = self
         updateItem.isHidden = true
         menu.addItem(updateItem)
+
+        // Spend breakdown submenu (today / 5-hour / week), filled on menu open.
+        spendMenu = NSMenu()
+        spendItem = NSMenuItem(title: "Spend", action: nil, keyEquivalent: "")
+        spendItem.submenu = spendMenu
+        menu.addItem(spendItem)
 
         menu.addItem(.separator())
 
@@ -392,6 +400,31 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             self.refreshStatusLine()
             self.refreshRecentProjects()
             self.refreshResumeLast()
+            self.refreshSpend()
+        }
+    }
+
+    /// Fill the Spend submenu with today / 5-hour / week cost, computed off the
+    /// main thread from Claude Code's transcripts.
+    private func refreshSpend() {
+        Task.detached(priority: .utility) {
+            let u = ClaudeUsageReader.compute()
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                self.spendMenu.removeAllItems()
+                for (label, cost) in [("Today", u.today.costUSD),
+                                      ("Last 5 hours", u.fiveHour.costUSD),
+                                      ("This week", u.week.costUSD)] {
+                    let mi = NSMenuItem(title: "\(label): \(ClaudeUsageReader.fmtMoney(cost))", action: nil, keyEquivalent: "")
+                    mi.isEnabled = false
+                    self.spendMenu.addItem(mi)
+                }
+                self.spendMenu.addItem(.separator())
+                let more = NSMenuItem(title: "Full usage in Settings…", action: #selector(self.showSettings), keyEquivalent: "")
+                more.target = self
+                self.spendMenu.addItem(more)
+                self.spendItem.title = "Spend  ·  \(ClaudeUsageReader.fmtMoney(u.today.costUSD)) today"
+            }
         }
     }
 
