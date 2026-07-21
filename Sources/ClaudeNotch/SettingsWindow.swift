@@ -624,7 +624,7 @@ struct SettingsView: View {
                 Text(title)
                 Spacer()
                 Text("\(Int((clamped * 100).rounded()))%")
-                    .font(.callout.weight(.semibold)).foregroundStyle(tint)
+                    .font(.callout.weight(.semibold).monospacedDigit()).foregroundStyle(tint)
             }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
