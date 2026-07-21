@@ -131,14 +131,20 @@ struct LiveSession: Identifiable, Equatable {
     // only — sessions aren't persisted, so no Codable concern.
     var createdTaskIds: Set<String> = []
     var completedTaskIds: Set<String> = []
+    // TodoWrite checklist counts (the to-do list shown in the terminal). Sent
+    // whole on every TodoWrite call, so these are just the latest snapshot.
+    // Preferred over the TaskCreate/Update sets when present, because that is
+    // the list most sessions actually use.
+    var todoTotal: Int = 0
+    var todoDone: Int = 0
     // Live subagent count: incremented on SubagentStart, decremented on SubagentStop.
     // Stays > 0 while any agent is still running, so the badge survives tool-activity
     // updates that would otherwise overwrite a plain activity-label approach.
     var runningAgentCount: Int = 0
     var toolCallCount: Int = 0
 
-    var taskTotal: Int { createdTaskIds.count }
-    var taskDone: Int { completedTaskIds.count }
+    var taskTotal: Int { todoTotal > 0 ? todoTotal : createdTaskIds.count }
+    var taskDone: Int { todoTotal > 0 ? todoDone : completedTaskIds.count }
 
     // Claude Code's own cost for this session, and the code it has changed.
     //
@@ -2089,6 +2095,18 @@ final class AppState: ObservableObject {
             // never shows more done than total.
             s.createdTaskIds.insert(id)
             s.completedTaskIds.insert(id)
+        }
+        lastHookAt = Date()
+        ensureStaleTimer()
+    }
+
+    /// The TodoWrite checklist changed. Store the whole snapshot (total items,
+    /// completed items) on the session; this is what most sessions use, so it
+    /// drives the notch task meter.
+    func noteTodos(total: Int, done: Int, sessionId: String = "") {
+        upsertSession(id: sessionId, cwd: currentCwd, create: true) { s in
+            s.todoTotal = max(0, total)
+            s.todoDone = min(max(0, done), max(0, total))
         }
         lastHookAt = Date()
         ensureStaleTimer()

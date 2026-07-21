@@ -382,6 +382,15 @@ final class EventServer {
                     state?.noteTaskCreated(id: id, subject: subject, sessionId: sessionId)
                 }
             }
+        } else if tool == "TodoWrite" {
+            // The terminal to-do list. It arrives whole on every call, so count
+            // the snapshot and feed the notch task meter.
+            let todos = (input["todos"] as? [[String: Any]]) ?? []
+            let total = todos.count
+            let done = todos.filter { ($0["status"] as? String) == "completed" }.count
+            Task { @MainActor [weak state] in
+                state?.noteTodos(total: total, done: done, sessionId: sessionId)
+            }
         } else if tool == "TaskUpdate" {
             let subject = (input["subject"] as? String) ?? ""
             let taskId  = (input["taskId"] as? String) ?? ""
