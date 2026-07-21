@@ -1440,7 +1440,8 @@ private struct IdlePill: View {
                                                reported: state.currentContextWindow,
                                                learned: state.learnedContextWindows,
                                                tokens: state.currentContextTokens,
-                                               mode: state.contextWindowMode)
+                                               mode: state.contextWindowMode),
+                    costIsReported: state.currentCostIsReported
                 )
                 .layoutPriority(1)
             }
@@ -1759,7 +1760,8 @@ private struct SessionsList: View {
                                                                       reported: session.contextWindow,
                                                                       learned: state.learnedContextWindows,
                                                                       tokens: session.contextTokens,
-                                                                      mode: state.contextWindowMode))
+                                                                      mode: state.contextWindowMode),
+                                           costIsReported: session.reportedCostUSD > 0)
                                 .padding(.leading, 14)
                         }
                     }
@@ -1825,6 +1827,9 @@ struct ContextCostBar: View {
     /// reported (no status line yet), in which case the app falls back to
     /// inferring it from the model.
     var window: Int = 0
+    /// True when `cost` is Claude Code's own reported figure rather than the
+    /// app's transcript estimate. Only changes the tooltip wording.
+    var costIsReported: Bool = false
 
     private var clamped: CGFloat { min(1, max(0, CGFloat(percent))) }
     private var costColor: Color {
@@ -1863,7 +1868,14 @@ struct ContextCostBar: View {
     private var tooltipText: String {
         let base = "Context \(Int((percent * 100).rounded()))% full"
         let tok  = tokens > 0 ? " · \(tokens.formatted()) / \(maxTokens.formatted()) tokens" : ""
-        let cost = cost > 0  ? " · est. \(ClaudeUsageReader.fmtMoney(cost)) this session" : ""
+        let cost: String
+        if self.cost > 0 {
+            cost = costIsReported
+                ? " · \(ClaudeUsageReader.fmtMoney(self.cost)) this session (Claude Code's own figure)"
+                : " · est. \(ClaudeUsageReader.fmtMoney(self.cost)) this session (estimated from the transcript)"
+        } else {
+            cost = ""
+        }
         return base + tok + cost
     }
 
