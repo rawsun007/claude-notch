@@ -1706,9 +1706,8 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "Notch task progress now follows your TodoWrite checklist.",
-        "In-app update banner with one-click download and a brew upgrade command.",
-        "Menu-bar Spend breakdown: today, last 5 hours, and this week.",
-        "Developer settings tucked into collapsible sections; onboarding drag tip.",
+        "Usage page is now a dashboard: cost trend, model mix, cache savings, CSV export.",
+        "Costs are labelled as API-price estimates, not your subscription bill.",
+        "A finished task bar now clears from the notch on your next message.",
     ]
 }
