@@ -2062,6 +2062,16 @@ final class AppState: ObservableObject {
         upsertSession(id: sessionId, cwd: currentCwd) { s in
             s.status = "thinking"
             s.lastResponse = ""
+            // A finished checklist belongs to the previous turn. Clear a fully
+            // completed task list on a new prompt so its 100% bar does not
+            // linger; a still-in-progress list is left alone (the turn may be
+            // continuing it) and will refresh on the next TodoWrite.
+            if s.todoTotal > 0, s.todoDone >= s.todoTotal {
+                s.todoTotal = 0; s.todoDone = 0
+            }
+            if !s.createdTaskIds.isEmpty, s.completedTaskIds.count >= s.createdTaskIds.count {
+                s.createdTaskIds.removeAll(); s.completedTaskIds.removeAll()
+            }
         }
         ensureStaleTimer()
     }
