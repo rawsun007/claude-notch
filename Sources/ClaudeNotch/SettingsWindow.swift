@@ -1040,7 +1040,17 @@ struct SettingsView: View {
 
     private var usage: some View {
         page("Usage") {
-            sectionLabel("Activity — last 7 weeks")
+            let churn = state.churnToday
+            if churn.added > 0 || churn.removed > 0 {
+                sectionLabel("Code churn today")
+                HStack(spacing: 12) {
+                    churnStat("Lines added", "+\(churn.added)", .green)
+                    churnStat("Lines removed", "-\(churn.removed)", .red)
+                    churnStat("Net", "\(churn.added - churn.removed >= 0 ? "+" : "")\(churn.added - churn.removed)", .primary)
+                }
+            }
+
+            sectionLabel("Activity, last 7 weeks")
             activityHeatmap
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -1236,6 +1246,26 @@ struct SettingsView: View {
                 .frame(width: 64, alignment: .trailing)
         }
         .padding(.vertical, 9).padding(.horizontal, 14)
+    }
+
+    /// A single big-number tile for the code-churn row.
+    private func churnStat(_ label: String, _ value: String, _ color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value)
+                .font(.title2.weight(.semibold).monospacedDigit())
+                .foregroundStyle(color)
+            Text(label).font(.caption).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 12).padding(.horizontal, 14)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        )
     }
 
     private func statRow(_ title: String, _ value: String) -> some View {

@@ -231,6 +231,10 @@ struct SessionRecord: Identifiable, Codable {
     var costUSD: Double = 0
     var toolCallCount: Int = 0
     var model: String = ""
+    // Optional so snapshots written before these existed still decode (a
+    // non-optional new key would make the whole history array fail to decode).
+    var linesAdded: Int? = nil
+    var linesRemoved: Int? = nil
 
     var duration: TimeInterval? { endedAt.map { $0.timeIntervalSince(startedAt) } }
 }
@@ -757,6 +761,23 @@ final class AppState: ObservableObject {
             return (s.linesAdded, s.linesRemoved)
         }
         return (0, 0)
+    }
+
+    /// Lines added/removed across everything worked on today: archived sessions
+    /// that started today plus every live session (which is, by definition,
+    /// today's work). Drives the Usage "code churn today" tile.
+    var churnToday: (added: Int, removed: Int) {
+        let cal = Calendar.current
+        var added = 0, removed = 0
+        for r in sessionHistory where cal.isDateInToday(r.startedAt) && sessions[r.sessionKey] == nil {
+            added += r.linesAdded ?? 0
+            removed += r.linesRemoved ?? 0
+        }
+        for s in sessions.values {
+            added += s.linesAdded
+            removed += s.linesRemoved
+        }
+        return (added, removed)
     }
 
     /// Whether the current session's displayed cost is Claude Code's own
@@ -3008,6 +3029,8 @@ final class AppState: ObservableObject {
             sessionHistory[i].costUSD = session.sessionCostUSD
             sessionHistory[i].toolCallCount = session.toolCallCount
             sessionHistory[i].model = session.model
+            sessionHistory[i].linesAdded = session.linesAdded
+            sessionHistory[i].linesRemoved = session.linesRemoved
             schedulePersist()
             return
         }
@@ -3021,7 +3044,9 @@ final class AppState: ObservableObject {
             contextTokens: session.contextTokens,
             costUSD: session.sessionCostUSD,
             toolCallCount: session.toolCallCount,
-            model: session.model
+            model: session.model,
+            linesAdded: session.linesAdded,
+            linesRemoved: session.linesRemoved
         )
         sessionHistory.insert(record, at: 0)
         if sessionHistory.count > sessionHistoryMax {
