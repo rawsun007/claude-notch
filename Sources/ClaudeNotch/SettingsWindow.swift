@@ -1131,6 +1131,24 @@ struct SettingsView: View {
                 }
             }
 
+            if let u = claudeUsage {
+                let trend = spendTrendData(u)
+                if trend.contains(where: { $0.cost > 0 }) {
+                    sectionLabel("Spend, last 7 days")
+                    spendTrend(trend)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color(nsColor: .controlBackgroundColor))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                        )
+                }
+            }
+
             sectionLabel("Activity, last 7 weeks")
             activityHeatmap
                 .padding(14)
@@ -1200,7 +1218,31 @@ struct SettingsView: View {
                     statRow("Sessions this week", "\(u.sessionsWeek)")
                     divider
                     statRow("Cache hit rate", "\(Int(u.cacheHitRate * 100))%")
+                    divider
+                    statRow("Cache savings", usd(u.cacheSavingsUSD))
                 }
+
+                let models = u.weekByModel
+                    .filter { $0.value.costUSD > 0 }
+                    .sorted { $0.value.costUSD > $1.value.costUSD }
+                if !models.isEmpty {
+                    sectionLabel("Model mix (last 7 days)")
+                    let maxCost = models.first?.value.costUSD ?? 1
+                    group {
+                        ForEach(Array(models.enumerated()), id: \.element.key) { idx, kv in
+                            spendLeaderRow(project: kv.key, cost: kv.value.costUSD,
+                                           fraction: maxCost > 0 ? kv.value.costUSD / maxCost : 0)
+                            if idx < models.count - 1 { divider }
+                        }
+                    }
+                }
+
+                Button {
+                    state.exportSessionHistory()
+                } label: {
+                    Label("Export session history (CSV)", systemImage: "square.and.arrow.up")
+                }
+                .padding(.top, 2)
             } else {
                 Text("Reading transcripts…").font(.callout).foregroundStyle(.secondary)
             }
@@ -1209,6 +1251,38 @@ struct SettingsView: View {
             guard section == .usage else { return }
             let usage = await Task.detached(priority: .utility) { ClaudeUsageReader.compute() }.value
             claudeUsage = usage
+        }
+    }
+
+    /// Last 7 days of spend as (weekday label, cost), oldest to newest.
+    private func spendTrendData(_ u: ClaudeUsageReader.Usage) -> [(label: String, cost: Double)] {
+        let cal = Calendar.current
+        let key = DateFormatter(); key.locale = Locale(identifier: "en_US_POSIX"); key.dateFormat = "yyyy-MM-dd"
+        let lab = DateFormatter(); lab.locale = Locale(identifier: "en_US_POSIX"); lab.dateFormat = "EEE"
+        let today = cal.startOfDay(for: Date())
+        return (0..<7).reversed().compactMap { i -> (String, Double)? in
+            guard let d = cal.date(byAdding: .day, value: -i, to: today) else { return nil }
+            return (lab.string(from: d), u.dailyCostUSD[key.string(from: d)] ?? 0)
+        }
+    }
+
+    /// A row of vertical bars, one per day, scaled to the priciest day.
+    private func spendTrend(_ data: [(label: String, cost: Double)]) -> some View {
+        let maxCost = max(data.map(\.cost).max() ?? 0, 0.0001)
+        return HStack(alignment: .bottom, spacing: 10) {
+            ForEach(Array(data.enumerated()), id: \.offset) { _, day in
+                VStack(spacing: 4) {
+                    Text(day.cost >= 0.005 ? usd(day.cost) : "")
+                        .font(.system(size: 9, design: .rounded).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1).fixedSize()
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.accentColor.opacity(0.75))
+                        .frame(height: max(2, CGFloat(day.cost / maxCost) * 90))
+                    Text(day.label).font(.caption2).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+            }
         }
     }
 
