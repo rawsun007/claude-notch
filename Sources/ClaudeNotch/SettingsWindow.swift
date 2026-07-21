@@ -813,6 +813,25 @@ struct SettingsView: View {
                 }
             }
 
+            let diff = state.currentDiffStat
+            if diff.added > 0 || diff.removed > 0 {
+                sectionLabel("Lines changed this session")
+                group {
+                    HStack(spacing: 12) {
+                        Text("+\(diff.added)")
+                            .font(.body.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(.green)
+                        Text("-\(diff.removed)")
+                            .font(.body.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(.red)
+                        Spacer()
+                        Text("net \(diff.added - diff.removed >= 0 ? "+" : "")\(diff.added - diff.removed)")
+                            .font(.callout).foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 10).padding(.horizontal, 14)
+                }
+            }
+
             if !state.currentTouchedFiles.isEmpty {
                 sectionLabel("Files touched this session")
                 group {
