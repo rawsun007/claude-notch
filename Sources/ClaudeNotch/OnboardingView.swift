@@ -59,6 +59,7 @@ struct OnboardingView: View {
                     optional: true,
                     alwaysEnabled: true
                 )
+                NameRow(name: Binding(get: { state.notchName }, set: { state.notchName = $0 }))
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 18)
@@ -99,6 +100,40 @@ struct OnboardingView: View {
         }
         .padding(.horizontal, 28)
         .padding(.vertical, 14)
+    }
+}
+
+/// Optional "name your notch" field. Empty keeps the default (the agent name).
+/// Mirrors Settings > Notch > Notch Title (custom).
+private struct NameRow: View {
+    @Binding var name: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: "textformat")
+                .font(.system(size: 15))
+                .foregroundColor(.secondary)
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text("Name the notch").font(.system(size: 14, weight: .semibold))
+                    Text("optional").font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 5).padding(.vertical, 1)
+                        .background(Capsule().fill(Color.secondary.opacity(0.15)))
+                }
+                Text("What the notch calls itself. Leave blank to use the agent name (Claude, Codex). Change it anytime in Settings.")
+                    .font(.system(size: 12)).foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                TextField("e.g. Robo, Jarvis, my mac", text: $name)
+                    .textFieldStyle(.roundedBorder)
+                    .controlSize(.small)
+                    .frame(maxWidth: 240)
+                    .padding(.top, 2)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 4)
     }
 }
 

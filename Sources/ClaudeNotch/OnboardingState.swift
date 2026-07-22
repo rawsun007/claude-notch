@@ -36,6 +36,13 @@ final class OnboardingState: ObservableObject {
         objectWillChange.send()
     }
 
+    /// What the notch calls itself. Empty means the default (the agent name).
+    /// Backs the onboarding "name your notch" field; mirrors Settings > Notch.
+    var notchName: String {
+        get { appState?.customNotchTitle ?? "" }
+        set { appState?.setCustomNotchTitle(newValue); objectWillChange.send() }
+    }
+
     /// Set when the user clicks "Open Settings" for a given permission.
     /// Drives the "stuck? quit & relaunch" hint after a grace period.
     @Published var accessibilityGrantClickedAt: Date? = nil
