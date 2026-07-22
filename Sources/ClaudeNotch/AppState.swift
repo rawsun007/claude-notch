@@ -518,8 +518,15 @@ final class AppState: ObservableObject {
     var entityName: String {
         switch notchTitleMode {
         case .claude:
-            // Agent-aware: show Claude / Grok / Codex based on the active
-            // session's model, so a non-Claude session isn't mislabelled.
+            // Agent-aware, derived from the ACTIVE SESSIONS (not currentModel,
+            // which only Claude's status line sets — a Codex-only session would
+            // otherwise read "Claude"). All one agent -> its name; mixed agents
+            // -> the neutral app name so we never claim a single wrong agent.
+            let agents = Set(activeSessions.compactMap {
+                $0.model.isEmpty ? nil : AgentKind.infer(fromModel: $0.model)
+            })
+            if agents.count > 1 { return "ClaudeNotch" }
+            if let only = agents.first { return only.notchLabel }
             return currentModel.isEmpty ? Self.statusEntityName
                                         : AgentKind.infer(fromModel: currentModel).notchLabel
         case .project:

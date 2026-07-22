@@ -1598,6 +1598,22 @@ private struct SessionsList: View {
                                           ? "This background agent is blocked waiting for you"
                                           : "Running in the background (claude --bg)")
                             }
+                            // Which CLI this session belongs to. Claude is the
+                            // default and stays untagged; other agents get a
+                            // small chip so a mixed list is unambiguous.
+                            let agent = AgentKind.infer(fromModel: session.model)
+                            if agent != .claude {
+                                Text(agent.notchLabel.uppercased())
+                                    .font(.system(size: 8, weight: .bold, design: .rounded))
+                                    .foregroundColor(.teal.opacity(0.95))
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                            .fill(Color.teal.opacity(0.18))
+                                    )
+                                    .help("\(agent.displayName) session")
+                            }
                             Text(label)
                                 .font(.system(size: 11, weight: .medium, design: .rounded))
                                 .foregroundColor(.white.opacity(0.9))
