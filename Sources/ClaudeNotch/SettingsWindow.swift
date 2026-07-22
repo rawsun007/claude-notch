@@ -337,11 +337,8 @@ struct SettingsView: View {
                 }
             }
             if HookInstaller.isCodexInstalled {
-                group {
-                    row("Dropping a folder starts Codex",
-                        "When you drag a folder onto the notch, start Codex instead of Claude.",
-                        Binding(get: { state.dropStartsCodex }, set: { state.setDropStartsCodex($0) }))
-                }
+                Text("With Codex on, dropping a folder on the notch asks whether to open it in Claude Code or Codex.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
     }
@@ -952,8 +949,9 @@ struct SettingsView: View {
         }
         .task(id: section) {
             guard section == .session else { return }
+            let codexOn = HookInstaller.isCodexInstalled
             let loaded = await Task.detached(priority: .utility) {
-                SessionResumer.allAgentSessionsByProject()
+                SessionResumer.allAgentSessionsByProject(includeCodex: codexOn)
             }.value
             projectSessions = loaded
         }

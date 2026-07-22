@@ -601,11 +601,28 @@ final class AppState: ObservableObject {
         // panel just closes cleanly.
         suppressHoverUntil = now.addingTimeInterval(0.7)
         isHovering = false
-        if dropStartsCodex {
-            TerminalAutomator.startCodex(in: launch.dir)   // Codex takes no initial prompt
-        } else {
+        // Only ask which agent when Codex is actually enabled. Otherwise this is
+        // plain Claude ClaudeNotch: a drop just opens Claude Code, no prompt.
+        guard HookInstaller.isCodexInstalled else {
             TerminalAutomator.startClaude(in: launch.dir, message: launch.message)
+            return
         }
+        let dir = launch.dir, message = launch.message
+        let folder = (dir as NSString).lastPathComponent
+        let q = AskQuestion(
+            header: "Open folder",
+            text: "Open “\(folder)” in which agent?",
+            multiSelect: false,
+            options: [AskOption(label: "Claude Code", description: ""),
+                      AskOption(label: "Codex", description: "")])
+        enqueueQuestion(QuestionRequest(questions: [q], source: "ClaudeNotch", cwd: dir, resolver: { answers in
+            let pick = answers?.first?.first ?? ""
+            Task { @MainActor in
+                if pick == "Codex" { TerminalAutomator.startCodex(in: dir) }
+                else if pick == "Claude Code" { TerminalAutomator.startClaude(in: dir, message: message) }
+                // Cancelled (nil / empty) opens nothing.
+            }
+        }))
     }
 
     private static func isDirectory(_ url: URL) -> Bool {

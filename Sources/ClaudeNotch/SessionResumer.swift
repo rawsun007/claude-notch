@@ -71,12 +71,13 @@ enum SessionResumer {
         group(allSessions(limit: limit))
     }
 
-    /// All resumable sessions across every supported agent (Claude + Codex),
-    /// grouped by project. This is what the resume UI loads.
-    nonisolated static func allAgentSessionsByProject(limit: Int = 400) -> [(cwd: String, project: String, sessions: [ResumableSession])] {
-        let merged = (allSessions(limit: limit) + CodexReader.allSessions())
-            .sorted { $0.lastActive > $1.lastActive }
-        return group(merged)
+    /// Resumable sessions grouped by project. Codex sessions are merged in only
+    /// when Codex support is enabled, so a Claude-only user's list stays pure
+    /// Claude.
+    nonisolated static func allAgentSessionsByProject(limit: Int = 400, includeCodex: Bool) -> [(cwd: String, project: String, sessions: [ResumableSession])] {
+        var merged = allSessions(limit: limit)
+        if includeCodex { merged += CodexReader.allSessions() }
+        return group(merged.sorted { $0.lastActive > $1.lastActive })
     }
 
     /// Group sessions by cwd, groups ordered by their most-recent session.
