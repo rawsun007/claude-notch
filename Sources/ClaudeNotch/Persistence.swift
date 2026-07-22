@@ -53,6 +53,8 @@ enum Persistence {
         var pinnedProjects: [String]? = nil
         /// User-given names/notes for sessions, keyed by session id.
         var sessionNotes: [String: String]? = nil
+        /// ISO week key of the last weekly digest shown.
+        var lastWeeklyDigestDate: String? = nil
     }
 
     static let storeURL: URL = {
@@ -129,7 +131,8 @@ extension Persistence.Snapshot {
             longRunAlertsEnabled: try? c.decode(Bool.self, forKey: .longRunAlertsEnabled),
             rateLimitWarningsEnabled: try? c.decode(Bool.self, forKey: .rateLimitWarningsEnabled),
             pinnedProjects: try? c.decode([String].self, forKey: .pinnedProjects),
-            sessionNotes: try? c.decode([String: String].self, forKey: .sessionNotes)
+            sessionNotes: try? c.decode([String: String].self, forKey: .sessionNotes),
+            lastWeeklyDigestDate: try? c.decode(String.self, forKey: .lastWeeklyDigestDate)
         )
     }
 }

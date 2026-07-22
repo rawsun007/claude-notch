@@ -687,6 +687,8 @@ final class AppState: ObservableObject {
 
     // Daily digest tracking — only shown once per day.
     @Published private(set) var lastDigestDate: String? = nil
+    // Weekly digest tracking — ISO week key, shown once per week.
+    @Published private(set) var lastWeeklyDigestDate: String? = nil
 
     // Update-available notch card: shown once per discovered version, so the
     // daily poll doesn't re-card users who chose to ignore an update.
@@ -947,6 +949,7 @@ final class AppState: ObservableObject {
             self.persistentNotchDisplay = snapshot.persistentNotchDisplay ?? false
             self.petEnabled = snapshot.petEnabled ?? true
             self.lastDigestDate = snapshot.lastDigestDate
+            self.lastWeeklyDigestDate = snapshot.lastWeeklyDigestDate
             self.lastUpdateCardVersion = snapshot.lastUpdateCardVersion
             self.lastSeenVersion = snapshot.lastSeenVersion
             self.sessionCostCap = snapshot.sessionCostCap ?? 0
@@ -1248,6 +1251,13 @@ final class AppState: ObservableObject {
         return f.string(from: d)
     }
 
+    /// ISO year-and-week key (e.g. "2026-W30"), used to fire the weekly digest
+    /// at most once per calendar week. Pure, so it is unit-tested.
+    static func weekKey(_ d: Date, calendar: Calendar = .current) -> String {
+        let c = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: d)
+        return "\(c.yearForWeekOfYear ?? 0)-W\(c.weekOfYear ?? 0)"
+    }
+
     private func markActiveToday() {
         if stats.firstUsed == nil { stats.firstUsed = Date() }
         let today = Self.dayKey(Date())
@@ -1459,6 +1469,40 @@ final class AppState: ObservableObject {
               let spend = yesterdaySpend else { return }
         permissionMirror?.sendDigest(spend)
         markDigestShown()
+    }
+
+    /// Fire a once-a-week roundup card if the daily digest is enabled and this
+    /// week hasn't been shown yet. Uses in-memory data only (weekly cost map and
+    /// recent session history), and goes through the normal notification card so
+    /// it needs no new mirror plumbing. Costs are API-equivalent estimates.
+    func fireWeeklyDigestIfNeeded() {
+        guard digestNotificationsEnabled else { return }
+        let key = Self.weekKey(Date())
+        guard lastWeeklyDigestDate != key else { return }
+
+        let cost = weekCostByProject.values.reduce(0, +)
+        let weekAgo = Date().addingTimeInterval(-7 * 24 * 3600)
+        let sessions = sessionHistory.filter { $0.startedAt >= weekAgo }.count
+            + sessions.count   // include live sessions this week
+        guard cost > 0 || sessions > 0 else { return }   // nothing to report
+
+        let topCwd = weekCostByProject.max { $0.value < $1.value }?.key
+        let top = topCwd.map { ($0 as NSString).lastPathComponent } ?? ""
+        var detail = "\(sessions) session\(sessions == 1 ? "" : "s") this week"
+        if cost > 0 { detail += " · ~\(ClaudeUsageReader.fmtMoney(cost)) API-equiv" }
+        if !top.isEmpty { detail += " · top: \(top)" }
+
+        lastWeeklyDigestDate = key
+        schedulePersist()
+        enqueuePermission(PermissionRequest(
+            kind: .notification,
+            title: "Your week in Claude Code",
+            detail: detail,
+            toolName: "Digest",
+            source: "ClaudeNotch",
+            cwd: "",
+            resolver: { _, _ in }
+        ))
     }
 
     // MARK: - Cost budgets
@@ -1837,7 +1881,8 @@ final class AppState: ObservableObject {
             longRunAlertsEnabled: longRunAlertsEnabled,
             rateLimitWarningsEnabled: rateLimitWarningsEnabled,
             pinnedProjects: Array(pinnedProjects),
-            sessionNotes: sessionNotes
+            sessionNotes: sessionNotes,
+            lastWeeklyDigestDate: lastWeeklyDigestDate
         ))
     }
 

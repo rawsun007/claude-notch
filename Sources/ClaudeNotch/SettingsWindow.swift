@@ -496,8 +496,8 @@ struct SettingsView: View {
                     "Post a Notification Center banner when a task finishes.",
                     bind(\.completionNotificationsEnabled, state.setCompletionNotificationsEnabled))
                 divider
-                row("Daily digest",
-                    "A once-a-day summary of what Claude did.",
+                row("Daily and weekly digest",
+                    "A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost.",
                     bind(\.digestNotificationsEnabled, state.setDigestNotificationsEnabled))
                 divider
                 row("Mirror to Notification Center",

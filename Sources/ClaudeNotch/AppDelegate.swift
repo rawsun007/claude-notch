@@ -51,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // launch so the notification bridge has time to get authorized.
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
             self?.state.fireDigestIfNeeded()
+            self?.state.fireWeeklyDigestIfNeeded()
         }
 
         server = EventServer(port: 53127, state: state)
