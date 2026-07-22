@@ -179,6 +179,52 @@ enum TerminalAutomator {
         }
     }
 
+    /// Reopen a past Codex session (`codex resume <session-id>`) in a fresh
+    /// terminal, from its original directory.
+    static func resumeCodex(sessionId: String, in directory: String) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let codex = resolveCodexPath() ?? "codex"
+            openInTerminal("""
+            #!/bin/zsh
+            cd \(shellQuote(directory)) || exit 1
+            clear
+            exec \(shellQuote(codex)) resume \(shellQuote(sessionId))
+            """, label: "codex resume \(sessionId)")
+        }
+    }
+
+    /// Open a new terminal and launch Codex in a directory.
+    static func startCodex(in directory: String) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let codex = resolveCodexPath() ?? "codex"
+            openInTerminal("""
+            #!/bin/zsh
+            cd \(shellQuote(directory)) || exit 1
+            clear
+            exec \(shellQuote(codex))
+            """, label: "start codex in \(directory)")
+        }
+    }
+
+    /// Resolve the absolute path to the `codex` CLI via an interactive login
+    /// shell (honours ~/.local/bin etc.). Returns nil if not found.
+    nonisolated static func resolveCodexPath() -> String? {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        task.arguments = ["-ilc", "command -v codex"]
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+        do { try task.run() } catch { return nil }
+        task.waitUntilExit()
+        let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        for line in out.split(separator: "\n").reversed() {
+            let t = line.trimmingCharacters(in: .whitespaces)
+            if t.hasPrefix("/"), t.hasSuffix("codex") { return t }
+        }
+        return nil
+    }
+
     nonisolated private static func shellQuote(_ s: String) -> String {
         "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }

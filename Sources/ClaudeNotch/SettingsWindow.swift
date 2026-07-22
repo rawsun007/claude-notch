@@ -933,7 +933,7 @@ struct SettingsView: View {
         .task(id: section) {
             guard section == .session else { return }
             let loaded = await Task.detached(priority: .utility) {
-                SessionResumer.sessionsByProject()
+                SessionResumer.allAgentSessionsByProject()
             }.value
             projectSessions = loaded
         }
@@ -1056,6 +1056,13 @@ struct SettingsView: View {
                         .onSubmit { commitNote(for: s.id) }
                 } else {
                     HStack(spacing: 6) {
+                        if AgentKind.infer(fromModel: s.model) == .codex {
+                            Text("CODEX")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(.teal)
+                                .padding(.horizontal, 4).padding(.vertical, 1)
+                                .background(Capsule().fill(Color.teal.opacity(0.15)))
+                        }
                         Text(note?.isEmpty == false ? note! : s.title)
                             .lineLimit(1)
                             .fontWeight(note?.isEmpty == false ? .semibold : .regular)
@@ -1089,8 +1096,10 @@ struct SettingsView: View {
                 Button("Done") { commitNote(for: s.id) }
                     .controlSize(.small)
             } else {
+                let isCodex = AgentKind.infer(fromModel: s.model) == .codex
                 Button("Resume") {
-                    TerminalAutomator.resumeClaude(sessionId: s.id, in: s.cwd)
+                    if isCodex { TerminalAutomator.resumeCodex(sessionId: s.id, in: s.cwd) }
+                    else { TerminalAutomator.resumeClaude(sessionId: s.id, in: s.cwd) }
                     window()?.close()
                 }
                 .controlSize(.small)
@@ -1100,8 +1109,9 @@ struct SettingsView: View {
                         editingNoteText = state.sessionNotes[s.id] ?? ""
                     } label: { Label("Rename session", systemImage: "pencil") }
                     Button {
+                        let cmd = isCodex ? "codex resume \(s.id)" : "claude --resume \(s.id)"
                         NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString("claude --resume \(s.id)", forType: .string)
+                        NSPasteboard.general.setString(cmd, forType: .string)
                         copiedSessionId = s.id
                     } label: { Label("Copy resume command", systemImage: "doc.on.doc") }
                     Button {

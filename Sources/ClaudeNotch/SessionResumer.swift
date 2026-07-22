@@ -68,10 +68,22 @@ enum SessionResumer {
     /// Sessions grouped by cwd, each group newest-first, groups ordered by their
     /// most-recent session. Drives the "expand a project to its sessions" UI.
     nonisolated static func sessionsByProject(limit: Int = 400) -> [(cwd: String, project: String, sessions: [ResumableSession])] {
-        let all = allSessions(limit: limit)
+        group(allSessions(limit: limit))
+    }
+
+    /// All resumable sessions across every supported agent (Claude + Codex),
+    /// grouped by project. This is what the resume UI loads.
+    nonisolated static func allAgentSessionsByProject(limit: Int = 400) -> [(cwd: String, project: String, sessions: [ResumableSession])] {
+        let merged = (allSessions(limit: limit) + CodexReader.allSessions())
+            .sorted { $0.lastActive > $1.lastActive }
+        return group(merged)
+    }
+
+    /// Group sessions by cwd, groups ordered by their most-recent session.
+    nonisolated static func group(_ sessions: [ResumableSession]) -> [(cwd: String, project: String, sessions: [ResumableSession])] {
         var order: [String] = []
         var byCwd: [String: [ResumableSession]] = [:]
-        for s in all {
+        for s in sessions {
             if byCwd[s.cwd] == nil { order.append(s.cwd) }
             byCwd[s.cwd, default: []].append(s)
         }
