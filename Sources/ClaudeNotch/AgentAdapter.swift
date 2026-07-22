@@ -26,6 +26,15 @@ enum AgentKind: String, Sendable {
         case .codex:  return "Codex"
         }
     }
+
+    /// Short label for the notch header (the entity name segment).
+    var notchLabel: String {
+        switch self {
+        case .claude: return "Claude"
+        case .grok:   return "Grok"
+        case .codex:  return "Codex"
+        }
+    }
 }
 
 /// Cross-agent glue for the hook transport. Kept deliberately small: the only

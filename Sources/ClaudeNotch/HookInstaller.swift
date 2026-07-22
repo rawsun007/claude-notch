@@ -105,6 +105,85 @@ enum HookInstaller {
         try mergeSettings()
     }
 
+    // MARK: - Codex (beta)
+
+    /// Codex reads hooks from ~/.codex/hooks.json. Codex hook payloads are
+    /// snake_case and match Claude's schema, so they flow through the same
+    /// server endpoint; only the transport differs (Codex runs a command hook,
+    /// not an HTTP hook). We install a tiny forwarder that POSTs the event to
+    /// the ClaudeNotch server and returns nothing, so Codex never blocks on us
+    /// or sees a response shape it rejects.
+    static let codexHooksPath: String = {
+        (NSHomeDirectory() as NSString).appendingPathComponent(".codex/hooks.json")
+    }()
+    static let codexForwardScript: String = {
+        (installDir as NSString).appendingPathComponent("claudenotch-codex-forward.sh")
+    }()
+
+    static var isCodexInstalled: Bool {
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: codexHooksPath)),
+              let s = String(data: data, encoding: .utf8) else { return false }
+        return s.contains("claudenotch-codex-forward.sh")
+    }
+
+    private static let codexForwarderBody = """
+    #!/bin/bash
+    # ClaudeNotch <- Codex hook forwarder (beta). Surfaces the Codex event in the
+    # notch and returns nothing, so Codex never waits on us or sees an output
+    # shape it rejects. Fires the POST in the background; fails open if the notch
+    # is not running.
+    set -u
+    input=$(cat)
+    if nc -z 127.0.0.1 53127 2>/dev/null; then
+      printf '%s' "$input" | curl -s --max-time 10 -X POST \\
+        -H 'Content-Type: application/json' --data-binary @- \\
+        http://127.0.0.1:53127/hook >/dev/null 2>&1 &
+    fi
+    exit 0
+    """
+
+    /// Install the Codex forwarder + hooks.json. The user must approve the
+    /// one-time "trust hooks" review the next time they start Codex.
+    static func installCodexHooks() throws {
+        let fm = FileManager.default
+        try? fm.createDirectory(atPath: installDir, withIntermediateDirectories: true)
+        // Forwarder script.
+        do {
+            try codexForwarderBody.write(toFile: codexForwardScript, atomically: true, encoding: .utf8)
+            try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: codexForwardScript)
+        } catch {
+            throw InstallError.scriptCopyFailed("codex forwarder: \(error.localizedDescription)")
+        }
+        // hooks.json. Informational events only (no PreToolUse): Codex's
+        // PreToolUse fires for shell only and expects a decision enum we do not
+        // emit yet, so blocking permission stays a later phase.
+        let cmd = codexForwardScript
+        let events = ["UserPromptSubmit", "PostToolUse", "SessionStart", "SessionEnd", "Notification", "Stop"]
+        var hooks: [String: Any] = [:]
+        for ev in events {
+            let handler: [String: Any] = ["type": "command", "command": cmd, "timeout": ev == "SessionEnd" ? 3 : 5]
+            let group: [String: Any] = ev == "PostToolUse"
+                ? ["matcher": ".*", "hooks": [handler]]
+                : ["hooks": [handler]]
+            hooks[ev] = [group]
+        }
+        let root: [String: Any] = [
+            "description": "ClaudeNotch: surface Codex events in the macOS notch (beta)",
+            "hooks": hooks,
+        ]
+        let codexURL = URL(fileURLWithPath: codexHooksPath)
+        try? fm.createDirectory(at: codexURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let data = try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys])
+        do { try data.write(to: codexURL, options: .atomic) }
+        catch { throw InstallError.scriptCopyFailed("codex hooks.json: \(error.localizedDescription)") }
+    }
+
+    /// Remove our Codex hooks.json (only when it is ours) and the forwarder.
+    static func uninstallCodexHooks() {
+        if isCodexInstalled { try? FileManager.default.removeItem(atPath: codexHooksPath) }
+        try? FileManager.default.removeItem(atPath: codexForwardScript)
+    }
+
     private static func copyScripts() throws {
         guard let resourceURL = Bundle.main.resourceURL else {
             throw InstallError.missingBundledHooks

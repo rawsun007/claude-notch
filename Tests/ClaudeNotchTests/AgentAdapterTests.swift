@@ -43,4 +43,10 @@ final class AgentAdapterTests: XCTestCase {
         XCTAssertEqual(AgentKind.infer(fromModel: "claude-opus-4-8"), .claude)
         XCTAssertEqual(AgentKind.infer(fromModel: ""), .claude)
     }
+
+    func testNotchLabels() {
+        XCTAssertEqual(AgentKind.claude.notchLabel, "Claude")
+        XCTAssertEqual(AgentKind.grok.notchLabel, "Grok")
+        XCTAssertEqual(AgentKind.codex.notchLabel, "Codex")
+    }
 }

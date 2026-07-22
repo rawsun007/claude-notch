@@ -518,7 +518,10 @@ final class AppState: ObservableObject {
     var entityName: String {
         switch notchTitleMode {
         case .claude:
-            return Self.statusEntityName
+            // Agent-aware: show Claude / Grok / Codex based on the active
+            // session's model, so a non-Claude session isn't mislabelled.
+            return currentModel.isEmpty ? Self.statusEntityName
+                                        : AgentKind.infer(fromModel: currentModel).notchLabel
         case .project:
             return currentProject.isEmpty ? Self.statusEntityName : currentProject
         case .custom:

@@ -316,6 +316,24 @@ struct SettingsView: View {
                 divider
                 actionRow("Check for updates…", "arrow.down.circle") { UpdateChecker.shared.check(userInitiated: true) }
             }
+
+            sectionLabel("Integrations (beta)")
+            Text("Surface other coding agents in the notch. Codex support is experimental: session status, prompts, activity and notifications appear, but permission cards and cost are not wired yet.")
+                .font(.callout).foregroundStyle(.secondary)
+            group {
+                let _ = healthTick   // re-read install state after a toggle
+                if HookInstaller.isCodexInstalled {
+                    healthRow("Codex (beta)", ok: true, "Codex hooks are installed. Approve the one-time trust prompt when Codex next starts.")
+                    divider
+                    actionRow("Disable Codex integration", "minus.circle") {
+                        HookInstaller.uninstallCodexHooks(); healthTick += 1
+                    }
+                } else {
+                    actionRow("Enable Codex integration (beta)", "sparkles") {
+                        try? HookInstaller.installCodexHooks(); healthTick += 1
+                    }
+                }
+            }
         }
     }
 
