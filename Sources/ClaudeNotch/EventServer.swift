@@ -864,8 +864,14 @@ final class EventServer {
         let sessionId = (payload["session_id"] as? String) ?? ""
         guard !tool.isEmpty else { send(body: "", on: conn); return }
         let detail = enrichedDetail(for: tool, input: input)
+        // Risky commands are the ones Codex will prompt for, so flag the card as
+        // "needs your approval" to nudge the user to the terminal. We never gate.
+        let dangers = ToolPreviewParser.dangerReasons(for: tool, input: input)
+        let needsApproval = !dangers.isEmpty
         Task { @MainActor [weak state] in
-            state?.noteExternalActivity(tool: tool, detail: detail, sessionId: sessionId)
+            state?.noteExternalActivity(tool: tool, detail: detail,
+                                        needsApproval: needsApproval, dangerReasons: dangers,
+                                        sessionId: sessionId)
         }
         send(body: "", on: conn)
     }

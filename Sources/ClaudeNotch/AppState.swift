@@ -3447,19 +3447,30 @@ final class AppState: ObservableObject {
         showAutoInfo(req)
     }
 
-    /// An external agent (Codex, etc.) is starting a tool. That agent approves
-    /// its own tools, so there is no permission card; pop the same brief
-    /// no-button info card auto-approve uses, so the notch visibly shows what is
-    /// running. Also records it as session activity.
-    func noteExternalActivity(tool: String, detail: String, sessionId: String = "") {
+    /// An external agent (Codex, etc.) is starting a tool. That agent owns its
+    /// own approval, so we never gate; we pop a brief no-button info card so the
+    /// notch shows what is running. When `needsApproval` is true (the agent is
+    /// about to prompt for a risky command), the card is framed as a heads-up so
+    /// the user knows to go approve it in the agent. Also records session
+    /// activity.
+    func noteExternalActivity(tool: String, detail: String, needsApproval: Bool = false,
+                              dangerReasons: [String] = [], sessionId: String = "") {
         noteActivity(detail.isEmpty ? tool : "\(tool): \(String(detail.prefix(80)))", sessionId: sessionId)
+        let title = needsApproval ? "Codex needs your approval" : tool
+        let body: String
+        if needsApproval {
+            body = detail.isEmpty ? "Approve it in Codex" : "\(detail)\n\nApprove or deny it in Codex."
+        } else {
+            body = detail.isEmpty ? "Running" : detail
+        }
         let req = PermissionRequest(
-            kind: .toolUse,
-            title: tool,
-            detail: detail.isEmpty ? "Running" : detail,
+            kind: needsApproval ? .notification : .toolUse,
+            title: title,
+            detail: body,
             toolName: tool,
             source: "Codex",
             cwd: currentCwd,
+            dangerReasons: needsApproval ? dangerReasons : [],
             resolver: { _, _ in })
         showAutoInfo(req)
     }
