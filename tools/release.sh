@@ -122,6 +122,30 @@ fi
 # Keep the Homebrew tap serving the new version.
 "$(dirname "$0")/push-cask-to-tap.sh" || true
 
+# Reinstall the freshly built .app into /Applications and relaunch, so the
+# machine that cut the release is actually running it. build-dmg.sh already
+# rebuilt ClaudeNotch.app for this version; without this step the local install
+# silently lags the release (e.g. About kept showing the previous version).
+if [ -d "ClaudeNotch.app" ]; then
+    pkill -x ClaudeNotch 2>/dev/null || true
+    sleep 1
+    rm -rf /Applications/ClaudeNotch.app
+    if cp -R ClaudeNotch.app /Applications/ 2>/dev/null; then
+        open /Applications/ClaudeNotch.app || true
+        echo "  reinstalled v${VERSION} to /Applications and relaunched"
+    else
+        echo "  ⚠ could not copy to /Applications — reinstall manually"
+    fi
+fi
+
+# Nudge to keep the in-app What's new list current. It is a hand-maintained
+# constant, so it lags unless updated with each release.
+if ! grep -q "whatsNew" Sources/ClaudeNotch/SettingsWindow.swift 2>/dev/null; then
+    :
+else
+    echo "  reminder: update the whatsNew highlights in SettingsWindow.swift for v${VERSION}"
+fi
+
 echo
 echo "Next: add a v${VERSION} entry to app/changelog/releases.ts on the website,"
 echo "then rebuild it and copy out/ into docs/ so the changelog page updates."
