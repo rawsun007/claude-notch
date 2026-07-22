@@ -1150,6 +1150,21 @@ struct SettingsView: View {
                                 .stroke(Color.primary.opacity(0.08), lineWidth: 1)
                         )
                 }
+                let weekly = ClaudeUsageReader.weeklyCostBuckets(daily: u.dailyCostUSD, weeks: 4, asOf: Date())
+                if weekly.contains(where: { $0.cost > 0 }) {
+                    sectionLabel("Estimated cost, last 4 weeks")
+                    spendTrend(weekly)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color(nsColor: .controlBackgroundColor))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                        )
+                }
             }
 
             sectionLabel("Activity, last 7 weeks")

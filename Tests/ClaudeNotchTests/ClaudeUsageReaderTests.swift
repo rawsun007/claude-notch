@@ -6,6 +6,49 @@ import XCTest
 /// so off-by-one or wrong-denominator bugs are user-visible and worth pinning.
 final class ClaudeUsageReaderTests: XCTestCase {
 
+    // MARK: - weekly cost bucketing (trend chart)
+
+    /// A fixed calendar + anchor date so the buckets are deterministic.
+    private func utcCal() -> Calendar {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "UTC")!
+        return c
+    }
+    private func date(_ s: String, _ cal: Calendar) -> Date {
+        let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = cal.timeZone; f.dateFormat = "yyyy-MM-dd"
+        return f.date(from: s)!
+    }
+
+    func testWeeklyBucketsCountAndOrder() {
+        let cal = utcCal()
+        let buckets = ClaudeUsageReader.weeklyCostBuckets(
+            daily: [:], weeks: 4, asOf: date("2026-07-22", cal), calendar: cal)
+        XCTAssertEqual(buckets.count, 4)
+        XCTAssertEqual(buckets.map(\.label), ["3w ago", "2w ago", "1w ago", "This wk"])
+        XCTAssertEqual(buckets.map(\.cost), [0, 0, 0, 0])
+    }
+
+    func testWeeklyBucketsSumIntoCorrectWeek() {
+        let cal = utcCal()
+        let asOf = date("2026-07-22", cal)   // a Wednesday
+        // Today and 6 days back land in "This wk"; day 7 back lands in "1w ago".
+        let daily: [String: Double] = [
+            "2026-07-22": 1.0,   // today  -> this wk
+            "2026-07-16": 2.0,   // 6 days -> this wk
+            "2026-07-15": 4.0,   // 7 days -> 1w ago
+            "2026-07-09": 8.0,   // 13 days -> 1w ago
+            "2026-07-08": 16.0,  // 14 days -> 2w ago
+            "2026-06-01": 99.0,  // outside 4 weeks -> dropped
+        ]
+        let b = ClaudeUsageReader.weeklyCostBuckets(daily: daily, weeks: 4, asOf: asOf, calendar: cal)
+        let byLabel = Dictionary(uniqueKeysWithValues: b.map { ($0.label, $0.cost) })
+        XCTAssertEqual(byLabel["This wk"], 3.0, accuracy: 0.0001)
+        XCTAssertEqual(byLabel["1w ago"], 12.0, accuracy: 0.0001)
+        XCTAssertEqual(byLabel["2w ago"], 16.0, accuracy: 0.0001)
+        XCTAssertEqual(byLabel["3w ago"], 0.0, accuracy: 0.0001)
+    }
+
     // MARK: - context window inference
 
     func testExplicitModesIgnoreModel() {

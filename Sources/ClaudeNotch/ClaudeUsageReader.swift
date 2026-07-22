@@ -94,6 +94,31 @@ enum ClaudeUsageReader {
         return seen.insert(id).inserted
     }
 
+    /// Bucket a day-keyed (yyyy-MM-dd) cost map into `weeks` calendar-week
+    /// totals ending today, oldest first. Bucket 0 is the oldest week, the last
+    /// bucket is the current 7 days. Pure and deterministic given `asOf`, so it
+    /// is unit-tested rather than exercised only through the UI.
+    static func weeklyCostBuckets(daily: [String: Double], weeks: Int = 4,
+                                  asOf: Date, calendar: Calendar = .current) -> [(label: String, cost: Double)] {
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        fmt.dateFormat = "yyyy-MM-dd"
+        let today = calendar.startOfDay(for: asOf)
+        var out: [(String, Double)] = []
+        // Week index from newest: 0 = last 7 days, 1 = the 7 before that, ...
+        for w in (0..<weeks).reversed() {
+            var sum = 0.0
+            for d in 0..<7 {
+                let offset = -(w * 7 + d)
+                guard let day = calendar.date(byAdding: .day, value: offset, to: today) else { continue }
+                sum += daily[fmt.string(from: day)] ?? 0
+            }
+            let label = w == 0 ? "This wk" : "\(w)w ago"
+            out.append((label, sum))
+        }
+        return out
+    }
+
     private static func cost(input: Int, output: Int, cacheRead: Int, cacheCreation: Int, model: String) -> Double {
         let p = price(for: model)
         return Double(input) / 1_000_000 * p.input
@@ -359,6 +384,9 @@ enum ClaudeUsageReader {
         let now = Date()
         let startOfToday = cal.startOfDay(for: now)
         let weekAgo = cal.date(byAdding: .day, value: -7, to: startOfToday) ?? startOfToday
+        // Daily cost/token maps reach back four weeks for the trend chart; every
+        // other total stays week-scoped. Files older than this can't contribute.
+        let monthAgo = cal.date(byAdding: .day, value: -28, to: startOfToday) ?? startOfToday
         let fiveHoursAgo = now.addingTimeInterval(-5 * 3600)
 
         guard let en = fm.enumerator(at: projects,
@@ -379,8 +407,9 @@ enum ClaudeUsageReader {
             let vals = try? url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
             let mod = vals?.contentModificationDate ?? .distantPast
             let size = vals?.fileSize ?? 0
-            // Skip files untouched in the last 7 days — they can't hold recent usage.
-            if mod < weekAgo { continue }
+            // Skip files untouched in the last four weeks — they can't hold data
+            // for either the week totals or the trend chart.
+            if mod < monthAgo { continue }
             seenPaths.insert(url.path)
 
             // Reuse the parse if the file is byte-for-byte the same as last time.
@@ -393,14 +422,19 @@ enum ClaudeUsageReader {
                 fileCacheLock.withLock { fileCache[url.path] = CachedFile(mod: mod, size: size, records: records) }
             }
 
-            for r in records where r.ts >= weekAgo {
+            for r in records where r.ts >= monthAgo {
                 let t = r.tokens
-                usage.week = usage.week + t
-                usage.weekByModel[shortModel(r.model), default: Tokens()] += t
-                if !r.cwd.isEmpty { usage.weekByProject[r.cwd, default: Tokens()] += t }
+                // Daily maps span the full four weeks (drive the trend chart).
                 let day = dayFmt.string(from: r.ts)
                 usage.dailyTokens[day, default: 0] += t.total
                 usage.dailyCostUSD[day, default: 0] += t.costUSD
+
+                // Everything else stays week-scoped, exactly as before, so no
+                // existing total changes when the scan window widened.
+                guard r.ts >= weekAgo else { continue }
+                usage.week = usage.week + t
+                usage.weekByModel[shortModel(r.model), default: Tokens()] += t
+                if !r.cwd.isEmpty { usage.weekByProject[r.cwd, default: Tokens()] += t }
                 usage.hourCounts[cal.component(.hour, from: r.ts), default: 0] += 1
                 usage.cacheSavingsUSD += cacheSavings(cacheRead: t.cacheRead, model: r.model)
                 if let sid = r.sessionId { sessionsWeekSet.insert(sid) }
