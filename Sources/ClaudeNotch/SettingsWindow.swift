@@ -1751,9 +1751,8 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "A 4-week estimated-cost trend on the Usage page.",
-        "Resume sessions are grouped by day (Today, Yesterday, and so on).",
-        "A weekly digest roundup, and weekly totals now reconcile with the trend.",
-        "The context meter shows \"no usage yet\" instead of a misleading 0%.",
+        "Codex support (beta): enable it in Settings > General > Integrations and your OpenAI Codex sessions surface in the notch.",
+        "The notch header now names the agent (Claude / Codex) for the active session.",
+        "Codex sessions show live activity, a running-command card, and a heads-up when Codex needs your approval.",
     ]
 }
