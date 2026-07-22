@@ -377,6 +377,22 @@ final class EventServer {
         let input = payload["tool_input"] as? [String: Any] ?? [:]
         let sessionId = (payload["session_id"] as? String) ?? ""
 
+        // Codex sends no status line, so read its rollout for the live context
+        // meter after each tool (the token_count line is fresh by PostToolUse).
+        let model = (payload["model"] as? String) ?? ""
+        if AgentKind.infer(fromModel: model) == .codex, !sessionId.isEmpty {
+            let cwd = (payload["cwd"] as? String) ?? ""
+            DispatchQueue.global(qos: .utility).async { [weak state] in
+                guard let u = CodexReader.usage(forSessionId: sessionId) else { return }
+                Task { @MainActor in
+                    state?.noteCodexUsage(sessionId: sessionId, cwd: cwd,
+                                          contextTokens: u.contextTokens,
+                                          contextWindow: u.contextWindow,
+                                          model: u.model.isEmpty ? model : u.model)
+                }
+            }
+        }
+
         // Learn taskId → subject so a later TaskUpdate (which only carries
         // {taskId, status}) can be rendered with a real label.
         if tool == "TaskCreate" {

@@ -2090,6 +2090,28 @@ final class AppState: ObservableObject {
         if !model.isEmpty { currentModel = model }
     }
 
+    /// Push a Codex session's context/token usage (parsed from its rollout).
+    /// Codex sends no status line, so this is how a Codex session gets a live
+    /// meter. Uses the real window from the rollout; no dollar cost (unknown
+    /// gpt pricing).
+    func noteCodexUsage(sessionId: String, cwd: String, contextTokens: Int,
+                        contextWindow: Int, model: String) {
+        let pct = contextWindow > 0 ? min(1.0, max(0, Double(contextTokens) / Double(contextWindow))) : 0
+        upsertSession(id: sessionId, cwd: cwd.isEmpty ? currentCwd : cwd) { s in
+            s.contextTokens = contextTokens
+            s.contextWindow = contextWindow
+            s.contextPercent = pct
+            if !model.isEmpty { s.model = model }
+            s.isCompacting = false
+        }
+        let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
+        guard isCurrent else { return }
+        currentContextPercent = pct
+        currentContextTokens = contextTokens
+        currentContextWindow = contextWindow
+        if !model.isEmpty { currentModel = model }
+    }
+
     /// PreCompact: context is about to be compacted. Flag the session so the UI
     /// can show a "compacting" cue; cleared by the next meter/activity update.
     func noteSubagentStarted(sessionId: String = "") {
