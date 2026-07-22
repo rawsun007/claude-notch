@@ -3447,6 +3447,23 @@ final class AppState: ObservableObject {
         showAutoInfo(req)
     }
 
+    /// An external agent (Codex, etc.) is starting a tool. That agent approves
+    /// its own tools, so there is no permission card; pop the same brief
+    /// no-button info card auto-approve uses, so the notch visibly shows what is
+    /// running. Also records it as session activity.
+    func noteExternalActivity(tool: String, detail: String, sessionId: String = "") {
+        noteActivity(detail.isEmpty ? tool : "\(tool): \(String(detail.prefix(80)))", sessionId: sessionId)
+        let req = PermissionRequest(
+            kind: .toolUse,
+            title: tool,
+            detail: detail.isEmpty ? "Running" : detail,
+            toolName: tool,
+            source: "Codex",
+            cwd: currentCwd,
+            resolver: { _, _ in })
+        showAutoInfo(req)
+    }
+
     func dismissAutoInfo() {
         guard autoInfo != nil else { return }
         autoInfoTimer?.invalidate()

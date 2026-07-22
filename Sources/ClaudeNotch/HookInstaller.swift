@@ -128,16 +128,18 @@ enum HookInstaller {
 
     private static let codexForwarderBody = """
     #!/bin/bash
-    # ClaudeNotch <- Codex hook forwarder (beta). Surfaces the Codex event in the
-    # notch and returns nothing, so Codex never waits on us or sees an output
-    # shape it rejects. Fires the POST in the background; fails open if the notch
-    # is not running.
+    # ClaudeNotch <- Codex hook forwarder (beta). PreToolUse -> /extpretool (pops
+    # a running-command card); every other event -> /hook. Fire-and-forget,
+    # returns nothing, so Codex owns permission and never waits on us. Fails
+    # open if the notch is not running.
     set -u
     input=$(cat)
+    event=$(printf '%s' "$input" | sed -n 's/.*"hook_event_name"[[:space:]]*:[[:space:]]*"\\([^"]*\\)".*/\\1/p' | head -1)
+    ep="/hook"; [ "$event" = "PreToolUse" ] && ep="/extpretool"
     if nc -z 127.0.0.1 53127 2>/dev/null; then
       printf '%s' "$input" | curl -s --max-time 10 -X POST \\
         -H 'Content-Type: application/json' --data-binary @- \\
-        http://127.0.0.1:53127/hook >/dev/null 2>&1 &
+        "http://127.0.0.1:53127$ep" >/dev/null 2>&1 &
     fi
     exit 0
     """
@@ -158,11 +160,13 @@ enum HookInstaller {
         // PreToolUse fires for shell only and expects a decision enum we do not
         // emit yet, so blocking permission stays a later phase.
         let cmd = codexForwardScript
-        let events = ["UserPromptSubmit", "PostToolUse", "SessionStart", "SessionEnd", "Notification", "Stop"]
+        let events = ["PreToolUse", "UserPromptSubmit", "PostToolUse", "SessionStart", "SessionEnd", "Notification", "Stop"]
         var hooks: [String: Any] = [:]
         for ev in events {
+            // All events are fire-and-forget (Codex owns permission), so short
+            // timeouts are fine.
             let handler: [String: Any] = ["type": "command", "command": cmd, "timeout": ev == "SessionEnd" ? 3 : 5]
-            let group: [String: Any] = ev == "PostToolUse"
+            let group: [String: Any] = (ev == "PostToolUse" || ev == "PreToolUse")
                 ? ["matcher": ".*", "hooks": [handler]]
                 : ["hooks": [handler]]
             hooks[ev] = [group]

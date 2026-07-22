@@ -339,6 +339,12 @@ final class EventServer {
         case "/pretool":
             handlePreTool(payload: payload)
             sendOK(on: conn)
+        case "/extpretool":
+            // External agent (e.g. Codex) tool starting. Safe commands: pop a
+            // brief "running" card and return empty (the agent's own flow
+            // proceeds). Dangerous commands: block with the allow/deny card and
+            // return the agent's decision wire. Sends its own response.
+            handleExternalPreTool(payload: payload, on: conn)
         case "/thinking":
             handlePostToolThinking(payload: payload)
             sendOK(on: conn)
@@ -845,6 +851,23 @@ final class EventServer {
             let label = detail.isEmpty ? tool : "\(tool): \(detail)"
             state.noteActivity(String(label.prefix(80)), sessionId: sessionId)
         }
+    }
+
+    /// External-agent tool start (e.g. Codex). Purely informational: pop a brief
+    /// "running" card and return an empty body. We deliberately do NOT gate
+    /// permission here: Codex runs its own approval prompt for risky commands,
+    /// and a hook can only veto (never auto-approve), so mirroring it would just
+    /// double-prompt. Codex owns permission; ClaudeNotch surfaces and observes.
+    private func handleExternalPreTool(payload: [String: Any], on conn: NWConnection) {
+        let tool = (payload["tool_name"] as? String) ?? ""
+        let input = payload["tool_input"] as? [String: Any] ?? [:]
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        guard !tool.isEmpty else { send(body: "", on: conn); return }
+        let detail = enrichedDetail(for: tool, input: input)
+        Task { @MainActor [weak state] in
+            state?.noteExternalActivity(tool: tool, detail: detail, sessionId: sessionId)
+        }
+        send(body: "", on: conn)
     }
 
     /// PostToolUse: tool finished, Claude is now reasoning between actions.
