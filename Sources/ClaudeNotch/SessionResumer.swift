@@ -86,6 +86,19 @@ enum SessionResumer {
         allSessions(limit: 40).first
     }
 
+    /// A coarse recency bucket for grouping the session list by day. Pure and
+    /// deterministic given `asOf`, so it is unit-tested.
+    nonisolated static func dayBucket(_ date: Date, asOf: Date = Date(), calendar: Calendar = .current) -> String {
+        if calendar.isDate(date, inSameDayAs: asOf) { return "Today" }
+        if let y = calendar.date(byAdding: .day, value: -1, to: asOf),
+           calendar.isDate(date, inSameDayAs: y) { return "Yesterday" }
+        let startToday = calendar.startOfDay(for: asOf)
+        if let weekAgo = calendar.date(byAdding: .day, value: -7, to: startToday), date >= weekAgo {
+            return "Earlier this week"
+        }
+        return "Older"
+    }
+
     /// Move a session transcript to the Trash (recoverable — never a hard
     /// delete). Returns true on success.
     @discardableResult

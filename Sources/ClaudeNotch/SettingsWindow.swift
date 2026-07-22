@@ -1007,7 +1007,19 @@ struct SettingsView: View {
 
         if isOpen {
             let shown = Array(proj.sessions.prefix(8))
-            ForEach(Array(shown.enumerated()), id: \.element.id) { _, s in
+            ForEach(Array(shown.enumerated()), id: \.element.id) { idx, s in
+                // Insert a day-bucket header when the bucket changes, so a long
+                // list reads as Today / Yesterday / Earlier this week / Older.
+                let bucket = SessionResumer.dayBucket(s.lastActive)
+                let prevBucket = idx > 0 ? SessionResumer.dayBucket(shown[idx - 1].lastActive) : nil
+                if bucket != prevBucket {
+                    Text(bucket)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 6).padding(.bottom, 2)
+                        .padding(.leading, 24)
+                }
                 sessionRow(s)
             }
         }
