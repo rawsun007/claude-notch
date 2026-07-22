@@ -383,7 +383,10 @@ enum ClaudeUsageReader {
         let cal = Calendar.current
         let now = Date()
         let startOfToday = cal.startOfDay(for: now)
-        let weekAgo = cal.date(byAdding: .day, value: -7, to: startOfToday) ?? startOfToday
+        // Last 7 days INCLUDING today: today plus the six days before it. Using
+        // -7 here spanned eight day-buckets (day-7 through today), which made the
+        // "this week" totals disagree with the 7-day trend chart that sums seven.
+        let weekAgo = cal.date(byAdding: .day, value: -6, to: startOfToday) ?? startOfToday
         // Daily cost/token maps reach back four weeks for the trend chart; every
         // other total stays week-scoped. Files older than this can't contribute.
         let monthAgo = cal.date(byAdding: .day, value: -28, to: startOfToday) ?? startOfToday
