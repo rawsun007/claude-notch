@@ -55,6 +55,8 @@ enum Persistence {
         var sessionNotes: [String: String]? = nil
         /// ISO week key of the last weekly digest shown.
         var lastWeeklyDigestDate: String? = nil
+        /// Whether dropping a folder on the notch starts Codex instead of Claude.
+        var dropStartsCodex: Bool? = nil
     }
 
     static let storeURL: URL = {
@@ -132,7 +134,8 @@ extension Persistence.Snapshot {
             rateLimitWarningsEnabled: try? c.decode(Bool.self, forKey: .rateLimitWarningsEnabled),
             pinnedProjects: try? c.decode([String].self, forKey: .pinnedProjects),
             sessionNotes: try? c.decode([String: String].self, forKey: .sessionNotes),
-            lastWeeklyDigestDate: try? c.decode(String.self, forKey: .lastWeeklyDigestDate)
+            lastWeeklyDigestDate: try? c.decode(String.self, forKey: .lastWeeklyDigestDate),
+            dropStartsCodex: try? c.decode(Bool.self, forKey: .dropStartsCodex)
         )
     }
 }

@@ -601,7 +601,11 @@ final class AppState: ObservableObject {
         // panel just closes cleanly.
         suppressHoverUntil = now.addingTimeInterval(0.7)
         isHovering = false
-        TerminalAutomator.startClaude(in: launch.dir, message: launch.message)
+        if dropStartsCodex {
+            TerminalAutomator.startCodex(in: launch.dir)   // Codex takes no initial prompt
+        } else {
+            TerminalAutomator.startClaude(in: launch.dir, message: launch.message)
+        }
     }
 
     private static func isDirectory(_ url: URL) -> Bool {
@@ -709,6 +713,10 @@ final class AppState: ObservableObject {
     @Published private(set) var lastDigestDate: String? = nil
     // Weekly digest tracking — ISO week key, shown once per week.
     @Published private(set) var lastWeeklyDigestDate: String? = nil
+
+    // Which agent a folder dropped on the notch launches. Default Claude.
+    @Published private(set) var dropStartsCodex: Bool = false
+    func setDropStartsCodex(_ on: Bool) { dropStartsCodex = on; schedulePersist() }
 
     // Update-available notch card: shown once per discovered version, so the
     // daily poll doesn't re-card users who chose to ignore an update.
@@ -970,6 +978,7 @@ final class AppState: ObservableObject {
             self.petEnabled = snapshot.petEnabled ?? true
             self.lastDigestDate = snapshot.lastDigestDate
             self.lastWeeklyDigestDate = snapshot.lastWeeklyDigestDate
+            self.dropStartsCodex = snapshot.dropStartsCodex ?? false
             self.lastUpdateCardVersion = snapshot.lastUpdateCardVersion
             self.lastSeenVersion = snapshot.lastSeenVersion
             self.sessionCostCap = snapshot.sessionCostCap ?? 0
@@ -1903,7 +1912,8 @@ final class AppState: ObservableObject {
             rateLimitWarningsEnabled: rateLimitWarningsEnabled,
             pinnedProjects: Array(pinnedProjects),
             sessionNotes: sessionNotes,
-            lastWeeklyDigestDate: lastWeeklyDigestDate
+            lastWeeklyDigestDate: lastWeeklyDigestDate,
+            dropStartsCodex: dropStartsCodex
         ))
     }
 

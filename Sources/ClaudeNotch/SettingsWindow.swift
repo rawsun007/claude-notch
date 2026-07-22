@@ -325,6 +325,8 @@ struct SettingsView: View {
                 if HookInstaller.isCodexInstalled {
                     healthRow("Codex (beta)", ok: true, "Codex hooks are installed. Approve the one-time trust prompt when Codex next starts.")
                     divider
+                    actionRow("Start Codex in a folder…", "play.circle") { startCodexPicker() }
+                    divider
                     actionRow("Disable Codex integration", "minus.circle") {
                         HookInstaller.uninstallCodexHooks(); healthTick += 1
                     }
@@ -332,6 +334,13 @@ struct SettingsView: View {
                     actionRow("Enable Codex integration (beta)", "sparkles") {
                         try? HookInstaller.installCodexHooks(); healthTick += 1
                     }
+                }
+            }
+            if HookInstaller.isCodexInstalled {
+                group {
+                    row("Dropping a folder starts Codex",
+                        "When you drag a folder onto the notch, start Codex instead of Claude.",
+                        Binding(get: { state.dropStartsCodex }, set: { state.setDropStartsCodex($0) }))
                 }
             }
         }
@@ -417,6 +426,17 @@ struct SettingsView: View {
         panel.prompt = "Start Claude"
         if panel.runModal() == .OK, let url = panel.url {
             TerminalAutomator.startClaude(in: url.path, message: nil)
+        }
+    }
+
+    private func startCodexPicker() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Start Codex"
+        if panel.runModal() == .OK, let url = panel.url {
+            TerminalAutomator.startCodex(in: url.path)
         }
     }
 
