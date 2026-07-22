@@ -1751,8 +1751,8 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "Codex support (beta): enable it in Settings > General > Integrations and your OpenAI Codex sessions surface in the notch.",
-        "The notch header now names the agent (Claude / Codex) for the active session.",
-        "Codex sessions show live activity, a running-command card, and a heads-up when Codex needs your approval.",
+        "Each session row now shows which CLI it is (a CODEX / GROK tag), so a mixed list is clear.",
+        "The notch header names the agent from the running sessions: Codex-only reads Codex, a mix reads the app name instead of a wrong single agent.",
+        "Name the notch during setup, not just in Settings.",
     ]
 }
