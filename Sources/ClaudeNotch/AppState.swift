@@ -1252,8 +1252,9 @@ final class AppState: ObservableObject {
     }
 
     /// ISO year-and-week key (e.g. "2026-W30"), used to fire the weekly digest
-    /// at most once per calendar week. Pure, so it is unit-tested.
-    static func weekKey(_ d: Date, calendar: Calendar = .current) -> String {
+    /// at most once per calendar week. Pure, so it is unit-tested (nonisolated
+    /// so the tests can call it off the main actor).
+    nonisolated static func weekKey(_ d: Date, calendar: Calendar = .current) -> String {
         let c = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: d)
         return "\(c.yearForWeekOfYear ?? 0)-W\(c.weekOfYear ?? 0)"
     }
