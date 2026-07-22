@@ -780,6 +780,14 @@ final class EventServer {
 
     private func pollTranscript(path: String, sessionId: String, token: Int, until deadline: Date) {
         readAndPushClaudeResponse(transcriptPath: path, sessionId: sessionId)
+        // Refresh task progress from the transcript (the source of truth), so
+        // the notch bar stays accurate mid-task and recovers even if a TodoWrite
+        // hook was missed (e.g. the app restarted while a turn ran).
+        if let todos = latestTodos(fromTranscriptAt: path) {
+            Task { @MainActor [weak state] in
+                state?.noteTodos(total: todos.total, done: todos.done, sessionId: sessionId)
+            }
+        }
         guard Date() < deadline else { finishPolling(path: path, token: token); return }
         workQueue.asyncAfter(deadline: .now() + .milliseconds(700)) { [weak self] in
             guard let self else { return }
@@ -800,6 +808,35 @@ final class EventServer {
                 transcriptPollTokens[path] = nil
             }
         }
+    }
+
+    /// Scan the transcript tail for the most recent TodoWrite tool call and
+    /// return its (total, completed) counts. The transcript is the source of
+    /// truth for the task list, so this keeps the notch bar right even when a
+    /// hook was missed. Returns nil if no TodoWrite is found in the tail.
+    private func latestTodos(fromTranscriptAt path: String) -> (total: Int, done: Int)? {
+        guard let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path)) else { return nil }
+        let maxBytes: UInt64 = 512 * 1024
+        let size = handle.seekToEndOfFile()
+        let offset = size > maxBytes ? size - maxBytes : 0
+        handle.seek(toFileOffset: offset)
+        let data = handle.readDataToEndOfFile()
+        try? handle.close()
+        var body = String(decoding: data, as: UTF8.self)
+        if offset > 0, let nl = body.firstIndex(of: "\n") { body = String(body[body.index(after: nl)...]) }
+        for raw in body.split(separator: "\n", omittingEmptySubsequences: true).reversed() {
+            guard let d = raw.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { continue }
+            let inner = (obj["message"] as? [String: Any]) ?? obj
+            guard let blocks = inner["content"] as? [[String: Any]] else { continue }
+            for b in blocks where (b["type"] as? String) == "tool_use" && (b["name"] as? String) == "TodoWrite" {
+                guard let input = b["input"] as? [String: Any],
+                      let todos = input["todos"] as? [[String: Any]], !todos.isEmpty else { continue }
+                let done = todos.filter { ($0["status"] as? String) == "completed" }.count
+                return (todos.count, done)
+            }
+        }
+        return nil
     }
 
     /// Tail the JSONL transcript and pull the most recent assistant text
