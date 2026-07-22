@@ -543,10 +543,20 @@ final class AppState: ObservableObject {
     }
 
     /// Set the custom label and switch to custom mode in one step (used by the
-    /// "Custom…" menu input). A blank string reverts to the Claude default.
+    /// "Custom…" menu input and onboarding). A blank string reverts to the
+    /// default.
     func setCustomNotchTitle(_ s: String) {
         customNotchTitle = s.trimmingCharacters(in: .whitespacesAndNewlines)
         notchTitleMode = customNotchTitle.isEmpty ? .claude : .custom
+        schedulePersist()
+    }
+
+    /// Set ONLY the custom title text, leaving the mode alone. Used by the
+    /// Settings field, which has its own mode picker: switching the mode there
+    /// must not be undone just because the field is momentarily empty (that made
+    /// the field disappear mid-edit). Stored raw; callers trim at display time.
+    func setCustomTitleText(_ s: String) {
+        customNotchTitle = s
         schedulePersist()
     }
 

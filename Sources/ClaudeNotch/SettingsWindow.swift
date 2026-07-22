@@ -438,7 +438,7 @@ struct SettingsView: View {
                         Spacer()
                         TextField("ClaudeNotch", text: Binding(
                             get: { state.customNotchTitle },
-                            set: { state.setCustomNotchTitle($0) }
+                            set: { state.setCustomTitleText($0) }
                         ))
                         .textFieldStyle(.roundedBorder)
                         .controlSize(.small)
