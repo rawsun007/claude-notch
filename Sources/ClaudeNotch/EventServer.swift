@@ -277,7 +277,11 @@ final class EventServer {
     }
 
     private func handle(_ req: HTTPRequest, on conn: NWConnection) {
-        let payload = (try? JSONSerialization.jsonObject(with: req.body) as? [String: Any]) ?? [:]
+        let rawPayload = (try? JSONSerialization.jsonObject(with: req.body) as? [String: Any]) ?? [:]
+        // Canonicalize key casing so Grok/Codex (camelCase) payloads read the
+        // same as Claude's (snake_case). A Claude payload passes through
+        // unchanged, so existing behavior is untouched.
+        let payload = AgentAdapter.normalizeKeys(rawPayload)
         let path = (req.path.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? req.path).lowercased()
 
         // Every hook payload tells us about a project (cwd) — record it, except
