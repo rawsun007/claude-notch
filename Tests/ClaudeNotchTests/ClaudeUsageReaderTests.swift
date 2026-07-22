@@ -43,10 +43,10 @@ final class ClaudeUsageReaderTests: XCTestCase {
         ]
         let b = ClaudeUsageReader.weeklyCostBuckets(daily: daily, weeks: 4, asOf: asOf, calendar: cal)
         let byLabel = Dictionary(uniqueKeysWithValues: b.map { ($0.label, $0.cost) })
-        XCTAssertEqual(byLabel["This wk"], 3.0, accuracy: 0.0001)
-        XCTAssertEqual(byLabel["1w ago"], 12.0, accuracy: 0.0001)
-        XCTAssertEqual(byLabel["2w ago"], 16.0, accuracy: 0.0001)
-        XCTAssertEqual(byLabel["3w ago"], 0.0, accuracy: 0.0001)
+        XCTAssertEqual(byLabel["This wk"] ?? -1, 3.0, accuracy: 0.0001)
+        XCTAssertEqual(byLabel["1w ago"] ?? -1, 12.0, accuracy: 0.0001)
+        XCTAssertEqual(byLabel["2w ago"] ?? -1, 16.0, accuracy: 0.0001)
+        XCTAssertEqual(byLabel["3w ago"] ?? -1, 0.0, accuracy: 0.0001)
     }
 
     // MARK: - context window inference
