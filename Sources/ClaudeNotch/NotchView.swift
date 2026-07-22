@@ -1882,10 +1882,16 @@ struct ContextCostBar: View {
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
                     .layoutPriority(1)
-            } else {
+            } else if percent > 0 {
                 Text("\(Int((percent * 100).rounded()))%")
                     .font(.system(size: 9, design: .rounded).monospacedDigit())
                     .foregroundColor(.white.opacity(0.45))
+            } else {
+                // No status line yet: show an honest placeholder instead of a
+                // misleading 0%, since 0% reads as "empty context" not "unknown".
+                Text("no usage yet")
+                    .font(.system(size: 9, design: .rounded))
+                    .foregroundColor(.white.opacity(0.3))
             }
             if cost > 0 {
                 Text(ClaudeUsageReader.fmtMoney(cost))
