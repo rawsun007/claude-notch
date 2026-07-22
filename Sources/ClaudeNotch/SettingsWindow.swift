@@ -1733,8 +1733,9 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "Usage page is now a dashboard: cost trend, model mix, cache savings, CSV export.",
-        "Costs are labelled as API-price estimates, not your subscription bill.",
-        "A finished task bar now clears from the notch on your next message.",
+        "A 4-week estimated-cost trend on the Usage page.",
+        "Resume sessions are grouped by day (Today, Yesterday, and so on).",
+        "A weekly digest roundup, and weekly totals now reconcile with the trend.",
+        "The context meter shows \"no usage yet\" instead of a misleading 0%.",
     ]
 }
