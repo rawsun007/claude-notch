@@ -134,7 +134,16 @@ enum TerminalAutomator {
         do {
             try body.write(to: url, atomically: true, encoding: .utf8)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
-            NSWorkspace.shared.open(url)
+            // activates=false: open the .command WITHOUT bringing the terminal
+            // app to the front. Activating it made macOS jump to whatever Space
+            // the terminal's frontmost (often fullscreen) window was on, while
+            // the new window opened back on the drop Space. Not activating keeps
+            // the new window on the current Space; the user clicks to focus it.
+            let cfg = NSWorkspace.OpenConfiguration()
+            cfg.activates = false
+            NSWorkspace.shared.open(url, configuration: cfg) { _, err in
+                if let err { debugLog("openInTerminal: open failed — \(err)") }
+            }
             debugLog("openInTerminal: \(label) → \(url.lastPathComponent)")
         } catch {
             debugLog("openInTerminal: failed to write/open .command — \(error)")
