@@ -615,12 +615,16 @@ final class AppState: ObservableObject {
             multiSelect: false,
             options: [AskOption(label: "Claude Code", description: ""),
                       AskOption(label: "Codex", description: "")])
-        enqueueQuestion(QuestionRequest(questions: [q], source: "ClaudeNotch", cwd: dir, resolver: { answers in
+        enqueueQuestion(QuestionRequest(questions: [q], source: "ClaudeNotch", cwd: dir, resolver: { [weak self] answers in
             let pick = answers?.first?.first ?? ""
             Task { @MainActor in
+                guard let self else { return }
+                // Don't let the notch reactivate the previous (maybe full-screen)
+                // app; we're opening a terminal on the current Space instead.
+                self.suppressReturnToApp = true
                 if pick == "Codex" { TerminalAutomator.startCodex(in: dir) }
                 else if pick == "Claude Code" { TerminalAutomator.startClaude(in: dir, message: message) }
-                // Cancelled (nil / empty) opens nothing.
+                else { self.suppressReturnToApp = false }   // cancelled: normal focus return
             }
         }))
     }
@@ -3783,7 +3787,14 @@ final class AppState: ObservableObject {
     /// grabbed key status to receive Enter/Esc; activating the terminal makes
     /// it key again and our panel resigns automatically. No-op while another
     /// interactive card is still queued.
+    /// Set for one card-resolve when the resolver itself opens something (e.g.
+    /// the drop chooser launches a terminal). Stops the notch from reactivating
+    /// the previously-frontmost app, which could be a full-screen app on another
+    /// Space and would yank the display there.
+    var suppressReturnToApp = false
+
     func returnKeyboardToTerminal(preferred: String? = nil) {
+        if suppressReturnToApp { suppressReturnToApp = false; return }
         switch mode {
         case .permission, .question, .compose, .completed, .responseDetail, .history:
             return   // still interactive — keep keyboard on the notch
@@ -3801,6 +3812,7 @@ final class AppState: ObservableObject {
     /// full-screen browser must land you back in that browser, not yank you into
     /// the terminal.
     func returnToPreviousApp() {
+        if suppressReturnToApp { suppressReturnToApp = false; return }
         switch mode {
         case .permission, .question, .compose, .completed, .responseDetail, .history:
             return   // another interactive card is still up — keep focus here
