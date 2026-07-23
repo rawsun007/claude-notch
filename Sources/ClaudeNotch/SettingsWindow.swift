@@ -1824,8 +1824,8 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "Codex (beta) is much fuller: live context meter, resume, start-in-folder, task bar, git branch, token usage, and a heads-up when Codex needs approval.",
-        "Dropping a folder now asks whether to open it in Claude Code or Codex (when Codex is on).",
-        "The notch top card always shows the running session coherently, and the multi-session list no longer duplicates or clips it.",
+        "A Send feedback action (About page and menu bar) that opens the author's LinkedIn.",
+        "Settings search is smarter: multi-word queries match across a setting's name and keywords.",
+        "The settings window centers its content, so full-screen no longer leaves it hugging the left edge.",
     ]
 }
