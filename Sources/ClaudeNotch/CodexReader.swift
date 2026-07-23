@@ -157,6 +157,34 @@ enum CodexReader {
         return ""
     }
 
+    /// The current plan progress for a live Codex session, parsed from the most
+    /// recent `update_plan` call in its rollout. Codex tracks tasks by calling
+    /// `tools.update_plan({plan:[{step,status}...]})` inside an `exec` tool, so
+    /// the plan lives in the command string. Returns (total, done) or nil.
+    nonisolated static func latestPlan(forSessionId sessionId: String) -> (total: Int, done: Int)? {
+        guard !sessionId.isEmpty, let url = rolloutURL(forSessionId: sessionId),
+              let tail = readTail(url, bytes: 128 * 1024) else { return nil }
+        for line in tail.split(separator: "\n").reversed() {
+            guard line.contains("update_plan"),
+                  let d = line.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
+                  let p = obj["payload"] as? [String: Any],
+                  let input = p["input"] as? String, input.contains("update_plan")
+            else { continue }
+            return planCounts(from: input)
+        }
+        return nil
+    }
+
+    /// Count plan steps and completed steps in an update_plan JS argument
+    /// string. Keys are unquoted JS (`step:`, `status:"completed"`).
+    nonisolated static func planCounts(from js: String) -> (total: Int, done: Int)? {
+        let total = js.components(separatedBy: "step:").count - 1
+        guard total > 0 else { return nil }
+        let done = js.components(separatedBy: "status:\"completed\"").count - 1
+        return (total, min(done, total))
+    }
+
     // MARK: - Parsing
 
     private nonisolated static func parseSession(url: URL, mtime: Date) -> ResumableSession? {

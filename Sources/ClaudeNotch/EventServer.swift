@@ -383,6 +383,11 @@ final class EventServer {
         if AgentKind.infer(fromModel: model) == .codex, !sessionId.isEmpty {
             let cwd = (payload["cwd"] as? String) ?? ""
             DispatchQueue.global(qos: .utility).async { [weak state] in
+                // Codex tracks tasks via update_plan (inside an exec tool), so
+                // parse the plan from the rollout to drive the notch task bar.
+                if let plan = CodexReader.latestPlan(forSessionId: sessionId) {
+                    Task { @MainActor in state?.noteTodos(total: plan.total, done: plan.done, sessionId: sessionId) }
+                }
                 let branch = CodexReader.gitBranch(forCwd: cwd)
                 guard let u = CodexReader.usage(forSessionId: sessionId) else {
                     // Even with no usage yet, surface the branch.
