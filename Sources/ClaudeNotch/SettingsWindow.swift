@@ -47,7 +47,7 @@ private final class SettingsWindowCloser: NSObject, NSWindowDelegate {
 
 // MARK: - View
 
-private enum SettingsSection: String, CaseIterable, Identifiable {
+enum SettingsSection: String, CaseIterable, Identifiable {
     case general = "General"
     case notch = "Notch"
     case pet = "Pet"
@@ -89,11 +89,27 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
 
 /// One searchable setting: what it's called, extra keywords, and the page it
 /// lives on. Powers the sidebar search box.
-private struct SettingsSearchItem: Identifiable {
+struct SettingsSearchItem: Identifiable {
     let title: String
     let keywords: String
     let section: SettingsSection
     var id: String { "\(section.rawValue)\u{0001}\(title)" }
+
+    /// Tokenized AND search: every whitespace/hyphen-separated term in the query
+    /// must appear somewhere in title + keywords + section. Order-independent and
+    /// cross-field, so "feedback linkedin" or "auto approve" match even when the
+    /// words live in different fields. Pure, so it is unit-tested.
+    static func matching(_ query: String) -> [SettingsSearchItem] {
+        let terms = query.lowercased()
+            .split(whereSeparator: { $0 == " " || $0 == "-" })
+            .map(String.init)
+            .filter { !$0.isEmpty }
+        guard !terms.isEmpty else { return [] }
+        return all.filter { item in
+            let hay = "\(item.title) \(item.keywords) \(item.section.rawValue)".lowercased()
+            return terms.allSatisfy { hay.contains($0) }
+        }
+    }
 
     static let all: [SettingsSearchItem] = [
         .init(title: "Launch at login", keywords: "startup boot open", section: .general),
@@ -102,6 +118,8 @@ private struct SettingsSearchItem: Identifiable {
         .init(title: "Show spend in the menu bar", keywords: "cost money dollars", section: .general),
         .init(title: "Start Claude in a folder", keywords: "open launch project", section: .general),
         .init(title: "Check for updates", keywords: "version upgrade", section: .general),
+        .init(title: "Setup health", keywords: "hooks status line forwarder fix install", section: .general),
+        .init(title: "Codex integration", keywords: "codex openai agent beta enable integration gpt", section: .general),
 
         .init(title: "Notch title", keywords: "name label claude project custom", section: .notch),
         .init(title: "Status bar items", keywords: "5 hour weekly limit session cost", section: .notch),
@@ -114,6 +132,8 @@ private struct SettingsSearchItem: Identifiable {
         .init(title: "Auto-approve for a while", keywords: "timed window minutes", section: .session),
         .init(title: "Snooze passive cards", keywords: "mute pause quiet", section: .session),
         .init(title: "Recent projects", keywords: "folders open", section: .session),
+        .init(title: "Resume a past session", keywords: "resume reopen claude codex last continue projects", section: .session),
+        .init(title: "Lines changed this session", keywords: "diff added removed churn", section: .session),
         .init(title: "Files touched", keywords: "edited reveal finder", section: .session),
 
         .init(title: "Plan-limit warnings", keywords: "rate limit 80 95 percent", section: .alerts),
@@ -174,13 +194,7 @@ struct SettingsView: View {
     @State private var devPetDemosOpen = false
 
     private var searchResults: [SettingsSearchItem] {
-        let q = search.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !q.isEmpty else { return [] }
-        return SettingsSearchItem.all.filter {
-            $0.title.lowercased().contains(q)
-                || $0.keywords.lowercased().contains(q)
-                || $0.section.rawValue.lowercased().contains(q)
-        }
+        SettingsSearchItem.matching(search)
     }
 
     var body: some View {
