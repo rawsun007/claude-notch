@@ -176,36 +176,66 @@ struct NotchView: View {
         row1.append(34)   // trailing history/expand icon buttons
         let row1Width = row1.reduce(0, +) + CGFloat(row1.count - 1) * spacing
 
-        let (modelName, modelVer) = ClaudeUsageReader.modelNameVersion(state.currentModel)
+        // Row 2 must be measured against what actually renders: the PRIMARY
+        // session (not the global mirrors) and the token label (e.g. "939k/1M"),
+        // not the tiny percent. Measuring the wrong thing under-sized the card
+        // and clipped the content.
+        let top = state.primarySession
+        let topModel = top?.model ?? state.currentModel
+        let isClaudeTop = AgentKind.infer(fromModel: topModel) == .claude
+        let (modelName, modelVer) = ClaudeUsageReader.modelNameVersion(topModel)
+        let effort = isClaudeTop ? state.currentEffort : ""
+        let branch = top?.gitBranch ?? state.currentGitBranch
+        let tokens = top?.contextTokens ?? state.currentContextTokens
+        let window = top?.contextWindow ?? state.currentContextWindow
+        let cost = top?.displayCostUSD ?? state.currentCostUSD
         var row2: [CGFloat] = []
         if !modelName.isEmpty {
             row2.append(textWidth(modelName, size: 10, weight: .semibold))
             if hovering {
                 if !modelVer.isEmpty { row2.append(textWidth(modelVer, size: 10)) }
-                if !state.currentEffort.isEmpty { row2.append(2.5) }
+                if !effort.isEmpty { row2.append(2.5) }
             }
         }
         if hovering {
-            if !state.currentEffort.isEmpty {
-                row2.append(textWidth("\(state.currentEffort) effort", size: 10))
-            }
-            if !state.currentGitBranch.isEmpty {
-                // Reserve exactly what renders (the branch is elided to 12 chars),
-                // so a long branch no longer over-reserves and crushes the context
-                // meter / cost that follow it.
-                row2.append(11 + textWidth(NotchView.elide(state.currentGitBranch, to: 12), size: 10))
-            }
+            if !effort.isEmpty { row2.append(textWidth("\(effort) effort", size: 10)) }
+            if !branch.isEmpty { row2.append(11 + textWidth(NotchView.elide(branch, to: 12), size: 10)) }
         }
         var bar: [CGFloat] = [36]   // context capsule
-        let percentText = "\(Int((state.currentContextPercent * 100).rounded()))%"
-        bar.append(textWidth(percentText, size: 9))
-        if state.currentCostUSD > 0 {
-            bar.append(textWidth(ClaudeUsageReader.fmtMoney(state.currentCostUSD), size: 9))
+        if tokens > 0 {
+            bar.append(textWidth("\(fmtK(tokens))/\(fmtK(window > 0 ? window : tokens))", size: 9))
+        } else {
+            bar.append(textWidth("\(Int((state.currentContextPercent * 100).rounded()))%", size: 9))
         }
+        if cost > 0 { bar.append(textWidth(ClaudeUsageReader.fmtMoney(cost), size: 9)) }
         row2.append(bar.reduce(0, +) + CGFloat(bar.count - 1) * 5)
         let row2Width = row2.reduce(0, +) + CGFloat(max(0, row2.count - 1)) * 5
 
-        return max(row1Width, row2Width)
+        // Secondary session rows can be wider than the header. Estimate each.
+        var maxRow = max(row1Width, row2Width)
+        for s in state.activeSessions where s.id != top?.id {
+            var r: [CGFloat] = [6]   // status dot
+            if AgentKind.infer(fromModel: s.model) != .claude { r.append(44) }   // agent chip
+            r.append(textWidth(s.project.isEmpty ? "session" : s.project, size: 11, weight: .medium))
+            if !s.gitBranch.isEmpty { r.append(11 + textWidth(NotchView.elide(s.gitBranch, to: 12), size: 10)) }
+            r.append(textWidth(s.status.isEmpty ? "ready" : s.status, size: 10) + 12)
+            r.append(36)   // its context capsule
+            if s.contextTokens > 0 {
+                r.append(textWidth("\(fmtK(s.contextTokens))/\(fmtK(s.contextWindow > 0 ? s.contextWindow : s.contextTokens))", size: 9))
+            }
+            if s.displayCostUSD > 0 { r.append(textWidth(ClaudeUsageReader.fmtMoney(s.displayCostUSD), size: 9)) }
+            maxRow = max(maxRow, r.reduce(0, +) + CGFloat(r.count - 1) * spacing)
+        }
+        return maxRow
+    }
+
+    /// Compact token count for width estimates (mirrors ContextCostBar.fmtK).
+    private static func fmtK(_ n: Int) -> String {
+        if n >= 1_000_000 {
+            let m = Double(n) / 1_000_000
+            return m == m.rounded() ? "\(Int(m))M" : String(format: "%.1fM", m)
+        }
+        return n >= 1000 ? "\(n / 1000)k" : "\(n)"
     }
 
 
@@ -245,7 +275,10 @@ struct NotchView: View {
             // running short here is what truncates the model name.
             // Cap raised to 404 so a busy row (model + effort + branch + meter +
             // cost) has room instead of overflowing the card on a long branch.
-            let width = min(404, max(230, idleContentWidth(for: state, hovering: true) + 56 + 12))
+            // Cap raised to 520: a two-agent card (model + effort + branch +
+            // token label + cost, plus a secondary session row) needs the room,
+            // and under-sizing clipped the content on both edges.
+            let width = min(520, max(230, idleContentWidth(for: state, hovering: true) + 56 + 12))
             return CGSize(width: width, height: inset + 64)
         case .thinking:
             return CGSize(width: 340, height: inset + 64)
