@@ -49,6 +49,12 @@ enum CodexReader {
     /// can't be found or has no usage yet.
     nonisolated static func usage(forSessionId sessionId: String) -> CodexUsage? {
         guard !sessionId.isEmpty, let url = rolloutURL(forSessionId: sessionId) else { return nil }
+        return usage(from: url)
+    }
+
+    /// Same, for a known rollout file. Split out so it can be unit-tested
+    /// against a fixture without touching ~/.codex.
+    nonisolated static func usage(from url: URL) -> CodexUsage? {
         guard let tail = readTail(url, bytes: 96 * 1024) else { return nil }
         var contextTokens = 0, totalTokens = 0, window = 0
         var model = ""
@@ -183,8 +189,13 @@ enum CodexReader {
     /// `tools.update_plan({plan:[{step,status}...]})` inside an `exec` tool, so
     /// the plan lives in the command string. Returns (total, done) or nil.
     nonisolated static func latestPlan(forSessionId sessionId: String) -> (total: Int, done: Int)? {
-        guard !sessionId.isEmpty, let url = rolloutURL(forSessionId: sessionId),
-              let tail = readTail(url, bytes: 128 * 1024) else { return nil }
+        guard !sessionId.isEmpty, let url = rolloutURL(forSessionId: sessionId) else { return nil }
+        return latestPlan(from: url)
+    }
+
+    /// Same, for a known rollout file (unit-testable against a fixture).
+    nonisolated static func latestPlan(from url: URL) -> (total: Int, done: Int)? {
+        guard let tail = readTail(url, bytes: 128 * 1024) else { return nil }
         for line in tail.split(separator: "\n").reversed() {
             guard line.contains("update_plan"),
                   let d = line.data(using: .utf8),
