@@ -143,6 +143,7 @@ private struct SettingsSearchItem: Identifiable {
         .init(title: "Pet animations", keywords: "demo peek stroll", section: .developer),
 
         .init(title: "Version and links", keywords: "about changelog github setup", section: .about),
+        .init(title: "Send feedback", keywords: "feedback contact linkedin message author support help", section: .about),
     ]
 }
 
