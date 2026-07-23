@@ -1347,9 +1347,15 @@ private struct IdlePill: View {
                 }
             }
 
-            // Row 2 — the current (top) session's model + meter. The secondary
-            // list below excludes this session, so it is shown once.
-            let (modelName, modelVer) = ClaudeUsageReader.modelNameVersion(state.currentModel)
+            // Row 2 — the TOP (most-recently-active) session's model + meter,
+            // read from that one session object so model/context/cost/branch are
+            // coherent (no mixing the drifting global mirrors across agents).
+            let top = state.primarySession
+            let topModel = top?.model ?? state.currentModel
+            let isClaudeTop = AgentKind.infer(fromModel: topModel) == .claude
+            let (modelName, modelVer) = ClaudeUsageReader.modelNameVersion(topModel)
+            let topBranch = top?.gitBranch ?? state.currentGitBranch
+            let effort = isClaudeTop ? state.currentEffort : ""   // effort is a Claude concept
             HStack(spacing: 5) {
                 if !modelName.isEmpty {
                     Text(modelName)
@@ -1365,7 +1371,7 @@ private struct IdlePill: View {
                                 .lineLimit(1)
                                 .fixedSize(horizontal: true, vertical: false)
                         }
-                        if !state.currentEffort.isEmpty {
+                        if !effort.isEmpty {
                             Circle()
                                 .fill(Color.white.opacity(0.18))
                                 .frame(width: 2.5, height: 2.5)
@@ -1373,54 +1379,41 @@ private struct IdlePill: View {
                     }
                 }
                 if isOpen {
-                    if !state.currentEffort.isEmpty {
-                        Text("\(state.currentEffort) effort")
+                    if !effort.isEmpty {
+                        Text("\(effort) effort")
                             .font(.system(size: 10, design: .rounded))
                             .foregroundColor(.white.opacity(0.35))
                             .lineLimit(1)
                             .fixedSize(horizontal: true, vertical: false)
                     }
-                    if !state.currentGitBranch.isEmpty {
+                    if !topBranch.isEmpty {
                         HStack(spacing: 3) {
                             Image(systemName: "arrow.triangle.branch")
                                 .font(.system(size: 8, weight: .semibold))
                                 .foregroundColor(.white.opacity(0.3))
-                            // Elide long branch names ourselves and then hold that
-                            // width. Left to the layout, this was the first thing
-                            // squeezed when the row got tight, and it did not
-                            // stop at "ma…" — it went all the way down to "m",
-                            // which reads as a glyph nobody ordered rather than
-                            // as a branch.
-                            Text(NotchView.elide(state.currentGitBranch, to: 12))
+                            Text(NotchView.elide(topBranch, to: 12))
                                 .font(.system(size: 10, design: .rounded))
                                 .foregroundColor(.white.opacity(0.45))
                                 .lineLimit(1)
                                 .fixedSize(horizontal: true, vertical: false)
                         }
-                        .help("Checked-out git branch: \(state.currentGitBranch)")
+                        .help("Checked-out git branch: \(topBranch)")
                     }
                 }
                 Spacer(minLength: 0)
-                // Highest layout priority in the row — context% and cost are
-                // the numbers people actually check mid-session, so they must
-                // never be the ones that get squeezed down to "8…" / "$…"
-                // when the hover-only detail (version/effort/branch) is showing.
                 ContextCostBar(
-                    percent: state.currentContextPercent,
-                    cost: state.currentCostUSD,
-                    // Without the model the bar cannot know how big the window
-                    // is, and quietly falls back to the smallest one — which is
-                    // how a 1M-window session kept being drawn against 200k.
-                    model: state.currentModel,
+                    percent: top?.contextPercent ?? state.currentContextPercent,
+                    cost: top?.displayCostUSD ?? state.currentCostUSD,
+                    model: topModel,
                     showModelName: false,   // row 2 already names it
                     costCap: state.sessionCostCap,
-                    tokens: state.currentContextTokens,
-                    window: AppState.windowFor(model: state.currentModel,
-                                               reported: state.currentContextWindow,
+                    tokens: top?.contextTokens ?? state.currentContextTokens,
+                    window: AppState.windowFor(model: topModel,
+                                               reported: top?.contextWindow ?? state.currentContextWindow,
                                                learned: state.learnedContextWindows,
-                                               tokens: state.currentContextTokens,
+                                               tokens: top?.contextTokens ?? state.currentContextTokens,
                                                mode: state.contextWindowMode),
-                    costIsReported: state.currentCostIsReported
+                    costIsReported: (top?.reportedCostUSD ?? 0) > 0
                 )
                 .layoutPriority(1)
             }
@@ -1437,9 +1430,9 @@ private struct IdlePill: View {
             // there is a list.
             // Only worth a bar for a real multi-step list — a lone 1/1 task is
             // just a full green bar that says nothing.
-            // Top task bar is strictly the current (top) session's list, so it
+            // Top task bar is strictly the top (primary) session's list, so it
             // never duplicates a secondary row's bar.
-            let progress = state.currentSessionTaskProgress
+            let progress = state.primaryTaskProgress
             if isOpen, progress.total > 1 {
                 let done = min(progress.done, progress.total)
                 let frac = Double(done) / Double(progress.total)
@@ -1560,9 +1553,10 @@ private struct SessionsList: View {
     }
 
     var body: some View {
-        // Exclude the current (top) session: it is already shown as the header
+        // Exclude the top (primary) session: it is already shown as the header
         // meter above, so listing it here again is the duplication the user hit.
-        let secondary = state.activeSessions.filter { $0.id != state.currentSessionId }
+        let topID = state.primarySession?.id
+        let secondary = state.activeSessions.filter { $0.id != topID }
         return VStack(alignment: .leading, spacing: 0) {
             Rectangle()
                 .fill(Color.white.opacity(0.08))

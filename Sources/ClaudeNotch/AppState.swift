@@ -817,6 +817,21 @@ final class AppState: ObservableObject {
         return (s.taskDone, s.taskTotal)
     }
 
+    /// The session shown at the top of the notch: the most-recently-active one
+    /// (max lastHookAt), i.e. whatever is running right now. Rendering the top
+    /// card from THIS single object keeps its model, context, cost, branch and
+    /// effort coherent, instead of mixing the drifting global mirrors that get
+    /// overwritten by whichever agent fired last (Codex model + Claude cost).
+    var primarySession: LiveSession? {
+        sessions.values.max { $0.lastHookAt < $1.lastHookAt }
+    }
+
+    /// The top (primary) session's task list.
+    var primaryTaskProgress: (done: Int, total: Int) {
+        guard let s = primarySession else { return (0, 0) }
+        return (s.taskDone, s.taskTotal)
+    }
+
     /// Lines this session has added/removed, from the current session (or the
     /// busiest live session when there is no clear current one). (0,0) means
     /// nothing changed yet or the status line hasn't reported it.
