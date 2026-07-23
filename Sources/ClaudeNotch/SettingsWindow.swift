@@ -168,6 +168,7 @@ struct SettingsView: View {
     @State private var editingNoteId: String?
     @State private var editingNoteText = ""
     @State private var updateCmdCopied = false
+    @State private var codexTotals: CodexReader.CodexTotals?
     @State private var devSampleCardsOpen = false
     @State private var devPetDemosOpen = false
 
@@ -1324,11 +1325,26 @@ struct SettingsView: View {
             } else {
                 Text("Reading transcripts…").font(.callout).foregroundStyle(.secondary)
             }
+
+            if HookInstaller.isCodexInstalled, let c = codexTotals, !c.isEmpty {
+                sectionLabel("Codex usage (tokens)")
+                Text("Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess.")
+                    .font(.caption).foregroundStyle(.secondary)
+                group {
+                    statRow("Today", "\(formatTokens(c.todayTokens)) tok · \(c.sessionsToday) session\(c.sessionsToday == 1 ? "" : "s")")
+                    divider
+                    statRow("This week", "\(formatTokens(c.weekTokens)) tok · \(c.sessionsWeek) session\(c.sessionsWeek == 1 ? "" : "s")")
+                }
+            }
         }
         .task(id: section) {
             guard section == .usage else { return }
-            let usage = await Task.detached(priority: .utility) { ClaudeUsageReader.compute() }.value
+            let codexOn = HookInstaller.isCodexInstalled
+            let (usage, ctotals) = await Task.detached(priority: .utility) {
+                (ClaudeUsageReader.compute(), codexOn ? CodexReader.tokenTotals() : nil)
+            }.value
             claudeUsage = usage
+            codexTotals = ctotals
         }
     }
 

@@ -87,6 +87,56 @@ enum CodexReader {
                           contextWindow: window, model: model)
     }
 
+    struct CodexTotals {
+        var todayTokens = 0, weekTokens = 0
+        var sessionsToday = 0, sessionsWeek = 0
+        var isEmpty: Bool { weekTokens == 0 && sessionsWeek == 0 }
+    }
+
+    /// Token totals for today and the last 7 days across Codex rollouts. Tokens
+    /// only, no dollar cost (gpt pricing unknown). Approximate: a session's
+    /// cumulative token total is attributed to its last-modified day.
+    nonisolated static func tokenTotals() -> CodexTotals {
+        let fm = FileManager.default
+        var totals = CodexTotals()
+        guard let en = fm.enumerator(at: sessionsDir,
+                                     includingPropertiesForKeys: [.contentModificationDateKey],
+                                     options: [.skipsHiddenFiles]) else { return totals }
+        let cal = Calendar.current
+        let now = Date()
+        let weekAgo = cal.date(byAdding: .day, value: -6, to: cal.startOfDay(for: now)) ?? now
+        for case let url as URL in en
+            where url.lastPathComponent.hasPrefix("rollout-") && url.pathExtension == "jsonl" {
+            let mtime = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate ?? .distantPast
+            guard mtime >= weekAgo else { continue }
+            let tokens = finalTotalTokens(url)
+            guard tokens > 0 else { continue }
+            totals.weekTokens += tokens
+            totals.sessionsWeek += 1
+            if cal.isDateInToday(mtime) {
+                totals.todayTokens += tokens
+                totals.sessionsToday += 1
+            }
+        }
+        return totals
+    }
+
+    /// Cumulative total_tokens for a rollout, from its last token_count line.
+    private nonisolated static func finalTotalTokens(_ url: URL) -> Int {
+        guard let tail = readTail(url, bytes: 64 * 1024) else { return 0 }
+        for line in tail.split(separator: "\n").reversed() {
+            guard let d = line.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
+                  let p = obj["payload"] as? [String: Any],
+                  (p["type"] as? String) == "token_count",
+                  let info = p["info"] as? [String: Any],
+                  let total = info["total_token_usage"] as? [String: Any] else { continue }
+            return (total["total_tokens"] as? Int) ?? 0
+        }
+        return 0
+    }
+
     /// Current git branch for a directory, read straight from `.git/HEAD`
     /// (no status line needed). Walks up to find the repo. Returns "" when not
     /// a repo or detached HEAD.
