@@ -1797,8 +1797,8 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "Each session row now shows which CLI it is (a CODEX / GROK tag), so a mixed list is clear.",
-        "The notch header names the agent from the running sessions: Codex-only reads Codex, a mix reads the app name instead of a wrong single agent.",
-        "Name the notch during setup, not just in Settings.",
+        "Codex (beta) is much fuller: live context meter, resume, start-in-folder, task bar, git branch, token usage, and a heads-up when Codex needs approval.",
+        "Dropping a folder now asks whether to open it in Claude Code or Codex (when Codex is on).",
+        "The notch top card always shows the running session coherently, and the multi-session list no longer duplicates or clips it.",
     ]
 }
