@@ -1347,10 +1347,10 @@ private struct IdlePill: View {
                 }
             }
 
-            // Row 2 — model name always shown; version/effort/branch are detail
-            // that only earns its space while the cursor is actually here.
-            // Context % and cost stay always-visible — the numbers people
-            // actually glance at mid-session.
+            // Row 2 — the current session's model + meter. Hidden when several
+            // sessions are live: that session is also one of the rows below with
+            // its own meter, so showing it here too just duplicates and clutters.
+            if !hasMultipleSessions {
             let (modelName, modelVer) = ClaudeUsageReader.modelNameVersion(state.currentModel)
             HStack(spacing: 5) {
                 if !modelName.isEmpty {
@@ -1426,6 +1426,7 @@ private struct IdlePill: View {
                 )
                 .layoutPriority(1)
             }
+            }   // end !hasMultipleSessions row 2
 
             // Row 3 — command strip, visible only while Claude is active
             if state.isClaudeWorking && !state.lastActivity.isEmpty {
@@ -1439,8 +1440,10 @@ private struct IdlePill: View {
             // there is a list.
             // Only worth a bar for a real multi-step list — a lone 1/1 task is
             // just a full green bar that says nothing.
+            // Single-session only: with several sessions each row shows its own
+            // count, so a top bar would duplicate one of them.
             let progress = state.currentTaskProgress
-            if isOpen, progress.total > 1 {
+            if isOpen, !hasMultipleSessions, progress.total > 1 {
                 let done = min(progress.done, progress.total)
                 let frac = Double(done) / Double(progress.total)
                 HStack(spacing: 6) {
@@ -1593,12 +1596,6 @@ private struct SessionsList: View {
                                 if !session.title.isEmpty { return session.title }
                                 return "session"
                             }()
-                            // Shown after the project, dimmed, only when it adds
-                            // something the project name does not already say.
-                            let subtitle: String = {
-                                guard !isAgent, !session.title.isEmpty else { return "" }
-                                return session.title == session.project ? "" : session.title
-                            }()
                             if !session.backgroundAgentId.isEmpty {
                                 // A blocked agent is not just another running one:
                                 // it has stopped, it is waiting on you, and nothing
@@ -1627,14 +1624,11 @@ private struct SessionsList: View {
                                 .lineLimit(1)
                                 .truncationMode(.tail)
                                 .help(session.cwd)
-                            if !subtitle.isEmpty {
-                                Text(subtitle)
-                                    .font(.system(size: 9, design: .rounded))
-                                    .foregroundColor(.white.opacity(0.35))
-                                    .lineLimit(1)
-                                    .truncationMode(.tail)
-                                    .help("Session name: \(subtitle)")
-                            }
+                            // Session title subtitle intentionally omitted from
+                            // the row: it repeated the auto-derived name (e.g.
+                            // "Caveman speech…") and cluttered the list. The
+                            // project + branch identify the session; the full
+                            // name is still available on the expanded view.
                             if !session.gitBranch.isEmpty {
                                 HStack(spacing: 2) {
                                     Image(systemName: "arrow.triangle.branch")
