@@ -326,6 +326,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         settingsItem.target = self
         menu.addItem(settingsItem)
 
+        let feedback = NSMenuItem(title: "Send Feedback…", action: #selector(sendFeedback), keyEquivalent: "")
+        feedback.target = self
+        menu.addItem(feedback)
+
         menu.addItem(.separator())
 
         let quit = NSMenuItem(title: "Quit ClaudeNotch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -450,6 +454,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 }
             }
         }
+    }
+
+    @objc private func sendFeedback() {
+        SettingsView.openFeedback()
     }
 
     @objc private func resumeLast() {

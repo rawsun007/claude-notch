@@ -1677,6 +1677,8 @@ struct SettingsView: View {
                 aboutLink("Source on GitHub", "https://github.com/rawsun007/claude-notch")
             }
             group {
+                actionRow("Send feedback", "bubble.left.and.bubble.right") { Self.openFeedback() }
+                divider
                 actionRow("Check for updates…", "arrow.down.circle") { UpdateChecker.shared.check(userInitiated: true) }
                 if onOpenSetup != nil {
                     divider
@@ -1792,6 +1794,13 @@ struct SettingsView: View {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
         let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
         return "\(v) (\(b))"
+    }
+
+    /// Open a LinkedIn message compose to the author so feedback is one click.
+    static func openFeedback() {
+        let url = URL(string: "https://www.linkedin.com/messaging/compose/?recipient=roshan-ramani-0510102b2")
+            ?? URL(string: "https://www.linkedin.com/in/roshan-ramani-0510102b2")!
+        NSWorkspace.shared.open(url)
     }
 
     /// Highlights for the current release, shown on the About page. Keep this in
