@@ -139,6 +139,25 @@ enum CodexReader {
         return 0
     }
 
+    /// The last assistant reply in a Codex rollout, for the resume-row preview.
+    /// Codex writes the clean text as an `event_msg` of type `agent_message`
+    /// (payload.message); we scan the tail for the newest one.
+    nonisolated static func lastReply(from url: URL, tailBytes: Int = 96 * 1024) -> String? {
+        guard let tail = readTail(url, bytes: tailBytes) else { return nil }
+        for line in tail.split(separator: "\n").reversed() {
+            guard line.contains("agent_message"),
+                  let d = line.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
+                  let p = obj["payload"] as? [String: Any],
+                  (p["type"] as? String) == "agent_message",
+                  let msg = p["message"] as? String else { continue }
+            let cleaned = msg.trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: "\n", with: " ")
+            if !cleaned.isEmpty { return String(cleaned.prefix(160)) }
+        }
+        return nil
+    }
+
     /// Current git branch for a directory, read straight from `.git/HEAD`
     /// (no status line needed). Walks up to find the repo. Returns "" when not
     /// a repo or detached HEAD.

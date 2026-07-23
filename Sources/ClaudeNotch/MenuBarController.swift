@@ -435,13 +435,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     /// the item names the project and is disabled when there is nothing to
     /// resume.
     private func refreshResumeLast() {
+        let includeCodex = HookInstaller.isCodexInstalled
         Task.detached(priority: .utility) {
-            let recent = SessionResumer.mostRecent()
+            let recent = SessionResumer.mostRecent(includeCodex: includeCodex)
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 self.lastResumable = recent
                 if let recent {
-                    self.resumeLastItem.title = "Resume Last Session — \(recent.project)"
+                    self.resumeLastItem.title = "Resume Last Session: \(recent.project)"
                     self.resumeLastItem.isEnabled = true
                 } else {
                     self.resumeLastItem.title = "Resume Last Session"
@@ -453,7 +454,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func resumeLast() {
         guard let s = lastResumable else { return }
-        TerminalAutomator.resumeClaude(sessionId: s.id, in: s.cwd)
+        if AgentKind.infer(fromModel: s.model) == .codex {
+            TerminalAutomator.resumeCodex(sessionId: s.id, in: s.cwd)
+        } else {
+            TerminalAutomator.resumeClaude(sessionId: s.id, in: s.cwd)
+        }
     }
 
     nonisolated func menuDidClose(_ menu: NSMenu) {

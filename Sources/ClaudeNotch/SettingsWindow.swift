@@ -1156,8 +1156,10 @@ struct SettingsView: View {
         .task(id: s.id) {
             guard sessionPreviews[s.id] == nil else { return }
             let url = s.fileURL
+            let isCodex = AgentKind.infer(fromModel: s.model) == .codex
             let reply = await Task.detached(priority: .utility) {
-                SessionResumer.lastReply(from: url)
+                // Codex rollouts store replies differently, so use the matching reader.
+                isCodex ? CodexReader.lastReply(from: url) : SessionResumer.lastReply(from: url)
             }.value
             sessionPreviews[s.id] = reply ?? ""
         }

@@ -95,8 +95,11 @@ enum SessionResumer {
 
     /// The single most recent resumable session overall, if any. Powers a
     /// one-click "resume where I left off" after an accidental terminal close.
-    nonisolated static func mostRecent() -> ResumableSession? {
-        allSessions(limit: 40).first
+    /// Includes Codex sessions when Codex is enabled.
+    nonisolated static func mostRecent(includeCodex: Bool = false) -> ResumableSession? {
+        var all = allSessions(limit: 40)
+        if includeCodex { all += CodexReader.allSessions(limit: 40) }
+        return all.max { $0.lastActive < $1.lastActive }
     }
 
     /// A coarse recency bucket for grouping the session list by day. Pure and
