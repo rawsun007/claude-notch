@@ -1796,11 +1796,11 @@ struct SettingsView: View {
         return "\(v) (\(b))"
     }
 
-    /// Open a LinkedIn message compose to the author so feedback is one click.
+    /// Open the author's LinkedIn profile so the user can hit Message. The
+    /// messaging compose URL needs LinkedIn's internal member id (the vanity
+    /// slug fails to load), so the profile is the reliable target.
     static func openFeedback() {
-        let url = URL(string: "https://www.linkedin.com/messaging/compose/?recipient=roshan-ramani-0510102b2")
-            ?? URL(string: "https://www.linkedin.com/in/roshan-ramani-0510102b2")!
-        NSWorkspace.shared.open(url)
+        NSWorkspace.shared.open(URL(string: "https://www.linkedin.com/in/roshan-ramani-0510102b2")!)
     }
 
     /// Highlights for the current release, shown on the About page. Keep this in
