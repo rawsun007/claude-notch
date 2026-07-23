@@ -1347,10 +1347,8 @@ private struct IdlePill: View {
                 }
             }
 
-            // Row 2 — the current session's model + meter. Hidden when several
-            // sessions are live: that session is also one of the rows below with
-            // its own meter, so showing it here too just duplicates and clutters.
-            if !hasMultipleSessions {
+            // Row 2 — the current (top) session's model + meter. The secondary
+            // list below excludes this session, so it is shown once.
             let (modelName, modelVer) = ClaudeUsageReader.modelNameVersion(state.currentModel)
             HStack(spacing: 5) {
                 if !modelName.isEmpty {
@@ -1426,7 +1424,6 @@ private struct IdlePill: View {
                 )
                 .layoutPriority(1)
             }
-            }   // end !hasMultipleSessions row 2
 
             // Row 3 — command strip, visible only while Claude is active
             if state.isClaudeWorking && !state.lastActivity.isEmpty {
@@ -1440,10 +1437,10 @@ private struct IdlePill: View {
             // there is a list.
             // Only worth a bar for a real multi-step list — a lone 1/1 task is
             // just a full green bar that says nothing.
-            // Single-session only: with several sessions each row shows its own
-            // count, so a top bar would duplicate one of them.
-            let progress = state.currentTaskProgress
-            if isOpen, !hasMultipleSessions, progress.total > 1 {
+            // Top task bar is strictly the current (top) session's list, so it
+            // never duplicates a secondary row's bar.
+            let progress = state.currentSessionTaskProgress
+            if isOpen, progress.total > 1 {
                 let done = min(progress.done, progress.total)
                 let frac = Double(done) / Double(progress.total)
                 HStack(spacing: 6) {
@@ -1563,12 +1560,15 @@ private struct SessionsList: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        // Exclude the current (top) session: it is already shown as the header
+        // meter above, so listing it here again is the duplication the user hit.
+        let secondary = state.activeSessions.filter { $0.id != state.currentSessionId }
+        return VStack(alignment: .leading, spacing: 0) {
             Rectangle()
                 .fill(Color.white.opacity(0.08))
                 .frame(height: 0.5)
                 .padding(.bottom, 4)
-            ForEach(state.activeSessions) { session in
+            ForEach(secondary) { session in
                 Button {
                     state.showSessionResponse(session)
                 } label: {

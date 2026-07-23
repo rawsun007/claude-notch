@@ -809,6 +809,14 @@ final class AppState: ObservableObject {
         return (0, 0)
     }
 
+    /// Strictly the current (top) session's task list, with no busiest fallback.
+    /// The top task bar uses this so it never borrows a secondary session's
+    /// list (which already shows its own bar in the list below).
+    var currentSessionTaskProgress: (done: Int, total: Int) {
+        guard !currentSessionId.isEmpty, let s = sessions[currentSessionId] else { return (0, 0) }
+        return (s.taskDone, s.taskTotal)
+    }
+
     /// Lines this session has added/removed, from the current session (or the
     /// busiest live session when there is no clear current one). (0,0) means
     /// nothing changed yet or the status line hasn't reported it.
