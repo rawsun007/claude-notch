@@ -255,10 +255,13 @@ struct SettingsView: View {
         } detail: {
             ScrollView {
                 detail
-                    .frame(maxWidth: 520, alignment: .leading)
+                    .frame(maxWidth: 640, alignment: .leading)
                     .padding(28)
+                    // Center the reading column so a maximized / full-screen
+                    // window doesn't leave the content hugging the left edge with
+                    // a sea of empty space on the right.
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
