@@ -59,10 +59,12 @@ enum CodexReader {
             let type = (payload["type"] as? String) ?? ""
             if type == "token_count", let info = payload["info"] as? [String: Any],
                let total = info["total_token_usage"] as? [String: Any] {
+                // total_token_usage is CUMULATIVE across the whole session, so it
+                // blows past the window. Current context occupancy is the LAST
+                // turn's input tokens (prompt + cache for that request).
                 totalTokens = (total["total_tokens"] as? Int) ?? 0
-                // Context occupancy is the input side (prompt + cache), not output.
-                let input = (total["input_tokens"] as? Int) ?? 0
-                contextTokens = input
+                let last = info["last_token_usage"] as? [String: Any]
+                contextTokens = (last?["input_tokens"] as? Int) ?? (total["input_tokens"] as? Int) ?? 0
                 if window == 0 {
                     window = ((payload["info"] as? [String: Any])?["model_context_window"] as? Int) ?? 0
                 }

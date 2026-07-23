@@ -2149,6 +2149,9 @@ final class AppState: ObservableObject {
         currentContextPercent = pct
         currentContextTokens = contextTokens
         currentContextWindow = contextWindow
+        // Codex has no dollar cost; clear the global mirror so a previous
+        // Claude session's cost doesn't bleed onto the Codex header.
+        currentCostUSD = 0
         if !model.isEmpty { currentModel = model }
     }
 
