@@ -383,12 +383,20 @@ final class EventServer {
         if AgentKind.infer(fromModel: model) == .codex, !sessionId.isEmpty {
             let cwd = (payload["cwd"] as? String) ?? ""
             DispatchQueue.global(qos: .utility).async { [weak state] in
-                guard let u = CodexReader.usage(forSessionId: sessionId) else { return }
+                let branch = CodexReader.gitBranch(forCwd: cwd)
+                guard let u = CodexReader.usage(forSessionId: sessionId) else {
+                    // Even with no usage yet, surface the branch.
+                    if !branch.isEmpty {
+                        Task { @MainActor in state?.noteCodexUsage(sessionId: sessionId, cwd: cwd, contextTokens: 0, contextWindow: 0, model: model, gitBranch: branch) }
+                    }
+                    return
+                }
                 Task { @MainActor in
                     state?.noteCodexUsage(sessionId: sessionId, cwd: cwd,
                                           contextTokens: u.contextTokens,
                                           contextWindow: u.contextWindow,
-                                          model: u.model.isEmpty ? model : u.model)
+                                          model: u.model.isEmpty ? model : u.model,
+                                          gitBranch: branch)
                 }
             }
         }

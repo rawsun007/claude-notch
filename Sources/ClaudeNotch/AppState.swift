@@ -2126,13 +2126,14 @@ final class AppState: ObservableObject {
     /// meter. Uses the real window from the rollout; no dollar cost (unknown
     /// gpt pricing).
     func noteCodexUsage(sessionId: String, cwd: String, contextTokens: Int,
-                        contextWindow: Int, model: String) {
+                        contextWindow: Int, model: String, gitBranch: String = "") {
         let pct = contextWindow > 0 ? min(1.0, max(0, Double(contextTokens) / Double(contextWindow))) : 0
         upsertSession(id: sessionId, cwd: cwd.isEmpty ? currentCwd : cwd) { s in
             s.contextTokens = contextTokens
             s.contextWindow = contextWindow
             s.contextPercent = pct
             if !model.isEmpty { s.model = model }
+            if !gitBranch.isEmpty { s.gitBranch = gitBranch }
             s.isCompacting = false
         }
         let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
