@@ -2022,8 +2022,7 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "New History page: every finished session is archived with a one-line summary, cost, lines changed, and duration, searchable by project or branch.",
-        "One-click \"what I shipped\" standup, on the History page and the menu bar, built from your sessions and the day's git commits and copied straight to the clipboard.",
-        "Durations past an hour now read as hours and days instead of a giant minute count.",
+        "Security hardening: the hook server now rejects browser-originated requests, PR links and edited files that came from a hook can no longer open anything but a web page or your editor, and the standup's git reads are locked down against untrusted repos.",
+        "Launcher scripts are written owner-only and old ones are swept away instead of piling up in the temp folder.",
     ]
 }
