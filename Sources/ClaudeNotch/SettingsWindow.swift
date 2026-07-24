@@ -121,6 +121,23 @@ private struct SearchField: View {
     }
 }
 
+/// A small tag marking a non-Claude session in the settings lists. Claude is
+/// the default and stays untagged; other agents (Codex, Grok) get one
+/// consistent capsule instead of each list styling its own.
+private struct AgentChip: View {
+    let model: String
+    var body: some View {
+        let kind = AgentKind.infer(fromModel: model)
+        if kind != .claude {
+            Text(kind.rawValue.uppercased())
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(.teal)
+                .padding(.horizontal, 4).padding(.vertical, 1)
+                .background(Capsule().fill(Color.teal.opacity(0.15)))
+        }
+    }
+}
+
 /// One searchable setting: what it's called, extra keywords, and the page it
 /// lives on. Powers the sidebar search box.
 struct SettingsSearchItem: Identifiable {
@@ -1119,13 +1136,7 @@ struct SettingsView: View {
                         .onSubmit { commitNote(for: s.id) }
                 } else {
                     HStack(spacing: 6) {
-                        if AgentKind.infer(fromModel: s.model) == .codex {
-                            Text("CODEX")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(.teal)
-                                .padding(.horizontal, 4).padding(.vertical, 1)
-                                .background(Capsule().fill(Color.teal.opacity(0.15)))
-                        }
+                        AgentChip(model: s.model)
                         Text(note?.isEmpty == false ? note! : s.title)
                             .lineLimit(1)
                             .fontWeight(note?.isEmpty == false ? .semibold : .regular)
@@ -1876,13 +1887,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(r.project).font(.body.weight(.semibold))
-                    if (r.agent ?? "claude") == "codex" {
-                        Text("codex")
-                            .font(.system(size: 9, weight: .bold))
-                            .padding(.horizontal, 4).padding(.vertical, 1)
-                            .background(Color.secondary.opacity(0.18))
-                            .clipShape(Capsule())
-                    }
+                    AgentChip(model: r.model)
                     if let b = r.gitBranch, !b.isEmpty {
                         Label(b, systemImage: "arrow.triangle.branch")
                             .font(.caption2).foregroundStyle(.secondary).labelStyle(.titleAndIcon)
