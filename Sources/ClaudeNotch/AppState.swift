@@ -3042,8 +3042,13 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// One reused default ISO-8601 formatter. Building a DateFormatter isn't
+    /// free and these export/log paths were each spinning up their own; the
+    /// instance is safe to share across threads for formatting.
+    nonisolated static let iso8601 = ISO8601DateFormatter()
+
     private static func historyJSON(_ entries: [HistoryEntry]) -> Data {
-        let iso = ISO8601DateFormatter()
+        let iso = AppState.iso8601
         let rows: [[String: String]] = entries.map { e in
             ["timestamp": iso.string(from: e.timestamp),
              "kind": e.kind.rawValue,
@@ -3059,7 +3064,7 @@ final class AppState: ObservableObject {
     }
 
     private static func historyCSV(_ entries: [HistoryEntry]) -> Data {
-        let iso = ISO8601DateFormatter()
+        let iso = AppState.iso8601
         func esc(_ s: String) -> String {
             guard s.contains(",") || s.contains("\"") || s.contains("\n") else { return s }
             return "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\""
@@ -3102,7 +3107,7 @@ final class AppState: ObservableObject {
     }
 
     private static func sessionsCSV(_ records: [SessionRecord]) -> Data {
-        let iso = ISO8601DateFormatter()
+        let iso = AppState.iso8601
         func esc(_ s: String) -> String {
             guard s.contains(",") || s.contains("\"") || s.contains("\n") else { return s }
             return "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\""
@@ -3197,7 +3202,7 @@ final class AppState: ObservableObject {
     nonisolated private static func gitCommits(inDir dir: String, since: Date) -> [String] {
         guard !dir.isEmpty,
               FileManager.default.fileExists(atPath: dir + "/.git") else { return [] }
-        let iso = ISO8601DateFormatter()
+        let iso = AppState.iso8601
         guard let out = Shell.output("/usr/bin/git",
                                      ["-C", dir, "log", "--no-merges",
                                       "--since=\(iso.string(from: since))",
