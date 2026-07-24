@@ -3043,9 +3043,10 @@ final class AppState: ObservableObject {
     }
 
     /// One reused default ISO-8601 formatter. Building a DateFormatter isn't
-    /// free and these export/log paths were each spinning up their own; the
-    /// instance is safe to share across threads for formatting.
-    nonisolated static let iso8601 = ISO8601DateFormatter()
+    /// free and these export/log paths were each spinning up their own. Foundation
+    /// documents its formatting methods as thread-safe, so a shared instance is
+    /// fine; `nonisolated(unsafe)` because the type itself isn't Sendable.
+    nonisolated(unsafe) static let iso8601 = ISO8601DateFormatter()
 
     private static func historyJSON(_ entries: [HistoryEntry]) -> Data {
         let iso = AppState.iso8601
