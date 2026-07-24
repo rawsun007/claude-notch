@@ -569,9 +569,21 @@ final class AppState: ObservableObject {
     }
 
     @Published private(set) var mode: NotchMode = .idle
-    @Published private(set) var permissionQueue: [PermissionRequest] = []
-    @Published private(set) var completedQueue: [CompletedTask] = []
-    @Published private(set) var questionQueue: [QuestionRequest] = []
+    // Hard ceiling on the pending queues. Each entry is a card awaiting a
+    // decision; a real user never has more than a handful outstanding. The cap
+    // exists so a misbehaving (or hostile) local process spraying blocking hooks
+    // can't grow these without bound. Trimming keeps the newest, dropping the
+    // stalest, so the cards you'd actually act on survive.
+    private let queueMax = 64
+    @Published private(set) var permissionQueue: [PermissionRequest] = [] {
+        didSet { if permissionQueue.count > queueMax { permissionQueue.removeFirst(permissionQueue.count - queueMax) } }
+    }
+    @Published private(set) var completedQueue: [CompletedTask] = [] {
+        didSet { if completedQueue.count > queueMax { completedQueue.removeFirst(completedQueue.count - queueMax) } }
+    }
+    @Published private(set) var questionQueue: [QuestionRequest] = [] {
+        didSet { if questionQueue.count > queueMax { questionQueue.removeFirst(questionQueue.count - queueMax) } }
+    }
     @Published private(set) var allowRules: Set<AllowRule> = []
     @Published var isHovering: Bool = false
     /// True while a file or folder is being dragged over the notch, so the card
@@ -1768,7 +1780,12 @@ final class AppState: ObservableObject {
             // Remember it per model, so the next session on this model shows the
             // right window from its first frame instead of guessing until the
             // first status line lands.
-            if !model.isEmpty, learnedContextWindows[model] != w {
+            // Only learn a NEW model's window while under the cap: the key is an
+            // untrusted model string from the payload, and this map is persisted,
+            // so an unbounded one would bloat state.json forever. Updating a model
+            // we already know is always fine.
+            if !model.isEmpty, learnedContextWindows[model] != w,
+               learnedContextWindows[model] != nil || learnedContextWindows.count < learnedWindowsMax {
                 learnedContextWindows[model] = w
                 schedulePersist()
             }
@@ -1782,6 +1799,10 @@ final class AppState: ObservableObject {
 
     /// Windows reported by Claude Code, keyed by model id. Persisted, so a fresh
     /// session starts with the true window rather than an inference.
+    // Cap on distinct models we'll remember a window for. Real installs see a
+    // handful; the ceiling stops an untrusted model string from growing the
+    // persisted map without bound.
+    private let learnedWindowsMax = 64
     @Published private(set) var learnedContextWindows: [String: Int] = [:]
 
     /// The window to measure a session against: what Claude Code reported for it,
