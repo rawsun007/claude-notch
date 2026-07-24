@@ -3141,6 +3141,85 @@ final class AppState: ObservableObject {
         return lines.joined(separator: "\n").data(using: .utf8) ?? Data()
     }
 
+    /// Build a "what I shipped" standup from the archived session digests over
+    /// the last `days` days, grouped by project: the session summaries, the code
+    /// churn and cost, and the actual git commit subjects from each project dir.
+    /// Nonisolated + async because it shells out to `git log` per project; call
+    /// it off the main actor and put the result on the clipboard.
+    nonisolated static func standupText(records: [SessionRecord], days: Int) -> String {
+        let cal = Calendar.current
+        let since = cal.date(byAdding: .day, value: -(max(days, 1) - 1),
+                             to: cal.startOfDay(for: Date())) ?? Date()
+        let recent = records.filter { $0.startedAt >= since }
+        let header: String = {
+            let df = DateFormatter(); df.dateFormat = "EEE MMM d"
+            if days <= 1 { return "Standup — \(df.string(from: Date()))" }
+            return "What I shipped — last \(days) days"
+        }()
+        guard !recent.isEmpty else {
+            return header + "\n\nNo finished sessions in this window."
+        }
+
+        // Group by project dir. cwd is the stable key; project is the label.
+        var order: [String] = []
+        var byCwd: [String: [SessionRecord]] = [:]
+        for r in recent {
+            let key = r.cwd.isEmpty ? r.project : r.cwd
+            if byCwd[key] == nil { order.append(key) }
+            byCwd[key, default: []].append(r)
+        }
+
+        var out = [header, ""]
+        for key in order {
+            let rs = byCwd[key] ?? []
+            let label = rs.first?.project ?? (key as NSString).lastPathComponent
+            let add = rs.reduce(0) { $0 + ($1.linesAdded ?? 0) }
+            let rem = rs.reduce(0) { $0 + ($1.linesRemoved ?? 0) }
+            let cost = rs.reduce(0.0) { $0 + $1.costUSD }
+            out.append(label)
+
+            // Session summaries (deduped, non-empty).
+            var seen = Set<String>()
+            for s in rs.compactMap({ $0.summary }) where !s.isEmpty {
+                let k = s.lowercased()
+                if seen.insert(k).inserted { out.append("  • \(s)") }
+            }
+            // Actual commits shipped from this project dir in the window.
+            let commits = gitCommits(inDir: key, since: since)
+            for c in commits.prefix(8) { out.append("  ↳ \(c)") }
+
+            var meta: [String] = []
+            if add + rem > 0 { meta.append("+\(add) / -\(rem)") }
+            meta.append("\(rs.count) session\(rs.count == 1 ? "" : "s")")
+            if cost > 0 { meta.append(String(format: "~$%.2f", cost)) }
+            out.append("  (\(meta.joined(separator: ", ")))")
+            out.append("")
+        }
+        return out.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Commit subjects authored in `dir` since a date (`git log --since`), merges
+    /// excluded. Empty when not a repo or git is unavailable.
+    nonisolated private static func gitCommits(inDir dir: String, since: Date) -> [String] {
+        guard !dir.isEmpty,
+              FileManager.default.fileExists(atPath: dir + "/.git") else { return [] }
+        let iso = ISO8601DateFormatter()
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        task.arguments = ["-C", dir, "log", "--no-merges",
+                          "--since=\(iso.string(from: since))",
+                          "--pretty=format:%s"]
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+        do { try task.run() } catch { return [] }
+        task.waitUntilExit()
+        let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        return out.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
     fileprivate func appendHistory(_ entry: HistoryEntry) {
         history.insert(entry, at: 0)
         if history.count > historyMax {

@@ -115,6 +115,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         resumeLastItem.target = self
         menu.addItem(resumeLastItem)
 
+        // One-click standup: copy today's "what I shipped" to the clipboard,
+        // built from finished sessions + git commits, ready to paste.
+        let standupMI = NSMenuItem(title: "Copy Today's Standup", action: #selector(copyStandup), keyEquivalent: "")
+        standupMI.target = self
+        menu.addItem(standupMI)
+
         // Recent projects submenu (populated dynamically)
         recentProjectsMenu = NSMenu()
         recentProjectsItem = NSMenuItem(title: "Recent Projects", action: nil, keyEquivalent: "")
@@ -466,6 +472,25 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             TerminalAutomator.resumeCodex(sessionId: s.id, in: s.cwd)
         } else {
             TerminalAutomator.resumeClaude(sessionId: s.id, in: s.cwd)
+        }
+    }
+
+    @objc private func copyStandup() {
+        let records = state.sessionHistory
+        Task { [weak self] in
+            let text = await Task.detached(priority: .userInitiated) {
+                AppState.standupText(records: records, days: 1)
+            }.value
+            await MainActor.run {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+                self?.state.enqueueCompleted(CompletedTask(
+                    title: "Standup copied",
+                    detail: "Today's \"what I shipped\" is on your clipboard.",
+                    source: "ClaudeNotch",
+                    cwd: ""
+                ))
+            }
         }
     }
 

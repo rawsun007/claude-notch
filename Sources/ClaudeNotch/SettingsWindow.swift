@@ -139,6 +139,7 @@ struct SettingsSearchItem: Identifiable {
         .init(title: "Files touched", keywords: "edited reveal finder", section: .session),
 
         .init(title: "Session history", keywords: "past sessions log what i did digest search recall project", section: .history),
+        .init(title: "What I shipped standup", keywords: "standup summary daily report shipped copy git commits update", section: .history),
         .init(title: "Export session history", keywords: "csv json download sessions", section: .history),
 
         .init(title: "Plan-limit warnings", keywords: "rate limit 80 95 percent", section: .alerts),
@@ -187,6 +188,11 @@ struct SettingsView: View {
     @State private var sessionSearch = ""
     // Free-text filter over the archived session digest history.
     @State private var historySearch = ""
+    // Generated "what I shipped" standup text + the day-window it covers.
+    @State private var standupText = ""
+    @State private var standupDays = 1
+    @State private var standupBusy = false
+    @State private var standupCopied = false
     @State private var copiedSessionId: String?
     // Lazily-loaded last-assistant-reply previews, keyed by session id.
     @State private var sessionPreviews: [String: String] = [:]
@@ -1743,6 +1749,7 @@ struct SettingsView: View {
                     .padding(.vertical, 10).padding(.horizontal, 14)
                 }
             } else {
+                standupSection
                 let total = state.sessionHistory.reduce(into: (cost: 0.0, add: 0, rem: 0)) { acc, r in
                     acc.cost += r.costUSD
                     acc.add += r.linesAdded ?? 0
@@ -1804,6 +1811,69 @@ struct SettingsView: View {
                         .foregroundStyle(.red)
                 }
                 .padding(.top, 2)
+            }
+        }
+    }
+
+    // "What I shipped": one-click standup built from the session digests + git
+    // commits over the chosen window, ready to paste into a standup or update.
+    private var standupSection: some View {
+        group {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Image(systemName: "text.badge.checkmark").foregroundStyle(.blue)
+                    Text("What I shipped").font(.body.weight(.semibold))
+                    Spacer()
+                    Picker("", selection: $standupDays) {
+                        Text("Today").tag(1)
+                        Text("3 days").tag(3)
+                        Text("Week").tag(7)
+                    }
+                    .labelsHidden().fixedSize().controlSize(.small)
+                    Button {
+                        generateStandup()
+                    } label: {
+                        if standupBusy { ProgressView().controlSize(.small) }
+                        else { Text("Generate") }
+                    }
+                    .disabled(standupBusy)
+                }
+                if !standupText.isEmpty {
+                    TextEditor(text: .constant(standupText))
+                        .font(.system(.callout, design: .monospaced))
+                        .frame(minHeight: 120, maxHeight: 260)
+                        .scrollContentBackground(.hidden)
+                        .padding(8)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04)))
+                    HStack {
+                        Button {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(standupText, forType: .string)
+                            standupCopied = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { standupCopied = false }
+                        } label: {
+                            Label(standupCopied ? "Copied" : "Copy", systemImage: standupCopied ? "checkmark" : "doc.on.doc")
+                        }
+                        Spacer()
+                    }
+                }
+            }
+            .padding(.vertical, 12).padding(.horizontal, 14)
+        }
+    }
+
+    private func generateStandup() {
+        standupBusy = true
+        let records = state.sessionHistory
+        let days = standupDays
+        Task {
+            let text = await Task.detached(priority: .userInitiated) {
+                AppState.standupText(records: records, days: days)
+            }.value
+            await MainActor.run {
+                standupText = text
+                standupBusy = false
+                standupCopied = false
             }
         }
     }
