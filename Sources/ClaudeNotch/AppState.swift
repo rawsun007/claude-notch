@@ -241,6 +241,14 @@ struct SessionRecord: Identifiable, Codable {
     // non-optional new key would make the whole history array fail to decode).
     var linesAdded: Int? = nil
     var linesRemoved: Int? = nil
+    // A one-line human summary of what the session was about — the session's
+    // /rename title if it has one, else the first line of its last reply. This
+    // is what makes the history searchable and scannable ("what did I do in
+    // project X last week") instead of a wall of cost figures.
+    var summary: String? = nil
+    var filesTouched: Int? = nil
+    var gitBranch: String? = nil
+    var agent: String? = nil   // "claude" / "codex", inferred from the model
 
     var duration: TimeInterval? { endedAt.map { $0.timeIntervalSince(startedAt) } }
 }
@@ -3196,6 +3204,21 @@ final class AppState: ObservableObject {
     /// stays put, its end moves with the latest turn, and the totals track the
     /// live session, so the duration is the whole session and not its first
     /// breath.
+    /// One-line human summary of a session for the searchable history: its
+    /// /rename title if it set one, else the first sentence of its last reply.
+    /// Trimmed to a scannable length. Nil when there's nothing worth showing.
+    static func sessionSummary(_ session: LiveSession) -> String? {
+        let title = session.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !title.isEmpty { return String(title.prefix(120)) }
+        let reply = session.fullResponse.isEmpty ? session.lastResponse : session.fullResponse
+        let firstLine = reply
+            .split(whereSeparator: \.isNewline)
+            .first
+            .map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
+        guard !firstLine.isEmpty else { return nil }
+        return String(firstLine.prefix(120))
+    }
+
     private func archiveSession(_ session: LiveSession) {
         guard Self.isWorthArchiving(session) else { return }
         archivedSessionKeys.insert(session.id)
@@ -3208,6 +3231,12 @@ final class AppState: ObservableObject {
             sessionHistory[i].model = session.model
             sessionHistory[i].linesAdded = session.linesAdded
             sessionHistory[i].linesRemoved = session.linesRemoved
+            // Keep a summary once we have one; a later empty reply shouldn't
+            // wipe the title the session already earned.
+            if let s = Self.sessionSummary(session) { sessionHistory[i].summary = s }
+            sessionHistory[i].filesTouched = session.touchedFiles.count
+            if !session.gitBranch.isEmpty { sessionHistory[i].gitBranch = session.gitBranch }
+            sessionHistory[i].agent = AgentKind.infer(fromModel: session.model).rawValue
             schedulePersist()
             return
         }
@@ -3223,7 +3252,11 @@ final class AppState: ObservableObject {
             toolCallCount: session.toolCallCount,
             model: session.model,
             linesAdded: session.linesAdded,
-            linesRemoved: session.linesRemoved
+            linesRemoved: session.linesRemoved,
+            summary: Self.sessionSummary(session),
+            filesTouched: session.touchedFiles.count,
+            gitBranch: session.gitBranch.isEmpty ? nil : session.gitBranch,
+            agent: AgentKind.infer(fromModel: session.model).rawValue
         )
         sessionHistory.insert(record, at: 0)
         if sessionHistory.count > sessionHistoryMax {

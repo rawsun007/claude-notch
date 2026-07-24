@@ -57,6 +57,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case budget = "Budget"
     case privacy = "Privacy"
     case usage = "Usage"
+    case history = "History"
     case developer = "Developer"
     case about = "About"
 
@@ -72,6 +73,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .budget: return "dollarsign.circle"
         case .privacy: return "lock.shield"
         case .usage: return "chart.bar"
+        case .history: return "clock.arrow.circlepath"
         case .developer: return "hammer"
         case .about: return "info.circle"
         }
@@ -82,7 +84,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         ("Workspace", [.general, .notch, .pet]),
         ("Session", [.session]),
         ("Alerts & Cost", [.alerts, .sounds, .budget]),
-        ("Info", [.usage, .privacy, .about]),
+        ("Info", [.usage, .history, .privacy, .about]),
         ("Advanced", [.developer]),
     ]
 }
@@ -136,6 +138,9 @@ struct SettingsSearchItem: Identifiable {
         .init(title: "Lines changed this session", keywords: "diff added removed churn", section: .session),
         .init(title: "Files touched", keywords: "edited reveal finder", section: .session),
 
+        .init(title: "Session history", keywords: "past sessions log what i did digest search recall project", section: .history),
+        .init(title: "Export session history", keywords: "csv json download sessions", section: .history),
+
         .init(title: "Plan-limit warnings", keywords: "rate limit 80 95 percent", section: .alerts),
         .init(title: "Long-run alerts", keywords: "stuck slow", section: .alerts),
         .init(title: "Break reminders", keywords: "rest stretch", section: .alerts),
@@ -180,6 +185,8 @@ struct SettingsView: View {
     @State private var projectSessions: [(cwd: String, project: String, sessions: [ResumableSession])] = []
     @State private var expandedProjects: Set<String> = []
     @State private var sessionSearch = ""
+    // Free-text filter over the archived session digest history.
+    @State private var historySearch = ""
     @State private var copiedSessionId: String?
     // Lazily-loaded last-assistant-reply previews, keyed by session id.
     @State private var sessionPreviews: [String: String] = [:]
@@ -277,6 +284,7 @@ struct SettingsView: View {
         case .budget:    budget
         case .privacy:   privacy
         case .usage:     usage
+        case .history:   history
         case .developer: developer
         case .about:     about
         }
@@ -1707,6 +1715,147 @@ struct SettingsView: View {
     }
 
     // MARK: building blocks
+
+    // Archived session digests filtered by the search box: match project,
+    // summary, model, branch, or agent so "what did I do in project X" works.
+    private var filteredHistory: [SessionRecord] {
+        let q = historySearch.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return state.sessionHistory }
+        return state.sessionHistory.filter { r in
+            let hay = "\(r.project) \(r.summary ?? "") \(r.model) \(r.gitBranch ?? "") \(r.agent ?? "")"
+                .lowercased()
+            return hay.contains(q)
+        }
+    }
+
+    private var history: some View {
+        page("History") {
+            Text("Every session you finish is archived here with a one-line summary, its cost, and what it changed. Search to recall what you did in a project last week.")
+                .font(.callout).foregroundStyle(.secondary)
+
+            if state.sessionHistory.isEmpty {
+                group {
+                    HStack {
+                        Text("No finished sessions yet. They show up here after a session ends.")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                    .padding(.vertical, 10).padding(.horizontal, 14)
+                }
+            } else {
+                let total = state.sessionHistory.reduce(into: (cost: 0.0, add: 0, rem: 0)) { acc, r in
+                    acc.cost += r.costUSD
+                    acc.add += r.linesAdded ?? 0
+                    acc.rem += r.linesRemoved ?? 0
+                }
+                HStack(spacing: 14) {
+                    Text("\(state.sessionHistory.count) sessions")
+                    Text(ClaudeUsageReader.fmtMoney(total.cost)).foregroundStyle(.secondary)
+                    Text("+\(total.add)").foregroundStyle(.green)
+                    Text("-\(total.rem)").foregroundStyle(.red)
+                }
+                .font(.callout.monospacedDigit())
+
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary).font(.callout)
+                    TextField("Search by project, summary, branch…", text: $historySearch)
+                        .textFieldStyle(.plain)
+                    if !historySearch.isEmpty {
+                        Button { historySearch = "" } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 7).padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color(nsColor: .controlBackgroundColor))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                )
+
+                let matches = filteredHistory
+                if matches.isEmpty {
+                    group {
+                        HStack {
+                            Text("No sessions match “\(historySearch)”.")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                        }
+                        .padding(.vertical, 10).padding(.horizontal, 14)
+                    }
+                } else {
+                    group {
+                        ForEach(Array(matches.prefix(100).enumerated()), id: \.element.id) { idx, r in
+                            historyRow(r)
+                            if idx < min(matches.count, 100) - 1 { divider }
+                        }
+                    }
+                }
+
+                HStack {
+                    Button("Export…") { state.exportSessionHistory() }
+                    Spacer()
+                    Button("Clear history", role: .destructive) { state.clearSessionHistory() }
+                        .foregroundStyle(.red)
+                }
+                .padding(.top, 2)
+            }
+        }
+    }
+
+    private func historyRow(_ r: SessionRecord) -> some View {
+        Button {
+            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: r.cwd)])
+        } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(r.project).font(.body.weight(.semibold))
+                    if (r.agent ?? "claude") == "codex" {
+                        Text("codex")
+                            .font(.system(size: 9, weight: .bold))
+                            .padding(.horizontal, 4).padding(.vertical, 1)
+                            .background(Color.secondary.opacity(0.18))
+                            .clipShape(Capsule())
+                    }
+                    if let b = r.gitBranch, !b.isEmpty {
+                        Label(b, systemImage: "arrow.triangle.branch")
+                            .font(.caption2).foregroundStyle(.secondary).labelStyle(.titleAndIcon)
+                    }
+                    Spacer()
+                    Text(r.startedAt.formatted(date: .abbreviated, time: .shortened))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                if let s = r.summary, !s.isEmpty {
+                    Text(s).font(.callout).foregroundStyle(.primary).lineLimit(2)
+                }
+                HStack(spacing: 12) {
+                    if r.costUSD > 0 {
+                        Text(ClaudeUsageReader.fmtMoney(r.costUSD))
+                    }
+                    if let a = r.linesAdded, let d = r.linesRemoved, a + d > 0 {
+                        Text("+\(a)").foregroundStyle(.green)
+                        Text("-\(d)").foregroundStyle(.red)
+                    }
+                    if let f = r.filesTouched, f > 0 {
+                        Text("\(f) file\(f == 1 ? "" : "s")")
+                    }
+                    if let dur = r.duration, dur >= 1 {
+                        Text(AppState.runningDuration(seconds: dur))
+                    }
+                }
+                .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 9).padding(.horizontal, 14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Reveal \(r.cwd) in Finder")
+    }
 
     private func page<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 18) {
