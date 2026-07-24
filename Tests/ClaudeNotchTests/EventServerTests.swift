@@ -211,3 +211,40 @@ extension EventServerParseTests {
         XCTAssertEqual(r?.body.count, EventServer.maxRequestBytes)
     }
 }
+
+/// `isLocalHookRequest` gates the loopback server against browser-originated
+/// requests (a page the user has open, incl. DNS-rebinding). Real hooks are
+/// curl/bash to 127.0.0.1 with no Origin; those must pass, browsers must not.
+final class EventServerOriginTests: XCTestCase {
+
+    private func req(_ s: String) -> EventServer.HTTPRequest {
+        EventServer.parseRequest(Data(s.utf8))!
+    }
+
+    func testLoopbackHookAllowed() {
+        XCTAssertTrue(EventServer.isLocalHookRequest(
+            req("POST /hook HTTP/1.1\r\nHost: 127.0.0.1:53127\r\nContent-Length: 2\r\n\r\n{}")))
+    }
+
+    func testLocalhostHostAllowed() {
+        XCTAssertTrue(EventServer.isLocalHookRequest(
+            req("POST /hook HTTP/1.1\r\nHost: localhost:53127\r\n\r\n")))
+    }
+
+    func testMissingHostAllowed() {
+        XCTAssertTrue(EventServer.isLocalHookRequest(
+            req("POST /hook HTTP/1.1\r\n\r\n")))
+    }
+
+    func testBrowserOriginRejected() {
+        XCTAssertFalse(EventServer.isLocalHookRequest(
+            req("POST /hook HTTP/1.1\r\nHost: 127.0.0.1:53127\r\nOrigin: http://evil.example\r\n\r\n")))
+    }
+
+    func testRebindingHostRejected() {
+        // Domain rebound to 127.0.0.1: connection is loopback but Host is the
+        // attacker's domain. Reject on the Host mismatch.
+        XCTAssertFalse(EventServer.isLocalHookRequest(
+            req("POST /hook HTTP/1.1\r\nHost: attacker.example\r\n\r\n")))
+    }
+}

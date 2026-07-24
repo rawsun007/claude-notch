@@ -237,6 +237,8 @@ final class EventServer {
         let method: String
         let path: String
         let body: Data
+        var host: String? = nil
+        var origin: String? = nil
     }
 
     /// Parse a raw HTTP/1.1 request off the socket buffer. Returns nil when the
@@ -256,11 +258,18 @@ final class EventServer {
         let path = String(parts[1])
 
         var contentLength = 0
+        var host: String?
+        var origin: String?
         for line in lines.dropFirst() {
             if let colon = line.firstIndex(of: ":") {
                 let name = line[..<colon].trimmingCharacters(in: .whitespaces).lowercased()
                 let value = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
-                if name == "content-length" { contentLength = Int(value) ?? 0 }
+                switch name {
+                case "content-length": contentLength = Int(value) ?? 0
+                case "host": host = value
+                case "origin": origin = value
+                default: break
+                }
             }
         }
         // A declared length past the ceiling is refused outright rather than
@@ -273,10 +282,34 @@ final class EventServer {
         let body = contentLength > 0
             ? data.subdata(in: bodyStart..<(bodyStart + contentLength))
             : Data()
-        return HTTPRequest(method: method, path: path, body: body)
+        return HTTPRequest(method: method, path: path, body: body, host: host, origin: origin)
+    }
+
+    /// Whether a parsed request looks like it genuinely came from a local hook
+    /// (curl/bash) and not a browser aimed at us. Our forwarders talk to
+    /// 127.0.0.1 and send no Origin; a web page — including a DNS-rebinding one
+    /// pointing its own domain at 127.0.0.1 — sends a browser Origin and a
+    /// non-loopback Host. Reject those so a page the user happens to have open
+    /// can't inject spoofed sessions, activity, or notifications into the notch.
+    static func isLocalHookRequest(_ req: HTTPRequest) -> Bool {
+        if req.origin != nil { return false }           // browsers always set Origin on cross-origin POST
+        guard let host = req.host else { return true }  // curl/1.0 without Host: allow
+        // Strip the port; accept only loopback authorities.
+        let name = host.hasPrefix("[") ? "[::1]"        // IPv6 literal, port after ]
+            : String(host.split(separator: ":").first ?? "")
+        return name == "127.0.0.1" || name == "localhost" || name == "[::1]" || host == "[::1]"
     }
 
     private func handle(_ req: HTTPRequest, on conn: NWConnection) {
+        // Drop anything that looks browser-originated: our hooks are curl/bash on
+        // loopback and never carry an Origin. This closes the drive-by / DNS-
+        // rebinding path where a page the user has open POSTs spoofed events.
+        guard EventServer.isLocalHookRequest(req) else {
+            NSLog("ClaudeNotch: rejected non-local request (host=%@ origin=%@)",
+                  req.host ?? "-", req.origin ?? "-")
+            conn.cancel()
+            return
+        }
         let rawPayload = (try? JSONSerialization.jsonObject(with: req.body) as? [String: Any]) ?? [:]
         // Canonicalize key casing so Grok/Codex (camelCase) payloads read the
         // same as Claude's (snake_case). A Claude payload passes through
