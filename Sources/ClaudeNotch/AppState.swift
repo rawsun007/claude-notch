@@ -3064,12 +3064,16 @@ final class AppState: ObservableObject {
         return (try? enc.encode(rows)) ?? Data()
     }
 
+    /// Quote a CSV field when it contains a comma, quote, or newline (doubling
+    /// any embedded quotes), per RFC 4180. Shared by the CSV exporters.
+    private static func csvEscape(_ s: String) -> String {
+        guard s.contains(",") || s.contains("\"") || s.contains("\n") else { return s }
+        return "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+    }
+
     private static func historyCSV(_ entries: [HistoryEntry]) -> Data {
         let iso = AppState.iso8601
-        func esc(_ s: String) -> String {
-            guard s.contains(",") || s.contains("\"") || s.contains("\n") else { return s }
-            return "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\""
-        }
+        let esc = csvEscape
         var lines = ["timestamp,kind,tool,title,detail,project,outcome"]
         for e in entries {
             lines.append([iso.string(from: e.timestamp), e.kind.rawValue, e.toolName,
@@ -3109,10 +3113,7 @@ final class AppState: ObservableObject {
 
     private static func sessionsCSV(_ records: [SessionRecord]) -> Data {
         let iso = AppState.iso8601
-        func esc(_ s: String) -> String {
-            guard s.contains(",") || s.contains("\"") || s.contains("\n") else { return s }
-            return "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\""
-        }
+        let esc = csvEscape
         var lines = ["started,ended,project,cwd,duration_s,tokens,cost_usd,tool_calls,model"]
         for r in records {
             lines.append([
