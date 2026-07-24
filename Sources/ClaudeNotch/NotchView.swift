@@ -1707,7 +1707,12 @@ private struct SessionsList: View {
                             // app shelling out to `gh` to find out it exists.
                             if session.prNumber > 0 {
                                 Button {
-                                    guard let url = URL(string: session.prURL) else { return }
+                                    // prURL is sanitized to http(s) at ingestion;
+                                    // re-check the scheme here so this never opens
+                                    // anything but a web link even if that changes.
+                                    guard let url = URL(string: session.prURL),
+                                          let scheme = url.scheme?.lowercased(),
+                                          scheme == "http" || scheme == "https" else { return }
                                     NSWorkspace.shared.open(url)
                                 } label: {
                                     HStack(spacing: 2) {

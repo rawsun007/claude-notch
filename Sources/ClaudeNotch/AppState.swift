@@ -1747,7 +1747,11 @@ final class AppState: ObservableObject {
             if !worktree.isEmpty { s.worktree = worktree }
             if let pr = prNumber, pr > 0 {
                 s.prNumber = pr
-                s.prURL = prURL
+                // The PR link comes from a hook payload and gets handed to
+                // NSWorkspace.open on click. Only keep it if it's a real web URL,
+                // so a crafted pr_url can't open a file:// or custom-scheme
+                // handler. A rejected URL leaves the chip present but unclickable.
+                s.prURL = AppState.sanitizedWebURL(prURL)
                 s.prState = prState
             }
             if let c = reportedCostUSD, c > 0 { s.reportedCostUSD = c }
@@ -2039,6 +2043,16 @@ final class AppState: ObservableObject {
     /// Read the checked-out branch from `.git/HEAD` without running git.
     /// See `Git.branch(forCwd:)` for the shared reader.
     static func readGitBranch(cwd: String) -> String { Git.branch(forCwd: cwd) }
+
+    /// Accept only http/https web URLs for anything from an untrusted hook
+    /// payload that we'll later hand to NSWorkspace.open. Everything else becomes
+    /// "" so it can't launch a file:// or custom-scheme handler. Returns the
+    /// original string when safe (preserving the exact link), else "".
+    static func sanitizedWebURL(_ s: String) -> String {
+        guard let u = URL(string: s), let scheme = u.scheme?.lowercased(),
+              scheme == "https" || scheme == "http", u.host?.isEmpty == false else { return "" }
+        return s
+    }
 
     /// When the tool named in `lastActivity` started running. Nil when nothing
     /// is running. This is what lets the notch answer the question every long
