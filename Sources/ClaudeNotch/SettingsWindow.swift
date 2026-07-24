@@ -121,6 +121,27 @@ private struct SearchField: View {
     }
 }
 
+/// The card look shared by every boxed section on the settings pages: a filled
+/// rounded rectangle with a hairline border. One modifier so the fill + stroke
+/// pair isn't re-typed (and re-tuned) at each call site.
+private struct CardChrome: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+            )
+    }
+}
+
+extension View {
+    func cardChrome() -> some View { modifier(CardChrome()) }
+}
+
 /// A small tag marking a non-Claude session in the settings lists. Claude is
 /// the default and stays untagged; other agents (Codex, Grok) get one
 /// consistent capsule instead of each list styling its own.
@@ -1255,14 +1276,7 @@ struct SettingsView: View {
                     spendTrend(trend)
                         .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color(nsColor: .controlBackgroundColor))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                        )
+                        .cardChrome()
                 }
                 let weekly = ClaudeUsageReader.weeklyCostBuckets(daily: u.dailyCostUSD, weeks: 4, asOf: Date())
                 if weekly.contains(where: { $0.cost > 0 }) {
@@ -1270,14 +1284,7 @@ struct SettingsView: View {
                     spendTrend(weekly)
                         .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color(nsColor: .controlBackgroundColor))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                        )
+                        .cardChrome()
                 }
             }
 
@@ -1285,14 +1292,7 @@ struct SettingsView: View {
             activityHeatmap
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                )
+                .cardChrome()
 
             Text("All-time counters, kept locally on this Mac.")
                 .font(.callout).foregroundStyle(.secondary)
@@ -1562,14 +1562,7 @@ struct SettingsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 12).padding(.horizontal, 14)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-        )
+        .cardChrome()
     }
 
     private func statRow(_ title: String, _ value: String) -> some View {
@@ -1935,14 +1928,7 @@ struct SettingsView: View {
         VStack(spacing: 0) { content() }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-            )
+            .cardChrome()
     }
 
     private var divider: some View {
