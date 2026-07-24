@@ -3205,8 +3205,15 @@ final class AppState: ObservableObject {
         guard !dir.isEmpty,
               FileManager.default.fileExists(atPath: dir + "/.git") else { return [] }
         let iso = AppState.iso8601
+        // The dir may be an untrusted repo (anything the user opened). Override
+        // the config keys that would let a repo's .git/config run a command off a
+        // plain `git log`: signature verification spawns gpg, and fsmonitor spawns
+        // a hook process on index refresh. -c on the command line wins over repo
+        // config, so these can't be re-enabled by the repo.
         guard let out = Shell.output("/usr/bin/git",
-                                     ["-C", dir, "log", "--no-merges",
+                                     ["-c", "log.showSignature=false",
+                                      "-c", "core.fsmonitor=false",
+                                      "-C", dir, "log", "--no-merges",
                                       "--since=\(iso.string(from: since))",
                                       "--pretty=format:%s"]) else { return [] }
         return out.split(whereSeparator: \.isNewline)
