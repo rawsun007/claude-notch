@@ -95,15 +95,7 @@ enum TerminalAutomator {
     /// can print session noise, so we take the last line that looks like an
     /// absolute path to the binary. Returns nil if it can't be found.
     nonisolated static func resolveCLIPath(_ name: String) -> String? {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        task.arguments = ["-ilc", "command -v \(name)"]
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = FileHandle.nullDevice
-        do { try task.run() } catch { return nil }
-        task.waitUntilExit()
-        let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        guard let out = Shell.output("/bin/zsh", ["-ilc", "command -v \(name)"]) else { return nil }
         for line in out.split(separator: "\n").reversed() {
             let t = line.trimmingCharacters(in: .whitespaces)
             if t.hasPrefix("/"), t.hasSuffix(name) { return t }

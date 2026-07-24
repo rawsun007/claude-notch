@@ -71,16 +71,7 @@ enum HookInstaller {
             return true
         }
         // Fall back to PATH lookup via /usr/bin/env
-        let task = Process()
-        task.launchPath = "/usr/bin/env"
-        task.arguments = ["sh", "-c", "command -v jq >/dev/null 2>&1"]
-        do {
-            try task.run()
-            task.waitUntilExit()
-            return task.terminationStatus == 0
-        } catch {
-            return false
-        }
+        return Shell.succeeds("/usr/bin/env", ["sh", "-c", "command -v jq >/dev/null 2>&1"])
     }
 
     enum InstallError: LocalizedError {

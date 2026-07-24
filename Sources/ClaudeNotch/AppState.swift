@@ -3220,17 +3220,10 @@ final class AppState: ObservableObject {
         guard !dir.isEmpty,
               FileManager.default.fileExists(atPath: dir + "/.git") else { return [] }
         let iso = ISO8601DateFormatter()
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        task.arguments = ["-C", dir, "log", "--no-merges",
-                          "--since=\(iso.string(from: since))",
-                          "--pretty=format:%s"]
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = FileHandle.nullDevice
-        do { try task.run() } catch { return [] }
-        task.waitUntilExit()
-        let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        guard let out = Shell.output("/usr/bin/git",
+                                     ["-C", dir, "log", "--no-merges",
+                                      "--since=\(iso.string(from: since))",
+                                      "--pretty=format:%s"]) else { return [] }
         return out.split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
