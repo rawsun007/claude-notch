@@ -477,9 +477,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func copyStandup() {
         let records = state.sessionHistory
+        let dirs = state.recentProjects
         Task { [weak self] in
             let text = await Task.detached(priority: .userInitiated) {
-                AppState.standupText(records: records, days: 1)
+                AppState.standupText(records: records, extraDirs: dirs, days: 1)
             }.value
             await MainActor.run {
                 NSPasteboard.general.clearContents()

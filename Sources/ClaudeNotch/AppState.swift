@@ -3150,7 +3150,9 @@ final class AppState: ObservableObject {
     /// churn and cost, and the actual git commit subjects from each project dir.
     /// Nonisolated + async because it shells out to `git log` per project; call
     /// it off the main actor and put the result on the clipboard.
-    nonisolated static func standupText(records: [SessionRecord], days: Int) -> String {
+    nonisolated static func standupText(records: [SessionRecord],
+                                        extraDirs: [String] = [],
+                                        days: Int) -> String {
         let cal = Calendar.current
         let since = cal.date(byAdding: .day, value: -(max(days, 1) - 1),
                              to: cal.startOfDay(for: Date())) ?? Date()
@@ -3160,11 +3162,11 @@ final class AppState: ObservableObject {
             if days <= 1 { return "Standup — \(df.string(from: Date()))" }
             return "What I shipped — last \(days) days"
         }()
-        guard !recent.isEmpty else {
-            return header + "\n\nNo finished sessions in this window."
-        }
 
-        // Group by project dir. cwd is the stable key; project is the label.
+        // Group session records by project dir (cwd is the stable key), then
+        // fold in recent project dirs that have no archived session in the
+        // window but DO have commits shipped — otherwise a project you worked on
+        // all day but never formally ended a session in goes missing.
         var order: [String] = []
         var byCwd: [String: [SessionRecord]] = [:]
         for r in recent {
@@ -3172,34 +3174,44 @@ final class AppState: ObservableObject {
             if byCwd[key] == nil { order.append(key) }
             byCwd[key, default: []].append(r)
         }
+        for dir in extraDirs where !dir.isEmpty && byCwd[dir] == nil {
+            byCwd[dir] = []
+            order.append(dir)
+        }
 
-        var out = [header, ""]
+        var blocks: [String] = []
         for key in order {
             let rs = byCwd[key] ?? []
+            // Session summaries (deduped, non-empty).
+            var lines: [String] = []
+            var seen = Set<String>()
+            for s in rs.compactMap({ $0.summary }) where !s.isEmpty {
+                if seen.insert(s.lowercased()).inserted { lines.append("  • \(s)") }
+            }
+            // Actual commits shipped from this project dir in the window.
+            let commits = gitCommits(inDir: key, since: since)
+            for c in commits.prefix(8) { lines.append("  · \(c)") }
+            // Nothing to say about this project: skip it entirely.
+            guard !lines.isEmpty else { continue }
+
             let label = rs.first?.project ?? (key as NSString).lastPathComponent
             let add = rs.reduce(0) { $0 + ($1.linesAdded ?? 0) }
             let rem = rs.reduce(0) { $0 + ($1.linesRemoved ?? 0) }
             let cost = rs.reduce(0.0) { $0 + $1.costUSD }
-            out.append(label)
 
-            // Session summaries (deduped, non-empty).
-            var seen = Set<String>()
-            for s in rs.compactMap({ $0.summary }) where !s.isEmpty {
-                let k = s.lowercased()
-                if seen.insert(k).inserted { out.append("  • \(s)") }
-            }
-            // Actual commits shipped from this project dir in the window.
-            let commits = gitCommits(inDir: key, since: since)
-            for c in commits.prefix(8) { out.append("  ↳ \(c)") }
-
+            var block = [label] + lines
             var meta: [String] = []
             if add + rem > 0 { meta.append("+\(add) / -\(rem)") }
-            meta.append("\(rs.count) session\(rs.count == 1 ? "" : "s")")
+            if !rs.isEmpty { meta.append("\(rs.count) session\(rs.count == 1 ? "" : "s")") }
             if cost > 0 { meta.append(String(format: "~$%.2f", cost)) }
-            out.append("  (\(meta.joined(separator: ", ")))")
-            out.append("")
+            if !meta.isEmpty { block.append("  (\(meta.joined(separator: ", ")))") }
+            blocks.append(block.joined(separator: "\n"))
         }
-        return out.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !blocks.isEmpty else {
+            return header + "\n\nNo sessions or commits in this window."
+        }
+        return header + "\n\n" + blocks.joined(separator: "\n\n")
     }
 
     /// Commit subjects authored in `dir` since a date (`git log --since`), merges

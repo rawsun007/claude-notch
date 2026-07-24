@@ -1865,10 +1865,11 @@ struct SettingsView: View {
     private func generateStandup() {
         standupBusy = true
         let records = state.sessionHistory
+        let dirs = state.recentProjects
         let days = standupDays
         Task {
             let text = await Task.detached(priority: .userInitiated) {
-                AppState.standupText(records: records, days: days)
+                AppState.standupText(records: records, extraDirs: dirs, days: days)
             }.value
             await MainActor.run {
                 standupText = text
