@@ -2071,7 +2071,11 @@ final class AppState: ObservableObject {
     nonisolated static func runningDuration(seconds: TimeInterval) -> String {
         let s = max(0, Int(seconds))
         if s < 60 { return "\(s)s" }
-        return String(format: "%dm %02ds", s / 60, s % 60)
+        if s < 3600 { return String(format: "%dm %02ds", s / 60, s % 60) }
+        // Past an hour, minutes-only reads as nonsense ("15543m 54s"). Roll up
+        // into hours, and into days once a session spans more than one.
+        if s < 86_400 { return String(format: "%dh %02dm", s / 3600, (s % 3600) / 60) }
+        return String(format: "%dd %02dh", s / 86_400, (s % 86_400) / 3600)
     }
 
     func noteActivity(_ label: String, sessionId: String = "") {
