@@ -2022,8 +2022,8 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "A Send feedback action (About page and menu bar) that opens the author's LinkedIn.",
-        "Settings search is smarter: multi-word queries match across a setting's name and keywords.",
-        "The settings window centers its content, so full-screen no longer leaves it hugging the left edge.",
+        "New History page: every finished session is archived with a one-line summary, cost, lines changed, and duration, searchable by project or branch.",
+        "One-click \"what I shipped\" standup, on the History page and the menu bar, built from your sessions and the day's git commits and copied straight to the clipboard.",
+        "Durations past an hour now read as hours and days instead of a giant minute count.",
     ]
 }
