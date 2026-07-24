@@ -15,6 +15,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var inputMonitoringItem: NSMenuItem!
     private var recentProjectsItem: NSMenuItem!
     private var resumeLastItem: NSMenuItem!
+    private var crashLogsItem: NSMenuItem!
     // Cached most-recent session so the menu handler doesn't have to re-scan
     // disk on click; refreshed off-main in menuWillOpen.
     private var lastResumable: ResumableSession?
@@ -336,6 +337,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         feedback.target = self
         menu.addItem(feedback)
 
+        // Only appears once a crash report has actually been written, so it's a
+        // "grab this file for your bug report" shortcut, not permanent clutter.
+        crashLogsItem = NSMenuItem(title: "Reveal Crash Logs…", action: #selector(revealCrashLogs), keyEquivalent: "")
+        crashLogsItem.target = self
+        crashLogsItem.isHidden = true
+        menu.addItem(crashLogsItem)
+
         menu.addItem(.separator())
 
         let quit = NSMenuItem(title: "Quit ClaudeNotch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -411,6 +419,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             self.refreshRecentProjects()
             self.refreshResumeLast()
             self.refreshSpend()
+            self.crashLogsItem?.isHidden = !CrashReporter.hasReports
         }
     }
 
@@ -460,6 +469,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 }
             }
         }
+    }
+
+    @objc private func revealCrashLogs() {
+        CrashReporter.revealInFinder()
     }
 
     @objc private func sendFeedback() {

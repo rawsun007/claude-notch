@@ -16,6 +16,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var activityToken: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Leave a local crash report behind on an uncaught exception or fatal
+        // signal, so a bug report has something to attach. Installed first so it
+        // is in place before anything else can fault.
+        CrashReporter.install()
+
         // Prevent App Nap. Without this, when ANOTHER app is active macOS
         // throttles our background process and the notch's SwiftUI spring
         // animation gets skipped — the card pops in instantly. Holding a
