@@ -122,12 +122,22 @@ enum TerminalAutomator {
     /// it — so attaching is the only way to see what it is doing or answer it.
     static func attachAgent(id: String, in directory: String) {
         let claude = resolveClaudePath() ?? "claude"
+        runInTerminal(dir: directory,
+                      exec: "\(shellQuote(claude)) attach \(shellQuote(id))",
+                      label: "attach \(id)")
+    }
+
+    /// cd into a directory and `exec` a command in a fresh terminal window. The
+    /// cd / clear / exec skeleton is identical for every launcher (start/resume,
+    /// Claude/Codex, attach); centralising it is how they stop drifting apart.
+    /// `exec` is the already-quoted command line to run (this adds `exec`).
+    nonisolated private static func runInTerminal(dir: String, exec: String, label: String) {
         openInTerminal("""
         #!/bin/zsh
-        cd \(shellQuote(directory)) || exit 1
+        cd \(shellQuote(dir)) || exit 1
         clear
-        exec \(shellQuote(claude)) attach \(shellQuote(id))
-        """, label: "attach \(id)")
+        exec \(exec)
+        """, label: label)
     }
 
     /// Write a script and hand it to Terminal. Both entry points do the same
@@ -164,15 +174,10 @@ enum TerminalAutomator {
         DispatchQueue.global(qos: .userInitiated).async {
             let claude = resolveClaudePath() ?? "claude"
             let trimmed = message?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let launch = trimmed.isEmpty
-                ? "exec \(shellQuote(claude))"
-                : "exec \(shellQuote(claude)) \(shellQuote(trimmed))"
-            openInTerminal("""
-            #!/bin/zsh
-            cd \(shellQuote(directory)) || exit 1
-            clear
-            \(launch)
-            """, label: "start in \(directory)")
+            let cmd = trimmed.isEmpty
+                ? shellQuote(claude)
+                : "\(shellQuote(claude)) \(shellQuote(trimmed))"
+            runInTerminal(dir: directory, exec: cmd, label: "start in \(directory)")
         }
     }
 
@@ -183,12 +188,9 @@ enum TerminalAutomator {
     static func resumeClaude(sessionId: String, in directory: String) {
         DispatchQueue.global(qos: .userInitiated).async {
             let claude = resolveClaudePath() ?? "claude"
-            openInTerminal("""
-            #!/bin/zsh
-            cd \(shellQuote(directory)) || exit 1
-            clear
-            exec \(shellQuote(claude)) --resume \(shellQuote(sessionId))
-            """, label: "resume \(sessionId)")
+            runInTerminal(dir: directory,
+                          exec: "\(shellQuote(claude)) --resume \(shellQuote(sessionId))",
+                          label: "resume \(sessionId)")
         }
     }
 
@@ -197,12 +199,9 @@ enum TerminalAutomator {
     static func resumeCodex(sessionId: String, in directory: String) {
         DispatchQueue.global(qos: .userInitiated).async {
             let codex = resolveCodexPath() ?? "codex"
-            openInTerminal("""
-            #!/bin/zsh
-            cd \(shellQuote(directory)) || exit 1
-            clear
-            exec \(shellQuote(codex)) resume \(shellQuote(sessionId))
-            """, label: "codex resume \(sessionId)")
+            runInTerminal(dir: directory,
+                          exec: "\(shellQuote(codex)) resume \(shellQuote(sessionId))",
+                          label: "codex resume \(sessionId)")
         }
     }
 
@@ -210,12 +209,8 @@ enum TerminalAutomator {
     static func startCodex(in directory: String) {
         DispatchQueue.global(qos: .userInitiated).async {
             let codex = resolveCodexPath() ?? "codex"
-            openInTerminal("""
-            #!/bin/zsh
-            cd \(shellQuote(directory)) || exit 1
-            clear
-            exec \(shellQuote(codex))
-            """, label: "start codex in \(directory)")
+            runInTerminal(dir: directory, exec: shellQuote(codex),
+                          label: "start codex in \(directory)")
         }
     }
 
