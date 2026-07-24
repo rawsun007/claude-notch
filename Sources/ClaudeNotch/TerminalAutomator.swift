@@ -87,22 +87,26 @@ enum TerminalAutomator {
     /// Resolve the absolute path to the `claude` CLI by asking an interactive
     /// login shell (so PATH additions from .zshrc/.zprofile are honoured —
     /// e.g. ~/.local/bin). Returns nil if it can't be found.
-    nonisolated static func resolveClaudePath() -> String? {
+    nonisolated static func resolveClaudePath() -> String? { resolveCLIPath("claude") }
+
+    /// Resolve the absolute path to a CLI named `name` by asking an interactive
+    /// login shell (`zsh -ilc "command -v <name>"`), so PATH additions from
+    /// .zshrc/.zprofile are honoured (e.g. ~/.local/bin). The interactive shell
+    /// can print session noise, so we take the last line that looks like an
+    /// absolute path to the binary. Returns nil if it can't be found.
+    nonisolated static func resolveCLIPath(_ name: String) -> String? {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        task.arguments = ["-ilc", "command -v claude"]
+        task.arguments = ["-ilc", "command -v \(name)"]
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = FileHandle.nullDevice
         do { try task.run() } catch { return nil }
         task.waitUntilExit()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let out = String(data: data, encoding: .utf8) ?? ""
-        // The interactive shell may print session noise; take the last line
-        // that looks like an absolute path to a `claude` binary.
+        let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
         for line in out.split(separator: "\n").reversed() {
             let t = line.trimmingCharacters(in: .whitespaces)
-            if t.hasPrefix("/"), t.hasSuffix("claude") { return t }
+            if t.hasPrefix("/"), t.hasSuffix(name) { return t }
         }
         return nil
     }
@@ -217,22 +221,7 @@ enum TerminalAutomator {
 
     /// Resolve the absolute path to the `codex` CLI via an interactive login
     /// shell (honours ~/.local/bin etc.). Returns nil if not found.
-    nonisolated static func resolveCodexPath() -> String? {
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        task.arguments = ["-ilc", "command -v codex"]
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = FileHandle.nullDevice
-        do { try task.run() } catch { return nil }
-        task.waitUntilExit()
-        let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        for line in out.split(separator: "\n").reversed() {
-            let t = line.trimmingCharacters(in: .whitespaces)
-            if t.hasPrefix("/"), t.hasSuffix("codex") { return t }
-        }
-        return nil
-    }
+    nonisolated static func resolveCodexPath() -> String? { resolveCLIPath("codex") }
 
     nonisolated private static func shellQuote(_ s: String) -> String {
         "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
