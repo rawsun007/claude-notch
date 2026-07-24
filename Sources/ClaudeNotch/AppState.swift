@@ -2037,29 +2037,8 @@ final class AppState: ObservableObject {
     }
 
     /// Read the checked-out branch from `.git/HEAD` without running git.
-    /// Handles worktrees (`.git` is a file pointing at the real gitdir) and
-    /// detached HEADs (short hash). Empty when cwd isn't a repo.
-    static func readGitBranch(cwd: String) -> String {
-        var gitDir = (cwd as NSString).appendingPathComponent(".git")
-        var isDir: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: gitDir, isDirectory: &isDir) else { return "" }
-        if !isDir.boolValue {
-            // Worktree/submodule: ".git" is a file — "gitdir: /path/to/gitdir"
-            guard let content = try? String(contentsOfFile: gitDir, encoding: .utf8),
-                  let path = content.split(separator: "\n").first?
-                      .replacingOccurrences(of: "gitdir:", with: "")
-                      .trimmingCharacters(in: .whitespaces), !path.isEmpty else { return "" }
-            gitDir = path.hasPrefix("/") ? path : (cwd as NSString).appendingPathComponent(path)
-        }
-        let headPath = (gitDir as NSString).appendingPathComponent("HEAD")
-        guard let head = try? String(contentsOfFile: headPath, encoding: .utf8)
-            .trimmingCharacters(in: .whitespacesAndNewlines) else { return "" }
-        if head.hasPrefix("ref: refs/heads/") {
-            return String(head.dropFirst("ref: refs/heads/".count))
-        }
-        // Detached HEAD: show a short hash.
-        return head.count >= 7 ? String(head.prefix(7)) : head
-    }
+    /// See `Git.branch(forCwd:)` for the shared reader.
+    static func readGitBranch(cwd: String) -> String { Git.branch(forCwd: cwd) }
 
     /// When the tool named in `lastActivity` started running. Nil when nothing
     /// is running. This is what lets the notch answer the question every long

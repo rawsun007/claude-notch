@@ -168,20 +168,7 @@ enum CodexReader {
     /// (no status line needed). Walks up to find the repo. Returns "" when not
     /// a repo or detached HEAD.
     nonisolated static func gitBranch(forCwd cwd: String) -> String {
-        guard !cwd.isEmpty else { return "" }
-        var dir = URL(fileURLWithPath: cwd)
-        for _ in 0..<8 {
-            let head = dir.appendingPathComponent(".git/HEAD")
-            if let s = try? String(contentsOf: head, encoding: .utf8) {
-                let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
-                let prefix = "ref: refs/heads/"
-                return t.hasPrefix(prefix) ? String(t.dropFirst(prefix.count)) : ""
-            }
-            let parent = dir.deletingLastPathComponent()
-            if parent == dir { break }
-            dir = parent
-        }
-        return ""
+        Git.branch(forCwd: cwd)
     }
 
     /// The current plan progress for a live Codex session, parsed from the most
