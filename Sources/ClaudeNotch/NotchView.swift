@@ -3036,14 +3036,16 @@ private struct HistoryCard: View {
     }
 
     /// Resume the exact session behind a history row: when its key is a real
-    /// session id (a UUID, not a cwd), reopen it with `claude --resume`; else
-    /// fall back to starting fresh in the directory.
+    /// session id (a UUID, not a cwd), reopen it with the matching CLI's resume;
+    /// else fall back to starting that CLI fresh in the directory.
     private func resume(record: SessionRecord) {
         guard !record.cwd.isEmpty else { return }
         state.closeHistory()
         let key = record.sessionKey
         if !key.isEmpty, !key.contains("/") {
-            TerminalAutomator.resumeClaude(sessionId: key, in: record.cwd)
+            TerminalAutomator.resume(model: record.model, sessionId: key, in: record.cwd)
+        } else if AgentKind.infer(fromModel: record.model) == .codex {
+            TerminalAutomator.startCodex(in: record.cwd)
         } else {
             TerminalAutomator.startClaude(in: record.cwd)
         }

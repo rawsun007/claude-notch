@@ -1159,10 +1159,8 @@ struct SettingsView: View {
                 Button("Done") { commitNote(for: s.id) }
                     .controlSize(.small)
             } else {
-                let isCodex = AgentKind.infer(fromModel: s.model) == .codex
                 Button("Resume") {
-                    if isCodex { TerminalAutomator.resumeCodex(sessionId: s.id, in: s.cwd) }
-                    else { TerminalAutomator.resumeClaude(sessionId: s.id, in: s.cwd) }
+                    TerminalAutomator.resume(model: s.model, sessionId: s.id, in: s.cwd)
                     window()?.close()
                 }
                 .controlSize(.small)
@@ -1172,7 +1170,7 @@ struct SettingsView: View {
                         editingNoteText = state.sessionNotes[s.id] ?? ""
                     } label: { Label("Rename session", systemImage: "pencil") }
                     Button {
-                        let cmd = isCodex ? "codex resume \(s.id)" : "claude --resume \(s.id)"
+                        let cmd = TerminalAutomator.resumeCommand(model: s.model, sessionId: s.id)
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(cmd, forType: .string)
                         copiedSessionId = s.id

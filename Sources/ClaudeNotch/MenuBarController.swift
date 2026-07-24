@@ -468,11 +468,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func resumeLast() {
         guard let s = lastResumable else { return }
-        if AgentKind.infer(fromModel: s.model) == .codex {
-            TerminalAutomator.resumeCodex(sessionId: s.id, in: s.cwd)
-        } else {
-            TerminalAutomator.resumeClaude(sessionId: s.id, in: s.cwd)
-        }
+        TerminalAutomator.resume(model: s.model, sessionId: s.id, in: s.cwd)
     }
 
     @objc private func copyStandup() {

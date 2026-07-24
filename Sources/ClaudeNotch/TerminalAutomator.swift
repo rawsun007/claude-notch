@@ -173,6 +173,24 @@ enum TerminalAutomator {
         }
     }
 
+    /// Resume a past session, dispatching to the right CLI by the session's
+    /// model. Single entry point so callers stop re-deriving the Claude-vs-Codex
+    /// branch every time they want to resume something.
+    static func resume(model: String, sessionId: String, in directory: String) {
+        if AgentKind.infer(fromModel: model) == .codex {
+            resumeCodex(sessionId: sessionId, in: directory)
+        } else {
+            resumeClaude(sessionId: sessionId, in: directory)
+        }
+    }
+
+    /// The shell command a user would type to resume this session themselves.
+    nonisolated static func resumeCommand(model: String, sessionId: String) -> String {
+        AgentKind.infer(fromModel: model) == .codex
+            ? "codex resume \(sessionId)"
+            : "claude --resume \(sessionId)"
+    }
+
     /// Reopen a past Claude Code session in a fresh terminal
     /// (`claude --resume <session-id>`), run from its original working
     /// directory — `--resume` is scoped to the project dir, so the cd matters.
