@@ -135,11 +135,16 @@ enum TerminalAutomator {
     /// Write a script and hand it to Terminal. Both entry points do the same
     /// thing, and doing it twice is how they drift apart.
     nonisolated private static func openInTerminal(_ body: String, label: String) {
+        sweepStaleCommandFiles()
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("ClaudeNotch-start-\(UUID().uuidString).command")
         do {
             try body.write(to: url, atomically: true, encoding: .utf8)
-            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+            // 0o700, not 0o755: these scripts embed the working directory and any
+            // message the user is sending to the agent. The temp dir is already
+            // per-user, but there is no reason for the file to be group/other
+            // readable on top of that.
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
             // activates=false: open the .command WITHOUT bringing the terminal
             // app to the front. Activating it made macOS jump to whatever Space
             // the terminal's frontmost (often fullscreen) window was on, while
@@ -153,6 +158,25 @@ enum TerminalAutomator {
             debugLog("openInTerminal: \(label) → \(url.lastPathComponent)")
         } catch {
             debugLog("openInTerminal: failed to write/open .command — \(error)")
+        }
+    }
+
+    /// Delete leftover launcher scripts from earlier launches. Each `exec`s and
+    /// so never removes itself, and each embeds a cwd and possibly a prompt, so
+    /// without this they pile up in the temp dir indefinitely. Only touch our own
+    /// files, and only ones older than an hour so a script still being read by a
+    /// just-opened terminal is never yanked out from under it.
+    nonisolated private static func sweepStaleCommandFiles() {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory
+        guard let items = try? fm.contentsOfDirectory(at: dir,
+                                                      includingPropertiesForKeys: [.contentModificationDateKey],
+                                                      options: [.skipsHiddenFiles]) else { return }
+        let cutoff = Date().addingTimeInterval(-3600)
+        for url in items where url.lastPathComponent.hasPrefix("ClaudeNotch-start-")
+            && url.pathExtension == "command" {
+            let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+            if let modified, modified < cutoff { try? fm.removeItem(at: url) }
         }
     }
 
