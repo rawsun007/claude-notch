@@ -2073,7 +2073,7 @@ final class AppState: ObservableObject {
     /// payload that we'll later hand to NSWorkspace.open. Everything else becomes
     /// "" so it can't launch a file:// or custom-scheme handler. Returns the
     /// original string when safe (preserving the exact link), else "".
-    static func sanitizedWebURL(_ s: String) -> String {
+    nonisolated static func sanitizedWebURL(_ s: String) -> String {
         guard let u = URL(string: s), let scheme = u.scheme?.lowercased(),
               scheme == "https" || scheme == "http", u.host?.isEmpty == false else { return "" }
         return s
