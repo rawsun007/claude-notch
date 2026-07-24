@@ -189,17 +189,7 @@ enum SessionResumer {
     /// Read at most `bytes` from the END of a file as UTF-8, dropping a leading
     /// partial line so the parser only sees whole JSON objects.
     private nonisolated static func readTail(_ url: URL, bytes: Int) -> String? {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
-        defer { try? handle.close() }
-        let size = (try? handle.seekToEnd()) ?? 0
-        let start = size > UInt64(bytes) ? size - UInt64(bytes) : 0
-        try? handle.seek(toOffset: start)
-        let data = (try? handle.readToEnd()) ?? Data()
-        guard var s = String(data: data, encoding: .utf8) else { return nil }
-        if start > 0, let nl = s.firstIndex(of: "\n") {
-            s = String(s[s.index(after: nl)...])
-        }
-        return s
+        FileSlice.tail(url, bytes: bytes)
     }
 
     /// Extract the first text fragment from a message `content`, which is either
@@ -217,13 +207,6 @@ enum SessionResumer {
     /// Read at most `bytes` from the start of a file as UTF-8. Truncated at the
     /// last newline so no partial JSON line is handed to the parser.
     private nonisolated static func readHead(_ url: URL, bytes: Int) -> String? {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
-        defer { try? handle.close() }
-        let data = (try? handle.read(upToCount: bytes)) ?? Data()
-        guard var s = String(data: data, encoding: .utf8) else { return nil }
-        if data.count == bytes, let nl = s.lastIndex(of: "\n") {
-            s = String(s[..<nl])
-        }
-        return s
+        FileSlice.head(url, bytes: bytes)
     }
 }

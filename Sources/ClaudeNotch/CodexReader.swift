@@ -269,23 +269,10 @@ enum CodexReader {
     }
 
     private nonisolated static func readHead(_ url: URL, bytes: Int) -> String? {
-        guard let h = try? FileHandle(forReadingFrom: url) else { return nil }
-        defer { try? h.close() }
-        let data = (try? h.read(upToCount: bytes)) ?? Data()
-        guard var s = String(data: data, encoding: .utf8) else { return nil }
-        if data.count == bytes, let nl = s.lastIndex(of: "\n") { s = String(s[..<nl]) }
-        return s
+        FileSlice.head(url, bytes: bytes)
     }
 
     private nonisolated static func readTail(_ url: URL, bytes: Int) -> String? {
-        guard let h = try? FileHandle(forReadingFrom: url) else { return nil }
-        defer { try? h.close() }
-        let size = (try? h.seekToEnd()) ?? 0
-        let start = size > UInt64(bytes) ? size - UInt64(bytes) : 0
-        try? h.seek(toOffset: start)
-        let data = (try? h.readToEnd()) ?? Data()
-        guard var s = String(data: data, encoding: .utf8) else { return nil }
-        if start > 0, let nl = s.firstIndex(of: "\n") { s = String(s[s.index(after: nl)...]) }
-        return s
+        FileSlice.tail(url, bytes: bytes)
     }
 }

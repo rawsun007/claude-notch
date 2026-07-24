@@ -828,15 +828,7 @@ final class EventServer {
     /// truth for the task list, so this keeps the notch bar right even when a
     /// hook was missed. Returns nil if no TodoWrite is found in the tail.
     private func latestTodos(fromTranscriptAt path: String) -> (total: Int, done: Int)? {
-        guard let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path)) else { return nil }
-        let maxBytes: UInt64 = 512 * 1024
-        let size = handle.seekToEndOfFile()
-        let offset = size > maxBytes ? size - maxBytes : 0
-        handle.seek(toFileOffset: offset)
-        let data = handle.readDataToEndOfFile()
-        try? handle.close()
-        var body = String(decoding: data, as: UTF8.self)
-        if offset > 0, let nl = body.firstIndex(of: "\n") { body = String(body[body.index(after: nl)...]) }
+        guard let body = FileSlice.tail(URL(fileURLWithPath: path), bytes: 512 * 1024) else { return nil }
         for raw in body.split(separator: "\n", omittingEmptySubsequences: true).reversed() {
             guard let d = raw.data(using: .utf8),
                   let obj = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { continue }
@@ -856,20 +848,9 @@ final class EventServer {
     /// content. Tolerant of multiple message shapes Claude Code emits.
     private func lastAssistantText(fromTranscriptAt path: String) -> String? {
         debugLog("transcript read: \(path)")
-        guard let handle = try? FileHandle(forReadingFrom: URL(fileURLWithPath: path)) else {
+        guard let body = FileSlice.tail(URL(fileURLWithPath: path), bytes: 512 * 1024) else {
             debugLog("transcript read: FAILED to open file")
             return nil
-        }
-        let maxBytes: UInt64 = 512 * 1024
-        let size = handle.seekToEndOfFile()
-        let offset = size > maxBytes ? size - maxBytes : 0
-        handle.seek(toFileOffset: offset)
-        let data = handle.readDataToEndOfFile()
-        try? handle.close()
-
-        var body = String(decoding: data, as: UTF8.self)
-        if offset > 0, let newline = body.firstIndex(of: "\n") {
-            body = String(body[body.index(after: newline)...])
         }
         let lines = body.split(separator: "\n", omittingEmptySubsequences: true)
         debugLog("transcript read: \(lines.count) lines")
