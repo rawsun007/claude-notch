@@ -89,6 +89,38 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     ]
 }
 
+/// The rounded search box used on the list pages (sessions, history). One
+/// component so the three-way icon + field + clear-button layout and its
+/// chrome don't get re-typed (and drift) at every call site.
+private struct SearchField: View {
+    let placeholder: String
+    @Binding var text: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary).font(.callout)
+            TextField(placeholder, text: $text)
+                .textFieldStyle(.plain)
+            if !text.isEmpty {
+                Button { text = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 7).padding(.horizontal, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        )
+    }
+}
+
 /// One searchable setting: what it's called, extra keywords, and the page it
 /// lives on. Powers the sidebar search box.
 struct SettingsSearchItem: Identifiable {
@@ -901,27 +933,7 @@ struct SettingsView: View {
                     .padding(.vertical, 10).padding(.horizontal, 14)
                 }
             } else {
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary).font(.callout)
-                    TextField("Filter by project or prompt…", text: $sessionSearch)
-                        .textFieldStyle(.plain)
-                    if !sessionSearch.isEmpty {
-                        Button { sessionSearch = "" } label: {
-                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.vertical, 7).padding(.horizontal, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                )
+                SearchField(placeholder: "Filter by project or prompt…", text: $sessionSearch)
 
                 let matches = filteredProjectSessions
                 if matches.isEmpty {
@@ -1763,27 +1775,7 @@ struct SettingsView: View {
                 }
                 .font(.callout.monospacedDigit())
 
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary).font(.callout)
-                    TextField("Search by project, summary, branch…", text: $historySearch)
-                        .textFieldStyle(.plain)
-                    if !historySearch.isEmpty {
-                        Button { historySearch = "" } label: {
-                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.vertical, 7).padding(.horizontal, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                )
+                SearchField(placeholder: "Search by project, summary, branch…", text: $historySearch)
 
                 let matches = filteredHistory
                 if matches.isEmpty {
