@@ -128,13 +128,6 @@ struct NotchView: View {
     /// called "main" was ending up drawn as "m". A label is worth showing when it
     /// can still be read; the eliding stops well before that point, and the full
     /// value stays in the tooltip.
-    /// Is an app with this bundle id currently running? Gates the per-session
-    /// "focus terminal" button so we don't offer to raise a window that's gone.
-    static func appIsRunning(_ bid: String) -> Bool {
-        NSRunningApplication.runningApplications(withBundleIdentifier: bid)
-            .contains { !$0.isTerminated }
-    }
-
     static func elide(_ text: String, to limit: Int) -> String {
         guard text.count > limit, limit > 3 else { return text }
         let keep = limit - 1                      // room for the ellipsis
@@ -1764,13 +1757,6 @@ private struct SessionsList: View {
                                     .background(Color.purple.opacity(0.18))
                                     .cornerRadius(4)
                             }
-                            // Bring this session's terminal to the front. In a
-                            // multi-session day the hard part is finding which
-                            // window a card belongs to; we captured the app that
-                            // was frontmost when its hooks fired, so one click
-                            // raises it instead of hunting through Cmd-Tab. A
-                            // background agent has no terminal (it uses Attach).
-                            FocusTerminalButton(state: state, session: session)
                             Spacer(minLength: 8)
                             if session.taskTotal > 0 {
                                 TaskMeter(done: session.taskDone, total: session.taskTotal)
@@ -1961,30 +1947,6 @@ struct ContextCostBar: View {
             }
         }
         .help(tooltipText)
-    }
-}
-
-/// One-click raise of a session's terminal. Split into its own view because
-/// inlining the running-check + button in the row body pushed the SessionsList
-/// expression past the type-checker's time budget.
-private struct FocusTerminalButton: View {
-    @ObservedObject var state: AppState
-    let session: LiveSession
-
-    var body: some View {
-        if session.backgroundAgentId.isEmpty,
-           let bid = session.originatorBundleID,
-           NotchView.appIsRunning(bid) {
-            Button {
-                state.openOriginator(bid)
-            } label: {
-                Image(systemName: "macwindow.on.rectangle")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.55))
-            }
-            .buttonStyle(.plain)
-            .help("Bring this session's terminal to the front")
-        }
     }
 }
 
