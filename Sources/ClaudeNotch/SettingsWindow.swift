@@ -483,8 +483,7 @@ struct SettingsView: View {
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.white)
                 Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString("brew upgrade --cask claudenotch", forType: .string)
+                    NSPasteboard.copyString("brew upgrade --cask claudenotch")
                     updateCmdCopied = true
                 } label: {
                     Image(systemName: updateCmdCopied ? "checkmark" : "doc.on.doc")
@@ -1203,8 +1202,7 @@ struct SettingsView: View {
                     } label: { Label("Rename session", systemImage: "pencil") }
                     Button {
                         let cmd = TerminalAutomator.resumeCommand(model: s.model, sessionId: s.id)
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(cmd, forType: .string)
+                        NSPasteboard.copyString(cmd)
                         copiedSessionId = s.id
                     } label: { Label("Copy resume command", systemImage: "doc.on.doc") }
                     Button {
@@ -1841,8 +1839,7 @@ struct SettingsView: View {
                         .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04)))
                     HStack {
                         Button {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(standupText, forType: .string)
+                            NSPasteboard.copyString(standupText)
                             standupCopied = true
                             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { standupCopied = false }
                         } label: {

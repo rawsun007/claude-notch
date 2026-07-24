@@ -2100,8 +2100,7 @@ private struct ResponseDetailCard: View {
     @State private var copied = false
 
     private func copyReply() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(state.detailResponseText, forType: .string)
+        NSPasteboard.copyString(state.detailResponseText)
         copied = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { copied = false }
     }

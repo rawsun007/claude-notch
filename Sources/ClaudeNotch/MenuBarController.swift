@@ -479,8 +479,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 AppState.standupText(records: records, extraDirs: dirs, days: 1)
             }.value
             await MainActor.run {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(text, forType: .string)
+                NSPasteboard.copyString(text)
                 self?.state.enqueueCompleted(CompletedTask(
                     title: "Standup copied",
                     detail: "Today's \"what I shipped\" is on your clipboard.",

@@ -2818,8 +2818,7 @@ final class AppState: ObservableObject {
     /// Copy the reply currently shown in the detail card (⌘C / Copy button).
     func copyDetailResponse() {
         guard !detailResponseText.isEmpty else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(detailResponseText, forType: .string)
+        NSPasteboard.copyString(detailResponseText)
     }
 
     // MARK: - History drawer

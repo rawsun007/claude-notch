@@ -1,4 +1,15 @@
 import Foundation
+import AppKit
+
+extension NSPasteboard {
+    /// Replace the general pasteboard's contents with a single string. Every
+    /// copy button did the clear + setString dance by hand; this keeps it in one
+    /// place.
+    static func copyString(_ s: String) {
+        general.clearContents()
+        general.setString(s, forType: .string)
+    }
+}
 
 /// Thin wrapper around Process for the two shapes the app actually uses: capture
 /// a command's stdout, or just check whether it exited cleanly. Keeps the
