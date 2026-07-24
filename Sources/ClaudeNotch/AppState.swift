@@ -2044,6 +2044,31 @@ final class AppState: ObservableObject {
     /// See `Git.branch(forCwd:)` for the shared reader.
     static func readGitBranch(cwd: String) -> String { Git.branch(forCwd: cwd) }
 
+    /// Open a file the agent edited, but never *launch* it. The path comes from
+    /// a hook payload, so opening it with the default handler would run a crafted
+    /// executable/script/app on a click. If the target is a bundle, has the
+    /// execute bit, or carries a runnable extension, reveal it in Finder instead
+    /// of opening it; ordinary source files open as before.
+    static func openEditedFile(_ path: String) {
+        let url = URL(fileURLWithPath: path)
+        let ext = url.pathExtension.lowercased()
+        let runnable: Set<String> = ["command", "sh", "bash", "zsh", "app", "pkg", "dmg",
+                                     "scpt", "applescript", "workflow", "term", "shortcut",
+                                     "js", "jar", "run", "bin", "out", "action", "prefpane"]
+        let fm = FileManager.default
+        var isDir: ObjCBool = false
+        let exists = fm.fileExists(atPath: path, isDirectory: &isDir)
+        let risky = !exists                       // missing: don't hand a guessy path to the launcher
+            || isDir.boolValue                    // directory or .app-style bundle
+            || runnable.contains(ext)
+            || fm.isExecutableFile(atPath: path)  // execute bit set
+        if risky {
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        } else {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
     /// Accept only http/https web URLs for anything from an untrusted hook
     /// payload that we'll later hand to NSWorkspace.open. Everything else becomes
     /// "" so it can't launch a file:// or custom-scheme handler. Returns the

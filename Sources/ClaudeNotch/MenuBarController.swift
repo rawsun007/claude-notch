@@ -1043,7 +1043,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func openTouchedFile(_ sender: NSMenuItem) {
         guard let path = sender.representedObject as? String else { return }
-        NSWorkspace.shared.open(URL(fileURLWithPath: path))
+        AppState.openEditedFile(path)
     }
 
     @objc private func revealTouchedFiles() {

@@ -1017,7 +1017,7 @@ struct SettingsView: View {
                     let files = Array(state.currentTouchedFiles.prefix(10))
                     ForEach(Array(files.enumerated()), id: \.element) { idx, path in
                         actionRow((path as NSString).lastPathComponent, "doc") {
-                            NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                            AppState.openEditedFile(path)
                         }
                         if idx < files.count - 1 { divider }
                     }
