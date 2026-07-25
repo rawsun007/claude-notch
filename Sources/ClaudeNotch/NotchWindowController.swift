@@ -54,6 +54,15 @@ final class NotchWindowController {
     private var screenObservers: [NSObjectProtocol] = []
     private var driftTimer: Timer?
 
+    /// One extra panel per NON-primary screen, so the notch/pill is present on
+    /// every display at once (the primary panel above still follows the cursor
+    /// and owns hover + keyboard; these mirror the same shared state and are
+    /// clickable/droppable because the buttons act on `state` directly). Keyed
+    /// by display id so a mirror survives repositioning and only rebuilds when a
+    /// display is actually added or removed. Empty in the single-screen case, so
+    /// that path is byte-for-byte the old behavior.
+    private var mirrors: [CGDirectDisplayID: NotchPanel] = [:]
+
     init(state: AppState) {
         self.state = state
 
@@ -127,6 +136,7 @@ final class NotchWindowController {
             .sink { [weak self] mode, _ in
                 guard let self else { return }
                 self.position(on: self.currentScreen())
+                self.syncMirrors()
                 // Compose, question, and history host text fields (the
                 // composer's editor; the question card's "Other" answer; the
                 // history drawer's search box), so they must become key to
@@ -145,7 +155,10 @@ final class NotchWindowController {
         captureCancellable = state.$hideFromScreenCapture
             .receive(on: RunLoop.main)
             .sink { [weak self] hide in
-                self?.window.sharingType = hide ? .none : .readOnly
+                guard let self else { return }
+                let type: NSWindow.SharingType = hide ? .none : .readOnly
+                self.window.sharingType = type
+                for panel in self.mirrors.values { panel.sharingType = type }
             }
 
         observeScreenChanges()
@@ -189,8 +202,12 @@ final class NotchWindowController {
     /// unless it has actually moved (so the common case is a cheap comparison).
     private func repin(onlyIfDrifted: Bool = false) {
         let screen = currentScreen()
-        if onlyIfDrifted, !hasDrifted(from: screen) { return }
-        position(on: screen)
+        if !onlyIfDrifted || hasDrifted(from: screen) {
+            position(on: screen)
+        }
+        // Always reconcile mirrors: a display can be added/removed without the
+        // primary panel itself drifting off its origin.
+        syncMirrors()
     }
 
     /// True when the panel is no longer centred on the notch of `screen`, or has
@@ -233,6 +250,7 @@ final class NotchWindowController {
         logScreenGeometry()
         position(on: currentScreen())
         window.orderFrontRegardless()
+        syncMirrors()
     }
 
     private func currentScreen() -> NSScreen {
@@ -265,6 +283,78 @@ final class NotchWindowController {
 
         let inset = NotchView.notchInset(on: screen)
         if abs(state.notchTopInset - inset) > 0.5 { state.notchTopInset = inset }
+    }
+
+    // MARK: - Per-screen mirror panels
+
+    private static func displayID(of screen: NSScreen) -> CGDirectDisplayID {
+        (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
+    }
+
+    /// Ensure exactly one mirror panel exists on every screen the primary panel
+    /// is NOT currently on, and none linger on a removed display or on the
+    /// primary's own screen. Cheap and idempotent — safe to call on every repin.
+    private func syncMirrors() {
+        let primaryID = Self.displayID(of: currentScreen())
+        // Desired mirror screens: every attached screen except the primary's.
+        var desired: [CGDirectDisplayID: NSScreen] = [:]
+        for screen in NSScreen.screens {
+            let id = Self.displayID(of: screen)
+            if id != primaryID { desired[id] = screen }
+        }
+        // Drop mirrors whose screen vanished or became the primary.
+        for (id, panel) in mirrors where desired[id] == nil {
+            panel.orderOut(nil)
+            mirrors.removeValue(forKey: id)
+        }
+        // Add/reposition mirrors for the desired screens.
+        for (id, screen) in desired {
+            let panel = mirrors[id] ?? makeMirror(on: screen)
+            mirrors[id] = panel
+            positionMirror(panel, on: screen)
+            panel.orderFrontRegardless()
+        }
+    }
+
+    /// Build a mirror panel: same chrome as the primary, but pinned to a fixed
+    /// screen and rendering NotchView with that screen as its geometry source.
+    /// Non-key (it never steals focus); its buttons still work because they act
+    /// on the shared AppState, and Enter/Esc are handled globally.
+    private func makeMirror(on screen: NSScreen) -> NotchPanel {
+        let size = NotchWindowController.windowSize(for: screen)
+        let panel = NotchPanel(
+            contentRect: NSRect(origin: NotchWindowController.origin(on: screen, size: size), size: size),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered, defer: false)
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = false
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+        panel.isMovable = false
+        panel.isFloatingPanel = true
+        panel.level = .mainMenu + 3
+        panel.becomesKeyOnlyIfNeeded = false
+        panel.hidesOnDeactivate = false
+        panel.worksWhenModal = true
+        panel.sharingType = state.hideFromScreenCapture ? .none : .readOnly
+
+        let host = PassThroughHostingView(rootView: NotchView(state: state, screenOverride: screen))
+        host.appState = state
+        host.frame = NSRect(origin: .zero, size: size)
+        host.autoresizingMask = [.width, .height]
+        host.screenProvider = { screen }
+        panel.contentView = host
+        return panel
+    }
+
+    private func positionMirror(_ panel: NotchPanel, on screen: NSScreen) {
+        let size = NotchWindowController.windowSize(for: screen)
+        let origin = NotchWindowController.origin(on: screen, size: size)
+        if abs(panel.frame.width - size.width) > 1 || abs(panel.frame.height - size.height) > 1 {
+            panel.setFrame(NSRect(origin: origin, size: size), display: false)
+        } else if panel.frame.origin != origin {
+            panel.setFrameOrigin(origin)
+        }
     }
 
     private func logScreenGeometry() {

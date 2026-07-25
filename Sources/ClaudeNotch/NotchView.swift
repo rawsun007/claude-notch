@@ -81,8 +81,21 @@ final class CardSizeAnimator: ObservableObject {
 
 struct NotchView: View {
     @ObservedObject var state: AppState
+    /// The screen this instance renders on. `nil` = the primary, cursor-following
+    /// panel (uses NSScreen.main + the shared, live notchTopInset — unchanged
+    /// behavior). Non-nil = a per-screen mirror panel pinned to `screenOverride`,
+    /// which must size to ITS OWN screen's notch/pill, not the primary's.
+    var screenOverride: NSScreen? = nil
     @State private var compactHeight: CGFloat = 0
     @StateObject private var sizer = CardSizeAnimator()
+
+    /// The screen to measure geometry against for this panel.
+    private var localScreen: NSScreen? { screenOverride ?? NSScreen.main }
+    /// Top inset for this panel. For the primary it's the shared live value
+    /// (identical to before); for a mirror it's computed from its own screen.
+    private var localInset: CGFloat {
+        screenOverride != nil ? NotchView.notchInset(on: screenOverride) : state.notchTopInset
+    }
 
     /// Horizontal breathing room between the card content and the notch's
     /// left/right edges. Tuned together with the bottom corner radius (~18 pt)
@@ -408,7 +421,7 @@ struct NotchView: View {
         // window itself never resizes, which is what makes the motion smooth
         // (no AppKit frame animation fighting SwiftUI) and kills the
         // "pops twice" double-relayout entirely.
-        let card = NotchView.size(for: state.mode, hovering: isIdleOpen, on: NSScreen.main, state: state)
+        let card = NotchView.size(for: state.mode, hovering: isIdleOpen, on: localScreen, state: state)
         let collapsed = isCollapsedIdle
         let shape = NotchShape(topCornerRadius: notchTopRadius,
                                bottomCornerRadius: notchBottomRadius)
@@ -438,10 +451,10 @@ struct NotchView: View {
             // (wider) pet stage — otherwise it grows black wings out past the
             // real notch and the whole illusion breaks. The pet stage is wider
             // so the pet has room to swing; only the black is clamped.
-            let notch = NotchView.collapsedSize(on: NSScreen.main)
+            let notch = NotchView.collapsedSize(on: localScreen)
             return AnyView(
                 ZStack(alignment: .top) {
-                    PetStageView(state: state, stageWidth: card.width, notchInset: state.notchTopInset)
+                    PetStageView(state: state, stageWidth: card.width, notchInset: localInset)
                         .frame(width: card.width, height: card.height, alignment: .top)
                     // The collapsed black notch, on top, covering the pet's top,
                     // so the swing reads as the pet hanging out of the real notch.
@@ -467,7 +480,7 @@ struct NotchView: View {
                                maxHeight: isScrollableMode ? .infinity : nil,
                                alignment: .top)
                         .padding(.horizontal, contentHorizontalPadding)
-                        .padding(.top, state.notchTopInset + 10)
+                        .padding(.top, localInset + 10)
                         // Bottom padding only needs to clear the notch shape's
                         // bottom corner curve. Buttons are inset 22 pt
                         // horizontally so they sit above the straight edge.
@@ -486,7 +499,7 @@ struct NotchView: View {
                         )
                 } else if isPetOut && !state.isDropTarget && !state.isDropHot {
                     // The mascot living its own life on the notch's lip.
-                    PetStageView(state: state, stageWidth: card.width, notchInset: state.notchTopInset)
+                    PetStageView(state: state, stageWidth: card.width, notchInset: localInset)
                         .frame(width: card.width, height: card.height, alignment: .top)
                 } else {
                     // Collapsed idle: nothing but the notch.
@@ -541,7 +554,7 @@ struct NotchView: View {
                 // top strip missed every real drop, so the file fell through to
                 // the desktop. Match the animating card size so wherever on the
                 // card the folder is dropped, it is caught.
-                .frame(width: max(w, 240), height: max(h, state.notchTopInset + 30))
+                .frame(width: max(w, 240), height: max(h, localInset + 30))
                 .contentShape(Rectangle())
                 // ONE drop target for the whole card. A DropDelegate (not a second
                 // onDrop) reports the live drag location, so the inner icon box can
@@ -551,9 +564,9 @@ struct NotchView: View {
                     state: state,
                     hotRect: CGRect(
                         x: 14,
-                        y: state.notchTopInset + 8,
+                        y: localInset + 8,
                         width: max(max(w, 240) - 28, 0),
-                        height: max(max(h, state.notchTopInset + 30) - (state.notchTopInset + 8) - 12, 0)
+                        height: max(max(h, localInset + 30) - (localInset + 8) - 12, 0)
                     )
                 )),
             alignment: .top
@@ -618,7 +631,7 @@ struct NotchView: View {
             // Even margin on all four sides so the dashed box floats inside the
             // black card with breathing room top, bottom and sides.
             .padding(.horizontal, 14)
-            .padding(.top, state.notchTopInset + 8)
+            .padding(.top, localInset + 8)
             .padding(.bottom, 12)
             .animation(.easeOut(duration: 0.12), value: hot)
         }
