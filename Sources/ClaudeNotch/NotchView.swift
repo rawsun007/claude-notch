@@ -89,10 +89,37 @@ struct NotchView: View {
     /// so the bottom button row clears the curve. One knob for all cards.
     private let contentHorizontalPadding: CGFloat = 28
 
-    /// How much vertical space is hidden by the physical notch (or 0 if none).
+    /// Dev switch to force the non-notch (Dynamic-Island pill) rendering on a
+    /// notched Mac, so the layout can be developed and screenshot-verified
+    /// without external hardware. Set CLAUDENOTCH_FAKE_NOTCH=1 in the env.
+    static let forceFakeNotch = ProcessInfo.processInfo.environment["CLAUDENOTCH_FAKE_NOTCH"] == "1"
+
+    /// Whether `screen` has a real hardware notch we should merge into. On Macs
+    /// without one (Air, older MacBooks, and every external display) we instead
+    /// draw a floating Dynamic-Island-style pill.
+    static func hasNotch(_ screen: NSScreen?) -> Bool {
+        if forceFakeNotch { return false }
+        guard let screen else { return false }
+        return screen.safeAreaInsets.top > 0
+            && screen.auxiliaryTopLeftArea != nil
+            && screen.auxiliaryTopRightArea != nil
+    }
+
+    /// Height of the menu bar on `screen` (0 when this display shows no menu
+    /// bar, e.g. a secondary display without separate Spaces). Used to place the
+    /// non-notch pill just under the bar and keep expanded cards clear of it.
+    static func menuBarHeight(on screen: NSScreen?) -> CGFloat {
+        guard let screen else { return 24 }
+        let h = screen.frame.maxY - screen.visibleFrame.maxY
+        return h > 1 ? h : 24
+    }
+
+    /// How much vertical space the card must leave clear at the top: the physical
+    /// notch on a notched Mac, else the menu bar (so the non-notch pill and every
+    /// expanded card hang below the bar instead of colliding with it).
     static func notchInset(on screen: NSScreen?) -> CGFloat {
-        guard let screen, screen.safeAreaInsets.top > 0 else { return 0 }
-        return screen.safeAreaInsets.top
+        if hasNotch(screen) { return screen!.safeAreaInsets.top }
+        return menuBarHeight(on: screen)
     }
 
     /// Colour of the PR badge: the review state is the only thing about a PR you
@@ -363,16 +390,16 @@ struct NotchView: View {
     /// On non-notched Macs (Air, older): draw a Dynamic-Island-style fake notch
     /// of similar dimensions, hanging from the top.
     static func collapsedSize(on screen: NSScreen?) -> CGSize {
-        if let screen,
-           screen.safeAreaInsets.top > 0,
+        if hasNotch(screen), let screen,
            let left = screen.auxiliaryTopLeftArea,
            let right = screen.auxiliaryTopRightArea {
             let width = max(160, right.minX - left.maxX)
             let height = max(28, screen.safeAreaInsets.top)
             return CGSize(width: width, height: height)
         }
-        // No physical notch — fake one.
-        return CGSize(width: 200, height: 30)
+        // No physical notch — a floating pill sized to sit within the menu-bar
+        // band (its height matches notchInset so the pill and the inset agree).
+        return CGSize(width: 200, height: max(28, menuBarHeight(on: screen)))
     }
 
     var body: some View {
