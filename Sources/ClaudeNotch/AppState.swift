@@ -3142,7 +3142,7 @@ final class AppState: ObservableObject {
     /// tab, or CR) could run on open in Excel/Sheets. Prefix such a field with a
     /// single quote so it is treated as literal text.
     /// https://owasp.org/www-community/attacks/CSV_Injection
-    static func csvEscape(_ s: String) -> String {
+    nonisolated static func csvEscape(_ s: String) -> String {
         var field = s
         if let first = field.first, "=+-@\t\r".contains(first) {
             field = "'" + field
