@@ -576,22 +576,22 @@ final class AppState: ObservableObject {
     // stalest, so the cards you'd actually act on survive.
     private let queueMax = 64
     @Published private(set) var permissionQueue: [PermissionRequest] = [] {
-        didSet { Self.capFront(&permissionQueue, to: queueMax) }
+        didSet { if permissionQueue.count > queueMax { permissionQueue = Self.capFront(permissionQueue, to: queueMax) } }
     }
     @Published private(set) var completedQueue: [CompletedTask] = [] {
-        didSet { Self.capFront(&completedQueue, to: queueMax) }
+        didSet { if completedQueue.count > queueMax { completedQueue = Self.capFront(completedQueue, to: queueMax) } }
     }
     @Published private(set) var questionQueue: [QuestionRequest] = [] {
-        didSet { Self.capFront(&questionQueue, to: queueMax) }
+        didSet { if questionQueue.count > queueMax { questionQueue = Self.capFront(questionQueue, to: queueMax) } }
     }
 
-    /// Trim `arr` to its newest `max` entries when it overruns, dropping the
-    /// stalest (front). The payload-fed queues share this so one misbehaving (or
+    /// The newest `max` entries of `arr`, dropping the stalest (front) when it
+    /// overruns. The payload-fed queues share this so one misbehaving (or
     /// hostile) local process spraying blocking hooks can't grow them unbounded.
-    /// Setting a property inside its own didSet does not re-fire the observer, so
-    /// mutating in place here is safe.
-    nonisolated static func capFront<T>(_ arr: inout [T], to max: Int) {
-        if arr.count > max { arr.removeFirst(arr.count - max) }
+    /// The didSets guard the assignment with a count check so the trimmed value
+    /// (now at `max`) doesn't re-enter the @Published setter and recurse.
+    nonisolated static func capFront<T>(_ arr: [T], to max: Int) -> [T] {
+        arr.count > max ? Array(arr.suffix(max)) : arr
     }
     @Published private(set) var allowRules: Set<AllowRule> = []
     @Published var isHovering: Bool = false

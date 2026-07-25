@@ -9,29 +9,24 @@ import XCTest
 final class QueueCapTests: XCTestCase {
 
     func testUnderCapUntouched() {
-        var a = Array(0..<10)
-        AppState.capFront(&a, to: 64)
-        XCTAssertEqual(a, Array(0..<10))
+        XCTAssertEqual(AppState.capFront(Array(0..<10), to: 64), Array(0..<10))
     }
 
     func testAtCapUntouched() {
-        var a = Array(0..<64)
-        AppState.capFront(&a, to: 64)
+        let a = AppState.capFront(Array(0..<64), to: 64)
         XCTAssertEqual(a.count, 64)
         XCTAssertEqual(a.first, 0)
     }
 
     func testOverCapKeepsNewestDropsStalest() {
-        var a = Array(0..<100)   // 0 is stalest, 99 is newest
-        AppState.capFront(&a, to: 64)
+        let a = AppState.capFront(Array(0..<100), to: 64) // 0 stalest, 99 newest
         XCTAssertEqual(a.count, 64)
         XCTAssertEqual(a.first, 36) // dropped 0...35
         XCTAssertEqual(a.last, 99)
     }
 
     func testHostileBurstStillBounded() {
-        var a = Array(0..<10_000)
-        AppState.capFront(&a, to: 64)
+        let a = AppState.capFront(Array(0..<10_000), to: 64)
         XCTAssertEqual(a.count, 64)
         XCTAssertEqual(a.last, 9_999)
     }
