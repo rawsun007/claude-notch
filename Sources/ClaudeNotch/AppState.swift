@@ -3135,9 +3135,21 @@ final class AppState: ObservableObject {
 
     /// Quote a CSV field when it contains a comma, quote, or newline (doubling
     /// any embedded quotes), per RFC 4180. Shared by the CSV exporters.
-    private static func csvEscape(_ s: String) -> String {
-        guard s.contains(",") || s.contains("\"") || s.contains("\n") else { return s }
-        return "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+    ///
+    /// Also neutralizes spreadsheet formula injection: exported fields carry
+    /// agent-supplied tool commands, file paths, and session notes (untrusted),
+    /// and a field a spreadsheet evaluates as a formula (leading =, +, -, @,
+    /// tab, or CR) could run on open in Excel/Sheets. Prefix such a field with a
+    /// single quote so it is treated as literal text.
+    /// https://owasp.org/www-community/attacks/CSV_Injection
+    static func csvEscape(_ s: String) -> String {
+        var field = s
+        if let first = field.first, "=+-@\t\r".contains(first) {
+            field = "'" + field
+        }
+        guard field.contains(",") || field.contains("\"")
+                || field.contains("\n") || field.contains("\r") else { return field }
+        return "\"" + field.replacingOccurrences(of: "\"", with: "\"\"") + "\""
     }
 
     private static func historyCSV(_ entries: [HistoryEntry]) -> Data {
