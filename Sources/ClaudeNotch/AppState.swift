@@ -2079,20 +2079,38 @@ final class AppState: ObservableObject {
     /// executable/script/app on a click. If the target is a bundle, has the
     /// execute bit, or carries a runnable extension, reveal it in Finder instead
     /// of opening it; ordinary source files open as before.
-    static func openEditedFile(_ path: String) {
-        let url = URL(fileURLWithPath: path)
-        let ext = url.pathExtension.lowercased()
-        let runnable: Set<String> = ["command", "sh", "bash", "zsh", "app", "pkg", "dmg",
-                                     "scpt", "applescript", "workflow", "term", "shortcut",
-                                     "js", "jar", "run", "bin", "out", "action", "prefpane"]
+    /// Extensions whose default handler takes an action on a plain double-click
+    /// rather than just displaying the file — so opening one the agent named is
+    /// a launch, not a view. Bundles (.app/.workflow/.scptd) are caught
+    /// separately by the is-directory check; this list is the non-bundle set.
+    nonisolated static let riskyOpenExtensions: Set<String> = [
+        "command", "sh", "bash", "zsh", "app", "pkg", "dmg",
+        "scpt", "applescript", "workflow", "term", "terminal",
+        "shortcut", "js", "jar", "run", "bin", "out", "action", "prefpane",
+        // Data files whose default handler takes a dangerous action on open
+        // (not caught by the execute-bit check): a config profile install, or a
+        // link file that opens an arbitrary URL / custom-scheme handler.
+        "mobileconfig", "webloc", "url", "desktop",
+    ]
+
+    /// Whether `path` should be revealed in Finder instead of opened: it is
+    /// missing (a guessy path), a directory/bundle, carries a runnable
+    /// extension, or has the execute bit set. Pure so the classification is
+    /// unit-testable without touching NSWorkspace.
+    nonisolated static func isRiskyToOpen(_ path: String) -> Bool {
+        let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
         let fm = FileManager.default
         var isDir: ObjCBool = false
         let exists = fm.fileExists(atPath: path, isDirectory: &isDir)
-        let risky = !exists                       // missing: don't hand a guessy path to the launcher
+        return !exists                            // missing: don't hand a guessy path to the launcher
             || isDir.boolValue                    // directory or .app-style bundle
-            || runnable.contains(ext)
+            || riskyOpenExtensions.contains(ext)
             || fm.isExecutableFile(atPath: path)  // execute bit set
-        if risky {
+    }
+
+    static func openEditedFile(_ path: String) {
+        let url = URL(fileURLWithPath: path)
+        if isRiskyToOpen(path) {
             NSWorkspace.shared.activateFileViewerSelecting([url])
         } else {
             NSWorkspace.shared.open(url)
