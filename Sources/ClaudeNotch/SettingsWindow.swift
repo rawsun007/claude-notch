@@ -2022,7 +2022,7 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "More security hardening: history CSV exports are protected against spreadsheet formula injection, the saved state file is now readable only by you, and a few extra edited-file types (config profiles, web-link files) are revealed in Finder instead of being launched.",
-        "Cleaner updates: installing a new version now quits and replaces the running copy instead of colliding with it, and removing the app can also clear its saved data.",
+        "Works on every Mac now: MacBook Air, older MacBooks, and external displays get a floating Dynamic-Island-style pill where a notched MacBook shows the notch.",
+        "Multi-display: the notch now appears on every screen at once, so it is there whether you are on the laptop or an external monitor. Answer prompts and drop folders from whichever screen you are looking at.",
     ]
 }
