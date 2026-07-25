@@ -13,7 +13,7 @@ jobs:
     # toolchain that older runners (macos-14) default to — pick the newest Xcode.
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: maxim-lobanov/setup-xcode@v1
         with:

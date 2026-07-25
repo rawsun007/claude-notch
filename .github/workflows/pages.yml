@@ -30,7 +30,7 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url || steps.retry1.outputs.page_url || steps.retry2.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/upload-pages-artifact@v3
         with:
