@@ -576,13 +576,22 @@ final class AppState: ObservableObject {
     // stalest, so the cards you'd actually act on survive.
     private let queueMax = 64
     @Published private(set) var permissionQueue: [PermissionRequest] = [] {
-        didSet { if permissionQueue.count > queueMax { permissionQueue.removeFirst(permissionQueue.count - queueMax) } }
+        didSet { Self.capFront(&permissionQueue, to: queueMax) }
     }
     @Published private(set) var completedQueue: [CompletedTask] = [] {
-        didSet { if completedQueue.count > queueMax { completedQueue.removeFirst(completedQueue.count - queueMax) } }
+        didSet { Self.capFront(&completedQueue, to: queueMax) }
     }
     @Published private(set) var questionQueue: [QuestionRequest] = [] {
-        didSet { if questionQueue.count > queueMax { questionQueue.removeFirst(questionQueue.count - queueMax) } }
+        didSet { Self.capFront(&questionQueue, to: queueMax) }
+    }
+
+    /// Trim `arr` to its newest `max` entries when it overruns, dropping the
+    /// stalest (front). The payload-fed queues share this so one misbehaving (or
+    /// hostile) local process spraying blocking hooks can't grow them unbounded.
+    /// Setting a property inside its own didSet does not re-fire the observer, so
+    /// mutating in place here is safe.
+    nonisolated static func capFront<T>(_ arr: inout [T], to max: Int) {
+        if arr.count > max { arr.removeFirst(arr.count - max) }
     }
     @Published private(set) var allowRules: Set<AllowRule> = []
     @Published var isHovering: Bool = false
@@ -1639,7 +1648,7 @@ final class AppState: ObservableObject {
     }
 
     /// Which budget threshold `cost` has crossed against `cap`: 100, 80, or 0.
-    private static func budgetLevel(cost: Double, cap: Double) -> Int {
+    nonisolated static func budgetLevel(cost: Double, cap: Double) -> Int {
         guard cap > 0 else { return 0 }
         if cost >= cap { return 100 }
         if cost >= cap * 0.8 { return 80 }

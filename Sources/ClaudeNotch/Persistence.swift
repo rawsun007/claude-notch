@@ -70,17 +70,29 @@ enum Persistence {
     /// A failed read is silent — we'd rather start fresh than crash.
     static func load() -> Snapshot? {
         guard let data = try? Data(contentsOf: storeURL) else { return nil }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try? decoder.decode(Snapshot.self, from: data)
+        return decode(data)
     }
 
     static func save(_ snapshot: Snapshot) {
+        guard let data = encode(snapshot) else { return }
+        try? data.write(to: storeURL, options: .atomic)
+    }
+
+    /// Serialize a snapshot with the on-disk conventions (iso8601 dates, sorted
+    /// keys). Split from `save` so the round-trip is testable off the fixed path.
+    static func encode(_ snapshot: Snapshot) -> Data? {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        guard let data = try? encoder.encode(snapshot) else { return }
-        try? data.write(to: storeURL, options: .atomic)
+        return try? encoder.encode(snapshot)
+    }
+
+    /// Inverse of `encode`. Returns nil only when the top-level JSON is
+    /// unparseable; individual bad fields degrade to defaults via `init(from:)`.
+    static func decode(_ data: Data) -> Snapshot? {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try? decoder.decode(Snapshot.self, from: data)
     }
 }
 

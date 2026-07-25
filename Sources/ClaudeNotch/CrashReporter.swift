@@ -106,7 +106,14 @@ enum CrashReporter {
         guard let items = try? fm.contentsOfDirectory(at: directory,
                                                       includingPropertiesForKeys: [.contentModificationDateKey],
                                                       options: [.skipsHiddenFiles]) else { return [] }
-        return items.filter { $0.lastPathComponent.hasPrefix("crash-") && $0.pathExtension == "log" }
+        return items.filter { isReportFilename($0.lastPathComponent) }
+    }
+
+    /// A file this reporter owns: `crash-<stamp>.log` or the `crash-signal.log`.
+    /// Pulled out so the dir filter and the prune step share one rule and it can
+    /// be tested without a real crash on disk.
+    nonisolated static func isReportFilename(_ name: String) -> Bool {
+        name.hasPrefix("crash-") && (name as NSString).pathExtension == "log"
     }
 
     private static func pruneOldReports() {
