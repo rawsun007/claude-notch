@@ -67,7 +67,7 @@ final class EventServer {
     /// thread and push it to AppState. `throttle` skips a recompute if one ran
     /// for this transcript within the interval (the full-file parse isn't free).
     private func pushSessionMeter(transcriptPath path: String, sessionId: String, throttle: TimeInterval = 0) {
-        guard !path.isEmpty else { return }
+        guard !path.isEmpty, EventServer.isAllowedTranscriptPath(path) else { return }
         maybePushTodayCost()
         if throttle > 0 {
             let now = Date()
@@ -298,6 +298,37 @@ final class EventServer {
         let name = host.hasPrefix("[") ? "[::1]"        // IPv6 literal, port after ]
             : String(host.split(separator: ":").first ?? "")
         return name == "127.0.0.1" || name == "localhost" || name == "[::1]" || host == "[::1]"
+    }
+
+    /// The directories a genuine agent transcript can live under. Claude Code
+    /// keeps transcripts in ~/.claude/projects (relocatable via
+    /// CLAUDE_CONFIG_DIR); Codex in ~/.codex/sessions (CODEX_HOME). Computed so
+    /// tests can pass an explicit environment/home.
+    static func transcriptRoots(home: String = NSHomeDirectory(),
+                                env: [String: String] = ProcessInfo.processInfo.environment) -> [String] {
+        func root(_ override: String?, default def: String) -> String {
+            let base = (override?.isEmpty == false) ? override! : (home as NSString).appendingPathComponent(def)
+            // Normalize away any trailing slash, then add exactly one so a
+            // prefix check can't match a sibling like "~/.claudeXYZ".
+            let trimmed = base.hasSuffix("/") ? String(base.dropLast()) : base
+            return trimmed + "/"
+        }
+        return [
+            root(env["CLAUDE_CONFIG_DIR"], default: ".claude"),
+            root(env["CODEX_HOME"], default: ".codex"),
+        ]
+    }
+
+    /// Whether a hook-supplied `transcript_path` is one we'll actually read.
+    /// The path is untrusted (any local process can POST a hook), so a value
+    /// like "/etc/passwd" or "~/.claude/../.ssh/id_rsa" must be refused: we only
+    /// read agent transcripts, which live under the roots above. Standardizes
+    /// the path first so `..` traversal can't escape a root.
+    static func isAllowedTranscriptPath(_ path: String,
+                                        roots: [String] = EventServer.transcriptRoots()) -> Bool {
+        guard !path.isEmpty else { return false }
+        let resolved = URL(fileURLWithPath: path).standardizedFileURL.path
+        return roots.contains { resolved.hasPrefix($0) }
     }
 
     private func handle(_ req: HTTPRequest, on conn: NWConnection) {
@@ -804,6 +835,9 @@ final class EventServer {
     }
 
     private func startResponsePolling(transcriptPath path: String, sessionId: String = "", duration: TimeInterval, delayFirstRead: Bool = false) {
+        // A payload-supplied path outside the transcript roots is never read, so
+        // don't spin a poll loop over it either.
+        guard EventServer.isAllowedTranscriptPath(path) else { return }
         let token = transcriptPollLock.withLock { () -> Int in
             let next = (transcriptPollTokens[path] ?? 0) + 1
             transcriptPollTokens[path] = next
@@ -861,7 +895,8 @@ final class EventServer {
     /// truth for the task list, so this keeps the notch bar right even when a
     /// hook was missed. Returns nil if no TodoWrite is found in the tail.
     private func latestTodos(fromTranscriptAt path: String) -> (total: Int, done: Int)? {
-        guard let body = FileSlice.tail(URL(fileURLWithPath: path), bytes: 512 * 1024) else { return nil }
+        guard EventServer.isAllowedTranscriptPath(path),
+              let body = FileSlice.tail(URL(fileURLWithPath: path), bytes: 512 * 1024) else { return nil }
         for raw in body.split(separator: "\n", omittingEmptySubsequences: true).reversed() {
             guard let d = raw.data(using: .utf8),
                   let obj = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { continue }
@@ -880,6 +915,10 @@ final class EventServer {
     /// Tail the JSONL transcript and pull the most recent assistant text
     /// content. Tolerant of multiple message shapes Claude Code emits.
     private func lastAssistantText(fromTranscriptAt path: String) -> String? {
+        guard EventServer.isAllowedTranscriptPath(path) else {
+            debugLog("transcript read: REFUSED out-of-root path")
+            return nil
+        }
         debugLog("transcript read: \(path)")
         guard let body = FileSlice.tail(URL(fileURLWithPath: path), bytes: 512 * 1024) else {
             debugLog("transcript read: FAILED to open file")
