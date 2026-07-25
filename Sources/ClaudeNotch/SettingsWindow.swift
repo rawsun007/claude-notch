@@ -2022,7 +2022,7 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "Security hardening: the hook server now rejects browser-originated requests, PR links and edited files that came from a hook can no longer open anything but a web page or your editor, and the standup's git reads are locked down against untrusted repos.",
-        "Launcher scripts are written owner-only and old ones are swept away instead of piling up in the temp folder.",
+        "More security hardening: history CSV exports are protected against spreadsheet formula injection, the saved state file is now readable only by you, and a few extra edited-file types (config profiles, web-link files) are revealed in Finder instead of being launched.",
+        "Cleaner updates: installing a new version now quits and replaces the running copy instead of colliding with it, and removing the app can also clear its saved data.",
     ]
 }
