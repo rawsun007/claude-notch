@@ -5,8 +5,10 @@ cask "claudenotch" do
   url "https://github.com/rawsun007/claude-notch/releases/download/v#{version}/ClaudeNotch.dmg",
       verified: "github.com/rawsun007/claude-notch/"
   name "ClaudeNotch"
-  desc "Shows Claude Code permission prompts in your Mac's notch"
+  desc "Shows Claude Code permission prompts in the notch"
   homepage "https://github.com/rawsun007/claude-notch"
+
+  depends_on macos: :ventura
 
   app "ClaudeNotch.app"
 
