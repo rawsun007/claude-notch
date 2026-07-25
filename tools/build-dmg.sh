@@ -46,6 +46,13 @@ ClaudeNotch — first launch (one time)
 Then start Claude Code in any terminal and your permission prompts,
 questions, and notifications show up in the notch instead of the terminal.
 
+Updating from an older version?
+   Quit the running ClaudeNotch first (menu-bar bell -> Quit), otherwise
+   macOS will not let the new copy replace the one that is still open.
+   Then drag the new ClaudeNotch.app onto Applications and click "Replace".
+   Your settings and history are kept (they live in ~/.claudenotch, not in
+   the app). Steps 2-3 above are one-time; you will not see them again.
+
 Tip:  press  Opt-Cmd-N  anywhere to type a message straight to Claude.
 
 Skip this warning entirely: install with Homebrew instead.
