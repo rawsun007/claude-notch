@@ -62,7 +62,12 @@ enum Persistence {
     static let storeURL: URL = {
         let dir = URL(fileURLWithPath: NSHomeDirectory())
             .appendingPathComponent(".claudenotch", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // 0700 dir: the snapshot holds prompts, project paths, session notes,
+        // and cost figures. On a shared Mac there is no reason for other local
+        // users to read it. Matches DebugLog (0700) and CrashReporter (0600).
+        try? FileManager.default.createDirectory(
+            at: dir, withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700])
         return dir.appendingPathComponent("state.json")
     }()
 
@@ -76,6 +81,14 @@ enum Persistence {
     static func save(_ snapshot: Snapshot) {
         guard let data = encode(snapshot) else { return }
         try? data.write(to: storeURL, options: .atomic)
+        // 0600: the file holds sensitive session data. Enforced on every write
+        // because .atomic replaces the inode (a fresh temp file that would
+        // otherwise land at the umask default), and to tighten dirs/files that
+        // predate this hardening.
+        let fm = FileManager.default
+        try? fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: storeURL.path)
+        try? fm.setAttributes([.posixPermissions: 0o700],
+                              ofItemAtPath: storeURL.deletingLastPathComponent().path)
     }
 
     /// Serialize a snapshot with the on-disk conventions (iso8601 dates, sorted
