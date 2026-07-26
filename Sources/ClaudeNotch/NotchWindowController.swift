@@ -292,18 +292,25 @@ final class NotchWindowController {
         return NotchWindowController.fallbackScreen()
     }
 
-    /// Pin the (fixed-size) window to the top, centred on the physical notch.
-    /// Only resizes if the screen actually changed dimensions.
-    private func position(on screen: NSScreen) {
-        let target = NotchWindowController.windowSize(for: screen)
-        let origin = expectedOrigin(on: screen)
-        let was = window.frame.origin
-
-        if abs(window.frame.width - target.width) > 1 || abs(window.frame.height - target.height) > 1 {
-            window.setFrame(NSRect(origin: origin, size: target), display: false)
-        } else if window.frame.origin != origin {
-            window.setFrameOrigin(origin)
+    /// Place `panel` at `origin`/`size`, resizing only when the size actually
+    /// changed (the window never resizes per card, so a plain move is the common
+    /// path). Returns the previous origin so callers can detect real drift.
+    @discardableResult
+    private static func place(_ panel: NSPanel, at origin: NSPoint, size: CGSize) -> NSPoint {
+        let was = panel.frame.origin
+        if abs(panel.frame.width - size.width) > 1 || abs(panel.frame.height - size.height) > 1 {
+            panel.setFrame(NSRect(origin: origin, size: size), display: false)
+        } else if panel.frame.origin != origin {
+            panel.setFrameOrigin(origin)
         }
+        return was
+    }
+
+    /// Pin the (fixed-size) primary window to the top, centred on the notch, and
+    /// publish this screen's inset for the card layout.
+    private func position(on screen: NSScreen) {
+        let origin = expectedOrigin(on: screen)
+        let was = Self.place(window, at: origin, size: NotchWindowController.windowSize(for: screen))
 
         // A correction of more than a point means the panel had genuinely been
         // displaced (the "second notch beside the real one" bug). Worth a line:
@@ -380,12 +387,7 @@ final class NotchWindowController {
 
     private func positionMirror(_ panel: NotchPanel, on screen: NSScreen) {
         let size = NotchWindowController.windowSize(for: screen)
-        let origin = NotchWindowController.origin(on: screen, size: size)
-        if abs(panel.frame.width - size.width) > 1 || abs(panel.frame.height - size.height) > 1 {
-            panel.setFrame(NSRect(origin: origin, size: size), display: false)
-        } else if panel.frame.origin != origin {
-            panel.setFrameOrigin(origin)
-        }
+        Self.place(panel, at: NotchWindowController.origin(on: screen, size: size), size: size)
     }
 
     private func logScreenGeometry() {
