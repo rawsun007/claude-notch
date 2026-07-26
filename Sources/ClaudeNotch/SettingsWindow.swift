@@ -2026,6 +2026,7 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
+        "New \"Random antics\" toggle in Settings > Pet: keep the pet but stop it performing on its own when the notch is idle. It still answers a boop and still reacts when a task finishes or fails.",
         "Security hardening: the check that decides which transcript files the app will read now follows symbolic links, so a link planted inside a transcript folder can no longer point a read at an unrelated file.",
         "Works on every Mac now: MacBook Air, older MacBooks, and external displays get a floating Dynamic-Island-style pill where a notched MacBook shows the notch.",
         "Multi-display: the notch now appears on every screen at once, so it is there whether you are on the laptop or an external monitor. Answer prompts and drop folders from whichever screen you are looking at.",
