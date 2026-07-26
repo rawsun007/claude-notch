@@ -2,6 +2,18 @@ import AppKit
 import SwiftUI
 import Combine
 
+extension NSScreen {
+    /// Horizontal centre of the physical notch — the gap between the two
+    /// auxiliary top areas — or the screen centre when there is no notch. The
+    /// single source of truth for where, left-to-right, the notch/pill sits.
+    var notchCenterX: CGFloat {
+        if let left = auxiliaryTopLeftArea, let right = auxiliaryTopRightArea {
+            return (left.maxX + right.minX) / 2
+        }
+        return frame.midX
+    }
+}
+
 /// NSPanel that overlaps the physical notch / menu-bar region and can become
 /// key on demand (so our local NSEvent monitor receives Enter / Escape).
 final class NotchPanel: NSPanel {
@@ -235,14 +247,7 @@ final class NotchWindowController {
     /// Top of the screen, centred on the physical notch. Static so the panel can
     /// be *created* here rather than created somewhere else and moved.
     static func origin(on screen: NSScreen, size: CGSize) -> NSPoint {
-        let s = screen.frame
-        let centerX: CGFloat = {
-            if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
-                return (left.maxX + right.minX) / 2
-            }
-            return s.midX
-        }()
-        return NSPoint(x: centerX - size.width / 2, y: s.maxY - size.height)
+        NSPoint(x: screen.notchCenterX - size.width / 2, y: screen.frame.maxY - size.height)
     }
 
     deinit {

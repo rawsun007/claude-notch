@@ -121,12 +121,7 @@ final class MouseTracker {
             return
         }
         let s = screen.frame
-        let centerX: CGFloat = {
-            if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
-                return (left.maxX + right.minX) / 2
-            }
-            return s.midX
-        }()
+        let centerX = screen.notchCenterX
         let reach: CGFloat = 220
         let dx = mouse.x - centerX
         let nearVertically = mouse.y > s.maxY - 140
@@ -149,12 +144,7 @@ final class MouseTracker {
         let screen = notchScreen()
         let s = screen.frame
         let target = NotchView.size(for: state.mode, hovering: true, on: screen, state: state)
-        let centerX: CGFloat = {
-            if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
-                return (left.maxX + right.minX) / 2
-            }
-            return s.midX
-        }()
+        let centerX = screen.notchCenterX
         let width = max(target.width + 140, 460)
         let height = max(target.height + 90, 160)
         let top = s.maxY
