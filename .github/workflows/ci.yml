@@ -27,3 +27,8 @@ jobs:
 
       - name: Run tests
         run: swift test
+
+      # A key added in Swift but missing from the table falls back to the key
+      # itself, so it looks fine in English and silently cannot be translated.
+      - name: Check the English strings table is in sync
+        run: tools/l10n-extract.py --check

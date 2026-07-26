@@ -40,12 +40,20 @@ fi
 # 16x16 grid in PetRig.swift so its legs, arms, and eyes can move independently.
 # assets/claude-pet.png stays in the repo as the reference artwork.
 
+# Localized strings. macOS picks the .lproj matching the user's language and
+# falls back to CFBundleDevelopmentRegion, so an untranslated build reads in
+# English. Regenerate the English table with tools/l10n-extract.py.
+if [ -d Resources ]; then
+    cp -R Resources/*.lproj "$APP/Contents/Resources/" 2>/dev/null || true
+fi
+
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key><string>com.claudenotch.app</string>
+    <key>CFBundleDevelopmentRegion</key><string>en</string>
     <key>CFBundleName</key><string>ClaudeNotch</string>
     <key>CFBundleDisplayName</key><string>ClaudeNotch</string>
     <key>CFBundleExecutable</key><string>ClaudeNotch</string>

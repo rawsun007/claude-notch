@@ -20,6 +20,13 @@ detail in the file before relying on it.
   locally. After it: add the release to the website changelog (separate repo,
   `../claude mac app website/app/changelog/releases.ts`), rebuild, sync `docs/`.
 - **No em dashes** anywhere user-visible (commits, UI strings, changelog, site).
+- **`tools/l10n-extract.py`**: regenerates `Resources/en.lproj/Localizable.strings`
+  from `NSLocalizedString` calls (there is no `genstrings` without Xcode). Run it
+  after adding one; CI runs `--check` and fails if the table is stale. Note that
+  SwiftPM does NOT compile `.xcstrings`, it copies it verbatim, so String
+  Catalogs silently resolve to nothing here. `.lproj/Localizable.strings` copied
+  into the bundle by `build.sh` is the format that works. Only the permission
+  card is wired up so far; the rest of the UI is still hardcoded English.
 
 ## Data flow (the spine)
 
