@@ -30,8 +30,13 @@ final class PassThroughHostingView: NSHostingView<NotchView> {
         // NotchView (300 wide x notchInset+60 tall, top-centre), or the OS never
         // routes a dragged file to it. This region sits over the hardware notch,
         // where there is nothing to click through to anyway.
+        // Inset from THIS panel's screen, not the shared primary value — a
+        // mirror over a non-notch external uses that screen's menu-bar band, so
+        // its collapsed hit/drop region must match the pill it actually draws.
+        // For the primary this equals state.notchTopInset, so it is unchanged.
+        let inset = NotchView.notchInset(on: screenProvider())
         let w = max(card.width + slack * 2, 240)
-        let h = max(card.height + slack * 2, state.notchTopInset + 30)
+        let h = max(card.height + slack * 2, inset + 30)
         return NSRect(x: bounds.midX - w / 2,
                       y: isFlipped ? 0 : (bounds.height - h),
                       width: w, height: h)
