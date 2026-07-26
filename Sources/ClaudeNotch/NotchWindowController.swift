@@ -72,68 +72,70 @@ final class NotchWindowController {
     /// frame moves we rebuild rather than reuse a frozen-geometry panel.
     private var mirrorFrames: [CGDirectDisplayID: NSRect] = [:]
 
-    init(state: AppState) {
-        self.state = state
+    /// Fallback screen when nothing better is available — never force-unwrap
+    /// `screens.first`: with the lid closed and no external, all of these are
+    /// nil/empty mid-reconfiguration and `.first!` would crash.
+    static func fallbackScreen() -> NSScreen {
+        NSScreen.main ?? NSScreen.screens.first ?? NSScreen()
+    }
 
-        let screen = NSScreen.main ?? NSScreen.screens.first ?? NSScreen()
-        let winSize = NotchWindowController.windowSize(for: screen)
-        // Born where it belongs. Created at the origin and moved afterwards, the
-        // panel briefly existed at the bottom-left corner of the screen — which
-        // the drift log caught on every single launch, and which is a card-shaped
-        // thing sitting in the wrong place for as long as it takes the first
-        // position() to run.
+    /// Build a notch panel + its pass-through hosting view with the exact window
+    /// treatment every notch panel needs. Single source of truth for the primary
+    /// and every per-screen mirror, so their chrome can never drift apart.
+    /// `screenOverride` is passed through to NotchView (nil = the primary, which
+    /// renders against NSScreen.main + the shared inset).
+    private static func makePanel(state: AppState, origin: NSPoint, size: CGSize,
+                                  screenOverride: NSScreen?) -> (NotchPanel, PassThroughHostingView) {
         let panel = NotchPanel(
-            contentRect: NSRect(origin: NotchWindowController.origin(on: screen, size: winSize),
-                                size: winSize),
+            contentRect: NSRect(origin: origin, size: size),
             styleMask: [.borderless, .nonactivatingPanel],
-            backing: .buffered,
-            defer: false
-        )
+            backing: .buffered, defer: false)
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         panel.isMovable = false
-        // ORDER MATTERS. `isFloatingPanel` is not an extra flag on top of the
-        // level: setting it true assigns the level to .floating (3). It was being
-        // set AFTER the level, so every level we thought we were choosing was
-        // being thrown away, and the notch has been living at level 3 — under
-        // ordinary windows, and under any app in full screen. That is why moving
-        // the cursor to the notch inside a full-screen app did nothing: the notch
-        // was behind the app, not ignoring the mouse.
+        // ORDER MATTERS: `isFloatingPanel = true` sets the level to .floating, so
+        // it must be assigned BEFORE the level or it clobbers our choice. The
+        // level is `.mainMenu + 3` (~27), not CGShieldingWindowLevel(): the
+        // WindowServer excludes windows at/above the shielding level from
+        // drag-and-drop routing (dropped folders would fall to the desktop),
+        // while +3 still floats over the menu bar and — with .fullScreenAuxiliary
+        // + .canJoinAllSpaces above — over a full-screen app's Space too.
         panel.isFloatingPanel = true
-        // Set the level LAST so it is the one that survives.
-        //
-        // It used to be CGShieldingWindowLevel() (~2.1 billion). That does put
-        // the panel over everything, but the WindowServer excludes windows at or
-        // above the shielding level from drag-and-drop destination routing — a
-        // dragged file is never delivered to such a window, which is exactly why
-        // dropping a folder on the notch did nothing and the file fell to the
-        // desktop. `.mainMenu + 3` (~27) is what boring.notch uses: it still sits
-        // above the menu bar, and .fullScreenAuxiliary + .canJoinAllSpaces (set
-        // in collectionBehavior above) are what actually float it over a
-        // full-screen app's Space — the level does not need to be astronomical
-        // for that. This level keeps the notch over full screen AND makes it a
-        // real drag destination.
         panel.level = .mainMenu + 3
         panel.becomesKeyOnlyIfNeeded = false
         panel.hidesOnDeactivate = false
         panel.worksWhenModal = true
-        // Keep the notch out of screen shares / recordings / other apps'
-        // screenshots — it renders commands, file paths, and code snippets.
-        // .none excludes the window from capture; the user still sees it live.
+        // Keep the notch out of screen shares / recordings; the user still sees
+        // it live. .none excludes the window from capture.
         panel.sharingType = state.hideFromScreenCapture ? .none : .readOnly
 
-        let host = PassThroughHostingView(rootView: NotchView(state: state))
+        let host = PassThroughHostingView(rootView: NotchView(state: state, screenOverride: screenOverride))
         host.appState = state
-
-        host.frame = NSRect(origin: .zero, size: winSize)
+        host.frame = NSRect(origin: .zero, size: size)
         host.autoresizingMask = [.width, .height]
         panel.contentView = host
+        return (panel, host)
+    }
+
+    init(state: AppState) {
+        self.state = state
+
+        let screen = NotchWindowController.fallbackScreen()
+        let winSize = NotchWindowController.windowSize(for: screen)
+        // Born where it belongs. Created at the origin and moved afterwards, the
+        // panel briefly existed at the bottom-left corner of the screen — the
+        // drift log caught it on every launch.
+        let (panel, host) = NotchWindowController.makePanel(
+            state: state,
+            origin: NotchWindowController.origin(on: screen, size: winSize),
+            size: winSize, screenOverride: nil)
 
         self.window = panel
         self.host = host
-        host.screenProvider = { [weak self] in self?.currentScreen() ?? NSScreen.main ?? NSScreen.screens.first ?? NSScreen() }
+        // The primary follows the cursor, so its geometry source is dynamic.
+        host.screenProvider = { [weak self] in self?.currentScreen() ?? NotchWindowController.fallbackScreen() }
 
         position(on: screen)
 
@@ -282,7 +284,7 @@ final class NotchWindowController {
         if let screen = NSScreen.screens.first(where: { NSPointInRect(mouse, $0.frame) }) {
             return screen
         }
-        return NSScreen.main ?? NSScreen.screens.first ?? NSScreen()
+        return NotchWindowController.fallbackScreen()
     }
 
     /// Pin the (fixed-size) window to the top, centred on the physical notch.
@@ -362,28 +364,12 @@ final class NotchWindowController {
     /// on the shared AppState, and Enter/Esc are handled globally.
     private func makeMirror(on screen: NSScreen) -> NotchPanel {
         let size = NotchWindowController.windowSize(for: screen)
-        let panel = NotchPanel(
-            contentRect: NSRect(origin: NotchWindowController.origin(on: screen, size: size), size: size),
-            styleMask: [.borderless, .nonactivatingPanel],
-            backing: .buffered, defer: false)
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.hasShadow = false
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
-        panel.isMovable = false
-        panel.isFloatingPanel = true
-        panel.level = .mainMenu + 3
-        panel.becomesKeyOnlyIfNeeded = false
-        panel.hidesOnDeactivate = false
-        panel.worksWhenModal = true
-        panel.sharingType = state.hideFromScreenCapture ? .none : .readOnly
-
-        let host = PassThroughHostingView(rootView: NotchView(state: state, screenOverride: screen))
-        host.appState = state
-        host.frame = NSRect(origin: .zero, size: size)
-        host.autoresizingMask = [.width, .height]
+        let (panel, host) = NotchWindowController.makePanel(
+            state: state,
+            origin: NotchWindowController.origin(on: screen, size: size),
+            size: size, screenOverride: screen)
+        // A mirror is pinned to one screen, so its geometry source is fixed.
         host.screenProvider = { screen }
-        panel.contentView = host
         return panel
     }
 
