@@ -67,6 +67,10 @@ final class NotchWindowController {
     /// display is actually added or removed. Empty in the single-screen case, so
     /// that path is byte-for-byte the old behavior.
     private var mirrors: [CGDirectDisplayID: NotchPanel] = [:]
+    /// The screen frame each mirror was built for. A mirror captures its
+    /// NSScreen for geometry, which goes stale on a resolution change; when the
+    /// frame moves we rebuild rather than reuse a frozen-geometry panel.
+    private var mirrorFrames: [CGDirectDisplayID: NSRect] = [:]
 
     init(state: AppState) {
         self.state = state
@@ -326,13 +330,23 @@ final class NotchWindowController {
         for (id, panel) in mirrors where desired[id] == nil {
             panel.orderOut(nil)
             mirrors.removeValue(forKey: id)
+            mirrorFrames.removeValue(forKey: id)
         }
-        // Add/reposition mirrors for the desired screens.
+        // Add/reposition mirrors for the desired screens. Rebuild any whose
+        // screen frame changed (resolution/arrangement change) so the mirror's
+        // captured geometry stays live; reuse otherwise to avoid flicker.
         for (id, screen) in desired {
-            let panel = mirrors[id] ?? makeMirror(on: screen)
-            mirrors[id] = panel
-            positionMirror(panel, on: screen)
-            panel.orderFrontRegardless()
+            if let panel = mirrors[id], mirrorFrames[id] == screen.frame {
+                positionMirror(panel, on: screen)
+                panel.orderFrontRegardless()
+            } else {
+                mirrors[id]?.orderOut(nil)
+                let panel = makeMirror(on: screen)
+                mirrors[id] = panel
+                mirrorFrames[id] = screen.frame
+                positionMirror(panel, on: screen)
+                panel.orderFrontRegardless()
+            }
         }
     }
 
