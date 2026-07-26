@@ -365,7 +365,7 @@ final class AppState: ObservableObject {
     // an update. Maintained per release alongside the changelog.
     var lastSeenVersion: String? = nil
     static let whatsNewHighlights =
-        "Reply to Claude from the notification banner · git branch shown per session · optional today-spend readout in the menu bar"
+        "Works with VoiceOver: cards are spoken as they appear · diffs read out as added and removed lines · every control reachable without a mouse"
 
     /// Transient "live activity" card shown after an auto-approved action —
     /// shows WHAT changed, no buttons, auto-dismisses.
