@@ -4,6 +4,25 @@ import AppKit
 // The pending permission, question, and completed queues, and how they resolve.
 
 extension AppState {
+    /// Speak a card to VoiceOver as it appears. Nothing here moves focus: the
+    /// notch stays a non-activating panel so the keyboard remains wherever the
+    /// user left it, which means an announcement is the only cue a VoiceOver
+    /// user gets that Claude is blocked and waiting.
+    func announce(_ mode: NotchMode) {
+        guard Announcer.isVoiceOverRunning else { return }
+        switch mode {
+        case .permission(let req):
+            Announcer.say(Announcer.announcement(for: req, pending: permissionQueue.count))
+        case .question(let q):
+            Announcer.say(Announcer.announcement(for: q))
+        case .completed(let task):
+            // Not blocking anything, so it waits its turn rather than cutting in.
+            Announcer.say("Task finished. \(task.title)", priority: .medium)
+        case .idle, .history, .responseDetail, .compose, .thinking, .autoInfo:
+            break
+        }
+    }
+
     /// `bypassRules: true` skips the always-allow and auto-approve
     /// short-circuits so the card is always shown — used by the menu-bar demos,
     /// which must demonstrate the UI even if the user has Bash always-allowed
@@ -321,6 +340,18 @@ extension AppState {
             for _ in 0..<max(1, req.groupCount) { recordDecision(decision, auto: false) }
         }
         req.resolver(decision, reason)
+        // Confirm what just happened. Resolving usually lands on idle, which
+        // announces nothing, so without this a VoiceOver user presses Return
+        // and hears silence — no way to tell allow from deny from a missed key.
+        if req.kind == .toolUse {
+            let verb: String
+            switch decision {
+            case .allow: verb = alwaysAllow == .none ? "Allowed" : "Always allowed"
+            case .deny:  verb = "Denied"
+            case .ask:   verb = "Dismissed"
+            }
+            Announcer.say("\(verb). \(req.title)", priority: .medium)
+        }
         // Notifications were already logged at enqueue time.
         if req.kind != .notification {
             let outcome: HistoryEntry.Outcome
@@ -350,6 +381,7 @@ extension AppState {
     /// ones (those stay queued for an explicit hold-to-confirm).
     func resolveAllPermissions(_ decision: PermissionDecision) {
         let originator = permissionQueue.first?.originatorBundleID
+        let count = permissionQueue.count
         var remaining: [PermissionRequest] = []
         for req in permissionQueue {
             if decision == .allow && req.isDangerous {
@@ -373,8 +405,20 @@ extension AppState {
                 ))
             }
         }
+        let settled = count - remaining.count
         permissionQueue = remaining
         playFeedback(for: decision)
+        // Say how many were settled in one go, and flag anything held back —
+        // a destructive request that survives a batch allow is exactly the
+        // thing a VoiceOver user must not assume was handled.
+        if settled > 0 {
+            let verb = decision == .allow ? "Allowed" : (decision == .deny ? "Denied" : "Dismissed")
+            var line = "\(verb) \(settled) request\(settled == 1 ? "" : "s")."
+            if !remaining.isEmpty {
+                line += " \(remaining.count) destructive request\(remaining.count == 1 ? "" : "s") still waiting."
+            }
+            Announcer.say(line, priority: .medium)
+        }
         recompute()
         returnKeyboardToTerminal(preferred: originator)
     }

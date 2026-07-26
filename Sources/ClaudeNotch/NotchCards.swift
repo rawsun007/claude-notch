@@ -400,6 +400,8 @@ struct QuestionCard: View {
             .font(.system(size: 12, weight: .medium))
             .foregroundColor(.white)
             .focused($focusedOther, equals: qIdx)
+            .accessibilityLabel("Your own answer")
+            .accessibilityHint("Type an answer if none of the options fit")
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 8)
@@ -449,6 +451,13 @@ struct QuestionCard: View {
             )
         }
         .buttonStyle(.plain)
+        // Selection is drawn purely as a filled-in symbol, which says nothing
+        // out loud. The trait is what makes VoiceOver speak "selected", and it
+        // is the only way to tell a picked option from an unpicked one.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(opt.description.isEmpty ? opt.label : "\(opt.label). \(opt.description)")
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+        .accessibilityHint(q.multiSelect ? "Choose one or more" : "Choose one")
     }
 
     private func toggle(qIdx: Int, multi: Bool, label: String) {

@@ -111,6 +111,9 @@ struct ComposeCard: View {
                     .padding(.top, 18)          // caret position; placeholder's top is tuned to match it
                     .padding(.bottom, 6)
                     .focused($focused)
+                    // The placeholder is a sibling Text the editor never adopts,
+                    // so unlabelled this is an unnamed text area.
+                    .accessibilityLabel(placeholder)
             }
             .frame(minHeight: 80)
             .background(

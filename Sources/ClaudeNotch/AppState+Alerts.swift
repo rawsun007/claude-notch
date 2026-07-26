@@ -111,6 +111,9 @@ extension AppState {
             noteReAlert(id: req.id, now: now)
             playAlert(toolName: req.toolName)
             if mirrorToNotificationCenter { permissionMirror?.mirror(req) }
+            // A replayed chime says "something needs you" but not what. Repeat
+            // the ask so a VoiceOver user who missed the first one can act.
+            Announcer.say(Announcer.announcement(for: req, pending: permissionQueue.count))
             bounceDockForAttention()
             return   // one nudge per tick
         }
@@ -118,6 +121,7 @@ extension AppState {
             guard reAlertDue(id: q.id, receivedAt: q.receivedAt, now: now) else { continue }
             noteReAlert(id: q.id, now: now)
             playAlert()
+            Announcer.say(Announcer.announcement(for: q))
             bounceDockForAttention()
             return
         }

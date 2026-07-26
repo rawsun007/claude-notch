@@ -312,6 +312,9 @@ extension AppState {
         }
         if next != mode {
             mode = next
+            // Announce the card that is actually on screen, not the one that was
+            // queued — a card waiting behind another must not be spoken early.
+            announce(next)
         }
         updateReAlertTimer()
     }

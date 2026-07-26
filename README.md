@@ -85,6 +85,7 @@ system, and shows no Dock icon, just a small bell in your menu bar.
 | 📁 **Start Claude in any folder** | Launch Claude Code in any project straight from the menu bar, or jump back into a recent one. |
 | 🐾 **Pet Mode** | The Claude mascot lives in your notch. While nothing is happening it peeks out, looks around, hangs off the corner, strolls along the edge, and naps after a quiet spell, then hops with sparkles when a task finishes. It watches your cursor and leans toward it, holds still to be petted, and boops when you click it. Boop it five times fast. It never appears over an active session or a card you're reading, it respects **Reduce Motion**, and the **Pet Mode** menu item turns it off. |
 | 🏷️ **Personalise the notch title** | Pick what the notch calls itself from the **Notch Title** menu, keep **Claude**, track the active **project name**, or type your own **custom** label. It updates live and sticks between launches. |
+| 🗣️ **Works with VoiceOver** | The notch never steals focus, so a card could sit there silently. When one appears it is announced instead: the ask, the diff read as "removing 1 line, adding 2", and the keys that answer it. A queue says Return would allow all of them, and a destructive command never claims a key that does nothing. Resolving speaks the outcome, so you know Allow from Deny without looking. |
 
 ---
 

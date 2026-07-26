@@ -165,6 +165,11 @@ struct HistoryCard: View {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(Color.green.opacity(0.08))
             )
+            // The sparkline is shape only, so the spoken form is the totals it
+            // sits next to, plus today's figure the tallest bar is drawing.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Spend, last 7 days")
+            .accessibilityValue("\(ClaudeUsageReader.fmtMoney(w.total)) across \(w.sessions) session\(w.sessions == 1 ? "" : "s"). Today \(ClaudeUsageReader.fmtMoney(w.daily.last ?? 0)).")
         }
     }
 
@@ -282,6 +287,8 @@ struct HistoryCard: View {
                         )
                 }
                 .buttonStyle(.plain)
+                // Which chip is active is shown by fill colour alone.
+                .accessibilityAddTraits(tab == t ? [.isButton, .isSelected] : .isButton)
             }
             Spacer(minLength: 0)
         }
@@ -297,6 +304,7 @@ struct HistoryCard: View {
                 .font(.system(size: 12))
                 .foregroundColor(.white)
                 .focused($searchFocused)
+                .accessibilityLabel(tab == .events ? "Search history" : "Search projects")
             if !search.isEmpty {
                 Button { search = "" } label: {
                     Image(systemName: "xmark.circle.fill")
@@ -304,6 +312,7 @@ struct HistoryCard: View {
                         .foregroundColor(.white.opacity(0.4))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
             }
         }
         .padding(.horizontal, 10)
@@ -330,6 +339,7 @@ struct HistoryCard: View {
                         )
                 }
                 .buttonStyle(.plain)
+                .accessibilityAddTraits(filter == f ? [.isButton, .isSelected] : .isButton)
             }
             Spacer(minLength: 0)
         }
@@ -504,6 +514,11 @@ struct SessionHistoryRow: View {
         )
         .onHover { hovering = $0 }
         .help(record.cwd)
+        // Resume only renders while the pointer is over the row, so without a
+        // pointer it does not exist. Expose it as a row action instead, which
+        // reaches it from the VoiceOver actions rotor with no visual change.
+        .accessibilityElement(children: .combine)
+        .accessibilityAction(named: "Resume") { onResume?() }
     }
 
     private func label(_ text: String, icon: String) -> some View {
@@ -617,6 +632,8 @@ struct ProjectStatsRow: View {
         )
         .onHover { hovering = $0 }
         .help(stats.cwd)
+        .accessibilityElement(children: .combine)
+        .accessibilityAction(named: "Resume") { onResume?() }
     }
 
     private func statChip(_ text: String, icon: String) -> some View {

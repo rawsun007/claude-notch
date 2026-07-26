@@ -160,6 +160,7 @@ struct IdlePill: View {
                     }
                     .buttonStyle(.plain)
                     .help("Show history")
+                    .accessibilityLabel("Show history")
                 }
                 if canExpand {
                     Button { state.showResponseDetail() } label: {
@@ -169,6 +170,7 @@ struct IdlePill: View {
                     }
                     .buttonStyle(.plain)
                     .help("Expand response")
+                    .accessibilityLabel("Expand response")
                 }
             }
 

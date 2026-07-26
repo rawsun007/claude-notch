@@ -135,6 +135,9 @@ struct PetSprite: View {
             }
         }
         .frame(width: size, height: size)
+        // Hidden at the source so every place the mascot is drawn — notch,
+        // danger banner, completed card — is covered by one decision.
+        .accessibilityHidden(true)
     }
 }
 
@@ -321,6 +324,10 @@ struct PetStageView: View {
                 }
             }
             .onTapGesture { state.petBoop() }
+            // Purely decorative. It conveys nothing a screen reader needs and
+            // it animates constantly, so leaving it exposed would put a moving,
+            // meaningless stop in front of the card the user came for.
+            .accessibilityHidden(true)
         }
     }
 }

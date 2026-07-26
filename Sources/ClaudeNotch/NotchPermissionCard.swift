@@ -41,6 +41,21 @@ struct PermissionCard: View {
         if isBudgetBlocked { return "dollarsign.circle.fill" }
         return "exclamationmark.bubble.fill"
     }
+    /// The header row as one phrase: who is asking, with which tool, in which
+    /// project, and how long it has been blocked.
+    private var headerSpoken: String {
+        var parts: [String] = []
+        if request.isDangerous { parts.append("Destructive.") }
+        else if isBudgetBlocked { parts.append("Over budget.") }
+        parts.append("\(request.source), \(request.toolName).")
+        if !request.cwd.isEmpty {
+            parts.append("Project \((request.cwd as NSString).lastPathComponent).")
+        }
+        if Date().timeIntervalSince(request.receivedAt) >= 60 {
+            parts.append("Waiting \(waitElapsed(request.receivedAt)).")
+        }
+        return parts.joined(separator: " ")
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -72,6 +87,10 @@ struct PermissionCard: View {
                         .foregroundColor(.white.opacity(0.4))
                 }
             }
+            // The header is a row of glyphs and fragments. Merged, it reads as
+            // one phrase instead of "exclamationmark triangle fill", "·", …
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(headerSpoken)
 
             if request.isDangerous {
                 DangerBanner(reasons: request.dangerReasons, showPet: showPet)
@@ -127,6 +146,10 @@ struct PermissionCard: View {
                     }
                     .buttonStyle(.plain)
                     .help("Deny with a reason — tell Claude what to do instead")
+                    // Icon-only, so .help alone leaves VoiceOver reading the
+                    // SF Symbol name. Same for every icon button below.
+                    .accessibilityLabel("Deny with a reason")
+                    .accessibilityHint("Tell Claude what to do instead")
                 }
                 if !request.isDangerous && !isBudgetBlocked {
                     Menu {
@@ -155,6 +178,8 @@ struct PermissionCard: View {
                     .menuStyle(.borderlessButton)
                     .menuIndicator(.hidden)
                     .fixedSize()
+                    .accessibilityLabel("Always allow")
+                    .accessibilityHint("Choose to always allow this exact command, or every \(request.toolName) call")
                 }
                 Spacer()
                 if request.isDangerous {
@@ -178,6 +203,8 @@ struct PermissionCard: View {
                         }
                         .buttonStyle(.plain)
                         .help("Confirm with \(BiometricAuth.label) to run this destructive command")
+                        .accessibilityLabel("Confirm to allow")
+                        .accessibilityHint("This command is destructive. Confirms with \(BiometricAuth.label) before running it")
                     } else {
                         HoldToConfirmButton(label: "Hold to Allow", duration: 0.9) {
                             onResolve(.allow, .none)
@@ -256,6 +283,12 @@ struct DangerBanner: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(Color.red.opacity(0.35), lineWidth: 1)
         )
+        // The bullets are the whole point of the warning, so keep them in the
+        // label rather than letting each become its own stop.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            (["This command is destructive."] + reasons).joined(separator: " ")
+        )
     }
 }
 
@@ -278,6 +311,8 @@ struct BudgetBanner: View {
                     .font(.system(size: 10))
                     .foregroundColor(.orange.opacity(0.85))
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Over your \(block.scope) budget. \(ClaudeUsageReader.fmtMoney(block.cost)) of a \(ClaudeUsageReader.fmtMoney(block.cap)) cap, \(block.pct) percent.")
             Spacer(minLength: 0)
             if let onDisableEnforce {
                 Button("Turn off", action: onDisableEnforce)
@@ -285,8 +320,11 @@ struct BudgetBanner: View {
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(.white.opacity(0.6))
                     .help("Turn off budget enforcement and allow this command")
+                    .accessibilityLabel("Turn off budget enforcement")
+                    .accessibilityHint("Stops blocking commands when you are over your \(block.scope) cap")
             }
         }
+        .accessibilityElement(children: .contain)
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .background(
@@ -326,6 +364,24 @@ struct PreviewBlock: View {
 struct DiffPreviewView: View {
     let hunk: DiffHunk
 
+    /// The hunk as one spoken passage. The red/green colouring and the −/+
+    /// markers are the whole signal for a sighted user and carry none for a
+    /// screen reader, so each side is named. Pure, so it can be tested.
+    nonisolated static func spoken(_ hunk: DiffHunk) -> String {
+        var parts: [String] = []
+        if !hunk.oldLines.isEmpty {
+            parts.append("Removing \(hunk.oldLines.count) line\(hunk.oldLines.count == 1 ? "" : "s"):")
+            parts.append(contentsOf: hunk.oldLines)
+            if hunk.truncatedOld { parts.append("and more.") }
+        }
+        if !hunk.newLines.isEmpty {
+            parts.append("Adding \(hunk.newLines.count) line\(hunk.newLines.count == 1 ? "" : "s"):")
+            parts.append(contentsOf: hunk.newLines)
+            if hunk.truncatedNew { parts.append("and more.") }
+        }
+        return parts.isEmpty ? "No changes" : parts.joined(separator: " ")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(hunk.oldLines.enumerated()), id: \.offset) { _, line in
@@ -342,6 +398,11 @@ struct DiffPreviewView: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        // One element, not one per line: the diff is what you are deciding on,
+        // so it should read as a passage rather than force line-by-line
+        // navigation through a card that is blocking the session.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Self.spoken(hunk))
     }
 
     private func lineView(_ marker: String, _ line: String, fg: Color, bg: Color) -> some View {
@@ -401,6 +462,15 @@ struct WritePreviewView: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(spokenLabel)
+    }
+
+    private var spokenLabel: String {
+        let extra = totalLines - ToolPreviewParser.maxWriteLines
+        var text = "Writing \(totalLines) line\(totalLines == 1 ? "" : "s"). \(head)"
+        if extra > 0 { text += " and \(extra) more line\(extra == 1 ? "" : "s")." }
+        return text
     }
 }
 
@@ -439,6 +509,17 @@ struct HoldToConfirmButton: View {
                     .onEnded { _ in endPress() }
             )
             .help("Press and hold to confirm — this command was flagged as destructive")
+            // A bare DragGesture is invisible to VoiceOver: no trait, no way to
+            // activate it. Without this the destructive path is not merely
+            // awkward, it is unreachable, and the only option left is Deny.
+            // Press-and-hold has no assistive equivalent, so the deliberate act
+            // becomes "navigate to this specific control and activate it", and
+            // the label says plainly what activating does.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(label)
+            .accessibilityHint("This command is destructive. Activating runs it")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { onConfirm() }
     }
 
     private func startPress() {

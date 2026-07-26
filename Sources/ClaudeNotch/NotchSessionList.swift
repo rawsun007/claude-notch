@@ -149,6 +149,8 @@ struct SessionsList: View {
                                 }
                                 .buttonStyle(.plain)
                                 .help("Open this background agent in a terminal (claude attach \(session.backgroundAgentId))")
+                                .accessibilityLabel("Attach to background agent")
+                                .accessibilityHint("Opens it in a terminal")
                             }
                             // The open PR for this branch. Claude Code resolves it,
                             // so the notch can link straight to it instead of the
@@ -174,6 +176,9 @@ struct SessionsList: View {
                                 .buttonStyle(.plain)
                                 .disabled(session.prURL.isEmpty)
                                 .help(NotchView.prTooltip(number: session.prNumber, state: session.prState))
+                                .accessibilityLabel("Pull request \(session.prNumber)")
+                                .accessibilityValue(session.prState)
+                                .accessibilityHint("Opens the pull request in your browser")
                             }
                             // Two sessions in the same repo look identical in this
                             // list. The worktree is what tells them apart.
@@ -248,6 +253,10 @@ struct SessionsList: View {
                 }
                 .buttonStyle(.plain)
                 .help(session.fullResponse.isEmpty ? "No reply yet" : "Show \(session.project)'s last reply")
+                // Merge the row's chips into the button rather than leaving a
+                // dozen separate stops per session in a list that can hold 12.
+                .accessibilityElement(children: .combine)
+                .accessibilityHint(session.fullResponse.isEmpty ? "No reply yet" : "Shows the last reply")
             }
         }
     }
@@ -284,6 +293,11 @@ struct TaskMeter: View {
                 .lineLimit(1)
         }
         .help("\(done) of \(total) tasks done")
+        // A capsule and "3/7" — the bar carries no meaning out loud and the
+        // fraction reads as "three slash seven".
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Task progress")
+        .accessibilityValue("\(done) of \(total) tasks done")
     }
 }
 
@@ -400,5 +414,10 @@ struct ContextCostBar: View {
             }
         }
         .help(tooltipText)
+        // Same tooltip, spoken: the interpuncts the tooltip uses as separators
+        // are read aloud as nothing at all, so they become sentence breaks.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Context and cost")
+        .accessibilityValue(tooltipText.replacingOccurrences(of: " · ", with: ". "))
     }
 }

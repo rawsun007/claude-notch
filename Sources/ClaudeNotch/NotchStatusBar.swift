@@ -152,6 +152,11 @@ struct StatusBarRow: View {
                 }
             }
             .help(data.tooltip)
+            // The bar is the reading; the text beside it is an abbreviation of
+            // the same thing. Spoken, only the tooltip says what either means.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(data.tooltip.isEmpty ? label : data.tooltip)
+            .accessibilityValue(data.text)
         }
     }
 
