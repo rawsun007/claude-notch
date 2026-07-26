@@ -252,7 +252,5 @@ enum TerminalAutomator {
     /// shell (honours ~/.local/bin etc.). Returns nil if not found.
     nonisolated static func resolveCodexPath() -> String? { resolveCLIPath("codex") }
 
-    nonisolated private static func shellQuote(_ s: String) -> String {
-        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
-    }
+    nonisolated private static func shellQuote(_ s: String) -> String { Shell.quote(s) }
 }

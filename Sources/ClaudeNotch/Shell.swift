@@ -17,6 +17,13 @@ extension NSPasteboard {
 /// re-typed (and subtly varied) at every call site. Both calls block until the
 /// process exits, so invoke them off the main thread.
 enum Shell {
+    /// POSIX single-quote a string for safe embedding in a shell command line:
+    /// wrap in single quotes and escape any embedded single quote as '\''.
+    /// The one implementation behind every shell-quoting call in the app.
+    static func quote(_ s: String) -> String {
+        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
     /// Run `path args` and return stdout as a string (stderr discarded). Nil
     /// only when the process could not be launched.
     static func output(_ path: String, _ args: [String]) -> String? {

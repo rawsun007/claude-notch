@@ -330,7 +330,5 @@ enum HookInstaller {
     /// Shell-quote a path for embedding in a settings.json command string.
     /// Claude Code executes the value via the user's shell, so unquoted
     /// spaces in $HOME would explode.
-    static func shellQuote(_ s: String) -> String {
-        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
-    }
+    static func shellQuote(_ s: String) -> String { Shell.quote(s) }
 }
