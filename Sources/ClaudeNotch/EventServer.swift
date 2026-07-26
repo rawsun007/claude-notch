@@ -1061,29 +1061,32 @@ final class EventServer {
         }
     }
 
-    private func handleBlockingQuestion(payload: [String: Any], on conn: NWConnection) {
-        // Accept either Claude Code's full PreToolUse JSON (tool_input.questions)
-        // or our own shape ({questions: [...]}).
-        let rawQuestions: [[String: Any]] = {
+    /// Parse an AskUserQuestion payload into `AskQuestion`s. Accepts either
+    /// Claude Code's full PreToolUse JSON (tool_input.questions) or our own shape
+    /// ({questions: [...]}). Pure and `static` so it's the one, unit-testable
+    /// definition shared by the script-hook and native-HTTP question handlers.
+    static func parseQuestions(from payload: [String: Any]) -> [AskQuestion] {
+        let raw: [[String: Any]] = {
             if let qs = payload["questions"] as? [[String: Any]] { return qs }
             if let ti = payload["tool_input"] as? [String: Any],
                let qs = ti["questions"] as? [[String: Any]] { return qs }
             return []
         }()
-        let cwd = (payload["cwd"] as? String) ?? ""
-
-        let parsed: [AskQuestion] = rawQuestions.compactMap { dict in
+        return raw.compactMap { dict in
             guard let q = dict["question"] as? String else { return nil }
-            let header = (dict["header"] as? String) ?? ""
-            let multi  = (dict["multiSelect"] as? Bool) ?? false
-            let opts   = (dict["options"] as? [[String: Any]]) ?? []
-            let options: [AskOption] = opts.compactMap { o in
+            let options: [AskOption] = ((dict["options"] as? [[String: Any]]) ?? []).compactMap { o in
                 guard let label = o["label"] as? String else { return nil }
                 return AskOption(label: label, description: (o["description"] as? String) ?? "")
             }
             guard !options.isEmpty else { return nil }
-            return AskQuestion(header: header, text: q, multiSelect: multi, options: options)
+            return AskQuestion(header: (dict["header"] as? String) ?? "", text: q,
+                               multiSelect: (dict["multiSelect"] as? Bool) ?? false, options: options)
         }
+    }
+
+    private func handleBlockingQuestion(payload: [String: Any], on conn: NWConnection) {
+        let cwd = (payload["cwd"] as? String) ?? ""
+        let parsed = EventServer.parseQuestions(from: payload)
 
         guard !parsed.isEmpty else {
             send(body: "{\"cancelled\":true,\"reason\":\"no questions parsed\"}", on: conn)
@@ -1289,23 +1292,8 @@ final class EventServer {
 
     /// AskUserQuestion via HTTP hook: returns hookSpecificOutput deny+reason with answers.
     private func handleBlockingQuestionHTTP(payload: [String: Any], on conn: NWConnection) {
-        let rawQs: [[String: Any]] = {
-            if let qs = payload["questions"] as? [[String: Any]] { return qs }
-            if let ti = payload["tool_input"] as? [String: Any],
-               let qs = ti["questions"] as? [[String: Any]] { return qs }
-            return []
-        }()
         let cwd = (payload["cwd"] as? String) ?? ""
-        let parsed: [AskQuestion] = rawQs.compactMap { dict in
-            guard let q = dict["question"] as? String else { return nil }
-            let opts: [AskOption] = ((dict["options"] as? [[String: Any]]) ?? []).compactMap {
-                guard let label = $0["label"] as? String else { return nil }
-                return AskOption(label: label, description: ($0["description"] as? String) ?? "")
-            }
-            guard !opts.isEmpty else { return nil }
-            return AskQuestion(header: (dict["header"] as? String) ?? "", text: q,
-                               multiSelect: (dict["multiSelect"] as? Bool) ?? false, options: opts)
-        }
+        let parsed = EventServer.parseQuestions(from: payload)
         guard !parsed.isEmpty else { sendOK(on: conn); return }
 
         let sem  = DispatchSemaphore(value: 0)
