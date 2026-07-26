@@ -1004,38 +1004,45 @@ final class EventServer {
         }
     }
 
+    /// Build the tool-permission card for a PreToolUse gate. One definition of
+    /// how a Bash/Edit/... approval is presented — title, human detail, preview,
+    /// danger flags, originating app — shared by the script-hook and native-HTTP
+    /// permission paths. @MainActor because the originator capture is.
+    @MainActor
+    private func makeToolPermissionRequest(
+        toolName: String, toolInput: [String: Any], cwd: String,
+        resolver: @escaping (PermissionDecision, String?) -> Void
+    ) -> PermissionRequest {
+        PermissionRequest(
+            kind: .toolUse,
+            title: humanTitle(for: toolName),
+            detail: enrichedDetail(for: toolName, input: toolInput),
+            toolName: toolName,
+            source: "Claude Code",
+            cwd: cwd,
+            originatorBundleID: Self.capturedOriginator(state: state),
+            preview: ToolPreviewParser.preview(for: toolName, input: toolInput),
+            dangerReasons: ToolPreviewParser.dangerReasons(for: toolName, input: toolInput),
+            resolver: resolver
+        )
+    }
+
     private func handleBlockingPermission(payload: [String: Any], on conn: NWConnection) {
         let toolName = (payload["tool_name"] as? String) ?? "tool"
         let toolInput = payload["tool_input"] as? [String: Any] ?? [:]
         let cwd = (payload["cwd"] as? String) ?? ""
-        let title = humanTitle(for: toolName)
-        let detail = enrichedDetail(for: toolName, input: toolInput)
-        let preview = ToolPreviewParser.preview(for: toolName, input: toolInput)
-        let dangers = ToolPreviewParser.dangerReasons(for: toolName, input: toolInput)
 
         let semaphore = DispatchSemaphore(value: 0)
         let lock = NSLock()
         var decision: PermissionDecision = .ask
         var denyReason: String? = nil
 
-        Task { @MainActor [weak state] in
-            guard let state else { return }
-            let frontBID = Self.capturedOriginator(state: state)
-            let req = PermissionRequest(
-                kind: .toolUse,
-                title: title,
-                detail: detail,
-                toolName: toolName,
-                source: "Claude Code",
-                cwd: cwd,
-                originatorBundleID: frontBID,
-                preview: preview,
-                dangerReasons: dangers,
-                resolver: { d, r in
-                    lock.withLock { decision = d; denyReason = r }
-                    semaphore.signal()
-                }
-            )
+        Task { @MainActor [weak self] in
+            guard let self, let state = self.state else { return }
+            let req = self.makeToolPermissionRequest(toolName: toolName, toolInput: toolInput, cwd: cwd) { d, r in
+                lock.withLock { decision = d; denyReason = r }
+                semaphore.signal()
+            }
             state.enqueuePermission(req)
         }
 
@@ -1235,25 +1242,16 @@ final class EventServer {
     /// from workQueue.
     private func awaitPermissionDecision(toolName: String, toolInput: [String: Any],
                                          cwd: String) -> (PermissionDecision, String?) {
-        let title   = humanTitle(for: toolName)
-        let detail  = enrichedDetail(for: toolName, input: toolInput)
-        let preview = ToolPreviewParser.preview(for: toolName, input: toolInput)
-        let dangers = ToolPreviewParser.dangerReasons(for: toolName, input: toolInput)
-
         let sem  = DispatchSemaphore(value: 0)
         let lock = NSLock()
         var dec: PermissionDecision = .ask
         var rsn: String?
 
-        Task { @MainActor [weak state] in
-            guard let state else { sem.signal(); return }
-            let frontBID = Self.capturedOriginator(state: state)
-            state.enqueuePermission(PermissionRequest(
-                kind: .toolUse, title: title, detail: detail, toolName: toolName,
-                source: "Claude Code", cwd: cwd, originatorBundleID: frontBID,
-                preview: preview, dangerReasons: dangers,
-                resolver: { d, r in lock.withLock { dec = d; rsn = r }; sem.signal() }
-            ))
+        Task { @MainActor [weak self] in
+            guard let self, let state = self.state else { sem.signal(); return }
+            state.enqueuePermission(self.makeToolPermissionRequest(
+                toolName: toolName, toolInput: toolInput, cwd: cwd
+            ) { d, r in lock.withLock { dec = d; rsn = r }; sem.signal() })
         }
         if sem.wait(timeout: .now() + .seconds(285)) == .timedOut { return (.ask, nil) }
         return lock.withLock { (dec, rsn) }
