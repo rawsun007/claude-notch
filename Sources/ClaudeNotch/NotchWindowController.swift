@@ -258,6 +258,21 @@ final class NotchWindowController {
         syncMirrors()
     }
 
+    /// Move the primary (interactive, hover-owning) panel to `screen` right now.
+    /// Called when the cursor reaches the top of a different display so that
+    /// screen's pill can hover-expand immediately, instead of waiting for the
+    /// slow drift timer to notice. No-op when already there, so on a single
+    /// display this never fires.
+    func migrate(to screen: NSScreen) {
+        let target = NotchWindowController.origin(
+            on: screen, size: NotchWindowController.windowSize(for: screen))
+        if abs(window.frame.origin.x - target.x) < 1, abs(window.frame.origin.y - target.y) < 1 {
+            return
+        }
+        position(on: screen)
+        syncMirrors()
+    }
+
     private func currentScreen() -> NSScreen {
         let mouse = NSEvent.mouseLocation
         if let screen = NSScreen.screens.first(where: { NSPointInRect(mouse, $0.frame) }) {

@@ -42,6 +42,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu = MenuBarController(state: state, onboarding: onboarding, settings: settings)
 
         mouse = MouseTracker(state: state, window: notch.window)
+        // Let the notch follow the cursor onto another display so its pill can
+        // hover-expand there without waiting for the drift timer.
+        mouse.onWantScreen = { [weak notch] screen in notch?.migrate(to: screen) }
         mouse.start()
 
         keys = KeyboardMonitor(state: state)

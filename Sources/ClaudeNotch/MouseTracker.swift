@@ -9,6 +9,11 @@ final class MouseTracker {
     private var monitor: Any?
     private var timer: Timer?
 
+    /// Called when the cursor is at the top of a screen the notch is not
+    /// currently on, so the owner can migrate the interactive panel there. On a
+    /// single display this never fires (the hovered screen is the notch screen).
+    var onWantScreen: ((NSScreen) -> Void)?
+
     init(state: AppState, window: NSWindow? = nil) {
         self.state = state
         self.window = window
@@ -68,7 +73,16 @@ final class MouseTracker {
     private func check() {
         guard let state else { return }
         let mouse = NSEvent.mouseLocation
-        let screen = notchScreen()
+        // Follow the cursor across displays: if it is in the top trigger band of
+        // a screen the notch is not on, ask the owner to migrate the interactive
+        // panel there so that screen's pill can expand. Compared by frame (not
+        // object identity) so a reconfigured NSScreen never causes churn. Single
+        // display: the hovered screen IS the notch screen, so this is a no-op.
+        let hovered = NSScreen.screens.first { Self.triggerZone(on: $0).contains(mouse) }
+        if let hovered, hovered.frame != notchScreen().frame {
+            onWantScreen?(hovered)
+        }
+        let screen = hovered ?? notchScreen()
 
         // A held mouse button over the notch means a drag (dragging a file in),
         // not a hover. Opening the normal status card in that moment is the
