@@ -319,7 +319,13 @@ final class NotchWindowController {
     /// is NOT currently on, and none linger on a removed display or on the
     /// primary's own screen. Cheap and idempotent — safe to call on every repin.
     private func syncMirrors() {
-        let primaryID = Self.displayID(of: currentScreen())
+        // The primary screen is where the interactive panel ACTUALLY is, not
+        // where the cursor is: the window only migrates on a top-edge hover or
+        // the drift timer, so a cursor resting mid-external while the window is
+        // still on the laptop must not make us build a second panel on the
+        // laptop (a double notch) and leave the external bare.
+        let primaryScreen = window.screen ?? currentScreen()
+        let primaryID = Self.displayID(of: primaryScreen)
         // Desired mirror screens: every attached screen except the primary's.
         var desired: [CGDirectDisplayID: NSScreen] = [:]
         for screen in NSScreen.screens {
