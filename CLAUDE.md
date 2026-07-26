@@ -33,11 +33,20 @@ back as the response.
 ## Files
 
 ### Core state + server
-- **AppState.swift**: everything the UI reads. `LiveSession`, `SessionRecord`
-  (archived history), the pending queues (permission/question/completed, capped
-  via didSet), `primarySession` (top-card source), standup generation, CSV/JSON
-  export, git-branch read, `sanitizedWebURL`, `openEditedFile`. Biggest file;
-  `@MainActor` so its statics are main-isolated unless marked `nonisolated`.
+- **AppState.swift**: the stored state everything reads, plus the settings enums
+  and `primarySession` (top-card source). `@MainActor`, so its statics are
+  main-isolated unless marked `nonisolated`. The behaviour is split into
+  `AppState+*.swift` extensions, one per concern: **Pet**, **Usage**,
+  **Budget**, **Git** (branch read, diff stat, churn), **TaskMeter**,
+  **Sessions** (staleness, removal, background agents, focus handoff),
+  **Compose**, **History** (activity log, archived records), **Export**
+  (CSV/JSON, standup), **Queues** (permission/question/completed, capped via
+  didSet), **Alerts**, **Sound**. Add new behaviour to the matching extension,
+  not to AppState.swift. Because the extensions live in other files, members
+  they touch are `internal` rather than `private`.
+- **SessionModels / UsageModels / RequestModels.swift**: the value types.
+  `LiveSession`, `SessionRecord`, `ToolPreview`; `UsageStats`, `DayCounts`;
+  `PermissionRequest`, `QuestionRequest`, `AllowRule`, `CompletedTask`.
 - **EventServer.swift**: the loopback HTTP server + hook dispatch. `parseRequest`
   (pure, tested, untrusted-input boundary), `isLocalHookRequest` (rejects
   browser Origin / non-loopback Host), per-event handlers, transcript polling.
@@ -58,8 +67,13 @@ back as the response.
   into `~/.claude` and `~/.codex`.
 
 ### UI
-- **NotchView.swift**: the notch SwiftUI (idle card, session list, permission /
-  question / compose cards, task meter). **SettingsWindow.swift**: the settings
+- **NotchView.swift**: the notch's root SwiftUI view and card sizing. Each card
+  group is its own file: **NotchIdlePill**, **NotchStatusBar**,
+  **NotchSessionList** (list, task meter, context/cost bar),
+  **NotchPermissionCard** (banners, diff preview, hold-to-confirm),
+  **NotchCards** (notification, completed, auto-approved, question),
+  **NotchComposeCards**, **NotchHistoryCard**, **NotchPetViews**,
+  **NotchMarkdown**, **NotchDrop**. **SettingsWindow.swift**: the settings
   window (nav sections, search, History page, standup, `SearchField`,
   `AgentChip`, `cardChrome`, whatsNew). **MenuBarController.swift**: menu bar
   items (resume last, standup, spend, reveal crash logs). **NotchShape.swift**,
