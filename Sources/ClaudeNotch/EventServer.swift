@@ -322,13 +322,22 @@ final class EventServer {
     /// Whether a hook-supplied `transcript_path` is one we'll actually read.
     /// The path is untrusted (any local process can POST a hook), so a value
     /// like "/etc/passwd" or "~/.claude/../.ssh/id_rsa" must be refused: we only
-    /// read agent transcripts, which live under the roots above. Standardizes
-    /// the path first so `..` traversal can't escape a root.
+    /// read agent transcripts, which live under the roots above. Resolves
+    /// symlinks first, then `..`, so neither a traversal nor a symlink planted
+    /// inside a root (pointing the bounded read at, say, ~/.ssh/id_rsa) escapes.
     static func isAllowedTranscriptPath(_ path: String,
                                         roots: [String] = EventServer.transcriptRoots()) -> Bool {
         guard !path.isEmpty else { return false }
-        let resolved = URL(fileURLWithPath: path).standardizedFileURL.path
-        return roots.contains { resolved.hasPrefix($0) }
+        // resolvingSymlinksInPath resolves symlinks before collapsing `..`,
+        // matching kernel semantics — the secure order.
+        let resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+        return roots.contains { root in
+            // Resolve the root the same way so a home dir that is itself a
+            // symlink still matches (both sides land on the same real prefix).
+            let base = URL(fileURLWithPath: root).resolvingSymlinksInPath().path
+            let dir = base.hasSuffix("/") ? base : base + "/"
+            return resolved.hasPrefix(dir)
+        }
     }
 
     private func handle(_ req: HTTPRequest, on conn: NWConnection) {

@@ -39,6 +39,31 @@ final class TranscriptPathTests: XCTestCase {
         XCTAssertFalse(allowed(""))
     }
 
+    func testSymlinkEscapeRejected() throws {
+        // A symlink planted INSIDE a transcript root that points outside it must
+        // not let the read follow it to an arbitrary file.
+        let fm = FileManager.default
+        let tmp = fm.temporaryDirectory.appendingPathComponent("cn-symtest-\(UUID().uuidString)")
+        let rootDir = tmp.appendingPathComponent("root")
+        let secretDir = tmp.appendingPathComponent("secret")
+        try fm.createDirectory(at: rootDir, withIntermediateDirectories: true)
+        try fm.createDirectory(at: secretDir, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: tmp) }
+
+        let secret = secretDir.appendingPathComponent("id_rsa")
+        try "PRIVATE".write(to: secret, atomically: true, encoding: .utf8)
+        let link = rootDir.appendingPathComponent("evil.jsonl")
+        try fm.createSymbolicLink(at: link, withDestinationURL: secret)
+
+        // Resolve the root path itself (temp dir is under a /var symlink on macOS).
+        let root = rootDir.resolvingSymlinksInPath().path + "/"
+        // A genuine file under the root passes; the symlink escaping it does not.
+        let real = rootDir.appendingPathComponent("real.jsonl")
+        try "{}".write(to: real, atomically: true, encoding: .utf8)
+        XCTAssertTrue(EventServer.isAllowedTranscriptPath(real.path, roots: [root]))
+        XCTAssertFalse(EventServer.isAllowedTranscriptPath(link.path, roots: [root]))
+    }
+
     func testEnvOverrideRoots() {
         let env = ["CLAUDE_CONFIG_DIR": "/opt/claude", "CODEX_HOME": "/opt/codex/"]
         let r = EventServer.transcriptRoots(home: home, env: env)
