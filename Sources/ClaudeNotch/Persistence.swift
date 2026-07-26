@@ -17,6 +17,7 @@ enum Persistence {
         var perToolSoundMap: [String: String]? = nil
         var persistentNotchDisplay: Bool? = nil
         var petEnabled: Bool? = nil
+        var petRandomEnabled: Bool? = nil
         var lastDigestDate: String? = nil
         var lastUpdateCardVersion: String? = nil
         var lastSeenVersion: String? = nil
@@ -130,6 +131,7 @@ extension Persistence.Snapshot {
             perToolSoundMap: try? c.decode([String: String].self, forKey: .perToolSoundMap),
             persistentNotchDisplay: try? c.decode(Bool.self, forKey: .persistentNotchDisplay),
             petEnabled: try? c.decode(Bool.self, forKey: .petEnabled),
+            petRandomEnabled: try? c.decode(Bool.self, forKey: .petRandomEnabled),
             lastDigestDate: try? c.decode(String.self, forKey: .lastDigestDate),
             lastUpdateCardVersion: try? c.decode(String.self, forKey: .lastUpdateCardVersion),
             lastSeenVersion: try? c.decode(String.self, forKey: .lastSeenVersion),

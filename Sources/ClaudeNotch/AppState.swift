@@ -708,6 +708,10 @@ final class AppState: ObservableObject {
     // Behaviour and pose come from PetEngine; this class only owns the clock,
     // the interaction inputs, and the gate that keeps the pet out of the way.
     @Published var petEnabled: Bool = true
+    /// Whether the pet performs on its OWN, unprompted (the random idle antics).
+    /// Off keeps the pet — it still answers a boop and still reacts to a turn
+    /// finishing or failing — but it never starts a performance by itself.
+    @Published var petRandomEnabled: Bool = true
     @Published private(set) var petActivity: PetActivity = .tucked
     /// Cursor offset from the notch's centre in points, clamped by MouseTracker.
     /// Drives the pet's lean and which way it faces.
@@ -1049,6 +1053,7 @@ final class AppState: ObservableObject {
             self.perToolSoundMap = snapshot.perToolSoundMap ?? [:]
             self.persistentNotchDisplay = snapshot.persistentNotchDisplay ?? false
             self.petEnabled = snapshot.petEnabled ?? true
+            self.petRandomEnabled = snapshot.petRandomEnabled ?? true
             self.lastDigestDate = snapshot.lastDigestDate
             self.lastWeeklyDigestDate = snapshot.lastWeeklyDigestDate
             self.dropStartsCodex = snapshot.dropStartsCodex ?? false
@@ -1207,6 +1212,13 @@ final class AppState: ObservableObject {
             petNextActionAt = now.addingTimeInterval(5)
             return
         }
+        // Random antics turned off: the pet stays put unless this is a genuine
+        // reaction (a turn just finished or failed), which is event-driven, not
+        // random. Boops still work — they don't come through here.
+        guard petRandomEnabled || ctx.justFinished || ctx.justFailed else {
+            petNextActionAt = now.addingTimeInterval(5)
+            return
+        }
         let activity = PetEngine.pickActivity(mood: PetEngine.mood(for: ctx), using: &petRNG)
         guard activity != .tucked else {
             petNextActionAt = now.addingTimeInterval(4)
@@ -1328,6 +1340,14 @@ final class AppState: ObservableObject {
             petTimer = nil
             endPetActivity()
         }
+        schedulePersist()
+    }
+
+    func setPetRandomEnabled(_ on: Bool) {
+        petRandomEnabled = on
+        // Turning it off shouldn't yank a performance already underway — the
+        // tick simply won't start a new unprompted one. Turning it on lets the
+        // next idle slot pick up naturally, so nothing else to do here.
         schedulePersist()
     }
 
@@ -1969,6 +1989,7 @@ final class AppState: ObservableObject {
             perToolSoundMap: perToolSoundMap,
             persistentNotchDisplay: persistentNotchDisplay,
             petEnabled: petEnabled,
+            petRandomEnabled: petRandomEnabled,
             lastDigestDate: lastDigestDate,
             lastUpdateCardVersion: lastUpdateCardVersion,
             lastSeenVersion: lastSeenVersion,

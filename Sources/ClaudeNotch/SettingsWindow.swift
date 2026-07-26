@@ -609,6 +609,10 @@ struct SettingsView: View {
                 row("Pet Mode",
                     "Let the Claude mascot live on the notch: it peeks, strolls, hangs off the edge, naps, and celebrates finished tasks. Click it to boop it.",
                     bind(\.petEnabled, state.setPetEnabled))
+                row("Random antics",
+                    "Let the pet perform on its own when the notch is idle. Turn this off to keep the pet quiet until you boop it or a task finishes.",
+                    bind(\.petRandomEnabled, state.setPetRandomEnabled))
+                    .disabled(!state.petEnabled)
             }
         }
     }
