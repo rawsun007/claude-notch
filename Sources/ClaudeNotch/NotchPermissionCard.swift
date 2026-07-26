@@ -9,8 +9,9 @@ import AppKit
 
 struct PermissionCard: View {
     /// A whole permission ask as one spoken sentence for VoiceOver. Pure so it
-    /// can be tested, and so the phrasing lives in one place.
-    static func spokenAsk(for r: PermissionRequest) -> String {
+    /// can be tested, and so the phrasing lives in one place. `nonisolated`
+    /// because Announcer builds announcements off the main actor.
+    nonisolated static func spokenAsk(for r: PermissionRequest) -> String {
         var parts: [String] = []
         if r.isDangerous { parts.append("Dangerous.") }
         parts.append(r.title)
