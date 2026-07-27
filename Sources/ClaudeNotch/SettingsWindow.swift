@@ -336,6 +336,13 @@ struct SettingsView: View {
                             }
                         }
                     }
+                    // Both ForEach identities are English and never change, so on
+                    // a language switch List recycles its rows and keeps showing
+                    // the labels it already built. The content pane is a
+                    // ScrollView and rebuilds by itself, which is why only the
+                    // sidebar was left in the previous language. Tying the List
+                    // to the language forces it to build again.
+                    .id(state.appLanguage)
                 } else if searchResults.isEmpty {
                     VStack { Spacer(); Text(L("No matches", comment: "Settings explanation")).foregroundStyle(.secondary).font(.callout); Spacer() }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -358,6 +365,8 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.plain)
                     }
+                    // Same row recycling as the nav list above.
+                    .id(state.appLanguage)
                 }
             }
             .navigationSplitViewColumnWidth(200)

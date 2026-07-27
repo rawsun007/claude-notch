@@ -2,8 +2,13 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-if [ ! -d "ClaudeNotch.app" ]; then
-    echo "→ ClaudeNotch.app not found, building first…"
+# Always rebuild. This used to build only when ClaudeNotch.app was missing,
+# which meant editing a source file and running install.sh silently installed
+# whatever bundle happened to be lying around from the last build.sh. The
+# symptom is the worst kind: the app launches, looks fine, and is missing the
+# change you just made. build.sh is incremental, so this costs a second when
+# nothing changed. Pass --no-build to skip it deliberately.
+if [ "${1:-}" != "--no-build" ]; then
     ./build.sh
 fi
 
