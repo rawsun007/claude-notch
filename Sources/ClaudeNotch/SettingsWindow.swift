@@ -2111,9 +2111,8 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "Nine languages. Simplified Chinese, Spanish, Hindi, Portuguese, Japanese, German, French, Korean and Russian, chosen in Settings > General > Language. It applies straight away with no restart. The notch cards and most of this window are translated; some longer explanations are still English.",
-        "Finished tasks now say whether Claude did what it said it did. If the closing message claims a change the turn never made, or claims the tests pass when none ran, the card says so. It stays quiet otherwise, which is most of the time.",
-        "The usage meter says how long you have, not just where you are. Hover a plan-limit bar and it projects when the cap arrives at the rate you are actually spending, and says nothing when the window resets first or the answer is hours away.",
-        "Moving over from Vibe Notch takes one command. tools/migrate-from-vibe-notch.sh removes its hooks and installs these, leaving hooks belonging to other tools alone. See MIGRATING.md for what is already fixed here and what is not.",
+        "Checking what Claude actually did is now off by default, in Settings > Session. It is an opinion about your work, so it should be something you ask for. It is also much quieter: it says nothing on an ordinary turn and speaks only when a claimed change was never made, when the tests are said to pass but none ran, or when a change was made and the tests back it up.",
+        "The notch shows the model version again. It read a fixed two-part number out of the model id, which found nothing in a single-digit release, so Opus 5 showed as a bare Opus. Any shape works now, including a later 5.1 or 5.2, and the name and version read as one label instead of two separate stats.",
+        "Two cases where the task check spoke when it should not have: quoting the app's own wording back at it, in a note about testing, was read as a claim, and a project's own test script did not count as a test run.",
     ]
 }

@@ -365,7 +365,7 @@ final class AppState: ObservableObject {
     // an update. Maintained per release alongside the changelog.
     var lastSeenVersion: String? = nil
     static let whatsNewHighlights =
-        "Nine languages · a verdict on what Claude actually did · a forecast for your usage limit"
+        "Task checking is now off by default and quiet · the notch shows the model version again"
 
     /// Transient "live activity" card shown after an auto-approved action —
     /// shows WHAT changed, no buttons, auto-dismisses.
