@@ -32,3 +32,8 @@ jobs:
       # itself, so it looks fine in English and silently cannot be translated.
       - name: Check the English strings table is in sync
         run: tools/l10n-extract.py --check
+
+      # The migration rewrites the user's real settings.json, which holds hooks
+      # belonging to other tools. Losing one of those would be silent.
+      - name: Test the Vibe Notch migration
+        run: tools/test-migrate-from-vibe-notch.sh
