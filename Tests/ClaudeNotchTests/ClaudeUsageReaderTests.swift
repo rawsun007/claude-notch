@@ -138,11 +138,41 @@ final class ClaudeUsageReaderTests: XCTestCase {
         XCTAssertEqual(r.version, "")
     }
 
-    func testShortModel() {
-        XCTAssertEqual(ClaudeUsageReader.shortModel("claude-opus-4-7"), "opus")
-        XCTAssertEqual(ClaudeUsageReader.shortModel("claude-sonnet-4-6"), "sonnet")
-        XCTAssertEqual(ClaudeUsageReader.shortModel("claude-haiku-4-5"), "haiku")
+    func testShortModelKeepsTheVersion() {
+        XCTAssertEqual(ClaudeUsageReader.shortModel("claude-opus-4-7"), "opus 4.7")
+        XCTAssertEqual(ClaudeUsageReader.shortModel("claude-sonnet-4-6"), "sonnet 4.6")
+        XCTAssertEqual(ClaudeUsageReader.shortModel("claude-haiku-4-5"), "haiku 4.5")
         XCTAssertEqual(ClaudeUsageReader.shortModel("gpt-4"), "gpt-4")
+    }
+
+    /// A single-digit version is a version. Reading a fixed N-M pair found
+    /// nothing in claude-opus-5, so the notch showed a bare "Opus".
+    func testASingleDigitVersionIsRead() {
+        XCTAssertEqual(ClaudeUsageReader.modelVersionLabel("claude-opus-5"), "5")
+        XCTAssertEqual(ClaudeUsageReader.modelNameVersion("claude-opus-5").version, "5")
+        XCTAssertEqual(ClaudeUsageReader.shortModel("claude-opus-5"), "opus 5")
+    }
+
+    /// The point of doing this by digit groups rather than a fixed shape: a
+    /// later 5.1 or 5.2 has to work without anyone touching this again.
+    func testAFutureMinorVersionIsRead() {
+        XCTAssertEqual(ClaudeUsageReader.modelVersionLabel("claude-opus-5-1"), "5.1")
+        XCTAssertEqual(ClaudeUsageReader.modelVersionLabel("claude-opus-5-2"), "5.2")
+        XCTAssertEqual(ClaudeUsageReader.modelVersionLabel("claude-opus-10-3"), "10.3")
+        XCTAssertEqual(ClaudeUsageReader.shortModel("claude-opus-5-1"), "opus 5.1")
+    }
+
+    /// A release date is not a version component.
+    func testATrailingDateIsNotReadAsAVersion() {
+        XCTAssertEqual(ClaudeUsageReader.modelVersionLabel("claude-sonnet-4-5-20250929"), "4.5")
+        XCTAssertEqual(ClaudeUsageReader.modelVersionLabel("claude-haiku-4-5-20251001"), "4.5")
+        XCTAssertEqual(ClaudeUsageReader.modelVersionLabel("claude-opus-4-1-20250805"), "4.1")
+    }
+
+    /// Older ids put the version before the family name.
+    func testTheOlderIdLayoutStillParses() {
+        XCTAssertEqual(ClaudeUsageReader.modelVersionLabel("claude-3-5-sonnet-20241022"), "3.5")
+        XCTAssertEqual(ClaudeUsageReader.shortModel("claude-3-5-sonnet-20241022"), "sonnet 3.5")
     }
 
     // MARK: - formatting

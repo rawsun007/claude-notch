@@ -217,12 +217,41 @@ enum ClaudeUsageReader {
         return (bars.joined(separator: " "), labels.joined(separator: " "))
     }
 
+    /// The version digits of a model id, dotted.
+    ///
+    /// Ids carry the version as hyphen-separated digits, and how many there are
+    /// is not fixed: `claude-opus-4-6` is 4.6, `claude-opus-5` is just 5, and a
+    /// later `claude-opus-5-1` is 5.1. Reading a fixed N-M pair, as this used
+    /// to, finds nothing in a single-digit id, which is why the notch showed a
+    /// bare "Opus" for Opus 5.
+    ///
+    /// The trailing release date has to go first or it reads as more version
+    /// components: `claude-sonnet-4-5-20250929` is 4.5, not 4.5.20250929.
+    /// Older ids put the version before the family name
+    /// (`claude-3-5-sonnet-20241022`), which falls out of this for free.
+    nonisolated static func modelVersionLabel(_ model: String) -> String {
+        let stripped = model.lowercased()
+            .replacingOccurrences(of: "-?\\d{6,}", with: "",
+                                  options: .regularExpression)
+        return stripped
+            .split(separator: "-")
+            .filter { $0.allSatisfy(\.isNumber) && !$0.isEmpty }
+            .joined(separator: ".")
+    }
+
+    /// Family plus version, lowercase: "opus 5", "sonnet 4.6".
+    ///
+    /// Also the key usage is grouped by, so two versions of the same family
+    /// are counted separately, which is what you want when comparing them.
     static func shortModel(_ model: String) -> String {
         let m = model.lowercased()
-        if m.contains("opus")   { return "opus" }
-        if m.contains("sonnet") { return "sonnet" }
-        if m.contains("haiku")  { return "haiku" }
-        return model
+        let family: String
+        if m.contains("opus")        { family = "opus" }
+        else if m.contains("sonnet") { family = "sonnet" }
+        else if m.contains("haiku")  { family = "haiku" }
+        else { return model }
+        let version = modelVersionLabel(model)
+        return version.isEmpty ? family : "\(family) \(version)"
     }
 
     /// Splits a model id like `claude-sonnet-4-6` into a capitalised name
@@ -236,15 +265,7 @@ enum ClaudeUsageReader {
         else if !model.isEmpty       { name = model }
         else                         { return ("", "") }
 
-        // Extract first N-M version pair from the id, e.g. "4-6" → "4.6"
-        let pattern = try? NSRegularExpression(pattern: "(\\d+)-(\\d+)")
-        if let match = pattern?.firstMatch(in: m, range: NSRange(m.startIndex..., in: m)),
-           match.numberOfRanges == 3,
-           let r1 = Range(match.range(at: 1), in: m),
-           let r2 = Range(match.range(at: 2), in: m) {
-            return (name, "\(m[r1]).\(m[r2])")
-        }
-        return (name, "")
+        return (name, modelVersionLabel(model))
     }
 
     /// Reads the model id from `~/.claude/settings.json`. Returns "" if absent.
