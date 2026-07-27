@@ -227,6 +227,7 @@ struct SettingsSearchItem: Identifiable {
 
         .init(title: "Send a message to Claude", keywords: "compose prompt", section: .session),
         .init(title: "Clear the active session", keywords: "reset", section: .session),
+        .init(title: "Check what Claude actually did", keywords: "audit verify completion claim tests banner verdict lied", section: .session),
         .init(title: "Auto-approve for a while", keywords: "timed window minutes", section: .session),
         .init(title: "Snooze passive cards", keywords: "mute pause quiet", section: .session),
         .init(title: "Recent projects", keywords: "folders open", section: .session),
@@ -973,6 +974,14 @@ struct SettingsView: View {
                 }
                 divider
                 actionRow(L("Clear the active session", comment: "Settings button"), "xmark.circle") { state.clearSession() }
+            }
+
+            sectionLabel(L("Finished tasks", comment: "Settings section heading"))
+            group {
+                row(L("Check what Claude actually did", comment: "Settings toggle"),
+                    L("When a task finishes, compare the closing message against what the turn really did, and say so on the card if it claims a change it never made or says the tests pass when none ran. Off by default: it is an opinion about the work, and it stays quiet on an ordinary turn.", comment: "Settings toggle explanation"),
+                    Binding(get: { state.completionAuditEnabled },
+                            set: { state.setCompletionAuditEnabled($0) }))
             }
 
             sectionLabel(L("Auto-approve for a while", comment: "Settings section heading"))

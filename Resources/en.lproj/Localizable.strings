@@ -114,6 +114,9 @@
 /* Settings button */
 "Check for updates…" = "Check for updates…";
 
+/* Settings toggle */
+"Check what Claude actually did" = "Check what Claude actually did";
+
 /* Settings explanation */
 "Claude" = "Claude";
 
@@ -218,6 +221,9 @@
 
 /* Settings section heading */
 "Files touched this session" = "Files touched this session";
+
+/* Settings section heading */
+"Finished tasks" = "Finished tasks";
 
 /* Settings explanation */
 "Fire a sample card to see what the notch looks like." = "Fire a sample card to see what the notch looks like.";
@@ -494,6 +500,9 @@
 
 /* Settings section heading. %@ is the version number */
 "What's new in v%@" = "What's new in v%@";
+
+/* Settings toggle explanation */
+"When a task finishes, compare the closing message against what the turn really did, and say so on the card if it claims a change it never made or says the tests pass when none ran. Off by default: it is an opinion about the work, and it stays quiet on an ordinary turn." = "When a task finishes, compare the closing message against what the turn really did, and say so on the card if it claims a change it never made or says the tests pass when none ran. Off by default: it is an opinion about the work, and it stays quiet on an ordinary turn.";
 
 /* Settings explanation */
 "With Codex on, dropping a folder on the notch asks whether to open it in Claude Code or Codex." = "With Codex on, dropping a folder on the notch asks whether to open it in Claude Code or Codex.";

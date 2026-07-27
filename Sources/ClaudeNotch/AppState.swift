@@ -511,6 +511,16 @@ final class AppState: ObservableObject {
     /// Warn as a plan limit fills, so hitting it is not a surprise mid-task. On
     /// by default: this is protective and rare (it fires at most twice per window,
     /// at 80% and 95%), the kind of thing you want without opting in.
+    /// Whether a finished task is judged against what the turn actually did.
+    /// Off by default: it is an opinion about someone's work, and an opinion
+    /// nobody asked for is noise. Opt in from Settings > Session.
+    @Published var completionAuditEnabled: Bool = false
+
+    func setCompletionAuditEnabled(_ on: Bool) {
+        completionAuditEnabled = on
+        schedulePersist()
+    }
+
     @Published var rateLimitWarningsEnabled: Bool = true
 
     /// Language override for the notch's own text. Empty follows macOS. Lives
@@ -656,6 +666,7 @@ final class AppState: ObservableObject {
             self.stats = snapshot.stats ?? UsageStats()
             self.alertSound = snapshot.alertSound ?? "Funk"
             self.perToolSounds = snapshot.perToolSounds ?? false
+            self.completionAuditEnabled = snapshot.completionAuditEnabled ?? false
             self.perToolSoundMap = snapshot.perToolSoundMap ?? [:]
             self.persistentNotchDisplay = snapshot.persistentNotchDisplay ?? false
             self.petEnabled = snapshot.petEnabled ?? true

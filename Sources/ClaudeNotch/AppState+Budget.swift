@@ -363,6 +363,7 @@ extension AppState {
             persistentNotchDisplay: persistentNotchDisplay,
             petEnabled: petEnabled,
             petRandomEnabled: petRandomEnabled,
+            completionAuditEnabled: completionAuditEnabled,
             lastDigestDate: lastDigestDate,
             lastUpdateCardVersion: lastUpdateCardVersion,
             lastSeenVersion: lastSeenVersion,

@@ -39,6 +39,7 @@ extension AppState {
     /// compared by id, so changing its verdict does not alter `mode` and
     /// nothing would redraw on its own: the change has to be announced.
     func auditLatestCompleted(sessionId: String, cwd: String) {
+        guard completionAuditEnabled else { return }
         let match = completedQueue.last { $0.cwd == cwd } ?? completedQueue.last
         guard let task = match else { return }
         let verdict = CompletionAudit.audit(completionEvidence(sessionId: sessionId, cwd: cwd))

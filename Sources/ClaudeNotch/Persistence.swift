@@ -18,6 +18,7 @@ enum Persistence {
         var persistentNotchDisplay: Bool? = nil
         var petEnabled: Bool? = nil
         var petRandomEnabled: Bool? = nil
+        var completionAuditEnabled: Bool? = nil
         var lastDigestDate: String? = nil
         var lastUpdateCardVersion: String? = nil
         var lastSeenVersion: String? = nil
@@ -132,6 +133,7 @@ extension Persistence.Snapshot {
             persistentNotchDisplay: try? c.decode(Bool.self, forKey: .persistentNotchDisplay),
             petEnabled: try? c.decode(Bool.self, forKey: .petEnabled),
             petRandomEnabled: try? c.decode(Bool.self, forKey: .petRandomEnabled),
+            completionAuditEnabled: try? c.decode(Bool.self, forKey: .completionAuditEnabled),
             lastDigestDate: try? c.decode(String.self, forKey: .lastDigestDate),
             lastUpdateCardVersion: try? c.decode(String.self, forKey: .lastUpdateCardVersion),
             lastSeenVersion: try? c.decode(String.self, forKey: .lastSeenVersion),
