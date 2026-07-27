@@ -33,6 +33,12 @@ jobs:
       - name: Check the English strings table is in sync
         run: tools/l10n-extract.py --check
 
+      # A missing key silently falls back to English, and a format specifier
+      # that does not match the English one can crash String(format:). Neither
+      # is visible unless someone runs the app in that language.
+      - name: Check the translations against English
+        run: tools/l10n-check.py
+
       # The migration rewrites the user's real settings.json, which holds hooks
       # belonging to other tools. Losing one of those would be silent.
       - name: Test the Vibe Notch migration
