@@ -100,33 +100,37 @@ extension AppState {
         schedulePersist()
     }
 
-    /// Authoritative usage fed by Claude Code's statusLine command (the only
-    /// local source of real plan-limit %). Percentages arrive as 0...100.
     /// Keep an anchor reading per limit window and project from it.
     ///
-    /// The anchor is reset whenever the percentage falls, which is how a new
-    /// window announces itself: extrapolating across a reset would measure a
-    /// jump from 95% back to 3% as an enormous negative rate. It also moves
-    /// forward once a reading is old, so the forecast follows the last stretch
-    /// of work rather than an average over the whole window.
-    func updateForecast(_ anchor: inout BurnRate.Sample?, pct: Double,
-                        resetAt: Date?) -> BurnRate.Forecast? {
+    /// The anchor is tied to the window's reset instant, the same way
+    /// checkRateLimit re-arms its thresholds. A falling percentage is the
+    /// obvious sign of a rollover, but it is not a reliable one: if the window
+    /// resets and usage climbs past the old reading before the next status
+    /// line arrives, the percentage only ever goes up and the anchor would be
+    /// left in the previous window, quietly measuring a rate across a reset and
+    /// under-reporting how fast the new window is filling.
+    ///
+    /// The anchor also moves forward once a reading is old, so the forecast
+    /// follows the last stretch of work rather than an average over the window.
+    func updateForecast(_ anchor: inout (sample: BurnRate.Sample, window: Date?)?,
+                        pct: Double, resetAt: Date?) -> BurnRate.Forecast? {
         let now = BurnRate.Sample(percent: min(1, max(0, pct)), at: Date())
         guard let previous = anchor else {
-            anchor = now
+            anchor = (now, resetAt)
             return nil
         }
-        if now.percent < previous.percent {          // window rolled over
-            anchor = now
+        // A different window, or usage that fell: either way start again.
+        if previous.window != resetAt || now.percent < previous.sample.percent {
+            anchor = (now, resetAt)
             return nil
         }
-        let forecast = BurnRate.project(from: previous, to: now, resetAt: resetAt)
-        // Slide the anchor along so the projection tracks recent work. An hour
-        // is long enough to stay stable and short enough to notice a change.
-        if now.at.timeIntervalSince(previous.at) > 3600 { anchor = now }
+        let forecast = BurnRate.project(from: previous.sample, to: now, resetAt: resetAt)
+        if now.at.timeIntervalSince(previous.sample.at) > 3600 { anchor = (now, resetAt) }
         return forecast
     }
 
+    /// Authoritative usage fed by Claude Code's statusLine command (the only
+    /// local source of real plan-limit %). Percentages arrive as 0...100.
     func noteStatusLine(sessionId: String, model: String,
                         sessionName: String = "", worktree: String = "",
                         prNumber: Int? = nil, prURL: String = "", prState: String = "",

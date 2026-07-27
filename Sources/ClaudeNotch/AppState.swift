@@ -524,11 +524,11 @@ final class AppState: ObservableObject {
         appLanguage = code
     }
 
-    // Oldest reading of each limit window still worth extrapolating from.
-    // Replaced when the window resets (percentage falls) so a projection is
-    // never drawn across two different windows.
-    var fiveHourAnchor: BurnRate.Sample?
-    var weeklyAnchor: BurnRate.Sample?
+    // Oldest reading of each limit window still worth extrapolating from,
+    // together with the reset instant identifying the window it belongs to.
+    // A projection must never be drawn across two different windows.
+    var fiveHourAnchor: (sample: BurnRate.Sample, window: Date?)?
+    var weeklyAnchor: (sample: BurnRate.Sample, window: Date?)?
     /// How long until each limit runs out at the current rate. Nil when there
     /// is nothing trustworthy to say, which is most of the time.
     @Published var fiveHourForecast: BurnRate.Forecast?
