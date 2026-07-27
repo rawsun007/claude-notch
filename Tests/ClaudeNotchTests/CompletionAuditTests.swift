@@ -216,6 +216,24 @@ final class TestCommandDetectionTests: XCTestCase {
         XCTAssertFalse(CompletionAudit.isTestCommand("cat tests/test_api.py"))
         XCTAssertFalse(CompletionAudit.isTestCommand("rm -rf test-output"))
     }
+
+    /// Plenty of repos test with their own script rather than a package
+    /// manager. This one does, and missing it reported "no test command ran"
+    /// for a turn that had just run the whole suite.
+    func testAProjectsOwnTestScriptCounts() {
+        for cmd in ["tools/test-migrate-from-vibe-notch.sh", "./run-tests.sh", "./test.sh",
+                    "bash tools/test-foo.sh", "python3 scripts/test_api.py"] {
+            XCTAssertTrue(CompletionAudit.isTestCommand(cmd), "should detect: \(cmd)")
+        }
+    }
+
+    /// The script has to be the command, not an argument to something else.
+    func testATestScriptMentionedButNotRunDoesNotCount() {
+        for cmd in ["vim tools/test-foo.sh", "git add tools/test-migrate.sh",
+                    "chmod +x ./run-tests.sh", "echo test.sh", "ls tests/"] {
+            XCTAssertFalse(CompletionAudit.isTestCommand(cmd), "should not detect: \(cmd)")
+        }
+    }
 }
 
 /// Reading a tool result for pass or fail. Nil means "could not tell" and keeps

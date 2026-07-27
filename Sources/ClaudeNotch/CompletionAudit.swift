@@ -204,7 +204,18 @@ enum CompletionAudit {
             "gradle test", "jest\\b", "vitest\\b", "phpunit\\b", "rspec\\b",
             "dotnet test", "ctest\\b", "tox\\b",
         ]
-        return runners.contains { matches(c, "(?:^|[;&|]\\s*)\\s*\($0)") }
+        if runners.contains(where: { matches(c, "(?:^|[;&|]\\s*)\\s*\($0)") }) { return true }
+
+        // A project's own test script, run directly or through an interpreter.
+        // Plenty of repos test with ./run-tests.sh rather than a package
+        // manager, and missing those reports "no test command ran" for a turn
+        // that ran the whole suite. Anchored at command position, so
+        // `cat tests/test_api.py` and `vim tools/test-foo.sh` still do not
+        // count: there the command is cat and vim, and the script is an
+        // argument being read, not run.
+        let interpreter = "(?:(?:bash|sh|zsh|python3?|ruby|node)\\s+)?"
+        let script = "(?:\\./|/)?[\\w./-]*?(?:test|run-tests?)[\\w.-]*\\.(?:sh|py|rb|js|mjs)\\b"
+        return matches(c, "(?:^|[;&|]\\s*)\\s*\(interpreter)\(script)")
     }
 
     /// Read a PostToolUse `tool_response` for whether the command failed.
