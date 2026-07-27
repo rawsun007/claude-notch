@@ -142,7 +142,7 @@ struct SessionsList: View {
                                     HStack(spacing: 2) {
                                         Image(systemName: "arrow.right.circle")
                                             .font(.system(size: 7, weight: .semibold))
-                                        Text(NSLocalizedString("Attach", comment: "Button: open a background agent in a terminal"))
+                                        Text(L("Attach", comment: "Button: open a background agent in a terminal"))
                                             .font(.system(size: 9, weight: .medium, design: .rounded))
                                     }
                                     .foregroundColor(.purple.opacity(0.9))
@@ -226,7 +226,7 @@ struct SessionsList: View {
                             }
                         }
                         if session.isCompacting {
-                            Text(NSLocalizedString("compacting context…", comment: "Status: Claude is compacting its context window"))
+                            Text(L("compacting context…", comment: "Status: Claude is compacting its context window"))
                                 .font(.system(size: 9, design: .rounded))
                                 .foregroundColor(.orange.opacity(0.8))
                                 .padding(.leading, 14)
@@ -400,7 +400,7 @@ struct ContextCostBar: View {
             } else {
                 // No status line yet: show an honest placeholder instead of a
                 // misleading 0%, since 0% reads as "empty context" not "unknown".
-                Text(NSLocalizedString("no usage yet", comment: "Placeholder when a session has reported no token usage"))
+                Text(L("no usage yet", comment: "Placeholder when a session has reported no token usage"))
                     .font(.system(size: 9, design: .rounded))
                     .foregroundColor(.white.opacity(0.3))
             }

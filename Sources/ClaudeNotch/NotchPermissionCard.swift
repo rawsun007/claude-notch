@@ -133,7 +133,7 @@ struct PermissionCard: View {
             // content. The window sizing in size(for:) is calibrated to
             // match content height, so we don't need to push them down.
             HStack(spacing: 8) {
-                NotchButton(label: NSLocalizedString("Deny", comment: "Button: refuse the permission request"), style: .destructive, shortcut: "⎋") {
+                NotchButton(label: L("Deny", comment: "Button: refuse the permission request"), style: .destructive, shortcut: "⎋") {
                     onResolve(.deny, .none)
                 }
                 if let onDenyReason {
@@ -154,15 +154,15 @@ struct PermissionCard: View {
                 }
                 if !request.isDangerous && !isBudgetBlocked {
                     Menu {
-                        Button(NSLocalizedString("Always Allow This Exact Command", comment: "Menu item: add an allow rule for this exact command")) {
+                        Button(L("Always Allow This Exact Command", comment: "Menu item: add an allow rule for this exact command")) {
                             onResolve(.allow, .exactCommand)
                         }
-                        Button(String(format: NSLocalizedString("Always Allow All %@", comment: "Menu item: add an allow rule for every call of a tool. %@ is the tool name"), request.toolName)) {
+                        Button(String(format: L("Always Allow All %@", comment: "Menu item: add an allow rule for every call of a tool. %@ is the tool name"), request.toolName)) {
                             onResolve(.allow, .tool)
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Text(NSLocalizedString("Always Allow…", comment: "Menu button opening the always-allow choices"))
+                            Text(L("Always Allow…", comment: "Menu button opening the always-allow choices"))
                             Image(systemName: "chevron.down")
                                 .font(.system(size: 9, weight: .bold))
                                 .opacity(0.7)
@@ -194,7 +194,7 @@ struct PermissionCard: View {
                         } label: {
                             HStack(spacing: 5) {
                                 Image(systemName: BiometricAuth.iconName)
-                                Text(NSLocalizedString("Confirm to Allow", comment: "Button: allow a destructive command after biometric confirmation"))
+                                Text(L("Confirm to Allow", comment: "Button: allow a destructive command after biometric confirmation"))
                             }
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundColor(.white)
@@ -207,7 +207,7 @@ struct PermissionCard: View {
                         .accessibilityLabel("Confirm to allow")
                         .accessibilityHint("This command is destructive. Confirms with \(BiometricAuth.label) before running it")
                     } else {
-                        HoldToConfirmButton(label: NSLocalizedString("Hold to Allow", comment: "Button: press and hold to allow a destructive command"), duration: 0.9) {
+                        HoldToConfirmButton(label: L("Hold to Allow", comment: "Button: press and hold to allow a destructive command"), duration: 0.9) {
                             onResolve(.allow, .none)
                         }
                     }
@@ -215,24 +215,24 @@ struct PermissionCard: View {
                     // Over budget: explicit choices only. "Allow once" lets this
                     // one through; "Raise to $X" bumps the cap so the flow
                     // continues. No Enter shortcut — must be deliberate.
-                    NotchButton(label: NSLocalizedString("Allow once", comment: "Button: allow a single over-budget command without raising the cap"), style: .secondary) {
+                    NotchButton(label: L("Allow once", comment: "Button: allow a single over-budget command without raising the cap"), style: .secondary) {
                         onResolve(.allow, .none)
                     }
                     if let onRaiseCap, raiseCapTarget > 0 {
-                        NotchButton(label: String(format: NSLocalizedString("Raise to %@", comment: "Button: raise the spending cap. %@ is a money amount"), ClaudeUsageReader.fmtMoney(raiseCapTarget)),
+                        NotchButton(label: String(format: L("Raise to %@", comment: "Button: raise the spending cap. %@ is a money amount"), ClaudeUsageReader.fmtMoney(raiseCapTarget)),
                                     style: .primary, action: onRaiseCap)
                     }
                 } else if pendingCount > 1, let onResolveAll {
                     // Multiple permissions queued (e.g. several edits at once)
                     // — one tap approves them all.
-                    NotchButton(label: NSLocalizedString("Allow", comment: "Button: approve the permission request"), style: .secondary) {
+                    NotchButton(label: L("Allow", comment: "Button: approve the permission request"), style: .secondary) {
                         onResolve(.allow, .none)
                     }
-                    NotchButton(label: String(format: NSLocalizedString("Allow All (%d)", comment: "Button: approve every queued request. %d is how many"), pendingCount), style: .primary, shortcut: "⏎") {
+                    NotchButton(label: String(format: L("Allow All (%d)", comment: "Button: approve every queued request. %d is how many"), pendingCount), style: .primary, shortcut: "⏎") {
                         onResolveAll(.allow)
                     }
                 } else {
-                    NotchButton(label: NSLocalizedString("Allow", comment: "Button: approve the permission request"), style: .primary, shortcut: "⏎") {
+                    NotchButton(label: L("Allow", comment: "Button: approve the permission request"), style: .primary, shortcut: "⏎") {
                         onResolve(.allow, .none)
                     }
                 }
@@ -254,7 +254,7 @@ struct DangerBanner: View {
                 .font(.system(size: 11, weight: .bold))
                 .padding(.top, 1)
             VStack(alignment: .leading, spacing: 2) {
-                Text(NSLocalizedString("This command is destructive", comment: "Heading of the danger banner"))
+                Text(L("This command is destructive", comment: "Heading of the danger banner"))
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(.red.opacity(0.95))
                 ForEach(reasons, id: \.self) { reason in
@@ -316,7 +316,7 @@ struct BudgetBanner: View {
             .accessibilityLabel("Over your \(block.scope) budget. \(ClaudeUsageReader.fmtMoney(block.cost)) of a \(ClaudeUsageReader.fmtMoney(block.cap)) cap, \(block.pct) percent.")
             Spacer(minLength: 0)
             if let onDisableEnforce {
-                Button(NSLocalizedString("Turn off", comment: "Button: stop enforcing the spending cap"), action: onDisableEnforce)
+                Button(L("Turn off", comment: "Button: stop enforcing the spending cap"), action: onDisableEnforce)
                     .buttonStyle(.plain)
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(.white.opacity(0.6))

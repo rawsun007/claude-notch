@@ -19,13 +19,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCES = os.path.join(ROOT, "Sources", "ClaudeNotch")
 TABLE = os.path.join(ROOT, "Resources", "en.lproj", "Localizable.strings")
 
-# NSLocalizedString("key", comment: "note"). Keys are literals with no
-# interpolation: a \( inside one would mean the string is built at runtime and
-# cannot be a key, so those are reported rather than silently half-extracted.
+# L("key", comment: "note"), the app's lookup (see Localization.swift). Keys are
+# literals with no interpolation: a \( inside one would mean the string is built
+# at runtime and cannot be a key, so those are reported rather than silently
+# half-extracted.
 CALL = re.compile(
-    r'NSLocalizedString\(\s*"((?:[^"\\]|\\.)*)"\s*,\s*comment:\s*"((?:[^"\\]|\\.)*)"\s*\)'
+    r'\bL\(\s*"((?:[^"\\]|\\.)*)"\s*,\s*comment:\s*"((?:[^"\\]|\\.)*)"\s*\)'
 )
-INTERPOLATED = re.compile(r'NSLocalizedString\(\s*"[^"]*\\\(')
+INTERPOLATED = re.compile(r'\bL\(\s*"[^"]*\\\(')
 
 
 def scan():

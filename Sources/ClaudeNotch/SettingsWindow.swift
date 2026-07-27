@@ -192,6 +192,7 @@ struct SettingsSearchItem: Identifiable {
         .init(title: "Check for updates", keywords: "version upgrade", section: .general),
         .init(title: "Setup health", keywords: "hooks status line forwarder fix install", section: .general),
         .init(title: "Codex integration", keywords: "codex openai agent beta enable integration gpt", section: .general),
+        .init(title: "Notch language", keywords: "language translate localization chinese spanish hindi japanese german french korean russian portuguese 语言 idioma भाषा 言語 sprache langue 언어 язык", section: .general),
 
         .init(title: "Notch title", keywords: "name label claude project custom", section: .notch),
         .init(title: "Status bar items", keywords: "5 hour weekly limit session cost", section: .notch),
@@ -419,6 +420,21 @@ struct SettingsView: View {
                 divider
                 actionRow("Check for updates…", "arrow.down.circle") { UpdateChecker.shared.check(userInitiated: true) }
             }
+
+            sectionLabel("Language")
+            group {
+                pickerRow("Notch language",
+                          selection: Binding(get: { state.appLanguage },
+                                             set: { state.setAppLanguage($0) })) {
+                    Text("Follow macOS").tag("")
+                    ForEach(Localization.available, id: \.self) { code in
+                        // Someone looking for Japanese is looking for 日本語.
+                        Text(Localization.nativeName(code) ?? code).tag(code)
+                    }
+                }
+            }
+            Text("Applies straight away, no restart. Only the notch cards are translated so far; the settings window and menu bar are still English.")
+                .font(.callout).foregroundStyle(.secondary)
 
             sectionLabel("Integrations (beta)")
             Text("Surface other coding agents in the notch. Codex support is experimental: session status, prompts, activity and notifications appear, but permission cards and cost are not wired yet.")

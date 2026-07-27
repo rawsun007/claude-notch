@@ -513,6 +513,17 @@ final class AppState: ObservableObject {
     /// at 80% and 95%), the kind of thing you want without opting in.
     @Published var rateLimitWarningsEnabled: Bool = true
 
+    /// Language override for the notch's own text. Empty follows macOS. Lives
+    /// in UserDefaults rather than the state snapshot because Localization
+    /// reads it from outside the main actor, and publishing it here is what
+    /// makes the open cards redraw the moment it changes.
+    @Published var appLanguage: String = Localization.languageCode
+
+    func setAppLanguage(_ code: String) {
+        Localization.languageCode = code
+        appLanguage = code
+    }
+
     // Oldest reading of each limit window still worth extrapolating from.
     // Replaced when the window resets (percentage falls) so a projection is
     // never drawn across two different windows.
