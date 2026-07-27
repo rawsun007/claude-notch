@@ -191,4 +191,60 @@ enum CompletionAudit {
         ]
         return runners.contains { matches(c, "(?:^|[;&|]\\s*)\\s*\($0)") }
     }
+
+    /// Read a PostToolUse `tool_response` for whether the command failed.
+    ///
+    /// Returns nil far more often than not, and that is the point. Nil means
+    /// "could not tell", which keeps the audit quiet. Only a structured error
+    /// field or an unmistakable runner failure line returns true, because a
+    /// wrong "the tests failed" is a worse bug than saying nothing at all.
+    /// Untrusted input: this is hook payload, so it is read as data only.
+    nonisolated static func toolReportedFailure(_ response: Any?) -> Bool? {
+        guard let response, !(response is NSNull) else { return nil }
+
+        if let dict = response as? [String: Any] {
+            // Structured signals are trustworthy, so they win outright.
+            if let isError = dict["is_error"] as? Bool { return isError }
+            if let success = dict["success"] as? Bool { return !success }
+            if let code = dict["exit_code"] as? Int { return code != 0 }
+            if let code = dict["exitCode"] as? Int { return code != 0 }
+            let text = [dict["stdout"], dict["stderr"], dict["output"], dict["content"]]
+                .compactMap { $0 as? String }
+                .joined(separator: "\n")
+            return failureInOutput(text)
+        }
+        if let text = response as? String { return failureInOutput(text) }
+        return nil
+    }
+
+    /// Case-sensitive match, for the all-caps tokens runners print as a status.
+    /// `FAILED` as a jest/pytest status line means the run failed; the ordinary
+    /// word "failed" appears in "0 failed, 20 passed", which is a pass.
+    private static func matchesExactCase(_ text: String, _ pattern: String) -> Bool {
+        text.range(of: pattern, options: [.regularExpression]) != nil
+    }
+
+    /// Last resort: read the runner's own summary line. Deliberately narrow.
+    private static func failureInOutput(_ text: String) -> Bool? {
+        guard !text.isEmpty else { return nil }
+        let countedFailures = [
+            "\\b[1-9]\\d*\\s+failures?\\b",       // "3 failures", never "0 failures"
+            "\\b[1-9]\\d*\\s+failed\\b",
+            "\\bnpm ERR!",
+            "\\bAssertionError\\b",
+        ]
+        if countedFailures.contains(where: { matches(text, $0) }) { return true }
+        if matchesExactCase(text, "\\bFAILED\\b") { return true }
+
+        let success = [
+            "\\b0\\s+failures?\\b",
+            "\\b0\\s+failed\\b",
+            "\\ball tests passed\\b",
+            "\\bTest Suite .* passed\\b",
+            "\\btest result: ok\\b",
+        ]
+        if success.contains(where: { matches(text, $0) }) { return false }
+        if matchesExactCase(text, "\\bPASS\\b") { return false }
+        return nil
+    }
 }

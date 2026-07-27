@@ -115,6 +115,16 @@ struct LiveSession: Identifiable, Equatable {
     // not a repo.
     var gitBranch: String = ""
 
+    // What THIS turn did, for CompletionAudit. Separate from touchedFiles,
+    // which accumulates across the whole session: the audit asks whether the
+    // reply that just landed is backed by the work that just happened, so a
+    // file edited twenty minutes ago is not evidence. Reset on each new prompt.
+    var turnFilesEdited: Int = 0
+    var turnRanTests: Bool = false
+    /// Nil when nothing ran or the outcome could not be read. Only ever set to
+    /// true on an explicit failure signal, never inferred from silence.
+    var turnTestFailed: Bool? = nil
+
     var hasMeter: Bool { contextPercent > 0 || sessionCostUSD > 0 }
 }
 

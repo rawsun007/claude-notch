@@ -79,7 +79,31 @@ extension AppState {
             }
             s.touchedFiles.append(path)
             if s.touchedFiles.count > 50 { s.touchedFiles.removeFirst() }
+            s.turnFilesEdited += 1
         }
+    }
+
+    /// A Bash command ran. Recorded only when it looks like a test run, and the
+    /// outcome only when the tool reported an explicit failure. Everything else
+    /// leaves `turnTestFailed` nil, which CompletionAudit reads as "unknown"
+    /// and stays quiet about, rather than guessing.
+    func noteTestRun(failed: Bool?, sessionId: String, cwd: String) {
+        upsertSession(id: sessionId, cwd: cwd) { s in
+            s.turnRanTests = true
+            if let failed { s.turnTestFailed = failed }
+        }
+    }
+
+    /// The audit's view of the turn that just ended.
+    func completionEvidence(sessionId: String, cwd: String) -> CompletionAudit.Evidence {
+        let s = sessions[sessionId] ?? sessions.values.first { $0.cwd == cwd && !cwd.isEmpty }
+        return CompletionAudit.Evidence(
+            claim: s?.fullResponse ?? fullClaudeResponse,
+            filesEdited: s?.turnFilesEdited ?? 0,
+            linesChanged: (s?.linesAdded ?? 0) + (s?.linesRemoved ?? 0),
+            testCommandRan: s?.turnRanTests ?? false,
+            testFailed: s?.turnTestFailed
+        )
     }
 
     /// The session the header is showing, plus any sibling in the same folder,

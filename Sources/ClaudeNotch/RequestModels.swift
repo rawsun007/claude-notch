@@ -178,6 +178,9 @@ final class CompletedTask: Identifiable, Equatable {
     let cwd: String
     let receivedAt = Date()
     let originatorBundleID: String?
+    /// Whether the turn did what its closing message said it did. `.silent`
+    /// for the ordinary case, which is most of them.
+    var audit: CompletionAudit.Verdict = .silent
 
     init(title: String, detail: String, source: String, cwd: String, originatorBundleID: String? = nil) {
         self.title = title

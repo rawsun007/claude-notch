@@ -364,8 +364,12 @@ struct NotchView: View {
             let screenH = s?.frame.height ?? 900
             let cap = max(180, screenH * 0.85 - inset)
             return CGSize(width: 620, height: inset + min(visible, cap))
-        case .completed:
-            return CGSize(width: 560, height: inset + 100)
+        case .completed(let task):
+            // The audit banner is one or two wrapped lines plus its padding, and
+            // only appears when there is a verdict. Without the extra budget the
+            // card keeps its old height and clips the reply row underneath it.
+            let auditRow: CGFloat = task.audit.message == nil ? 0 : 44
+            return CGSize(width: 560, height: inset + 100 + auditRow)
         case .question(let q):
             // Header strip ≈ 30, button row ≈ 44, outer padding/spacing ≈ 30.
             // Each question heading ≈ 26 + 6 spacing; each option row is a 12pt

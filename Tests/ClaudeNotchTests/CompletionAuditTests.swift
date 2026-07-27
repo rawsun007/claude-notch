@@ -185,3 +185,47 @@ final class TestCommandDetectionTests: XCTestCase {
         XCTAssertFalse(CompletionAudit.isTestCommand("rm -rf test-output"))
     }
 }
+
+/// Reading a tool result for pass or fail. Nil means "could not tell" and keeps
+/// the audit quiet, so it is the right answer far more often than not.
+final class ToolFailureReadingTests: XCTestCase {
+
+    func testStructuredErrorFlagsWin() {
+        XCTAssertEqual(CompletionAudit.toolReportedFailure(["is_error": true]), true)
+        XCTAssertEqual(CompletionAudit.toolReportedFailure(["is_error": false]), false)
+        XCTAssertEqual(CompletionAudit.toolReportedFailure(["exit_code": 1]), true)
+        XCTAssertEqual(CompletionAudit.toolReportedFailure(["exit_code": 0]), false)
+        XCTAssertEqual(CompletionAudit.toolReportedFailure(["success": false]), true)
+    }
+
+    func testNothingToReadIsUnknown() {
+        XCTAssertNil(CompletionAudit.toolReportedFailure(nil))
+        XCTAssertNil(CompletionAudit.toolReportedFailure(NSNull()))
+        XCTAssertNil(CompletionAudit.toolReportedFailure(""))
+        XCTAssertNil(CompletionAudit.toolReportedFailure(["stdout": ""]))
+    }
+
+    func testRunnerFailureLinesAreRead() {
+        XCTAssertEqual(CompletionAudit.toolReportedFailure("Tests: 3 failed, 9 passed"), true)
+        XCTAssertEqual(CompletionAudit.toolReportedFailure("Executed 12 tests, with 2 failures"), true)
+        XCTAssertEqual(CompletionAudit.toolReportedFailure("npm ERR! Test failed."), true)
+        XCTAssertEqual(CompletionAudit.toolReportedFailure("AssertionError: expected 1 to equal 2"), true)
+    }
+
+    func testRunnerSuccessLinesAreRead() {
+        XCTAssertEqual(CompletionAudit.toolReportedFailure("Executed 12 tests, with 0 failures"), false)
+        XCTAssertEqual(CompletionAudit.toolReportedFailure("test result: ok. 40 passed"), false)
+        XCTAssertEqual(CompletionAudit.toolReportedFailure("All tests passed"), false)
+    }
+
+    /// "0 failures" must never be read as a failure just because it says so.
+    func testZeroFailuresIsNotAFailure() {
+        XCTAssertEqual(CompletionAudit.toolReportedFailure("0 failures"), false)
+        XCTAssertEqual(CompletionAudit.toolReportedFailure("0 failed, 20 passed"), false)
+    }
+
+    func testUnrecognisedOutputIsUnknownRatherThanAGuess() {
+        XCTAssertNil(CompletionAudit.toolReportedFailure("Compiling module ClaudeNotch"))
+        XCTAssertNil(CompletionAudit.toolReportedFailure(["stdout": "done in 4.2s"]))
+    }
+}

@@ -211,6 +211,10 @@ extension AppState {
         upsertSession(id: sessionId, cwd: currentCwd) { s in
             s.status = "thinking"
             s.lastResponse = ""
+            // The audit only counts work done for the reply it is judging.
+            s.turnFilesEdited = 0
+            s.turnRanTests = false
+            s.turnTestFailed = nil
             // A finished checklist belongs to the previous turn. Clear a fully
             // completed task list on a new prompt so its 100% bar does not
             // linger; a still-in-progress list is left alone (the turn may be

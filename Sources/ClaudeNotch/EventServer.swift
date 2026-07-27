@@ -521,6 +521,18 @@ final class EventServer {
             }
         }
 
+        // Did this turn actually run the tests, and did they pass? Feeds
+        // CompletionAudit, which is why the failure signal has to be explicit:
+        // a wrong "the tests failed" is worse than saying nothing.
+        if tool == "Bash", let command = input["command"] as? String,
+           CompletionAudit.isTestCommand(command) {
+            let failed = CompletionAudit.toolReportedFailure(payload["tool_response"])
+            let cwd = (payload["cwd"] as? String) ?? ""
+            Task { @MainActor [weak state] in
+                state?.noteTestRun(failed: failed, sessionId: sessionId, cwd: cwd)
+            }
+        }
+
         // Track files Claude edits so the notch can list what changed.
         if ["Edit", "Write", "MultiEdit", "NotebookEdit"].contains(tool) {
             let path = (input["file_path"] as? String)
@@ -753,13 +765,19 @@ final class EventServer {
             let detail = (payload["detail"] as? String) ?? detailFromHookPayload(payload)
             let source = (payload["source"] as? String) ?? "Claude Code"
             let frontBID = Self.capturedOriginator(state: state)
-            state.enqueueCompleted(.init(
+            let task = CompletedTask(
                 title: title,
                 detail: detail,
                 source: source,
                 cwd: (payload["cwd"] as? String) ?? "",
                 originatorBundleID: frontBID
-            ))
+            )
+            // Judge the turn against what it actually did. Runs after the
+            // transcript reads above have had a chance to land the closing
+            // message, and returns .silent whenever there is nothing to say.
+            task.audit = CompletionAudit.audit(
+                state.completionEvidence(sessionId: sessionId, cwd: cwd))
+            state.enqueueCompleted(task)
         }
     }
 

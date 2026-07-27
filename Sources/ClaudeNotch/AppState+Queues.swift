@@ -17,7 +17,15 @@ extension AppState {
             Announcer.say(Announcer.announcement(for: q))
         case .completed(let task):
             // Not blocking anything, so it waits its turn rather than cutting in.
-            Announcer.say("Task finished. \(task.title)", priority: .medium)
+            // A contradiction is the one thing here worth interrupting for: it
+            // is the case where the spoken "task finished" is itself misleading.
+            var line = "Task finished. \(task.title)"
+            var priority = NSAccessibilityPriorityLevel.medium
+            if let verdict = task.audit.message {
+                line += ". \(verdict)"
+                if case .contradicted = task.audit { priority = .high }
+            }
+            Announcer.say(line, priority: priority)
         case .idle, .history, .responseDetail, .compose, .thinking, .autoInfo:
             break
         }

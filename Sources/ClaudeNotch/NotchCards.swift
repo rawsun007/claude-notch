@@ -129,6 +129,18 @@ struct CompletedCard: View {
     let onDismiss: () -> Void
     private let rowSpacing: CGFloat = 14
 
+    /// How the audit reads on the card. A contradiction is the only one drawn
+    /// in a warning colour: the other two are context, not an alarm.
+    private var auditLine: (text: String, tint: Color, icon: String)? {
+        guard let message = task.audit.message else { return nil }
+        switch task.audit {
+        case .contradicted: return (message, .orange, "exclamationmark.triangle.fill")
+        case .unverified:   return (message, .white.opacity(0.55), "questionmark.circle")
+        case .verified:     return (message, .green.opacity(0.85), "checkmark.circle")
+        case .silent:       return nil
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: rowSpacing) {
             HStack(spacing: 8) {
@@ -151,6 +163,10 @@ struct CompletedCard: View {
                     PetCardBadge(size: 32, loop: 3.4, dance: true)
                         .frame(width: 32, height: 32)
                 }
+            }
+
+            if let verdict = auditLine {
+                AuditBanner(text: verdict.text, tint: verdict.tint, icon: verdict.icon)
             }
 
             HStack(alignment: .center, spacing: 16) {
@@ -180,6 +196,37 @@ struct CompletedCard: View {
                 .fixedSize()
             }
         }
+    }
+}
+
+/// The completion audit's line on a finished task. Same shape as the danger and
+/// budget banners on the permission card, so a warning looks the same wherever
+/// it turns up.
+struct AuditBanner: View {
+    let text: String
+    let tint: Color
+    let icon: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 7) {
+            Image(systemName: icon)
+                .foregroundColor(tint)
+                .font(.system(size: 11, weight: .semibold))
+                .padding(.top, 1)
+            Text(text)
+                .font(.system(size: 11))
+                .foregroundColor(tint)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(tint.opacity(0.12))
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text)
     }
 }
 
