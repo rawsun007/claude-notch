@@ -102,7 +102,7 @@ extension AppState {
             // pop the system prompt + open Settings, and keep the composer open
             // (with the text) so the user can grant it and hit Send again.
             promptAccessibility()
-            composeError = "ClaudeNotch needs Accessibility to type into your terminal. I opened System Settings — enable ClaudeNotch there, then press Send again. (Or pick a project above to open a fresh terminal instead.)"
+            composeError = "ClaudeNotch needs Accessibility to type into your terminal. I opened System Settings. Enable ClaudeNotch there, then press Send again. (Or pick a project above to open a fresh terminal instead.)"
             return
         }
         TerminalAutomator.sendText(text, toBundleID: bid)

@@ -146,7 +146,7 @@ struct PermissionCard: View {
                             .background(Capsule(style: .continuous).fill(Color.white.opacity(0.1)))
                     }
                     .buttonStyle(.plain)
-                    .help("Deny with a reason — tell Claude what to do instead")
+                    .help("Deny with a reason, tell Claude what to do instead")
                     // Icon-only, so .help alone leaves VoiceOver reading the
                     // SF Symbol name. Same for every icon button below.
                     .accessibilityLabel("Deny with a reason")
@@ -509,7 +509,7 @@ struct HoldToConfirmButton: View {
                     .onChanged { _ in startPress() }
                     .onEnded { _ in endPress() }
             )
-            .help("Press and hold to confirm — this command was flagged as destructive")
+            .help("Press and hold to confirm, this command was flagged as destructive")
             // A bare DragGesture is invisible to VoiceOver: no trait, no way to
             // activate it. Without this the destructive path is not merely
             // awkward, it is unreachable, and the only option left is Deny.

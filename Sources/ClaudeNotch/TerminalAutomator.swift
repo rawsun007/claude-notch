@@ -24,7 +24,7 @@ enum TerminalAutomator {
     /// terminal where Claude Code is running.
     static func sendText(_ text: String, toBundleID bundleID: String, prePromptDelay: Double = 0.25) {
         guard !text.isEmpty else {
-            debugLog("sendText: refused — empty text")
+            debugLog("sendText: refused, empty text")
             return
         }
         debugLog("sendText start: bid=\(bundleID) len=\(text.count) accessibility=\(isAccessibilityTrusted)")
@@ -33,7 +33,7 @@ enum TerminalAutomator {
             app.activate(options: [.activateIgnoringOtherApps])
             debugLog("sendText: activated \(app.localizedName ?? bundleID)")
         } else {
-            debugLog("sendText: WARNING — no running app with bid=\(bundleID)")
+            debugLog("sendText: WARNING, no running app with bid=\(bundleID)")
         }
 
         // Type via synthesized CGEvents rather than AppleScript "tell System
@@ -153,11 +153,11 @@ enum TerminalAutomator {
             let cfg = NSWorkspace.OpenConfiguration()
             cfg.activates = false
             NSWorkspace.shared.open(url, configuration: cfg) { _, err in
-                if let err { debugLog("openInTerminal: open failed — \(err)") }
+                if let err { debugLog("openInTerminal: open failed, \(err)") }
             }
             debugLog("openInTerminal: \(label) → \(url.lastPathComponent)")
         } catch {
-            debugLog("openInTerminal: failed to write/open .command — \(error)")
+            debugLog("openInTerminal: failed to write/open .command, \(error)")
         }
     }
 

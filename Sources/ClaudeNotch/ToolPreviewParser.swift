@@ -133,7 +133,7 @@ enum ToolPreviewParser {
                 let hasR = matches(#"\s-[a-zA-Z]*[rR]"#, in: cmd, options: []) || matches(#"\s--recursive\b"#, in: cmd, options: [])
                 let hasF = matches(#"\s-[a-zA-Z]*[fF]"#, in: cmd, options: []) || matches(#"\s--force\b"#, in: cmd, options: [])
                 if hasR && hasF {
-                    reasons.append("rm -rf — deletes files recursively without prompting")
+                    reasons.append("rm -rf, deletes files recursively without prompting")
                     break
                 }
             }
@@ -143,17 +143,17 @@ enum ToolPreviewParser {
         // insensitive where it makes sense) → reason string.
         let patterns: [(String, NSRegularExpression.Options, String)] = [
             (#"\bsudo\b"#, [],
-             "sudo — runs with root privileges"),
+             "sudo, runs with root privileges"),
             (#"\bgit\s+push\b.*(--force\b|--force-with-lease\b|\s-f\b)"#, [],
-             "git push --force — can overwrite remote history"),
+             "git push --force, can overwrite remote history"),
             (#"\b(curl|wget)\b[^|]*\|\s*(sh|bash|zsh|fish)\b"#, [],
-             "curl | sh — pipes remote code into a shell"),
+             "curl | sh, pipes remote code into a shell"),
             (#"\bchmod\s+-?R\s+777"#, [],
-             "chmod -R 777 — makes files world-writable"),
+             "chmod -R 777, makes files world-writable"),
             (#"\bdd\s+if="#, [],
-             "dd — raw block-device write, can wipe disks"),
+             "dd, raw block-device write, can wipe disks"),
             (#"\bmkfs(\.\w+)?\b"#, [],
-             "mkfs — formats a filesystem"),
+             "mkfs, formats a filesystem"),
             (#":\s*\(\s*\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:"#, [],
              "fork bomb"),
             (#">\s*/dev/(sd|disk|hd|nvme)\w"#, [],
@@ -161,17 +161,17 @@ enum ToolPreviewParser {
             (#"\bmv\s+/(etc|usr|System|var|bin|sbin|opt|Library)\b"#, [],
              "moves a system directory"),
             (#"\b(npm|yarn|pnpm)\s+publish\b"#, [],
-             "publishes a package to a registry — irrevocable"),
+             "publishes a package to a registry, irrevocable"),
             (#"\btwine\s+upload\b"#, [],
-             "uploads to PyPI — irrevocable"),
+             "uploads to PyPI, irrevocable"),
             (#"\bcargo\s+publish\b"#, [],
-             "publishes to crates.io — irrevocable"),
+             "publishes to crates.io, irrevocable"),
             (#"\bgit\s+clean\s+-[a-zA-Z]*[fd][a-zA-Z]*x?"#, [],
-             "git clean -fd[x] — deletes untracked files (incl. ignored)"),
+             "git clean -fd[x], deletes untracked files (incl. ignored)"),
             (#"\b(drop|truncate)\s+(table|database)\b"#, [.caseInsensitive],
              "drops a database table"),
             (#"\bdocker\s+system\s+prune\s+.*(-a|--all)"#, [],
-             "docker system prune -a — removes all images and containers"),
+             "docker system prune -a, removes all images and containers"),
         ]
 
         for (pattern, opts, reason) in patterns {
@@ -225,7 +225,7 @@ enum ToolPreviewParser {
     private static func pathDanger(_ path: String) -> [String] {
         let systemDirs = ["/etc/", "/usr/", "/System/", "/var/", "/bin/", "/sbin/", "/opt/", "/Library/"]
         for dir in systemDirs where path.hasPrefix(dir) {
-            return ["writes inside \(dir) — a system directory"]
+            return ["writes inside \(dir), a system directory"]
         }
         if path == "/etc/hosts" || path == "/etc/sudoers" {
             return ["modifies a sensitive system file"]

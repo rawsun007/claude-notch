@@ -98,7 +98,7 @@ final class NotificationBridge: NSObject, PermissionMirroring {
             // not the full "token — explanation" microcopy, which is long and
             // truncates mid-word in a banner.
             let tokens = req.dangerReasons.map { reason -> String in
-                for sep in [" — ", " - "] {
+                for sep in [", ", " - "] {
                     if let r = reason.range(of: sep) { return String(reason[..<r.lowerBound]) }
                 }
                 return reason

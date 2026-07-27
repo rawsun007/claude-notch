@@ -472,7 +472,7 @@
 "Turn off" = "Turn off";
 
 /* Settings explanation */
-"Turn on auto-approve for a set time, then it switches itself back off — or keep it on until you turn it off." = "Turn on auto-approve for a set time, then it switches itself back off — or keep it on until you turn it off.";
+"Turn on auto-approve for a set time and it switches itself back off, or keep it on until you turn it off." = "Turn on auto-approve for a set time and it switches itself back off, or keep it on until you turn it off.";
 
 /* Settings sidebar section */
 "Usage" = "Usage";

@@ -560,7 +560,7 @@ struct SettingsView: View {
         do {
             if on { try svc.register() } else { try svc.unregister() }
         } catch {
-            NSLog("ClaudeNotch: settings login toggle failed — \(error)")
+            NSLog("ClaudeNotch: settings login toggle failed: \(error)")
         }
         if svc.status == .requiresApproval {
             SMAppService.openSystemSettingsLoginItems()
@@ -976,7 +976,7 @@ struct SettingsView: View {
             }
 
             sectionLabel(L("Auto-approve for a while", comment: "Settings section heading"))
-            Text(L("Turn on auto-approve for a set time, then it switches itself back off — or keep it on until you turn it off.", comment: "Settings explanation"))
+            Text(L("Turn on auto-approve for a set time and it switches itself back off, or keep it on until you turn it off.", comment: "Settings explanation"))
                 .font(.callout).foregroundStyle(.secondary)
             group {
                 actionRow(L("Keep on until I turn it off", comment: "Settings button"), "infinity") { state.setAutoApprove(true) }
@@ -2102,9 +2102,9 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "ClaudeNotch works with VoiceOver. The notch never takes focus, so nothing used to move the VoiceOver cursor to a card and a blocking Allow or Deny could sit there unread. Cards are announced as they appear, and resolving one speaks the outcome.",
-        "Announcements quote the keys that actually answer the card. With several requests queued Return allows all of them, so it says so, and a destructive or over-budget card never promises a key that does nothing.",
-        "Diffs read out as \"removing 1 line, adding 2\" with each side named. Hold-to-confirm and Resume in the history rows are reachable without a mouse for the first time.",
-        "Groundwork for translating the app: the permission card reads its text from a strings table, so a translation can be added without touching any Swift.",
+        "Nine languages. Simplified Chinese, Spanish, Hindi, Portuguese, Japanese, German, French, Korean and Russian, chosen in Settings > General > Language. It applies straight away with no restart. The notch cards and most of this window are translated; some longer explanations are still English.",
+        "Finished tasks now say whether Claude did what it said it did. If the closing message claims a change the turn never made, or claims the tests pass when none ran, the card says so. It stays quiet otherwise, which is most of the time.",
+        "The usage meter says how long you have, not just where you are. Hover a plan-limit bar and it projects when the cap arrives at the rate you are actually spending, and says nothing when the window resets first or the answer is hours away.",
+        "Moving over from Vibe Notch takes one command. tools/migrate-from-vibe-notch.sh removes its hooks and installs these, leaving hooks belonging to other tools alone. See MIGRATING.md for what is already fixed here and what is not.",
     ]
 }

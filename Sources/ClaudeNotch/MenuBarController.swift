@@ -566,7 +566,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         for rule in sorted {
             let ruleItem = NSMenuItem(title: rule.displayLabel, action: #selector(removeOneAllowRule(_:)), keyEquivalent: "")
             ruleItem.target = self
-            ruleItem.toolTip = "Click to remove this rule — matching prompts will ask again."
+            ruleItem.toolTip = "Click to remove this rule, matching prompts will ask again."
             ruleItem.representedObject = rule
             allowlistMenu.addItem(ruleItem)
         }
@@ -584,7 +584,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             if !loginItem.isEnabled {
                 loginItem.title = "Launch at Login (install to /Applications first)"
             } else if status == .requiresApproval {
-                loginItem.title = "Launch at Login — Approve in System Settings…"
+                loginItem.title = "Launch at Login, Approve in System Settings…"
             } else {
                 loginItem.title = "Launch at Login"
             }
@@ -694,7 +694,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func triggerDemoCompleted() {
         state.enqueueCompleted(.init(
-            title: "Done — 14 files changed, tests green",
+            title: "Done, 14 files changed, tests green",
             detail: "Refactored auth middleware and re-ran the suite.",
             source: "Demo",
             cwd: NSHomeDirectory()
@@ -752,10 +752,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             statusItem.title = "No active session"
             statusItem.isEnabled = false
         } else if activity.isEmpty {
-            statusItem.title = "\(project)  —  click to clear"
+            statusItem.title = "\(project) ,  click to clear"
             statusItem.isEnabled = true
         } else {
-            statusItem.title = "\(project) — \(activity)  (click to clear)"
+            statusItem.title = "\(project), \(activity)  (click to clear)"
             statusItem.isEnabled = true
         }
     }
@@ -787,14 +787,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func refreshRecentProjects() {
         recentProjectsMenu.removeAllItems()
         if state.recentProjects.isEmpty {
-            let empty = NSMenuItem(title: "(no projects yet — start Claude in any folder)", action: nil, keyEquivalent: "")
+            let empty = NSMenuItem(title: "(no projects yet, start Claude in any folder)", action: nil, keyEquivalent: "")
             empty.isEnabled = false
             recentProjectsMenu.addItem(empty)
             return
         }
         for cwd in state.recentProjects {
             let basename = (cwd as NSString).lastPathComponent
-            let item = NSMenuItem(title: "↻  \(basename)  —  \(cwd)", action: #selector(launchRecentProject(_:)), keyEquivalent: "")
+            let item = NSMenuItem(title: "↻  \(basename) ,  \(cwd)", action: #selector(launchRecentProject(_:)), keyEquivalent: "")
             item.target = self
             item.representedObject = cwd
             item.toolTip = cwd
@@ -1239,11 +1239,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             }
         }
 
-        caps("Per-session cap — warn at 80% / 100%",
+        caps("Per-session cap, warn at 80% / 100%",
              current: state.sessionCostCap, action: #selector(setSessionCapAction(_:)),
              presets: [1, 2, 5, 10, 25], spent: state.currentCostUSD)
         costBudgetMenu.addItem(.separator())
-        caps("Daily cap — across all sessions today",
+        caps("Daily cap, across all sessions today",
              current: state.dailyCostCap, action: #selector(setDailyCapAction(_:)),
              presets: [5, 10, 25, 50, 100], spent: state.todayCostUSD)
 
@@ -1498,7 +1498,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         // 7-day token sparkline.
         let spark = ClaudeUsageReader.sparkline(daily: u.dailyTokens)
         claudeUsageMenu.addItem(.separator())
-        row("Tokens — last 7 days")
+        row("Tokens, last 7 days")
         monoRow("    " + spark.bars)
         monoRow("    " + spark.labels)
 
@@ -1542,7 +1542,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let symbols = ["·", "▫", "▪", "▣", "■"]
         let mono = NSFont.userFixedPitchFont(ofSize: NSFont.systemFontSize) ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
 
-        let header = NSMenuItem(title: "Activity — last 7 weeks", action: nil, keyEquivalent: "")
+        let header = NSMenuItem(title: "Activity, last 7 weeks", action: nil, keyEquivalent: "")
         header.isEnabled = false
         insightsMenu.addItem(header)
 
@@ -1599,7 +1599,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 try svc.register()
             }
         } catch {
-            NSLog("ClaudeNotch: login item toggle failed — \(error)")
+            NSLog("ClaudeNotch: login item toggle failed, \(error)")
             presentLoginError(error)
         }
         refreshLoginItem()

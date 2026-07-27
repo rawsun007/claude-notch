@@ -39,8 +39,8 @@ struct ComposeCard: View {
     private var headerLabel: String { isDeny ? "Deny with a reason" : "Send to Claude" }
     private var placeholder: String {
         isDeny
-            ? "tell Claude why, or what to do instead — ⌘↩ to deny, ⎋ to keep the prompt"
-            : "type your message — ⌘↩ to send, ↩ for newline, ⎋ to cancel"
+            ? "tell Claude why, or what to do instead · ⌘↩ to deny, ⎋ to keep the prompt"
+            : "type your message · ⌘↩ to send, ↩ for newline, ⎋ to cancel"
     }
 
     var body: some View {

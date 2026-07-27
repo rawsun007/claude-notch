@@ -241,13 +241,13 @@ func waitElapsed(_ since: Date) -> String {
 func permissionModeBadge(_ mode: String) -> (label: String, color: Color, help: String)? {
     switch mode {
     case "bypassPermissions":
-        return ("BYPASS", .red, "Permissions are bypassed — every action runs without asking")
+        return ("BYPASS", .red, "Permissions are bypassed, every action runs without asking")
     case "plan":
-        return ("PLAN", .blue, "Plan mode — Claude is planning, not editing")
+        return ("PLAN", .blue, "Plan mode, Claude is planning, not editing")
     case "auto":
-        return ("AUTO", .teal, "Auto mode — background safety checks approve safe actions")
+        return ("AUTO", .teal, "Auto mode, background safety checks approve safe actions")
     case "dontAsk":
-        return ("DON'T ASK", .orange, "Don't-ask mode — most actions run without prompting")
+        return ("DON'T ASK", .orange, "Don't-ask mode, most actions run without prompting")
     default:
         return nil
     }

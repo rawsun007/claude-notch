@@ -365,7 +365,7 @@ final class AppState: ObservableObject {
     // an update. Maintained per release alongside the changelog.
     var lastSeenVersion: String? = nil
     static let whatsNewHighlights =
-        "Works with VoiceOver: cards are spoken as they appear · diffs read out as added and removed lines · every control reachable without a mouse"
+        "The notch speaks nine languages, pick one in Settings · finished tasks say whether Claude did what it claimed · the usage meter now says how long you have left"
 
     /// Transient "live activity" card shown after an auto-approved action —
     /// shows WHAT changed, no buttons, auto-dismisses.

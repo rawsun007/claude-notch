@@ -38,7 +38,7 @@ extension AppState {
         let minutes = Int(elapsed / 60)
         let req = PermissionRequest(
             kind: .notification,
-            title: "Still running — \(minutes)m",
+            title: "Still running, \(minutes)m",
             detail: lastActivity.isEmpty
                 ? "This tool call has been going for \(minutes) minutes."
                 : "\(lastActivity) has been running for \(minutes) minutes.",

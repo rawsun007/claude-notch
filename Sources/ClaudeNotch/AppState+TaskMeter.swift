@@ -176,7 +176,7 @@ extension AppState {
         if mirrorToNotificationCenter, !NSApp.isActive {
             let project = (cwd as NSString).lastPathComponent
             permissionMirror?.sendCompletion(
-                project: project.isEmpty ? title : "\(project) — \(title)",
+                project: project.isEmpty ? title : "\(project), \(title)",
                 snippet: detail.isEmpty ? title : detail,
                 cwd: "", originatorBundleID: nil)   // failures aren't replyable
         }

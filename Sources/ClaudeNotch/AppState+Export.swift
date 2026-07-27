@@ -165,8 +165,8 @@ extension AppState {
         let recent = records.filter { $0.startedAt >= since }
         let header: String = {
             let df = DateFormatter(); df.dateFormat = "EEE MMM d"
-            if days <= 1 { return "Standup — \(df.string(from: Date()))" }
-            return "What I shipped — last \(days) days"
+            if days <= 1 { return "Standup, \(df.string(from: Date()))" }
+            return "What I shipped, last \(days) days"
         }()
 
         // Group session records by project dir (cwd is the stable key), then

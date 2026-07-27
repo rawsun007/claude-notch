@@ -804,14 +804,14 @@ final class EventServer {
             ?? ""
         let title: String
         switch reasonKey {
-        case "rate_limit":            title = "Rate limited — session stopped"
-        case "overloaded":            title = "Servers overloaded — session stopped"
+        case "rate_limit":            title = "Rate limited, session stopped"
+        case "overloaded":            title = "Servers overloaded, session stopped"
         case "authentication_failed": title = "Authentication failed"
-        case "oauth_org_not_allowed": title = "Org not allowed — auth error"
-        case "billing_error":         title = "Billing error — session stopped"
-        case "invalid_request":       title = "Invalid request — session stopped"
+        case "oauth_org_not_allowed": title = "Org not allowed, auth error"
+        case "billing_error":         title = "Billing error, session stopped"
+        case "invalid_request":       title = "Invalid request, session stopped"
         case "model_not_found":       title = "Model not found"
-        case "server_error":          title = "Server error — session stopped"
+        case "server_error":          title = "Server error, session stopped"
         case "max_output_tokens":     title = "Hit max output tokens"
         default:                      title = "Session stopped on an error"
         }
@@ -1353,7 +1353,7 @@ final class EventServer {
                 let picked = picks.filter { !$0.isEmpty }
                 return picked.isEmpty ? "  - \(h): (no preference)" : "  - \(h): \(picked.joined(separator: ", "))"
             }
-            let reason = "[ClaudeNotch — user replied via the notch]\n\(lines.joined(separator: "\n"))\n\nUse these answers and continue."
+            let reason = "[ClaudeNotch, user replied via the notch]\n\(lines.joined(separator: "\n"))\n\nUse these answers and continue."
             self.sendHookOutput(["hookSpecificOutput": [
                 "hookEventName": "PreToolUse",
                 "permissionDecision": "deny",

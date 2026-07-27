@@ -351,7 +351,7 @@ struct HistoryCard: View {
         case .sessions:
             if filteredSessions.isEmpty {
                 emptyLabel(state.sessionHistory.isEmpty
-                    ? "No sessions yet — completed sessions will appear here."
+                    ? "No sessions yet, completed sessions will appear here."
                     : "No sessions match your search.")
             } else {
                 ScrollView {
@@ -366,7 +366,7 @@ struct HistoryCard: View {
         case .projects:
             if filteredProjects.isEmpty {
                 emptyLabel(state.sessionHistory.isEmpty
-                    ? "No sessions yet — run some Claude sessions to see per-project stats."
+                    ? "No sessions yet, run some Claude sessions to see per-project stats."
                     : "No projects match your search.")
             } else {
                 let maxCost = filteredProjects.map(\.totalCostUSD).max() ?? 0
@@ -386,7 +386,7 @@ struct HistoryCard: View {
         case .events:
             if filteredEvents.isEmpty {
                 emptyLabel(state.history.isEmpty
-                    ? "Nothing yet — permissions and questions you resolve will show up here."
+                    ? "Nothing yet, permissions and questions you resolve will show up here."
                     : "No events match your search.")
             } else {
                 ScrollView {
