@@ -50,6 +50,29 @@ final class CompletionAuditSilenceTests: XCTestCase {
         XCTAssertEqual(verdict("Run `npm test` and check that all tests pass is printed."), .silent)
     }
 
+    /// Caught in the wild. Documentation quoting the app's own wording back was
+    /// read as the assistant claiming it, and a turn that had made no such
+    /// claim was told it could not be verified. Quoting is reporting.
+    func testQuotedExampleOutputIsNotAClaim() {
+        let claim = """
+        For the real thing, in a Claude session: ask a question and you get no \
+        banner. Ask for an edit and it says "1 file changed, no tests run." Ask \
+        for an edit plus run tests and it says "2 files changed, tests passed."
+        """
+        XCTAssertFalse(CompletionAudit.claimsTestsPass(claim))
+    }
+
+    func testTypographicQuotesAreAlsoStripped() {
+        XCTAssertFalse(CompletionAudit.claimsTestsPass(
+            "The card reads \u{201C}all tests pass\u{201D} when it is happy."))
+    }
+
+    /// The stripping must not swallow a claim that merely mentions a file.
+    func testAQuotedFilenameDoesNotHideARealClaim() {
+        XCTAssertTrue(CompletionAudit.claimsCodeChange(
+            "I've updated \"config.json\" to add the new key."))
+    }
+
     /// "Check that all tests pass" holds the same words as "all tests pass" and
     /// means the opposite: it is telling you to go and look.
     func testAnInstructionToVerifyIsNotAClaimThatItPassed() {

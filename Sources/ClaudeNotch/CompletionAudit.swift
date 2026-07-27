@@ -77,6 +77,15 @@ enum CompletionAudit {
         // Inline code spans.
         out = out.replacingOccurrences(of: "`[^`]*`", with: " ",
                                        options: [.regularExpression])
+        // Quoted spans. Quoting something is reporting it, not asserting it,
+        // and the app's own wording gets quoted back constantly: a sentence
+        // like: ask for an edit and it says "2 files changed, tests passed"
+        // is documentation, and reading it as a claim accuses a turn that
+        // never made one. Straight and typographic quotes both.
+        for pattern in ["\"[^\"]*\"", "\u{201C}[^\u{201D}]*\u{201D}"] {
+            out = out.replacingOccurrences(of: pattern, with: " ",
+                                           options: [.regularExpression])
+        }
         return out
     }
 
