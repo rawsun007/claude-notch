@@ -163,10 +163,12 @@ final class CompletionAuditVerdictTests: XCTestCase {
         XCTAssertEqual(v.message, "2 files changed, tests passed.")
     }
 
-    func testEditedWithoutTestsIsANoteNotAnAccusation() {
-        let v = verdict("I've added the helper.", files: 1)
-        XCTAssertTrue(isUnverified(v))
-        XCTAssertEqual(v.message, "1 file changed, no tests run.")
+    /// The ordinary turn. Editing code and not running tests describes almost
+    /// every finished task, so saying it put a banner on nearly all of them.
+    /// An ordinary turn has to look ordinary for a wrong one to stand out.
+    func testEditingWithoutRunningTestsSaysNothing() {
+        XCTAssertEqual(verdict("I've added the helper.", files: 1), .silent)
+        XCTAssertEqual(verdict("I've fixed the ordering.", files: 4, cmds: true), .silent)
     }
 
     func testSilentVerdictCarriesNoMessage() {

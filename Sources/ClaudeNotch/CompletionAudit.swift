@@ -174,12 +174,11 @@ enum CompletionAudit {
             if e.testCommandRan, e.testFailed == false {
                 return .verified("\(fileCount(e.filesEdited)) changed, tests passed.")
             }
-            // Edited code and never ran anything. True of most turns, so this is
-            // a note rather than an accusation, and only when there is a real
-            // edit to talk about.
-            if !e.testCommandRan, e.filesEdited > 0 {
-                return .unverified("\(fileCount(e.filesEdited)) changed, no tests run.")
-            }
+            // Deliberately nothing for "edited code, ran no tests". That is
+            // true of most turns, so saying it put a banner on almost every
+            // finished task, and a card that appears every time is one you
+            // stop reading. The point of this is the turn that is WRONG, and
+            // an ordinary turn has to look ordinary for that to stand out.
         }
 
         return .silent

@@ -1649,7 +1649,7 @@ struct SettingsView: View {
                     }
                     divider
                     actionRow(L("Task complete: not demonstrated", comment: "Settings button"), "questionmark.circle") {
-                        demoAudit(.unverified("2 files changed, no tests run."))
+                        demoAudit(.unverified("Claude says the tests pass, but no test command ran this turn."))
                     }
                     divider
                     actionRow(L("Task complete: verified", comment: "Settings button"), "checkmark.circle") {
