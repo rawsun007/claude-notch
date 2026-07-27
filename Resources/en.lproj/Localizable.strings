@@ -436,6 +436,15 @@
 "Task complete" = "Task complete";
 
 /* Settings button */
+"Task complete: claim contradicted" = "Task complete: claim contradicted";
+
+/* Settings button */
+"Task complete: not demonstrated" = "Task complete: not demonstrated";
+
+/* Settings button */
+"Task complete: verified" = "Task complete: verified";
+
+/* Settings button */
 "Thinking pulse" = "Thinking pulse";
 
 /* Heading of the danger banner */

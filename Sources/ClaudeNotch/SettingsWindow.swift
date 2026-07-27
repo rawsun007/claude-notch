@@ -261,7 +261,7 @@ struct SettingsSearchItem: Identifiable {
         .init(title: "Activity heatmap", keywords: "usage graph history", section: .usage),
         .init(title: "Token usage and cost", keywords: "spend dollars", section: .usage),
 
-        .init(title: "Sample cards", keywords: "demo test", section: .developer),
+        .init(title: "Sample cards", keywords: "demo test audit verdict contradicted verified", section: .developer),
         .init(title: "Pet animations", keywords: "demo peek stroll", section: .developer),
 
         .init(title: "Version and links", keywords: "about changelog github setup", section: .about),
@@ -1644,6 +1644,18 @@ struct SettingsView: View {
                     divider
                     actionRow(L("Task complete", comment: "Settings button"), "checkmark.seal") { demoCompleted() }
                     divider
+                    actionRow(L("Task complete: claim contradicted", comment: "Settings button"), "exclamationmark.triangle") {
+                        demoAudit(.contradicted("Claude says it changed the code, but this turn edited no file and ran no command."))
+                    }
+                    divider
+                    actionRow(L("Task complete: not demonstrated", comment: "Settings button"), "questionmark.circle") {
+                        demoAudit(.unverified("2 files changed, no tests run."))
+                    }
+                    divider
+                    actionRow(L("Task complete: verified", comment: "Settings button"), "checkmark.circle") {
+                        demoAudit(.verified("2 files changed, tests passed."))
+                    }
+                    divider
                     actionRow(L("Thinking pulse", comment: "Settings button"), "brain") { state.pingThinking(label: "Editing AuthMiddleware.swift") }
                     divider
                     actionRow(L("Cost budget alert", comment: "Settings button"), "dollarsign.circle") { state.demoBudgetAlert() }
@@ -1714,9 +1726,23 @@ struct SettingsView: View {
     }
     private func demoCompleted() {
         state.enqueueCompleted(CompletedTask(
-            title: "Done — 14 files changed, tests green",
+            title: "Done, 14 files changed, tests green",
             detail: "Refactored auth middleware and re-ran the suite.",
             source: "Demo", cwd: NSHomeDirectory()))
+    }
+
+    /// The completion audit's three verdicts, on demand.
+    ///
+    /// The real thing needs a finished turn whose closing message disagrees
+    /// with what the tools did, which you cannot stage to order. Without these
+    /// the headline case is unreachable by hand.
+    private func demoAudit(_ verdict: CompletionAudit.Verdict) {
+        let task = CompletedTask(
+            title: "Fixed the ordering in the phase machine",
+            detail: "Claude said it was done.",
+            source: "Demo", cwd: NSHomeDirectory())
+        task.audit = verdict
+        state.enqueueCompleted(task)
     }
     private func demoDiff() {
         let preview = ToolPreviewParser.preview(for: "Edit", input: [
