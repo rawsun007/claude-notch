@@ -212,6 +212,11 @@ extension AppState {
             s.status = "thinking"
             s.lastResponse = ""
             // The audit only counts work done for the reply it is judging.
+            // fullResponse has to go too: it is the claim the audit reads, and
+            // leaving the last turn's text there means a turn that only answers
+            // a question inherits the previous turn's "I've updated the
+            // handler" and gets accused of not having done it.
+            s.fullResponse = ""
             s.turnFilesEdited = 0
             s.turnRanTests = false
             s.turnTestFailed = nil

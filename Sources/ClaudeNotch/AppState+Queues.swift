@@ -31,6 +31,31 @@ extension AppState {
         }
     }
 
+    /// Judge the most recent finished task for a session, once its closing
+    /// message has landed.
+    ///
+    /// The card is queued at Stop time and audited a beat later, so this has to
+    /// find the card again and update it in place. CompletedTask is a class
+    /// compared by id, so changing its verdict does not alter `mode` and
+    /// nothing would redraw on its own: the change has to be announced.
+    func auditLatestCompleted(sessionId: String, cwd: String) {
+        let match = completedQueue.last { $0.cwd == cwd } ?? completedQueue.last
+        guard let task = match else { return }
+        let verdict = CompletionAudit.audit(completionEvidence(sessionId: sessionId, cwd: cwd))
+        guard verdict != task.audit else { return }
+        objectWillChange.send()
+        task.audit = verdict
+        // The card may already be on screen and sized for no banner.
+        recompute()
+        if case .completed(let shown) = mode, shown.id == task.id,
+           let line = verdict.message {
+            Announcer.say(line, priority: {
+                if case .contradicted = verdict { return .high }
+                return .medium
+            }())
+        }
+    }
+
     /// `bypassRules: true` skips the always-allow and auto-approve
     /// short-circuits so the card is always shown — used by the menu-bar demos,
     /// which must demonstrate the UI even if the user has Bash always-allowed

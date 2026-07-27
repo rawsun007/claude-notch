@@ -148,6 +148,14 @@ final class CompletionAuditVerdictTests: XCTestCase {
     func testSilentVerdictCarriesNoMessage() {
         XCTAssertNil(CompletionAudit.Verdict.silent.message)
     }
+
+    /// A turn that answers a question and edits nothing is a normal turn. It
+    /// only looks like a lie if the claim being judged belongs to an earlier
+    /// turn, which is what happens when the previous reply is not cleared.
+    func testAnEmptyClaimIsNeverAnAccusation() {
+        XCTAssertEqual(verdict(""), .silent)
+        XCTAssertEqual(verdict("   \n  "), .silent)
+    }
 }
 
 /// Whether a Bash command counts as having run the tests. Getting this wrong in

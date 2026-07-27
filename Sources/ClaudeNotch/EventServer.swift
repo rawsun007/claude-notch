@@ -756,6 +756,17 @@ final class EventServer {
             workQueue.asyncAfter(deadline: .now() + .milliseconds(900)) { [weak self] in
                 self?.pushSessionMeter(transcriptPath: path, sessionId: sessionId)
             }
+            // Judge the turn only once its closing message is actually on disk.
+            // The card goes up immediately below, because waiting a second to
+            // tell someone their task finished is worse than a verdict that
+            // arrives a beat later. Auditing at Stop time instead would read
+            // whatever response was there before, which is the previous turn's.
+            workQueue.asyncAfter(deadline: .now() + .milliseconds(950)) { [weak self] in
+                guard let self else { return }
+                Task { @MainActor [weak state = self.state] in
+                    state?.auditLatestCompleted(sessionId: sessionId, cwd: cwd)
+                }
+            }
         }
 
         Task { @MainActor [weak state] in
@@ -772,11 +783,6 @@ final class EventServer {
                 cwd: (payload["cwd"] as? String) ?? "",
                 originatorBundleID: frontBID
             )
-            // Judge the turn against what it actually did. Runs after the
-            // transcript reads above have had a chance to land the closing
-            // message, and returns .silent whenever there is nothing to say.
-            task.audit = CompletionAudit.audit(
-                state.completionEvidence(sessionId: sessionId, cwd: cwd))
             state.enqueueCompleted(task)
         }
     }
