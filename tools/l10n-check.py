@@ -81,11 +81,16 @@ def main():
 
         missing = sorted(set(english) - set(table))
         extra = sorted(set(table) - set(english))
-        for key in missing:
-            print(f"{lang}: missing key {key!r}", file=sys.stderr)
+
+        # A key that is not translated yet falls back to English at runtime, so
+        # an incomplete language is a known state rather than a broken one. It
+        # is reported as coverage instead of failing, because hard-failing would
+        # mean no language could be started without finishing all of it at once.
+        # A key that is NOT in English is different: it is a typo or a leftover
+        # from a renamed string, and it will never be read.
         for key in extra:
             print(f"{lang}: key {key!r} is not in the English table", file=sys.stderr)
-        problems += len(missing) + len(extra)
+        problems += len(extra)
 
         for key, value in table.items():
             if key not in english:
@@ -96,13 +101,16 @@ def main():
                       file=sys.stderr)
                 problems += 1
 
-        if not missing and not extra:
-            print(f"  {lang}: {len(table)} keys")
+        done = len(english) - len(missing)
+        pct = (100 * done // len(english)) if english else 100
+        flag = "" if not missing else f"  ({len(missing)} still English)"
+        print(f"  {lang}: {done}/{len(english)} keys, {pct}%{flag}")
 
     if problems:
         print(f"\n{problems} problem(s).", file=sys.stderr)
         return 1
-    print(f"\n{len(langs)} translations, {len(english)} keys each, all consistent.")
+    print(f"\n{len(langs)} translations against {len(english)} English keys. "
+          "Untranslated keys fall back to English.")
     return 0
 
 

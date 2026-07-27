@@ -87,6 +87,31 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         ("Info", [.usage, .history, .privacy, .about]),
         ("Advanced", [.developer]),
     ]
+
+    /// Extraction anchors for the sidebar.
+    ///
+    /// The sidebar looks these up through a variable, `L(s.rawValue)`, which
+    /// tools/l10n-extract.py cannot see: it reads literal call sites. Without
+    /// this the keys would be missing from the table and every sidebar entry
+    /// would silently stay English in every language. Never called.
+    static let localizedSidebarKeys: [String] = [
+        L("General", comment: "Settings sidebar section"),
+        L("Notch", comment: "Settings sidebar section"),
+        L("Pet", comment: "Settings sidebar section"),
+        L("Session", comment: "Settings sidebar section"),
+        L("Alerts", comment: "Settings sidebar section"),
+        L("Sounds", comment: "Settings sidebar section"),
+        L("Budget", comment: "Settings sidebar section"),
+        L("Privacy", comment: "Settings sidebar section"),
+        L("Usage", comment: "Settings sidebar section"),
+        L("History", comment: "Settings sidebar section"),
+        L("Developer", comment: "Settings sidebar section"),
+        L("About", comment: "Settings sidebar section"),
+        L("Workspace", comment: "Settings sidebar group"),
+        L("Alerts & Cost", comment: "Settings sidebar group"),
+        L("Info", comment: "Settings sidebar group"),
+        L("Advanced", comment: "Settings sidebar group"),
+    ]
 }
 
 /// The rounded search box used on the list pages (sessions, history). One
@@ -304,15 +329,15 @@ struct SettingsView: View {
                         set: { if let v = $0 { section = v } }
                     )) {
                         ForEach(SettingsSection.nav, id: \.title) { group in
-                            Section(group.title) {
+                            Section(L(group.title, comment: "Settings sidebar group")) {
                                 ForEach(group.items) { s in
-                                    Label(s.rawValue, systemImage: s.symbol).tag(s)
+                                    Label(L(s.rawValue, comment: "Settings sidebar section"), systemImage: s.symbol).tag(s)
                                 }
                             }
                         }
                     }
                 } else if searchResults.isEmpty {
-                    VStack { Spacer(); Text("No matches").foregroundStyle(.secondary).font(.callout); Spacer() }
+                    VStack { Spacer(); Text(L("No matches", comment: "Settings explanation")).foregroundStyle(.secondary).font(.callout); Spacer() }
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List(searchResults) { item in
@@ -325,7 +350,7 @@ struct SettingsView: View {
                                     .foregroundStyle(.secondary).frame(width: 18)
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(item.title)
-                                    Text(item.section.rawValue).font(.caption2).foregroundStyle(.secondary)
+                                    Text(L(item.section.rawValue, comment: "Settings sidebar section")).font(.caption2).foregroundStyle(.secondary)
                                 }
                                 Spacer()
                             }
@@ -374,11 +399,11 @@ struct SettingsView: View {
         let _ = healthTick
         let hooksOK = HookInstaller.isInstalled
         let statusLineOK = HookInstaller.statusLineWired
-        return page("General") {
+        return page(L("General", comment: "Settings page title")) {
             if let v = state.availableUpdateVersion {
                 updateBanner(version: v)
             }
-            sectionLabel("Setup")
+            sectionLabel(L("Setup", comment: "Settings section heading"))
             group {
                 healthRow("Claude Code hooks", ok: hooksOK,
                           "Lets the notch receive Claude's permission prompts and events.")
@@ -397,66 +422,66 @@ struct SettingsView: View {
             }
 
             group {
-                row("Launch at login",
-                    "Start ClaudeNotch automatically when you log in.",
+                row(L("Launch at login", comment: "Settings toggle"),
+                    L("Start ClaudeNotch automatically when you log in.", comment: "Settings toggle explanation"),
                     Binding(get: { launchAtLoginEnabled }, set: { setLaunchAtLogin($0) }))
                 divider
-                row("Keep the notch open",
-                    "Always show the notch card instead of hiding it behind the hardware notch until something happens.",
+                row(L("Keep the notch open", comment: "Settings toggle"),
+                    L("Always show the notch card instead of hiding it behind the hardware notch until something happens.", comment: "Settings toggle explanation"),
                     bind(\.persistentNotchDisplay, state.setPersistentNotchDisplay))
                 divider
-                row("Auto-approve permissions",
-                    "Allow every tool request automatically. Turns the notch into a passive monitor. Use with care.",
+                row(L("Auto-approve permissions", comment: "Settings toggle"),
+                    L("Allow every tool request automatically. Turns the notch into a passive monitor. Use with care.", comment: "Settings toggle explanation"),
                     bind(\.autoApprove, state.setAutoApprove))
                 divider
-                row("Show spend in the menu bar",
-                    "Put the running session cost next to the menu-bar bell.",
+                row(L("Show spend in the menu bar", comment: "Settings toggle"),
+                    L("Put the running session cost next to the menu-bar bell.", comment: "Settings toggle explanation"),
                     bind(\.showSpendInMenuBar, state.setShowSpendInMenuBar))
             }
 
-            sectionLabel("Quick actions")
+            sectionLabel(L("Quick actions", comment: "Settings section heading"))
             group {
-                actionRow("Start Claude in a folder…", "play.circle") { startClaudePicker() }
+                actionRow(L("Start Claude in a folder…", comment: "Settings button"), "play.circle") { startClaudePicker() }
                 divider
-                actionRow("Check for updates…", "arrow.down.circle") { UpdateChecker.shared.check(userInitiated: true) }
+                actionRow(L("Check for updates…", comment: "Settings button"), "arrow.down.circle") { UpdateChecker.shared.check(userInitiated: true) }
             }
 
-            sectionLabel("Language")
+            sectionLabel(L("Language", comment: "Settings section heading"))
             group {
-                pickerRow("Notch language",
+                pickerRow(L("Notch language", comment: "Settings picker label"),
                           selection: Binding(get: { state.appLanguage },
                                              set: { state.setAppLanguage($0) })) {
-                    Text("Follow macOS").tag("")
+                    Text(L("Follow macOS", comment: "Settings explanation")).tag("")
                     ForEach(Localization.available, id: \.self) { code in
                         // Someone looking for Japanese is looking for 日本語.
                         Text(Localization.nativeName(code) ?? code).tag(code)
                     }
                 }
             }
-            Text("Applies straight away, no restart. Only the notch cards are translated so far; the settings window and menu bar are still English.")
+            Text(L("Applies straight away, no restart. Only the notch cards are translated so far; the settings window and menu bar are still English.", comment: "Settings explanation"))
                 .font(.callout).foregroundStyle(.secondary)
 
-            sectionLabel("Integrations (beta)")
-            Text("Surface other coding agents in the notch. Codex support is experimental: session status, prompts, activity and notifications appear, but permission cards and cost are not wired yet.")
+            sectionLabel(L("Integrations (beta)", comment: "Settings section heading"))
+            Text(L("Surface other coding agents in the notch. Codex support is experimental: session status, prompts, activity and notifications appear, but permission cards and cost are not wired yet.", comment: "Settings explanation"))
                 .font(.callout).foregroundStyle(.secondary)
             group {
                 let _ = healthTick   // re-read install state after a toggle
                 if HookInstaller.isCodexInstalled {
                     healthRow("Codex (beta)", ok: true, "Codex hooks are installed. Approve the one-time trust prompt when Codex next starts.")
                     divider
-                    actionRow("Start Codex in a folder…", "play.circle") { startCodexPicker() }
+                    actionRow(L("Start Codex in a folder…", comment: "Settings button"), "play.circle") { startCodexPicker() }
                     divider
-                    actionRow("Disable Codex integration", "minus.circle") {
+                    actionRow(L("Disable Codex integration", comment: "Settings button"), "minus.circle") {
                         HookInstaller.uninstallCodexHooks(); healthTick += 1
                     }
                 } else {
-                    actionRow("Enable Codex integration (beta)", "sparkles") {
+                    actionRow(L("Enable Codex integration (beta)", comment: "Settings button"), "sparkles") {
                         try? HookInstaller.installCodexHooks(); healthTick += 1
                     }
                 }
             }
             if HookInstaller.isCodexInstalled {
-                Text("With Codex on, dropping a folder on the notch asks whether to open it in Claude Code or Codex.")
+                Text(L("With Codex on, dropping a folder on the notch asks whether to open it in Claude Code or Codex.", comment: "Settings explanation"))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -494,8 +519,8 @@ struct SettingsView: View {
                 Spacer()
             }
             HStack(spacing: 8) {
-                Text("Homebrew:").font(.caption).foregroundStyle(.white.opacity(0.8))
-                Text("brew upgrade --cask claudenotch")
+                Text(L("Homebrew:", comment: "Settings explanation")).font(.caption).foregroundStyle(.white.opacity(0.8))
+                Text(L("brew upgrade --cask claudenotch", comment: "Settings explanation"))
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.white)
                 Button {
@@ -556,20 +581,20 @@ struct SettingsView: View {
     }
 
     private var notch: some View {
-        page("Notch") {
-            sectionLabel("Title")
+        page(L("Notch", comment: "Settings page title")) {
+            sectionLabel(L("Title", comment: "Settings section heading"))
             group {
-                pickerRow("What the title shows",
+                pickerRow(L("What the title shows", comment: "Settings picker label"),
                           selection: Binding(get: { state.notchTitleMode },
                                              set: { state.setNotchTitleMode($0) })) {
-                    Text("Claude").tag(NotchTitleMode.claude)
-                    Text("Project name").tag(NotchTitleMode.project)
-                    Text("Custom").tag(NotchTitleMode.custom)
+                    Text(L("Claude", comment: "Settings explanation")).tag(NotchTitleMode.claude)
+                    Text(L("Project name", comment: "Settings explanation")).tag(NotchTitleMode.project)
+                    Text(L("Custom", comment: "Settings explanation")).tag(NotchTitleMode.custom)
                 }
                 if state.notchTitleMode == .custom {
                     divider
                     HStack {
-                        Text("Custom title")
+                        Text(L("Custom title", comment: "Settings explanation"))
                         Spacer()
                         TextField("ClaudeNotch", text: Binding(
                             get: { state.customNotchTitle },
@@ -583,7 +608,7 @@ struct SettingsView: View {
                 }
             }
 
-            sectionLabel("Status bar")
+            sectionLabel(L("Status bar", comment: "Settings section heading"))
             group {
                 let items = StatusBarItem.allCases
                 ForEach(Array(items.enumerated()), id: \.element) { idx, item in
@@ -599,20 +624,20 @@ struct SettingsView: View {
                 }
             }
 
-            sectionLabel("Context window")
+            sectionLabel(L("Context window", comment: "Settings section heading"))
             group {
-                pickerRow("Context window size",
+                pickerRow(L("Context window size", comment: "Settings picker label"),
                           selection: Binding(get: { state.contextWindowMode },
                                              set: { state.setContextWindowMode($0) })) {
-                    Text("Auto").tag(ContextWindowMode.auto)
-                    Text("200K").tag(ContextWindowMode.w200k)
+                    Text(L("Auto", comment: "Settings explanation")).tag(ContextWindowMode.auto)
+                    Text(L("200K", comment: "Settings explanation")).tag(ContextWindowMode.w200k)
                     Text("1M").tag(ContextWindowMode.w1M)
                 }
             }
 
             group {
-                row("Drop files to open Claude",
-                    "Always on: drag a file or folder onto the notch to open Claude there.",
+                row(L("Drop files to open Claude", comment: "Settings toggle"),
+                    L("Always on: drag a file or folder onto the notch to open Claude there.", comment: "Settings toggle explanation"),
                     .constant(true))
                     .disabled(true)
             }
@@ -620,13 +645,13 @@ struct SettingsView: View {
     }
 
     private var pet: some View {
-        page("Pet") {
+        page(L("Pet", comment: "Settings page title")) {
             group {
-                row("Pet Mode",
-                    "Let the Claude mascot live on the notch: it peeks, strolls, hangs off the edge, naps, and celebrates finished tasks. Click it to boop it.",
+                row(L("Pet Mode", comment: "Settings toggle"),
+                    L("Let the Claude mascot live on the notch: it peeks, strolls, hangs off the edge, naps, and celebrates finished tasks. Click it to boop it.", comment: "Settings toggle explanation"),
                     bind(\.petEnabled, state.setPetEnabled))
-                row("Random antics",
-                    "Let the pet perform on its own when the notch is idle. Turn this off to keep the pet quiet until you boop it or a task finishes.",
+                row(L("Random antics", comment: "Settings toggle"),
+                    L("Let the pet perform on its own when the notch is idle. Turn this off to keep the pet quiet until you boop it or a task finishes.", comment: "Settings toggle explanation"),
                     bind(\.petRandomEnabled, state.setPetRandomEnabled))
                     .disabled(!state.petEnabled)
             }
@@ -634,51 +659,51 @@ struct SettingsView: View {
     }
 
     private var alerts: some View {
-        page("Alerts") {
+        page(L("Alerts", comment: "Settings page title")) {
             group {
-                row("Plan-limit warnings",
-                    "Warn as your 5-hour or weekly usage fills, once at 80% and once at 95%.",
+                row(L("Plan-limit warnings", comment: "Settings toggle"),
+                    L("Warn as your 5-hour or weekly usage fills, once at 80% and once at 95%.", comment: "Settings toggle explanation"),
                     bind(\.rateLimitWarningsEnabled, state.setRateLimitWarningsEnabled))
                 divider
-                row("Long-run alerts",
-                    "Nudge you when a single run has been going for a long time.",
+                row(L("Long-run alerts", comment: "Settings toggle"),
+                    L("Nudge you when a single run has been going for a long time.", comment: "Settings toggle explanation"),
                     bind(\.longRunAlertsEnabled, state.setLongRunAlertsEnabled))
                 divider
-                row("Break reminders",
-                    "Occasional reminder to step away after a long stretch at the keyboard.",
+                row(L("Break reminders", comment: "Settings toggle"),
+                    L("Occasional reminder to step away after a long stretch at the keyboard.", comment: "Settings toggle explanation"),
                     bind(\.breakRemindersEnabled, state.setBreakRemindersEnabled))
             }
             group {
-                row("Completion notifications",
-                    "Post a Notification Center banner when a task finishes.",
+                row(L("Completion notifications", comment: "Settings toggle"),
+                    L("Post a Notification Center banner when a task finishes.", comment: "Settings toggle explanation"),
                     bind(\.completionNotificationsEnabled, state.setCompletionNotificationsEnabled))
                 divider
-                row("Daily and weekly digest",
-                    "A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost.",
+                row(L("Daily and weekly digest", comment: "Settings toggle"),
+                    L("A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost.", comment: "Settings toggle explanation"),
                     bind(\.digestNotificationsEnabled, state.setDigestNotificationsEnabled))
                 divider
-                row("Mirror to Notification Center",
-                    "Also send notch notifications to macOS Notification Center.",
+                row(L("Mirror to Notification Center", comment: "Settings toggle"),
+                    L("Also send notch notifications to macOS Notification Center.", comment: "Settings toggle explanation"),
                     bind(\.mirrorToNotificationCenter, state.setMirrorToNotificationCenter))
             }
         }
     }
 
     private var sounds: some View {
-        page("Sounds") {
+        page(L("Sounds", comment: "Settings page title")) {
             group {
-                row("Mute all sounds",
-                    "Silence every notch sound.",
+                row(L("Mute all sounds", comment: "Settings toggle"),
+                    L("Silence every notch sound.", comment: "Settings toggle explanation"),
                     Binding(get: { state.soundMuted }, set: { state.setSoundMuted($0) }))
                 divider
-                row("Per-tool sounds",
-                    "Different sound for different kinds of tool request.",
+                row(L("Per-tool sounds", comment: "Settings toggle"),
+                    L("Different sound for different kinds of tool request.", comment: "Settings toggle explanation"),
                     Binding(get: { state.perToolSounds }, set: { state.setPerToolSounds($0) }))
             }
 
             if state.perToolSounds {
-                sectionLabel("Sound per pop-up type")
-                Text("With per-tool sounds on, each kind of pop-up plays its own sound. Change any of them; the default is shown when you have not.")
+                sectionLabel(L("Sound per pop-up type", comment: "Settings section heading"))
+                Text(L("With per-tool sounds on, each kind of pop-up plays its own sound. Change any of them; the default is shown when you have not.", comment: "Settings explanation"))
                     .font(.callout).foregroundStyle(.secondary)
                 group {
                     let cats = ToolSoundCategory.allCases
@@ -692,7 +717,7 @@ struct SettingsView: View {
                 .disabled(state.soundMuted)
                 .opacity(state.soundMuted ? 0.5 : 1)
             } else {
-                sectionLabel("Alert sound")
+                sectionLabel(L("Alert sound", comment: "Settings section heading"))
                 group {
                     soundPickerRow("Alert sound", nil,
                                    get: { state.alertSound },
@@ -727,10 +752,10 @@ struct SettingsView: View {
     }
 
     private var budget: some View {
-        page("Budget") {
+        page(L("Budget", comment: "Settings page title")) {
             if state.fiveHourLimitPercent >= 0 || state.weeklyLimitPercent >= 0 {
-                sectionLabel("Plan usage limits")
-                Text("Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps.")
+                sectionLabel(L("Plan usage limits", comment: "Settings section heading"))
+                Text(L("Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps.", comment: "Settings explanation"))
                     .font(.callout).foregroundStyle(.secondary)
                 group {
                     if state.fiveHourLimitPercent >= 0 {
@@ -749,9 +774,9 @@ struct SettingsView: View {
                 }
             }
 
-            Text("Warn when estimated cost crosses a cap. Set a cap to 0 to disable it.")
+            Text(L("Warn when estimated cost crosses a cap. Set a cap to 0 to disable it.", comment: "Settings explanation"))
                 .font(.callout).foregroundStyle(.secondary)
-            sectionLabel("Caps (USD)")
+            sectionLabel(L("Caps (USD)", comment: "Settings section heading"))
             group {
                 capRow("Per session", get: { state.sessionCostCap }, set: { state.setSessionCostCap($0) })
                 divider
@@ -762,8 +787,8 @@ struct SettingsView: View {
                 capRow("Per week", get: { state.weeklyCostCap }, set: { state.setWeeklyCostCap($0) })
             }
             group {
-                row("Hard-stop at the cap",
-                    "Block new tool runs once a cap is crossed, instead of only warning.",
+                row(L("Hard-stop at the cap", comment: "Settings toggle"),
+                    L("Block new tool runs once a cap is crossed, instead of only warning.", comment: "Settings toggle explanation"),
                     Binding(get: { state.enforceBudget }, set: { state.setEnforceBudget($0) }))
             }
         }
@@ -848,18 +873,18 @@ struct SettingsView: View {
     }
 
     private var privacy: some View {
-        page("Privacy") {
+        page(L("Privacy", comment: "Settings page title")) {
             group {
-                row("Hide from screen capture",
-                    "Exclude the notch from screen shares, recordings, and other apps' screenshots. It renders commands, paths, and code, so this is on by default.",
+                row(L("Hide from screen capture", comment: "Settings toggle"),
+                    L("Exclude the notch from screen shares, recordings, and other apps' screenshots. It renders commands, paths, and code, so this is on by default.", comment: "Settings toggle explanation"),
                     bind(\.hideFromScreenCapture, state.setHideFromScreenCapture))
                 divider
-                row("Require Touch ID for permissions",
-                    "Ask for Touch ID before allowing a tool request from the notch.",
+                row(L("Require Touch ID for permissions", comment: "Settings toggle"),
+                    L("Ask for Touch ID before allowing a tool request from the notch.", comment: "Settings toggle explanation"),
                     bind(\.requireTouchID, state.setRequireTouchID))
             }
 
-            sectionLabel("System permissions")
+            sectionLabel(L("System permissions", comment: "Settings section heading"))
             group {
                 permissionRow("Accessibility",
                               granted: AXIsProcessTrusted()) { state.promptAccessibility() }
@@ -873,7 +898,7 @@ struct SettingsView: View {
                 }
             }
 
-            sectionLabel("Always-allow rules")
+            sectionLabel(L("Always-allow rules", comment: "Settings section heading"))
             if state.allowRules.isEmpty {
                 Text("No always-allow rules. Approve a request with \u{201C}Always allow\u{201D} to add one.")
                     .font(.callout).foregroundStyle(.secondary)
@@ -930,22 +955,22 @@ struct SettingsView: View {
     }
 
     private var session: some View {
-        page("Session") {
-            sectionLabel("Current session")
+        page(L("Session", comment: "Settings page title")) {
+            sectionLabel(L("Current session", comment: "Settings section heading"))
             group {
-                actionRow("Send a message to Claude…", "paperplane") {
+                actionRow(L("Send a message to Claude…", comment: "Settings button"), "paperplane") {
                     state.beginCompose()
                     window()?.close()
                 }
                 divider
-                actionRow("Clear the active session", "xmark.circle") { state.clearSession() }
+                actionRow(L("Clear the active session", comment: "Settings button"), "xmark.circle") { state.clearSession() }
             }
 
-            sectionLabel("Auto-approve for a while")
-            Text("Turn on auto-approve for a set time, then it switches itself back off — or keep it on until you turn it off.")
+            sectionLabel(L("Auto-approve for a while", comment: "Settings section heading"))
+            Text(L("Turn on auto-approve for a set time, then it switches itself back off — or keep it on until you turn it off.", comment: "Settings explanation"))
                 .font(.callout).foregroundStyle(.secondary)
             group {
-                actionRow("Keep on until I turn it off", "infinity") { state.setAutoApprove(true) }
+                actionRow(L("Keep on until I turn it off", comment: "Settings button"), "infinity") { state.setAutoApprove(true) }
                 divider
                 let windows = [15, 30, 60, 120]
                 ForEach(Array(windows.enumerated()), id: \.element) { idx, m in
@@ -958,16 +983,16 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.orange)
                 Button("Turn off now") { state.setAutoApprove(false) }
             } else if state.autoApprove {
-                Text("Auto-approve is on until you turn it off.")
+                Text(L("Auto-approve is on until you turn it off.", comment: "Settings explanation"))
                     .font(.caption).foregroundStyle(.orange)
                 Button("Turn off now") { state.setAutoApprove(false) }
             }
 
-            sectionLabel("Snooze passive cards")
+            sectionLabel(L("Snooze passive cards", comment: "Settings section heading"))
             group {
                 let windows = [15, 30, 60]
                 ForEach(Array(windows.enumerated()), id: \.element) { idx, m in
-                    actionRow("Snooze for \(windowLabel(m))", "moon.zzz") { state.snooze(forMinutes: m) }
+                    actionRow(String(format: L("Snooze for %@", comment: "Settings button. %@ is a duration such as 30 min"), windowLabel(m)), "moon.zzz") { state.snooze(forMinutes: m) }
                     if idx < windows.count - 1 { divider }
                 }
             }
@@ -977,13 +1002,13 @@ struct SettingsView: View {
                 Button("Cancel snooze") { state.cancelSnooze() }
             }
 
-            sectionLabel("Projects & recent sessions")
-            Text("Closed a terminal by accident? Expand a project and resume right where you left off.")
+            sectionLabel(L("Projects & recent sessions", comment: "Settings section heading"))
+            Text(L("Closed a terminal by accident? Expand a project and resume right where you left off.", comment: "Settings explanation"))
                 .font(.callout).foregroundStyle(.secondary)
             if projectSessions.isEmpty {
                 group {
                     HStack {
-                        Text("No past sessions found yet.")
+                        Text(L("No past sessions found yet.", comment: "Settings explanation"))
                             .foregroundStyle(.secondary)
                         Spacer()
                     }
@@ -1014,7 +1039,7 @@ struct SettingsView: View {
 
             let diff = state.currentDiffStat
             if diff.added > 0 || diff.removed > 0 {
-                sectionLabel("Lines changed this session")
+                sectionLabel(L("Lines changed this session", comment: "Settings section heading"))
                 group {
                     HStack(spacing: 12) {
                         Text("+\(diff.added)")
@@ -1032,7 +1057,7 @@ struct SettingsView: View {
             }
 
             if !state.currentTouchedFiles.isEmpty {
-                sectionLabel("Files touched this session")
+                sectionLabel(L("Files touched this session", comment: "Settings section heading"))
                 group {
                     let files = Array(state.currentTouchedFiles.prefix(10))
                     ForEach(Array(files.enumerated()), id: \.element) { idx, path in
@@ -1183,7 +1208,7 @@ struct SettingsView: View {
                         if state.sessions[s.id] != nil {
                             HStack(spacing: 3) {
                                 Circle().fill(Color.green).frame(width: 6, height: 6)
-                                Text("running").font(.caption2)
+                                Text(L("running", comment: "Settings explanation")).font(.caption2)
                             }
                             .foregroundStyle(.green)
                             .padding(.horizontal, 6).padding(.vertical, 1)
@@ -1273,10 +1298,10 @@ struct SettingsView: View {
     }
 
     private var usage: some View {
-        page("Usage") {
+        page(L("Usage", comment: "Settings page title")) {
             let churn = state.churnToday
             if churn.added > 0 || churn.removed > 0 {
-                sectionLabel("Code churn today")
+                sectionLabel(L("Code churn today", comment: "Settings section heading"))
                 HStack(spacing: 12) {
                     churnStat("Lines added", "+\(churn.added)", .green)
                     churnStat("Lines removed", "-\(churn.removed)", .red)
@@ -1287,8 +1312,8 @@ struct SettingsView: View {
             if let u = claudeUsage {
                 let trend = spendTrendData(u)
                 if trend.contains(where: { $0.cost > 0 }) {
-                    sectionLabel("Estimated cost, last 7 days")
-                    Text("Estimated at public API (pay-as-you-go) prices. On a Pro, Max, Team, or Enterprise subscription you pay a flat fee, so this is not your actual bill, it is what the usage would cost per token.")
+                    sectionLabel(L("Estimated cost, last 7 days", comment: "Settings section heading"))
+                    Text(L("Estimated at public API (pay-as-you-go) prices. On a Pro, Max, Team, or Enterprise subscription you pay a flat fee, so this is not your actual bill, it is what the usage would cost per token.", comment: "Settings explanation"))
                         .font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     spendTrend(trend)
@@ -1298,7 +1323,7 @@ struct SettingsView: View {
                 }
                 let weekly = ClaudeUsageReader.weeklyCostBuckets(daily: u.dailyCostUSD, weeks: 4, asOf: Date())
                 if weekly.contains(where: { $0.cost > 0 }) {
-                    sectionLabel("Estimated cost, last 4 weeks")
+                    sectionLabel(L("Estimated cost, last 4 weeks", comment: "Settings section heading"))
                     spendTrend(weekly)
                         .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1306,13 +1331,13 @@ struct SettingsView: View {
                 }
             }
 
-            sectionLabel("Activity, last 7 weeks")
+            sectionLabel(L("Activity, last 7 weeks", comment: "Settings section heading"))
             activityHeatmap
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .cardChrome()
 
-            Text("All-time counters, kept locally on this Mac.")
+            Text(L("All-time counters, kept locally on this Mac.", comment: "Settings explanation"))
                 .font(.callout).foregroundStyle(.secondary)
             group {
                 statRow("Permissions allowed", "\(state.stats.allowed)")
@@ -1330,7 +1355,7 @@ struct SettingsView: View {
                 statRow("Sessions recorded", "\(state.sessionHistory.count)")
             }
             if !state.stats.toolCounts.isEmpty {
-                sectionLabel("Top tools")
+                sectionLabel(L("Top tools", comment: "Settings section heading"))
                 group {
                     let top = state.stats.toolCounts.sorted { $0.value > $1.value }.prefix(6)
                     ForEach(Array(top.enumerated()), id: \.element.key) { idx, kv in
@@ -1345,7 +1370,7 @@ struct SettingsView: View {
                 .sorted { $0.value > $1.value }
                 .prefix(6)
             if !spendLeaders.isEmpty {
-                sectionLabel("Top projects by estimated cost (7 days)")
+                sectionLabel(L("Top projects by estimated cost (7 days)", comment: "Settings section heading"))
                 let maxSpend = spendLeaders.first?.value ?? 1
                 group {
                     ForEach(Array(spendLeaders.enumerated()), id: \.element.key) { idx, kv in
@@ -1356,8 +1381,8 @@ struct SettingsView: View {
                 }
             }
 
-            sectionLabel("Claude usage (from transcripts)")
-            Text("Costs are estimates at public API prices, not your subscription bill.")
+            sectionLabel(L("Claude usage (from transcripts)", comment: "Settings section heading"))
+            Text(L("Costs are estimates at public API prices, not your subscription bill.", comment: "Settings explanation"))
                 .font(.caption).foregroundStyle(.secondary)
             if let u = claudeUsage {
                 group {
@@ -1378,7 +1403,7 @@ struct SettingsView: View {
                     .filter { $0.value.costUSD > 0 }
                     .sorted { $0.value.costUSD > $1.value.costUSD }
                 if !models.isEmpty {
-                    sectionLabel("Model mix (last 7 days)")
+                    sectionLabel(L("Model mix (last 7 days)", comment: "Settings section heading"))
                     let maxCost = models.first?.value.costUSD ?? 1
                     group {
                         ForEach(Array(models.enumerated()), id: \.element.key) { idx, kv in
@@ -1396,12 +1421,12 @@ struct SettingsView: View {
                 }
                 .padding(.top, 2)
             } else {
-                Text("Reading transcripts…").font(.callout).foregroundStyle(.secondary)
+                Text(L("Reading transcripts…", comment: "Settings explanation")).font(.callout).foregroundStyle(.secondary)
             }
 
             if HookInstaller.isCodexInstalled, let c = codexTotals, !c.isEmpty {
-                sectionLabel("Codex usage (tokens)")
-                Text("Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess.")
+                sectionLabel(L("Codex usage (tokens)", comment: "Settings section heading"))
+                Text(L("Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess.", comment: "Settings explanation"))
                     .font(.caption).foregroundStyle(.secondary)
                 group {
                     statRow("Today", "\(formatTokens(c.todayTokens)) tok · \(c.sessionsToday) session\(c.sessionsToday == 1 ? "" : "s")")
@@ -1530,12 +1555,12 @@ struct SettingsView: View {
                 }
             }
             HStack(spacing: 5) {
-                Text("Less").font(.caption2).foregroundStyle(.secondary)
+                Text(L("Less", comment: "Settings explanation")).font(.caption2).foregroundStyle(.secondary)
                 ForEach(0..<5, id: \.self) { l in
                     RoundedRectangle(cornerRadius: 2, style: .continuous)
                         .fill(heatColor(l)).frame(width: 11, height: 11)
                 }
-                Text("More").font(.caption2).foregroundStyle(.secondary)
+                Text(L("More", comment: "Settings explanation")).font(.caption2).foregroundStyle(.secondary)
             }
             .padding(.leading, labelWidth + gap)
         }
@@ -1593,38 +1618,38 @@ struct SettingsView: View {
     }
 
     private var developer: some View {
-        page("Developer") {
-            Text("Fire a sample card to see what the notch looks like.")
+        page(L("Developer", comment: "Settings page title")) {
+            Text(L("Fire a sample card to see what the notch looks like.", comment: "Settings explanation"))
                 .font(.callout).foregroundStyle(.secondary)
             DisclosureGroup(isExpanded: $devSampleCardsOpen) {
                 group {
-                    actionRow("Tool permission", "terminal") { demoPermission() }
+                    actionRow(L("Tool permission", comment: "Settings button"), "terminal") { demoPermission() }
                     divider
-                    actionRow("Destructive command", "exclamationmark.triangle") { demoDangerous() }
+                    actionRow(L("Destructive command", comment: "Settings button"), "exclamationmark.triangle") { demoDangerous() }
                     divider
-                    actionRow("Edit with diff preview", "doc.text.magnifyingglass") { demoDiff() }
+                    actionRow(L("Edit with diff preview", comment: "Settings button"), "doc.text.magnifyingglass") { demoDiff() }
                     divider
-                    actionRow("Auto-approve (live activity)", "bolt.badge.a") { demoAutoApprove() }
+                    actionRow(L("Auto-approve (live activity)", comment: "Settings button"), "bolt.badge.a") { demoAutoApprove() }
                     divider
-                    actionRow("Notification", "bell") { demoNotification() }
+                    actionRow(L("Notification", comment: "Settings button"), "bell") { demoNotification() }
                     divider
-                    actionRow("Task complete", "checkmark.seal") { demoCompleted() }
+                    actionRow(L("Task complete", comment: "Settings button"), "checkmark.seal") { demoCompleted() }
                     divider
-                    actionRow("Thinking pulse", "brain") { state.pingThinking(label: "Editing AuthMiddleware.swift") }
+                    actionRow(L("Thinking pulse", comment: "Settings button"), "brain") { state.pingThinking(label: "Editing AuthMiddleware.swift") }
                     divider
-                    actionRow("Cost budget alert", "dollarsign.circle") { state.demoBudgetAlert() }
+                    actionRow(L("Cost budget alert", comment: "Settings button"), "dollarsign.circle") { state.demoBudgetAlert() }
                     divider
-                    actionRow("Budget hard-stop", "hand.raised") { state.demoBudgetBlock() }
+                    actionRow(L("Budget hard-stop", comment: "Settings button"), "hand.raised") { state.demoBudgetBlock() }
                 }
                 .padding(.top, 6)
             } label: {
-                Text("Sample cards").font(.callout.weight(.semibold))
+                Text(L("Sample cards", comment: "Settings explanation")).font(.callout.weight(.semibold))
             }
 
             DisclosureGroup(isExpanded: $devPetDemosOpen) {
                 group {
                     let demoable = PetActivity.allCases.filter { $0 != .tucked }
-                    actionRow("Play all", "play.circle") { state.demoPet(demoable) }
+                    actionRow(L("Play all", comment: "Settings button"), "play.circle") { state.demoPet(demoable) }
                     divider
                     ForEach(Array(demoable.enumerated()), id: \.element) { idx, activity in
                         actionRow(Self.petDemoTitle(activity), "pawprint") { state.demoPet([activity]) }
@@ -1633,7 +1658,7 @@ struct SettingsView: View {
                 }
                 .padding(.top, 6)
             } label: {
-                Text("Pet animations").font(.callout.weight(.semibold))
+                Text(L("Pet animations", comment: "Settings explanation")).font(.callout.weight(.semibold))
             }
         }
     }
@@ -1705,14 +1730,14 @@ struct SettingsView: View {
     }
 
     private var about: some View {
-        page("About") {
+        page(L("About", comment: "Settings page title")) {
             HStack(spacing: 14) {
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable()
                     .frame(width: 56, height: 56)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("ClaudeNotch").font(.title2.weight(.semibold))
-                    Text("Claude Code, living in your notch.")
+                    Text(L("ClaudeNotch", comment: "Settings explanation")).font(.title2.weight(.semibold))
+                    Text(L("Claude Code, living in your notch.", comment: "Settings explanation"))
                         .font(.callout).foregroundStyle(.secondary)
                     Text("Version \(Self.appVersion)")
                         .font(.caption).foregroundStyle(.secondary)
@@ -1721,7 +1746,7 @@ struct SettingsView: View {
             }
             .padding(.vertical, 4)
             if !Self.whatsNew.isEmpty {
-                sectionLabel("What's new in v\(Self.appVersion)")
+                sectionLabel(String(format: L("What's new in v%@", comment: "Settings section heading. %@ is the version number"), Self.appVersion))
                 group {
                     ForEach(Array(Self.whatsNew.enumerated()), id: \.offset) { idx, line in
                         HStack(alignment: .top, spacing: 8) {
@@ -1741,12 +1766,12 @@ struct SettingsView: View {
                 aboutLink("Source on GitHub", "https://github.com/rawsun007/claude-notch")
             }
             group {
-                actionRow("Send feedback", "bubble.left.and.bubble.right") { Self.openFeedback() }
+                actionRow(L("Send feedback", comment: "Settings button"), "bubble.left.and.bubble.right") { Self.openFeedback() }
                 divider
-                actionRow("Check for updates…", "arrow.down.circle") { UpdateChecker.shared.check(userInitiated: true) }
+                actionRow(L("Check for updates…", comment: "Settings button"), "arrow.down.circle") { UpdateChecker.shared.check(userInitiated: true) }
                 if onOpenSetup != nil {
                     divider
-                    actionRow("Run setup again…", "wand.and.stars") { onOpenSetup?() }
+                    actionRow(L("Run setup again…", comment: "Settings button"), "wand.and.stars") { onOpenSetup?() }
                 }
             }
         }
@@ -1767,14 +1792,14 @@ struct SettingsView: View {
     }
 
     private var history: some View {
-        page("History") {
-            Text("Every session you finish is archived here with a one-line summary, its cost, and what it changed. Search to recall what you did in a project last week.")
+        page(L("History", comment: "Settings page title")) {
+            Text(L("Every session you finish is archived here with a one-line summary, its cost, and what it changed. Search to recall what you did in a project last week.", comment: "Settings explanation"))
                 .font(.callout).foregroundStyle(.secondary)
 
             if state.sessionHistory.isEmpty {
                 group {
                     HStack {
-                        Text("No finished sessions yet. They show up here after a session ends.")
+                        Text(L("No finished sessions yet. They show up here after a session ends.", comment: "Settings explanation"))
                             .foregroundStyle(.secondary)
                         Spacer()
                     }
@@ -1834,19 +1859,19 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "text.badge.checkmark").foregroundStyle(.blue)
-                    Text("What I shipped").font(.body.weight(.semibold))
+                    Text(L("What I shipped", comment: "Settings explanation")).font(.body.weight(.semibold))
                     Spacer()
                     Picker("", selection: $standupDays) {
-                        Text("Today").tag(1)
-                        Text("3 days").tag(3)
-                        Text("Week").tag(7)
+                        Text(L("Today", comment: "Settings explanation")).tag(1)
+                        Text(L("3 days", comment: "Settings explanation")).tag(3)
+                        Text(L("Week", comment: "Settings explanation")).tag(7)
                     }
                     .labelsHidden().fixedSize().controlSize(.small)
                     Button {
                         generateStandup()
                     } label: {
                         if standupBusy { ProgressView().controlSize(.small) }
-                        else { Text("Generate") }
+                        else { Text(L("Generate", comment: "Settings explanation")) }
                     }
                     .disabled(standupBusy)
                 }
