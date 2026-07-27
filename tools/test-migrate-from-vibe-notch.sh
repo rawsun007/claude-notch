@@ -103,6 +103,20 @@ check "missing settings.json is reported, not crashed on" \
       "$(printf '%s' "$OUT" | grep -c 'Nothing to migrate')" "1"
 rm -rf "$T"
 
+# --- a settings.json we cannot parse must be refused, not half-rewritten
+T=$(mktemp -d); mkdir -p "$T/.claude/hooks"
+printf 'not json at all\n' > "$T/.claude/settings.json"
+touch "$T/.claude/hooks/claude-island-state.py"
+OUT=$(HOME="$T" "$MIGRATE" --no-install 2>&1); RC=$?
+check "invalid JSON fails loudly" "$RC" "1"
+check "invalid JSON explains itself" \
+      "$(printf '%s' "$OUT" | grep -c 'not valid JSON')" "1"
+check "invalid JSON is left exactly as it was" \
+      "$(cat "$T/.claude/settings.json")" "not json at all"
+check "invalid JSON leaves their script alone" \
+      "$(ls "$T/.claude/hooks/" | grep -c '^claude-island-state.py$')" "1"
+rm -rf "$T"
+
 echo
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

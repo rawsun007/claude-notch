@@ -40,6 +40,15 @@ if [ ! -f "$SETTINGS" ]; then
     exit 0
 fi
 
+# Refuse to touch a file we cannot parse. Without this the first jq fails, set -e
+# aborts mid-run with a raw parse error, and the user is left guessing whether
+# their settings were half-rewritten. They are not, but say so plainly.
+if ! jq empty "$SETTINGS" >/dev/null 2>&1; then
+    echo "~/.claude/settings.json is not valid JSON, so nothing was changed." >&2
+    echo "Fix or restore it first, then run this again." >&2
+    exit 1
+fi
+
 # Count the hook entries that belong to the old app, across every event.
 count_theirs() {
     jq --arg sig "$SIGNATURE" '
