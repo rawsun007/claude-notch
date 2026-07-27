@@ -512,6 +512,16 @@ final class AppState: ObservableObject {
     /// by default: this is protective and rare (it fires at most twice per window,
     /// at 80% and 95%), the kind of thing you want without opting in.
     @Published var rateLimitWarningsEnabled: Bool = true
+
+    // Oldest reading of each limit window still worth extrapolating from.
+    // Replaced when the window resets (percentage falls) so a projection is
+    // never drawn across two different windows.
+    var fiveHourAnchor: BurnRate.Sample?
+    var weeklyAnchor: BurnRate.Sample?
+    /// How long until each limit runs out at the current rate. Nil when there
+    /// is nothing trustworthy to say, which is most of the time.
+    @Published var fiveHourForecast: BurnRate.Forecast?
+    @Published var weeklyForecast: BurnRate.Forecast?
     nonisolated static let rateLimitThresholds: [Double] = [0.80, 0.95]
     /// The highest threshold already warned for in the current window, keyed by
     /// that window's reset instant so a fresh window re-arms.

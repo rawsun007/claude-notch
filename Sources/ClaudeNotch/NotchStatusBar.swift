@@ -33,13 +33,15 @@ struct StatusBarRow: View {
             return BarData(pct: p, text: p.map { "\(Int(($0 * 100).rounded()))%" } ?? "—", showBar: true,
                            resetIn: showCountdown ? Self.countdown(state.fiveHourResetAt) : "",
                            age: Self.readingAge(state.limitsUpdatedAt),
-                           tooltip: limitTooltip("5-hour limit", pct: p, resetAt: state.fiveHourResetAt))
+                           tooltip: limitTooltip("5-hour limit", pct: p, resetAt: state.fiveHourResetAt,
+                                                 forecast: state.fiveHourForecast))
         case .weeklyLimit:
             let p = Self.livePercent(state.weeklyLimitPercent, resetAt: state.weeklyResetAt)
             return BarData(pct: p, text: p.map { "\(Int(($0 * 100).rounded()))%" } ?? "—", showBar: true,
                            resetIn: showCountdown ? Self.countdown(state.weeklyResetAt) : "",
                            age: Self.readingAge(state.limitsUpdatedAt),
-                           tooltip: limitTooltip("Weekly limit", pct: p, resetAt: state.weeklyResetAt))
+                           tooltip: limitTooltip("Weekly limit", pct: p, resetAt: state.weeklyResetAt,
+                                                 forecast: state.weeklyForecast))
         case .sessionCost:
             return BarData(pct: nil, text: ClaudeUsageReader.fmtMoney(state.currentCostUSD), showBar: false,
                            tooltip: "Estimated cost of this session")
@@ -75,9 +77,16 @@ struct StatusBarRow: View {
         return f
     }()
 
-    private func limitTooltip(_ name: String, pct: CGFloat?, resetAt: Date?) -> String {
+    private func limitTooltip(_ name: String, pct: CGFloat?, resetAt: Date?,
+                              forecast: BurnRate.Forecast? = nil) -> String {
         var parts: [String] = [name]
         if let pct { parts.append("\(Int((pct * 100).rounded()))% used") }
+        // Only when the cap would arrive before the window resets, and soon
+        // enough to change what you do next.
+        if let f = forecast, !f.resetsFirst,
+           f.secondsRemaining <= BurnRate.worthWarningWithin {
+            parts.append("about \(BurnRate.humanDuration(f.secondsRemaining)) left at this rate")
+        }
         if let resetAt {
             parts.append("resets in \(ClaudeUsageReader.resetCountdown(until: resetAt)) "
                          + "(\(Self.resetClockFormatter.string(from: resetAt)))")

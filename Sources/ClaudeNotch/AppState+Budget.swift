@@ -102,6 +102,31 @@ extension AppState {
 
     /// Authoritative usage fed by Claude Code's statusLine command (the only
     /// local source of real plan-limit %). Percentages arrive as 0...100.
+    /// Keep an anchor reading per limit window and project from it.
+    ///
+    /// The anchor is reset whenever the percentage falls, which is how a new
+    /// window announces itself: extrapolating across a reset would measure a
+    /// jump from 95% back to 3% as an enormous negative rate. It also moves
+    /// forward once a reading is old, so the forecast follows the last stretch
+    /// of work rather than an average over the whole window.
+    func updateForecast(_ anchor: inout BurnRate.Sample?, pct: Double,
+                        resetAt: Date?) -> BurnRate.Forecast? {
+        let now = BurnRate.Sample(percent: min(1, max(0, pct)), at: Date())
+        guard let previous = anchor else {
+            anchor = now
+            return nil
+        }
+        if now.percent < previous.percent {          // window rolled over
+            anchor = now
+            return nil
+        }
+        let forecast = BurnRate.project(from: previous, to: now, resetAt: resetAt)
+        // Slide the anchor along so the projection tracks recent work. An hour
+        // is long enough to stay stable and short enough to notice a change.
+        if now.at.timeIntervalSince(previous.at) > 3600 { anchor = now }
+        return forecast
+    }
+
     func noteStatusLine(sessionId: String, model: String,
                         sessionName: String = "", worktree: String = "",
                         prNumber: Int? = nil, prURL: String = "", prState: String = "",
@@ -122,6 +147,14 @@ extension AppState {
         if fiveHourPct != nil || sevenDayPct != nil {
             limitsUpdatedAt = Date()
             schedulePersist()
+        }
+        // How long is left at the rate it is actually being spent. The
+        // thresholds above say where you are; this says when you stop.
+        if let p = fiveHourPct {
+            fiveHourForecast = updateForecast(&fiveHourAnchor, pct: p / 100, resetAt: fiveHourResetAt)
+        }
+        if let p = sevenDayPct {
+            weeklyForecast = updateForecast(&weeklyAnchor, pct: p / 100, resetAt: weeklyResetAt)
         }
 
         // Model update is independent of contextPct — a status line may carry a
