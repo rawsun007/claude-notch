@@ -524,12 +524,15 @@ final class EventServer {
         // Did this turn actually run the tests, and did they pass? Feeds
         // CompletionAudit, which is why the failure signal has to be explicit:
         // a wrong "the tests failed" is worse than saying nothing.
-        if tool == "Bash", let command = input["command"] as? String,
-           CompletionAudit.isTestCommand(command) {
-            let failed = CompletionAudit.toolReportedFailure(payload["tool_response"])
+        if tool == "Bash", let command = input["command"] as? String {
             let cwd = (payload["cwd"] as? String) ?? ""
+            let isTest = CompletionAudit.isTestCommand(command)
+            let failed = isTest ? CompletionAudit.toolReportedFailure(payload["tool_response"]) : nil
             Task { @MainActor [weak state] in
-                state?.noteTestRun(failed: failed, sessionId: sessionId, cwd: cwd)
+                // Any command at all, because one can edit files without an
+                // Edit tool and the audit must not call that "nothing changed".
+                state?.noteCommandRun(sessionId: sessionId, cwd: cwd)
+                if isTest { state?.noteTestRun(failed: failed, sessionId: sessionId, cwd: cwd) }
             }
         }
 

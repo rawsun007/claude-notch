@@ -21,18 +21,20 @@ enum CompletionAudit {
         var claim: String
         /// How many distinct files the turn's Edit/Write tools touched.
         var filesEdited: Int
-        /// Lines added plus removed, from the working tree.
-        var linesChanged: Int
+        /// Whether the turn ran any shell command. A command can change files
+        /// without an Edit tool, so this does not prove work happened, only
+        /// that "nothing was touched" cannot be proven either.
+        var ranCommands: Bool
         /// Whether a recognised test command ran during the turn.
         var testCommandRan: Bool
         /// Whether it failed. Nil when nothing ran, or the result is unknown.
         var testFailed: Bool?
 
-        init(claim: String, filesEdited: Int = 0, linesChanged: Int = 0,
+        init(claim: String, filesEdited: Int = 0, ranCommands: Bool = false,
              testCommandRan: Bool = false, testFailed: Bool? = nil) {
             self.claim = claim
             self.filesEdited = filesEdited
-            self.linesChanged = linesChanged
+            self.ranCommands = ranCommands
             self.testCommandRan = testCommandRan
             self.testFailed = testFailed
         }
@@ -136,7 +138,12 @@ enum CompletionAudit {
     nonisolated static func audit(_ e: Evidence) -> Verdict {
         let saidChange = claimsCodeChange(e.claim)
         let saidTestsPass = claimsTestsPass(e.claim)
-        let didSomething = e.filesEdited > 0 || e.linesChanged > 0
+        // Only per-turn signals. An earlier version counted the session's git
+        // diff, which is cumulative: once Claude edited anything the test was
+        // true for the rest of the session and a contradiction could never
+        // fire again. A shell command counts because it could have changed
+        // files without an Edit tool, so staying quiet is the honest answer.
+        let didSomething = e.filesEdited > 0 || e.ranCommands
 
         // A turn that ran the tests and watched them fail, then reported
         // success. The strongest signal available and worth interrupting for.
@@ -144,10 +151,9 @@ enum CompletionAudit {
             return .contradicted("Claude reported success, but the test command it ran failed.")
         }
 
-        // Said it edited something, and nothing was edited. Both halves have to
-        // be empty: no Edit or Write tool ran AND the working tree is unchanged.
+        // Said it edited something, and the turn ran no tool that could have.
         if saidChange, !didSomething {
-            return .contradicted("Claude says it changed the code, but no file was edited and the working tree is unchanged.")
+            return .contradicted("Claude says it changed the code, but this turn edited no file and ran no command.")
         }
 
         // Said the tests pass without running any.

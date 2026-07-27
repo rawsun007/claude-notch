@@ -6,9 +6,9 @@ import XCTest
 /// are about staying quiet rather than about catching anything.
 final class CompletionAuditSilenceTests: XCTestCase {
 
-    private func verdict(_ claim: String, files: Int = 0, lines: Int = 0,
+    private func verdict(_ claim: String, files: Int = 0, cmds: Bool = false,
                          ranTests: Bool = false, failed: Bool? = nil) -> CompletionAudit.Verdict {
-        CompletionAudit.audit(.init(claim: claim, filesEdited: files, linesChanged: lines,
+        CompletionAudit.audit(.init(claim: claim, filesEdited: files, ranCommands: cmds,
                                     testCommandRan: ranTests, testFailed: failed))
     }
 
@@ -79,9 +79,9 @@ final class CompletionAuditSilenceTests: XCTestCase {
 /// The cases worth interrupting for.
 final class CompletionAuditVerdictTests: XCTestCase {
 
-    private func verdict(_ claim: String, files: Int = 0, lines: Int = 0,
+    private func verdict(_ claim: String, files: Int = 0, cmds: Bool = false,
                          ranTests: Bool = false, failed: Bool? = nil) -> CompletionAudit.Verdict {
-        CompletionAudit.audit(.init(claim: claim, filesEdited: files, linesChanged: lines,
+        CompletionAudit.audit(.init(claim: claim, filesEdited: files, ranCommands: cmds,
                                     testCommandRan: ranTests, testFailed: failed))
     }
 
@@ -107,22 +107,23 @@ final class CompletionAuditVerdictTests: XCTestCase {
 
     /// Same claim, but it really did edit. Must not be contradicted.
     func testClaimingAChangeThatHappenedIsNotContradicted() {
-        XCTAssertFalse(isContradicted(verdict("I've updated the handler.", files: 1, lines: 12)))
+        XCTAssertFalse(isContradicted(verdict("I've updated the handler.", files: 1)))
     }
 
-    /// A tree change with no tool edit still counts as work done.
-    func testWorkingTreeChangeAloneCountsAsEvidence() {
-        XCTAssertFalse(isContradicted(verdict("I've updated the handler.", files: 0, lines: 30)))
+    /// A shell command can change files without an Edit tool, so a turn that
+    /// ran one must never be accused of having changed nothing.
+    func testAShellCommandAloneIsEnoughToStaySilent() {
+        XCTAssertFalse(isContradicted(verdict("I've updated the handler.", files: 0, cmds: true)))
     }
 
     func testSayingTestsPassWithoutRunningAnyIsUnverified() {
-        XCTAssertTrue(isUnverified(verdict("All tests pass now.", files: 2, lines: 20)))
+        XCTAssertTrue(isUnverified(verdict("All tests pass now.", files: 2)))
     }
 
     /// The worst case: it watched them fail and reported success anyway.
     func testReportingSuccessAfterAFailedTestRunIsContradicted() {
         XCTAssertTrue(isContradicted(
-            verdict("I've fixed it and the tests pass.", files: 1, lines: 4,
+            verdict("I've fixed it and the tests pass.", files: 1,
                     ranTests: true, failed: true)))
     }
 
@@ -133,14 +134,14 @@ final class CompletionAuditVerdictTests: XCTestCase {
     }
 
     func testEditedAndTestedIsVerified() {
-        let v = verdict("I've fixed the ordering.", files: 2, lines: 18,
+        let v = verdict("I've fixed the ordering.", files: 2,
                         ranTests: true, failed: false)
         XCTAssertTrue(isVerified(v))
         XCTAssertEqual(v.message, "2 files changed, tests passed.")
     }
 
     func testEditedWithoutTestsIsANoteNotAnAccusation() {
-        let v = verdict("I've added the helper.", files: 1, lines: 6)
+        let v = verdict("I've added the helper.", files: 1)
         XCTAssertTrue(isUnverified(v))
         XCTAssertEqual(v.message, "1 file changed, no tests run.")
     }

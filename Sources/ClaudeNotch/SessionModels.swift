@@ -120,6 +120,9 @@ struct LiveSession: Identifiable, Equatable {
     // reply that just landed is backed by the work that just happened, so a
     // file edited twenty minutes ago is not evidence. Reset on each new prompt.
     var turnFilesEdited: Int = 0
+    /// Any Bash run this turn. Not proof that work happened, but it means
+    /// "nothing changed" cannot be proven either, so the audit stays quiet.
+    var turnRanCommand: Bool = false
     var turnRanTests: Bool = false
     /// Nil when nothing ran or the outcome could not be read. Only ever set to
     /// true on an explicit failure signal, never inferred from silence.

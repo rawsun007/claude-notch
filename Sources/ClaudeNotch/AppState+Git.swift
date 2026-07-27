@@ -218,6 +218,7 @@ extension AppState {
             // handler" and gets accused of not having done it.
             s.fullResponse = ""
             s.turnFilesEdited = 0
+            s.turnRanCommand = false
             s.turnRanTests = false
             s.turnTestFailed = nil
             // A finished checklist belongs to the previous turn. Clear a fully

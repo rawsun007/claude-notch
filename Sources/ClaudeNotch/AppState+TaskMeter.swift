@@ -83,10 +83,14 @@ extension AppState {
         }
     }
 
-    /// A Bash command ran. Recorded only when it looks like a test run, and the
-    /// outcome only when the tool reported an explicit failure. Everything else
-    /// leaves `turnTestFailed` nil, which CompletionAudit reads as "unknown"
-    /// and stays quiet about, rather than guessing.
+    /// A shell command ran this turn, whatever it was.
+    func noteCommandRun(sessionId: String, cwd: String) {
+        upsertSession(id: sessionId, cwd: cwd) { s in s.turnRanCommand = true }
+    }
+
+    /// A test command ran. The outcome is recorded only when the tool reported
+    /// an explicit failure; everything else leaves `turnTestFailed` nil, which
+    /// CompletionAudit reads as "unknown" and stays quiet about.
     func noteTestRun(failed: Bool?, sessionId: String, cwd: String) {
         upsertSession(id: sessionId, cwd: cwd) { s in
             s.turnRanTests = true
@@ -100,7 +104,7 @@ extension AppState {
         return CompletionAudit.Evidence(
             claim: s?.fullResponse ?? fullClaudeResponse,
             filesEdited: s?.turnFilesEdited ?? 0,
-            linesChanged: (s?.linesAdded ?? 0) + (s?.linesRemoved ?? 0),
+            ranCommands: s?.turnRanCommand ?? false,
             testCommandRan: s?.turnRanTests ?? false,
             testFailed: s?.turnTestFailed
         )
