@@ -89,6 +89,10 @@ system, and shows no Dock icon, just a small bell in your menu bar.
 
 ---
 
+> **Coming from Vibe Notch / Claude Island?** See [MIGRATING.md](MIGRATING.md).
+> One command moves you over, and it lists honestly what is already fixed here
+> and what still is not.
+
 ## 🚀 Install
 
 ### The easy way (recommended)
