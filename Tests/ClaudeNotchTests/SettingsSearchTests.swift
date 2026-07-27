@@ -41,3 +41,37 @@ final class SettingsSearchTests: XCTestCase {
         XCTAssertTrue(titles("send zzz").isEmpty)
     }
 }
+
+/// Arrow-key movement through the settings sidebar.
+///
+/// The order has to come from the same place the sidebar is built from, or the
+/// arrows walk a different list than the one on screen.
+final class SettingsSectionNavigationTests: XCTestCase {
+
+    func testEverySectionIsReachable() {
+        XCTAssertEqual(Set(SettingsSection.ordered), Set(SettingsSection.allCases),
+                       "a section missing from nav can never be reached with the arrows")
+        XCTAssertEqual(SettingsSection.ordered.count, SettingsSection.allCases.count,
+                       "a section listed twice would be visited twice")
+    }
+
+    func testArrowsMoveOneRow() {
+        XCTAssertEqual(SettingsSection.section(from: .general, offset: 1), .notch)
+        XCTAssertEqual(SettingsSection.section(from: .notch, offset: -1), .general)
+    }
+
+    /// The sidebar is grouped, but the arrows walk it as one list.
+    func testMovementCrossesGroupBoundaries() {
+        XCTAssertEqual(SettingsSection.section(from: .pet, offset: 1), .session)
+        XCTAssertEqual(SettingsSection.section(from: .session, offset: -1), .pet)
+    }
+
+    /// Clamped, not wrapped: holding an arrow should come to rest at the end
+    /// rather than silently starting again from the other one.
+    func testMovementClampsAtBothEnds() {
+        XCTAssertEqual(SettingsSection.section(from: SettingsSection.ordered.first!, offset: -1),
+                       SettingsSection.ordered.first!)
+        XCTAssertEqual(SettingsSection.section(from: SettingsSection.ordered.last!, offset: 1),
+                       SettingsSection.ordered.last!)
+    }
+}

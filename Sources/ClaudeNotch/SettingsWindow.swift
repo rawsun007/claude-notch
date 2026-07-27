@@ -25,6 +25,7 @@ final class SettingsWindowController {
         let host = NSHostingController(rootView: SettingsView(state: appState, onOpenSetup: onOpenSetup))
         let w = NSWindow(contentViewController: host)
         w.title = "ClaudeNotch Settings"
+        w.identifier = NSUserInterfaceItemIdentifier("ClaudeNotchSettings")
         // A normal opaque title bar (not full-size content) so scrolled page
         // content stays below the bar instead of sliding up under the title.
         w.styleMask = [.titled, .closable, .resizable]
@@ -87,6 +88,20 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         ("Info", [.usage, .history, .privacy, .about]),
         ("Advanced", [.developer]),
     ]
+
+    /// The sidebar top to bottom, groups flattened. The order arrow keys move
+    /// in, so it has to come from the same place the sidebar is built from.
+    static var ordered: [SettingsSection] { nav.flatMap(\.items) }
+
+    /// The section `offset` rows away, clamped at the ends.
+    ///
+    /// Clamped rather than wrapping: holding the down arrow should come to rest
+    /// on the last row, not silently jump back to the top and start again.
+    nonisolated static func section(from current: SettingsSection, offset: Int) -> SettingsSection {
+        let all = ordered
+        guard let i = all.firstIndex(of: current) else { return current }
+        return all[min(all.count - 1, max(0, i + offset))]
+    }
 
     /// Extraction anchors for the sidebar.
     ///
@@ -382,7 +397,60 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
             }
         }
+        .onAppear { installArrowKeyNavigation(selection: $section) }
+        .onDisappear { removeArrowKeyNavigation() }
     }
+
+    // MARK: - Arrow-key navigation
+
+    /// Up and down move between sidebar sections from anywhere in the window.
+    ///
+    /// SwiftUI's List does this once it has keyboard focus, which means
+    /// clicking a row first. Nobody does that: they open Settings and press
+    /// down. A local key monitor gets it from the first keystroke instead.
+    ///
+    /// Intercepting the arrows is safe here because every text field in this
+    /// window is single line, where up and down only jump to the start or end
+    /// of the text. It is skipped anyway while a field is being edited, so
+    /// typing in the search box still behaves normally.
+    private func installArrowKeyNavigation(selection: Binding<SettingsSection>) {
+        // A Binding reads and writes live state, so the monitor stays correct
+        // as the selection changes. Capturing the value would freeze it at
+        // whatever was selected when the window opened.
+        Self.moveSection = { offset in
+            selection.wrappedValue = SettingsSection.section(from: selection.wrappedValue,
+                                                             offset: offset)
+        }
+        guard Self.arrowMonitor == nil else { return }
+        Self.arrowMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard event.window?.identifier?.rawValue == "ClaudeNotchSettings" else { return event }
+            guard event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty else { return event }
+            let offset: Int
+            switch event.keyCode {
+            case 126: offset = -1      // up
+            case 125: offset = 1       // down
+            default:  return event
+            }
+            // Let a field that is genuinely being edited keep its arrows.
+            if let responder = event.window?.firstResponder as? NSTextView, responder.isEditable {
+                return event
+            }
+            Self.moveSection?(offset)
+            return nil                 // handled, do not also scroll the page
+        }
+    }
+
+    private func removeArrowKeyNavigation() {
+        if let m = Self.arrowMonitor { NSEvent.removeMonitor(m) }
+        Self.arrowMonitor = nil
+        Self.moveSection = nil
+    }
+
+    /// The monitor is a process-level hook, so it cannot capture `self`
+    /// (a struct that is recreated on every redraw). It calls through this
+    /// instead, which the view keeps pointed at its current state.
+    nonisolated(unsafe) private static var arrowMonitor: Any?
+    nonisolated(unsafe) private static var moveSection: ((Int) -> Void)?
 
     @ViewBuilder
     private var detail: some View {
