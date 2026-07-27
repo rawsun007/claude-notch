@@ -185,19 +185,22 @@ struct IdlePill: View {
             let effort = isClaudeTop ? state.currentEffort : ""   // effort is a Claude concept
             HStack(spacing: 5) {
                 if !modelName.isEmpty {
-                    Text(modelName)
+                    // One text run, not two views in a spaced HStack. "Opus"
+                    // and "5" sat 5pt apart with the version dimmer, which read
+                    // as two unrelated stats rather than the model's name. The
+                    // version keeps its lighter weight, it just stops being a
+                    // separate column.
+                    (Text(modelName)
                         .font(.system(size: 10, weight: .semibold, design: .rounded))
                         .foregroundColor(.white.opacity(0.65))
+                     + ((isOpen && !modelVer.isEmpty)
+                        ? Text(" \(modelVer)")
+                            .font(.system(size: 10, design: .rounded))
+                            .foregroundColor(.white.opacity(0.45))
+                        : Text("")))
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
                     if isOpen {
-                        if !modelVer.isEmpty {
-                            Text(modelVer)
-                                .font(.system(size: 10, design: .rounded))
-                                .foregroundColor(.white.opacity(0.35))
-                                .lineLimit(1)
-                                .fixedSize(horizontal: true, vertical: false)
-                        }
                         if !effort.isEmpty {
                             Circle()
                                 .fill(Color.white.opacity(0.18))

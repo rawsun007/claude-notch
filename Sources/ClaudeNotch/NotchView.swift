@@ -231,11 +231,10 @@ struct NotchView: View {
         let cost = top?.displayCostUSD ?? state.currentCostUSD
         var row2: [CGFloat] = []
         if !modelName.isEmpty {
-            row2.append(textWidth(modelName, size: 10, weight: .semibold))
-            if hovering {
-                if !modelVer.isEmpty { row2.append(textWidth(modelVer, size: 10)) }
-                if !effort.isEmpty { row2.append(2.5) }
-            }
+            // Name and version render as a single run, so measure them as one.
+            let label = (hovering && !modelVer.isEmpty) ? "\(modelName) \(modelVer)" : modelName
+            row2.append(textWidth(label, size: 10, weight: .semibold))
+            if hovering, !effort.isEmpty { row2.append(2.5) }
         }
         if hovering {
             if !effort.isEmpty { row2.append(textWidth("\(effort) effort", size: 10)) }
