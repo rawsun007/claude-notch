@@ -64,7 +64,7 @@ struct ComposeCard: View {
                     }
                     if !state.recentProjects.isEmpty {
                         Divider()
-                        Text("Open in project")
+                        Text(NSLocalizedString("Open in project", comment: "Menu label: start a new session in a chosen project"))
                         ForEach(state.recentProjects, id: \.self) { cwd in
                             Button((cwd as NSString).lastPathComponent) {
                                 state.setComposeProject(cwd)
@@ -169,7 +169,7 @@ struct ResponseDetailCard: View {
                 Image(systemName: "text.bubble.fill")
                     .foregroundColor(.green)
                     .font(.system(size: 13, weight: .semibold))
-                Text("Claude's last reply")
+                Text(NSLocalizedString("Claude's last reply", comment: "Heading of the expanded reply card"))
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundColor(.green.opacity(0.9))
                     .textCase(.uppercase)

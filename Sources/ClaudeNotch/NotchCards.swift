@@ -59,8 +59,8 @@ struct NotificationCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 HStack(spacing: 8) {
-                    NotchButton(label: "Dismiss", style: .secondary, action: onDismiss)
-                    NotchButton(label: "Open IDE", style: .primary, action: onOpen)
+                    NotchButton(label: NSLocalizedString("Dismiss", comment: "Button: close a notification card"), style: .secondary, action: onDismiss)
+                    NotchButton(label: NSLocalizedString("Open IDE", comment: "Button: bring the editor or terminal that started this session to the front"), style: .primary, action: onOpen)
                 }
                 .fixedSize()
             }
@@ -188,10 +188,10 @@ struct CompletedCard: View {
 
                 HStack(spacing: 8) {
                     if let onReply {
-                        NotchButton(label: "Reply", style: .secondary, action: onReply)
+                        NotchButton(label: NSLocalizedString("Reply", comment: "Button: open a composer to send a follow-up message"), style: .secondary, action: onReply)
                     }
-                    NotchButton(label: "Open IDE", style: .secondary, action: onOpen)
-                    NotchButton(label: "Done", style: .primary, action: onDismiss)
+                    NotchButton(label: NSLocalizedString("Open IDE", comment: "Button: bring the editor or terminal that started this session to the front"), style: .secondary, action: onOpen)
+                    NotchButton(label: NSLocalizedString("Done", comment: "Button: dismiss the finished-task card"), style: .primary, action: onDismiss)
                 }
                 .fixedSize()
             }
@@ -242,7 +242,7 @@ struct AutoInfoCard: View {
                 Image(systemName: "bolt.badge.checkmark.fill")
                     .foregroundColor(.green)
                     .font(.system(size: 13, weight: .semibold))
-                Text("Auto-allowed")
+                Text(NSLocalizedString("Auto-allowed", comment: "Heading: this action was approved automatically by a rule"))
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundColor(.green.opacity(0.9))
                     .textCase(.uppercase)
@@ -251,7 +251,7 @@ struct AutoInfoCard: View {
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.55))
                 Spacer()
-                Text("click to dismiss")
+                Text(NSLocalizedString("click to dismiss", comment: "Hint under the auto-allowed card"))
                     .font(.system(size: 9, design: .rounded))
                     .foregroundColor(.white.opacity(0.3))
             }
@@ -398,8 +398,8 @@ struct QuestionCard: View {
 
             HStack {
                 Spacer()
-                NotchButton(label: "Cancel", style: .secondary, action: onCancel)
-                NotchButton(label: "Send", style: .primary) {
+                NotchButton(label: NSLocalizedString("Cancel", comment: "Button: abandon answering the question"), style: .secondary, action: onCancel)
+                NotchButton(label: NSLocalizedString("Send", comment: "Button: submit the answer to Claude's question"), style: .primary) {
                     onSubmit(buildAnswers())
                 }
             }
