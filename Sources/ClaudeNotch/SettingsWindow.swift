@@ -458,7 +458,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            Text(L("Applies straight away, no restart. Only the notch cards are translated so far; the settings window and menu bar are still English.", comment: "Settings explanation"))
+            Text(L("Applies straight away, no restart. The notch cards and most of this window are translated; some longer explanations and the menu bar are still English.", comment: "Settings explanation"))
                 .font(.callout).foregroundStyle(.secondary)
 
             sectionLabel(L("Integrations (beta)", comment: "Settings section heading"))

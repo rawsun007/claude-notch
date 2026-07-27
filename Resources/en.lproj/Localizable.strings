@@ -67,7 +67,7 @@
 "Always-allow rules" = "Always-allow rules";
 
 /* Settings explanation */
-"Applies straight away, no restart. Only the notch cards are translated so far; the settings window and menu bar are still English." = "Applies straight away, no restart. Only the notch cards are translated so far; the settings window and menu bar are still English.";
+"Applies straight away, no restart. The notch cards and most of this window are translated; some longer explanations and the menu bar are still English." = "Applies straight away, no restart. The notch cards and most of this window are translated; some longer explanations and the menu bar are still English.";
 
 /* Settings toggle explanation */
 "Ask for Touch ID before allowing a tool request from the notch." = "Ask for Touch ID before allowing a tool request from the notch.";
