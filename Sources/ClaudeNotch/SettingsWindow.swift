@@ -2179,8 +2179,6 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "Checking what Claude actually did is now off by default, in Settings > Session. It is an opinion about your work, so it should be something you ask for. It is also much quieter: it says nothing on an ordinary turn and speaks only when a claimed change was never made, when the tests are said to pass but none ran, or when a change was made and the tests back it up.",
-        "The notch shows the model version again. It read a fixed two-part number out of the model id, which found nothing in a single-digit release, so Opus 5 showed as a bare Opus. Any shape works now, including a later 5.1 or 5.2, and the name and version read as one label instead of two separate stats.",
-        "Two cases where the task check spoke when it should not have: quoting the app's own wording back at it, in a note about testing, was read as a claim, and a project's own test script did not count as a test run.",
+        "Up and down move between the sections in this window, from the moment it opens. The list used to need a click before the keyboard would drive it, which is not something anyone does. Typing in the search box is unaffected.",
     ]
 }
