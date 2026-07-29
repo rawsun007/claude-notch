@@ -42,7 +42,7 @@ Then quit Vibe Notch. If you would rather do it yourself, delete the
 | [#47](https://github.com/farouqaldori/vibe-notch/issues/47) crashes without `gettext` | No such dependency. |
 | [#31](https://github.com/farouqaldori/vibe-notch/issues/31) build fails on a hardcoded `DEVELOPMENT_TEAM` | There is no Xcode project. `./build.sh` builds it with SwiftPM and no team ID. |
 | [#3](https://github.com/farouqaldori/vibe-notch/issues/3) a toggle to disable auto-updates | There is no auto-update to disable. It checks GitHub Releases only when you ask it to. |
-| [#94](https://github.com/farouqaldori/vibe-notch/issues/94) language settings | In progress. The permission card reads from a strings table and translations ship as drop-in files. Not the whole UI yet. |
+| [#94](https://github.com/farouqaldori/vibe-notch/issues/94) language settings | Fixed. Nine languages, picked from **Settings → General → Language**, applied immediately with no restart. Some of the longer settings explanations still fall back to English. |
 
 ## What is not
 
