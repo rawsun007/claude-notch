@@ -2227,6 +2227,6 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "Up and down move between the sections in this window, from the moment it opens. The list used to need a click before the keyboard would drive it, which is not something anyone does. Typing in the search box is unaffected.",
+        "The version you are running now sits beside the page title in this window, and turns into a button when a newer release is out. Answering \"am I up to date\" used to mean a trip to the About page.",
     ]
 }
