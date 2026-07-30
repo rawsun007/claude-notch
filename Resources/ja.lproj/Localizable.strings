@@ -211,6 +211,9 @@
 /* Menu label: start a new session in a chosen project */
 "Open in project" = "プロジェクトで開く";
 
+/* Tooltip on the update badge */
+"Open the releases page to download the new version" = "リリースページを開いて新しいバージョンをダウンロード";
+
 /* Settings toggle */
 "Per-tool sounds" = "ツールごとの音";
 
@@ -295,6 +298,9 @@
 /* Settings button */
 "Task complete" = "タスク完了";
 
+/* Tooltip on the version badge */
+"The version you are running" = "実行中のバージョン";
+
 /* Settings button */
 "Thinking pulse" = "思考中のパルス";
 
@@ -315,6 +321,9 @@
 
 /* Button: stop enforcing the spending cap */
 "Turn off" = "オフにする";
+
+/* Settings badge: a newer version is available. %@ is the version number */
+"Update to v%@" = "v%@ に更新";
 
 /* Settings sidebar section */
 "Usage" = "使用状況";

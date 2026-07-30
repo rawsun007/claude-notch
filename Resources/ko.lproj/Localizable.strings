@@ -211,6 +211,9 @@
 /* Menu label: start a new session in a chosen project */
 "Open in project" = "프로젝트에서 열기";
 
+/* Tooltip on the update badge */
+"Open the releases page to download the new version" = "릴리스 페이지를 열어 새 버전 다운로드";
+
 /* Settings toggle */
 "Per-tool sounds" = "도구별 소리";
 
@@ -295,6 +298,9 @@
 /* Settings button */
 "Task complete" = "작업 완료";
 
+/* Tooltip on the version badge */
+"The version you are running" = "현재 실행 중인 버전";
+
 /* Settings button */
 "Thinking pulse" = "사고 중 표시";
 
@@ -315,6 +321,9 @@
 
 /* Button: stop enforcing the spending cap */
 "Turn off" = "끄기";
+
+/* Settings badge: a newer version is available. %@ is the version number */
+"Update to v%@" = "v%@(으)로 업데이트";
 
 /* Settings sidebar section */
 "Usage" = "사용량";

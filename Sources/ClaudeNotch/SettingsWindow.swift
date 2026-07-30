@@ -2072,10 +2072,52 @@ struct SettingsView: View {
 
     private func page<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text(title).font(.largeTitle.weight(.bold))
+            HStack(alignment: .firstTextBaseline) {
+                Text(title).font(.largeTitle.weight(.bold))
+                Spacer(minLength: 12)
+                versionBadge
+            }
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Which version you are on, and whether there is a newer one, opposite the
+    /// page title.
+    ///
+    /// It lives in `page` rather than on the About page so it is answered on
+    /// whichever page the window happens to open on. The space beside the title
+    /// was empty on every one of them, and "am I up to date" was previously a
+    /// trip to About to find out.
+    @ViewBuilder
+    private var versionBadge: some View {
+        if let newer = state.availableUpdateVersion {
+            Button {
+                if let url = URL(string: UpdateChecker.shared.releasesPage) {
+                    NSWorkspace.shared.open(url)
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "arrow.down.circle.fill")
+                    Text(String(format: L("Update to v%@", comment: "Settings badge: a newer version is available. %@ is the version number"), newer))
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .background(Capsule().fill(Color.accentColor))
+            }
+            .buttonStyle(.plain)
+            .help(L("Open the releases page to download the new version", comment: "Tooltip on the update badge"))
+        } else {
+            Text(verbatim: "v\(Self.shortAppVersion)")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(Color.secondary.opacity(0.12)))
+                .help(L("The version you are running", comment: "Tooltip on the version badge"))
+        }
     }
 
     private func group<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
@@ -2162,6 +2204,12 @@ struct SettingsView: View {
     }
 
     private typealias KeyValuePath = KeyPath<AppState, Bool>
+
+    /// Just the marketing version, for the badge. `appVersion` carries the
+    /// build number too, which is noise at pill size.
+    static var shortAppVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+    }
 
     static var appVersion: String {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"

@@ -211,6 +211,9 @@
 /* Menu label: start a new session in a chosen project */
 "Open in project" = "在项目中打开";
 
+/* Tooltip on the update badge */
+"Open the releases page to download the new version" = "打开发布页面下载新版本";
+
 /* Settings toggle */
 "Per-tool sounds" = "按工具区分声音";
 
@@ -295,6 +298,9 @@
 /* Settings button */
 "Task complete" = "任务完成";
 
+/* Tooltip on the version badge */
+"The version you are running" = "你当前运行的版本";
+
 /* Settings button */
 "Thinking pulse" = "思考脉冲";
 
@@ -315,6 +321,9 @@
 
 /* Button: stop enforcing the spending cap */
 "Turn off" = "关闭";
+
+/* Settings badge: a newer version is available. %@ is the version number */
+"Update to v%@" = "更新到 v%@";
 
 /* Settings sidebar section */
 "Usage" = "用量";

@@ -211,6 +211,9 @@
 /* Menu label: start a new session in a chosen project */
 "Open in project" = "प्रोजेक्ट में खोलें";
 
+/* Tooltip on the update badge */
+"Open the releases page to download the new version" = "नया संस्करण डाउनलोड करने के लिए रिलीज़ पेज खोलें";
+
 /* Settings toggle */
 "Per-tool sounds" = "प्रति-टूल ध्वनियाँ";
 
@@ -295,6 +298,9 @@
 /* Settings button */
 "Task complete" = "कार्य पूर्ण";
 
+/* Tooltip on the version badge */
+"The version you are running" = "आप जो संस्करण चला रहे हैं";
+
 /* Settings button */
 "Thinking pulse" = "थिंकिंग पल्स";
 
@@ -315,6 +321,9 @@
 
 /* Button: stop enforcing the spending cap */
 "Turn off" = "बंद करें";
+
+/* Settings badge: a newer version is available. %@ is the version number */
+"Update to v%@" = "v%@ में अपडेट करें";
 
 /* Settings sidebar section */
 "Usage" = "उपयोग";

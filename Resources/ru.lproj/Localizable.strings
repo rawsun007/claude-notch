@@ -211,6 +211,9 @@
 /* Menu label: start a new session in a chosen project */
 "Open in project" = "Открыть в проекте";
 
+/* Tooltip on the update badge */
+"Open the releases page to download the new version" = "Открыть страницу релизов, чтобы скачать новую версию";
+
 /* Settings toggle */
 "Per-tool sounds" = "Звуки для каждого инструмента";
 
@@ -295,6 +298,9 @@
 /* Settings button */
 "Task complete" = "Задача завершена";
 
+/* Tooltip on the version badge */
+"The version you are running" = "Установленная версия";
+
 /* Settings button */
 "Thinking pulse" = "Индикатор размышления";
 
@@ -315,6 +321,9 @@
 
 /* Button: stop enforcing the spending cap */
 "Turn off" = "Отключить";
+
+/* Settings badge: a newer version is available. %@ is the version number */
+"Update to v%@" = "Обновить до v%@";
 
 /* Settings sidebar section */
 "Usage" = "Использование";

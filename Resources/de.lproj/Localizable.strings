@@ -211,6 +211,9 @@
 /* Menu label: start a new session in a chosen project */
 "Open in project" = "Im Projekt öffnen";
 
+/* Tooltip on the update badge */
+"Open the releases page to download the new version" = "Releases-Seite öffnen, um die neue Version zu laden";
+
 /* Settings toggle */
 "Per-tool sounds" = "Töne je Tool";
 
@@ -295,6 +298,9 @@
 /* Settings button */
 "Task complete" = "Aufgabe abgeschlossen";
 
+/* Tooltip on the version badge */
+"The version you are running" = "Die Version, die du verwendest";
+
 /* Settings button */
 "Thinking pulse" = "Denk-Puls";
 
@@ -315,6 +321,9 @@
 
 /* Button: stop enforcing the spending cap */
 "Turn off" = "Deaktivieren";
+
+/* Settings badge: a newer version is available. %@ is the version number */
+"Update to v%@" = "Auf v%@ aktualisieren";
 
 /* Settings sidebar section */
 "Usage" = "Nutzung";
