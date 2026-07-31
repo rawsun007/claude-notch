@@ -314,6 +314,7 @@ struct SettingsView: View {
     @State private var editingNoteId: String?
     @State private var editingNoteText = ""
     @State private var updateCmdCopied = false
+    @State private var terminalCmdCopied = false
     @State private var codexTotals: CodexReader.CodexTotals?
     @State private var devSampleCardsOpen = false
     @State private var devPetDemosOpen = false
@@ -606,6 +607,25 @@ struct SettingsView: View {
                     updateCmdCopied = true
                 } label: {
                     Image(systemName: updateCmdCopied ? "checkmark" : "doc.on.doc")
+                        .font(.caption).foregroundStyle(.white)
+                }
+                .buttonStyle(.plain)
+                Spacer()
+            }
+            // For everyone who installed from the DMG, which Homebrew cannot
+            // update. The script is already on disk next to the hook scripts.
+            HStack(spacing: 8) {
+                Text(L("Terminal:", comment: "Settings explanation")).font(.caption).foregroundStyle(.white.opacity(0.8))
+                Text(verbatim: Self.updateCommand)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Button {
+                    NSPasteboard.copyString(Self.updateCommand)
+                    terminalCmdCopied = true
+                } label: {
+                    Image(systemName: terminalCmdCopied ? "checkmark" : "doc.on.doc")
                         .font(.caption).foregroundStyle(.white)
                 }
                 .buttonStyle(.plain)
@@ -2207,6 +2227,11 @@ struct SettingsView: View {
 
     /// Just the marketing version, for the badge. `appVersion` carries the
     /// build number too, which is noise at pill size.
+    /// What to paste into a terminal to update. Written with ~ rather than an
+    /// expanded home directory: shorter on screen, and it survives being
+    /// pasted somewhere else.
+    static let updateCommand = "~/.claudenotch/bin/claudenotch-update.sh"
+
     static var shortAppVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
     }

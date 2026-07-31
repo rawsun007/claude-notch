@@ -43,3 +43,8 @@ jobs:
       # belonging to other tools. Losing one of those would be silent.
       - name: Test the Vibe Notch migration
         run: tools/test-migrate-from-vibe-notch.sh
+
+      # The updater replaces the app in /Applications, so the version
+      # comparison deciding whether to do that has to be right.
+      - name: Test the update script
+        run: tools/test-update-script.sh

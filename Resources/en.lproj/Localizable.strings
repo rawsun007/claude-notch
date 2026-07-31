@@ -453,6 +453,9 @@
 /* Settings button */
 "Task complete: verified" = "Task complete: verified";
 
+/* Settings explanation */
+"Terminal:" = "Terminal:";
+
 /* Tooltip on the version badge */
 "The version you are running" = "The version you are running";
 

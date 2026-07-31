@@ -243,6 +243,31 @@ script (below) to remove everything cleanly.
 
 ---
 
+## ⬆️ Update
+
+Installed with Homebrew:
+
+```bash
+brew upgrade --cask claudenotch
+```
+
+Installed from the DMG, which Homebrew cannot update:
+
+```bash
+~/.claudenotch/bin/claudenotch-update.sh
+```
+
+It checks what is published, verifies the download against the checksum in the
+Homebrew tap, quits the running copy, replaces it, and relaunches. Pass
+`--check` to see what is available without changing anything. If it finds the
+app was installed by Homebrew after all, it says so and stops rather than
+replacing it behind Homebrew's back.
+
+The settings window also shows the version you are on beside the page title,
+and turns it into a button when a newer release is out.
+
+---
+
 ## 🧹 Uninstall
 
 ```bash
