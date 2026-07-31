@@ -581,7 +581,7 @@ struct SettingsView: View {
             }
             HStack(spacing: 8) {
                 Button {
-                    if let url = URL(string: "https://github.com/rawsun007/claude-notch/releases/latest/download/ClaudeNotch.dmg") {
+                    if let url = URL(string: ProjectLinks.latestDMG) {
                         NSWorkspace.shared.open(url)
                     }
                 } label: {
@@ -590,7 +590,7 @@ struct SettingsView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
                 Button("Release notes") {
-                    if let url = URL(string: "https://rawsun007.github.io/claude-notch/changelog/") {
+                    if let url = URL(string: ProjectLinks.changelog) {
                         NSWorkspace.shared.open(url)
                     }
                 }
@@ -599,11 +599,11 @@ struct SettingsView: View {
             }
             HStack(spacing: 8) {
                 Text(L("Homebrew:", comment: "Settings explanation")).font(.caption).foregroundStyle(.white.opacity(0.8))
-                Text(L("brew upgrade --cask rawsun007/tap/claudenotch", comment: "Settings explanation"))
+                Text(verbatim: ProjectLinks.brewUpgrade)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.white)
                 Button {
-                    NSPasteboard.copyString("brew upgrade --cask rawsun007/tap/claudenotch")
+                    NSPasteboard.copyString(ProjectLinks.brewUpgrade)
                     updateCmdCopied = true
                 } label: {
                     Image(systemName: updateCmdCopied ? "checkmark" : "doc.on.doc")
@@ -1851,9 +1851,9 @@ struct SettingsView: View {
                 }
             }
             group {
-                aboutLink("Full changelog", "https://rawsun007.github.io/claude-notch/changelog/")
+                aboutLink("Full changelog", ProjectLinks.changelog)
                 divider
-                aboutLink("Source on GitHub", "https://github.com/rawsun007/claude-notch")
+                aboutLink("Source on GitHub", ProjectLinks.github)
             }
             group {
                 actionRow(L("Send feedback", comment: "Settings button"), "bubble.left.and.bubble.right") { Self.openFeedback() }
@@ -2188,7 +2188,7 @@ struct SettingsView: View {
     /// What to paste into a terminal to update. Written with ~ rather than an
     /// expanded home directory: shorter on screen, and it survives being
     /// pasted somewhere else.
-    static let updateCommand = "~/.claudenotch/bin/claudenotch-update.sh"
+    static let updateCommand = ProjectLinks.updateCommand
 
     static var shortAppVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
@@ -2211,6 +2211,6 @@ struct SettingsView: View {
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
         "Updating no longer means downloading the disk image and dragging it over the running app. Run ~/.claudenotch/bin/claudenotch-update.sh and it fetches the new version, checks it against the published checksum, swaps it in and relaunches. The command is on the About page below, ready to copy.",
-        "Installed with Homebrew? Keep using brew upgrade --cask rawsun007/tap/claudenotch. The script checks, and stops rather than replacing a cask-installed copy behind Homebrew's back.",
+        "Installed with Homebrew? Keep using \(ProjectLinks.brewUpgrade). The script checks, and stops rather than replacing a cask-installed copy behind Homebrew's back.",
     ]
 }

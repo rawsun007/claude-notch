@@ -10,8 +10,8 @@ import Foundation
 final class UpdateChecker: @unchecked Sendable {
     static let shared = UpdateChecker()
 
-    private let repo = "rawsun007/claude-notch"
-    let releasesPage = "https://github.com/rawsun007/claude-notch/releases/latest"
+    private let repo = ProjectLinks.repo
+    let releasesPage = ProjectLinks.latestRelease
 
     /// Called on the main thread with the new version when an update is found.
     /// `userInitiated` lets the UI decide whether to show a modal alert
