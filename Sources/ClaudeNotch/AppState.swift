@@ -365,7 +365,7 @@ final class AppState: ObservableObject {
     // an update. Maintained per release alongside the changelog.
     var lastSeenVersion: String? = nil
     static let whatsNewHighlights =
-        "One command updates the app now, no dragging the DMG over it by hand"
+        "Settings is fully translated in all ten languages now, explanations included"
 
     /// Transient "live activity" card shown after an auto-approved action —
     /// shows WHAT changed, no buttons, auto-dismisses.

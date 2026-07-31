@@ -2210,7 +2210,8 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "Updating no longer means downloading the disk image and dragging it over the running app. Run ~/.claudenotch/bin/claudenotch-update.sh and it fetches the new version, checks it against the published checksum, swaps it in and relaunches. The command is on the About page below, ready to copy.",
-        "Installed with Homebrew? Keep using \(ProjectLinks.brewUpgrade). The script checks, and stops rather than replacing a cask-installed copy behind Homebrew's back.",
+        "Every language is complete. Nine translations covered the short labels but fell back to English for the explanations under each toggle, which is the part that tells you what the toggle does. All 179 strings are translated now, so picking a language actually changes the whole window.",
+        "The two hooks that can hold up a session, the ones Claude Code waits on before it may run a tool, are covered by tests for the first time. That found a real one: when a payload arrived unreadable, the card appeared with no tool name and no command on it, and whatever you tapped came back as a decision about a tool you could not see. Both now hand the prompt back to the terminal instead.",
+        "The updater no longer walks past its own Homebrew guard when a cask name is ambiguous across taps, so it will not replace a Homebrew-installed copy by hand.",
     ]
 }
