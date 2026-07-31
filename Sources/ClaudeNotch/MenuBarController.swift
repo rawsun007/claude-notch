@@ -159,6 +159,18 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         addDemo("Auto-Approve (Live Activity)", #selector(triggerDemoAutoApprove), "")
         addDemo("Notification",         #selector(triggerDemoNotification), "n")
         addDemo("Task Complete",        #selector(triggerDemoCompleted),  "c")
+        // Same list Settings builds its rows from, so a verdict added there
+        // turns up here too. The index rides on the item's tag rather than a
+        // selector per verdict, which would quietly send a fourth one to the
+        // wrong handler.
+        for (index, item) in DemoCards.auditVerdicts.enumerated() {
+            let mi = NSMenuItem(title: item.title,
+                                action: #selector(triggerDemoAudit(_:)),
+                                keyEquivalent: "")
+            mi.target = self
+            mi.tag = index
+            demosMenu.addItem(mi)
+        }
         addDemo("Thinking Pulse",       #selector(triggerDemoThinking),   "t")
         addDemo("Cost Budget Alert",    #selector(triggerDemoBudget),     "")
         addDemo("Budget Hard-Stop",     #selector(triggerDemoBudgetBlock), "")
@@ -594,111 +606,34 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func triggerDemoPermission() {
-        let cmd = "npm install"
-        let req = PermissionRequest(
-            kind: .toolUse,
-            title: "Run shell command",
-            detail: cmd,
-            toolName: "Bash",
-            source: "Demo",
-            cwd: NSHomeDirectory(),
-            dangerReasons: [],
-            resolver: { decision, _ in
-                NSLog("Demo permission resolved: \(decision.rawValue)")
-            }
-        )
-        state.enqueuePermission(req, bypassRules: true)
+        state.enqueuePermission(DemoCards.permission(), bypassRules: true)
     }
 
-    /// Destructive command demo — exercises the red banner + hold-to-allow
-    /// flow without waiting for Claude Code to actually issue an rm -rf.
     @objc private func triggerDemoDangerous() {
-        let cmd = "rm -rf /tmp/cache && sudo chmod -R 777 /Library/LaunchAgents"
-        let toolInput: [String: Any] = ["command": cmd]
-        let reasons = ToolPreviewParser.dangerReasons(for: "Bash", input: toolInput)
-        let req = PermissionRequest(
-            kind: .toolUse,
-            title: "Run shell command",
-            detail: cmd,
-            toolName: "Bash",
-            source: "Demo",
-            cwd: NSHomeDirectory(),
-            dangerReasons: reasons,
-            resolver: { decision, _ in
-                NSLog("Demo dangerous resolved: \(decision.rawValue)")
-            }
-        )
-        state.enqueuePermission(req, bypassRules: true)
+        state.enqueuePermission(DemoCards.dangerous(), bypassRules: true)
     }
 
-    /// Edit demo — exercises the diff-preview block (red old / green new).
     @objc private func triggerDemoDiff() {
-        let oldText = "let x = 42\nprint(\"hello\")\nreturn x"
-        let newText = "let x = 100\nprint(\"hello, world\")\nreturn x * 2"
-        let toolInput: [String: Any] = [
-            "file_path": "/Users/example/main.swift",
-            "old_string": oldText,
-            "new_string": newText
-        ]
-        let preview = ToolPreviewParser.preview(for: "Edit", input: toolInput)
-        let req = PermissionRequest(
-            kind: .toolUse,
-            title: "Edit file",
-            detail: "/Users/example/main.swift",
-            toolName: "Edit",
-            source: "Demo",
-            cwd: "/Users/example",
-            preview: preview,
-            resolver: { decision, _ in
-                NSLog("Demo diff resolved: \(decision.rawValue)")
-            }
-        )
-        state.enqueuePermission(req, bypassRules: true)
+        state.enqueuePermission(DemoCards.diff(), bypassRules: true)
     }
 
-    /// Auto-approve demo — shows the button-less "live activity" card exactly
-    /// as it appears when Auto-Approve silently allows an edit.
     @objc private func triggerDemoAutoApprove() {
-        let oldText = "timeout = 30"
-        let newText = "timeout = 60"
-        let toolInput: [String: Any] = [
-            "file_path": "/Users/example/config.swift",
-            "old_string": oldText,
-            "new_string": newText
-        ]
-        let preview = ToolPreviewParser.preview(for: "Edit", input: toolInput)
-        let req = PermissionRequest(
-            kind: .toolUse,
-            title: "Edit file",
-            detail: "/Users/example/config.swift",
-            toolName: "Edit",
-            source: "Demo",
-            cwd: "/Users/example",
-            preview: preview,
-            resolver: { _, _ in }
-        )
-        state.demoAutoApprove(req)
+        state.demoAutoApprove(DemoCards.autoApproved())
     }
 
     @objc private func triggerDemoNotification() {
-        state.enqueuePermission(.init(
-            kind: .notification,
-            title: "Claude is waiting for your input",
-            detail: "Open IDE to continue",
-            toolName: "Notification",
-            source: "Demo",
-            cwd: "",
-            resolver: { _, _ in }
-        ), bypassRules: true)
+        state.enqueuePermission(DemoCards.notification(), bypassRules: true)
     }
 
     @objc private func triggerDemoCompleted() {
-        state.enqueueCompleted(.init(
-            title: "Done, 14 files changed, tests green",
-            detail: "Refactored auth middleware and re-ran the suite.",
-            source: "Demo",
-            cwd: NSHomeDirectory()
-        ))
+        state.enqueueCompleted(DemoCards.completed())
+    }
+
+    /// The completion audit's verdicts, which were reachable from Settings and
+    /// from nowhere in the menu bar. The tag says which one.
+    @objc private func triggerDemoAudit(_ sender: NSMenuItem) {
+        guard DemoCards.auditVerdicts.indices.contains(sender.tag) else { return }
+        state.enqueueCompleted(DemoCards.audited(DemoCards.auditVerdicts[sender.tag].verdict))
     }
 
     @objc private func triggerDemoThinking() {

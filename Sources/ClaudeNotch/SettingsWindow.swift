@@ -1741,18 +1741,14 @@ struct SettingsView: View {
                     divider
                     actionRow(L("Task complete", comment: "Settings button"), "checkmark.seal") { demoCompleted() }
                     divider
-                    actionRow(L("Task complete: claim contradicted", comment: "Settings button"), "exclamationmark.triangle") {
-                        demoAudit(.contradicted("Claude says it changed the code, but this turn edited no file and ran no command."))
+                    // Built from the same list the menu bar reads, so the two
+                    // Demos menus cannot drift apart again.
+                    ForEach(Array(DemoCards.auditVerdicts.enumerated()), id: \.offset) { _, item in
+                        actionRow(L(item.title, comment: "Settings button"), item.symbol) {
+                            demoAudit(item.verdict)
+                        }
+                        divider
                     }
-                    divider
-                    actionRow(L("Task complete: not demonstrated", comment: "Settings button"), "questionmark.circle") {
-                        demoAudit(.unverified("Claude says the tests pass, but no test command ran this turn."))
-                    }
-                    divider
-                    actionRow(L("Task complete: verified", comment: "Settings button"), "checkmark.circle") {
-                        demoAudit(.verified("2 files changed, tests passed."))
-                    }
-                    divider
                     actionRow(L("Thinking pulse", comment: "Settings button"), "brain") { state.pingThinking(label: "Editing AuthMiddleware.swift") }
                     divider
                     actionRow(L("Cost budget alert", comment: "Settings button"), "dollarsign.circle") { state.demoBudgetAlert() }
@@ -1802,63 +1798,25 @@ struct SettingsView: View {
     }
 
     private func demoPermission() {
-        state.enqueuePermission(PermissionRequest(
-            kind: .toolUse, title: "Run shell command", detail: "npm install",
-            toolName: "Bash", source: "Demo", cwd: NSHomeDirectory(),
-            dangerReasons: [], resolver: { _, _ in }), bypassRules: true)
+        state.enqueuePermission(DemoCards.permission(), bypassRules: true)
     }
     private func demoDangerous() {
-        let cmd = "rm -rf /tmp/cache && sudo chmod -R 777 /Library/LaunchAgents"
-        let reasons = ToolPreviewParser.dangerReasons(for: "Bash", input: ["command": cmd])
-        state.enqueuePermission(PermissionRequest(
-            kind: .toolUse, title: "Run shell command", detail: cmd,
-            toolName: "Bash", source: "Demo", cwd: NSHomeDirectory(),
-            dangerReasons: reasons, resolver: { _, _ in }), bypassRules: true)
+        state.enqueuePermission(DemoCards.dangerous(), bypassRules: true)
     }
     private func demoNotification() {
-        state.enqueuePermission(PermissionRequest(
-            kind: .notification, title: "Claude is waiting for your input",
-            detail: "Open IDE to continue", toolName: "Notification",
-            source: "Demo", cwd: "", resolver: { _, _ in }), bypassRules: true)
+        state.enqueuePermission(DemoCards.notification(), bypassRules: true)
     }
     private func demoCompleted() {
-        state.enqueueCompleted(CompletedTask(
-            title: "Done, 14 files changed, tests green",
-            detail: "Refactored auth middleware and re-ran the suite.",
-            source: "Demo", cwd: NSHomeDirectory()))
+        state.enqueueCompleted(DemoCards.completed())
     }
-
-    /// The completion audit's three verdicts, on demand.
-    ///
-    /// The real thing needs a finished turn whose closing message disagrees
-    /// with what the tools did, which you cannot stage to order. Without these
-    /// the headline case is unreachable by hand.
     private func demoAudit(_ verdict: CompletionAudit.Verdict) {
-        let task = CompletedTask(
-            title: "Fixed the ordering in the phase machine",
-            detail: "Claude said it was done.",
-            source: "Demo", cwd: NSHomeDirectory())
-        task.audit = verdict
-        state.enqueueCompleted(task)
+        state.enqueueCompleted(DemoCards.audited(verdict))
     }
     private func demoDiff() {
-        let preview = ToolPreviewParser.preview(for: "Edit", input: [
-            "file_path": "/Users/example/main.swift",
-            "old_string": "let x = 42\nprint(\"hello\")\nreturn x",
-            "new_string": "let x = 100\nprint(\"hello, world\")\nreturn x * 2"])
-        state.enqueuePermission(PermissionRequest(
-            kind: .toolUse, title: "Edit file", detail: "/Users/example/main.swift",
-            toolName: "Edit", source: "Demo", cwd: "/Users/example",
-            preview: preview, resolver: { _, _ in }), bypassRules: true)
+        state.enqueuePermission(DemoCards.diff(), bypassRules: true)
     }
     private func demoAutoApprove() {
-        let preview = ToolPreviewParser.preview(for: "Edit", input: [
-            "file_path": "/Users/example/config.swift",
-            "old_string": "timeout = 30", "new_string": "timeout = 60"])
-        state.demoAutoApprove(PermissionRequest(
-            kind: .toolUse, title: "Edit file", detail: "/Users/example/config.swift",
-            toolName: "Edit", source: "Demo", cwd: "/Users/example",
-            preview: preview, resolver: { _, _ in }))
+        state.demoAutoApprove(DemoCards.autoApproved())
     }
 
     private var about: some View {
