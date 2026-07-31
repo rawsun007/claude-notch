@@ -66,9 +66,20 @@ if command -v brew >/dev/null 2>&1 && brew list --cask claudenotch >/dev/null 2>
 fi
 
 TMP=$(mktemp -d)
+MOUNT="$TMP/mnt"
+# Always try to detach before deleting, without first asking whether anything is
+# mounted: /var is a symlink to /private/var, so the mount table lists a path
+# that does not match the one we passed in, and a check against it never fires.
+# A detach on a path that was never mounted fails harmlessly.
+#
+# The exit status is captured and restored because a failure in here would
+# otherwise become the script's, reporting a successful update as a failure.
 cleanup() {
-    [ -n "${MOUNT:-}" ] && hdiutil detach "$MOUNT" -quiet >/dev/null 2>&1 || true
-    rm -rf "$TMP"
+    local rc=$?
+    hdiutil detach "$MOUNT" -quiet >/dev/null 2>&1 \
+        || hdiutil detach "$MOUNT" -force -quiet >/dev/null 2>&1 || true
+    rm -rf "$TMP" >/dev/null 2>&1 || true
+    exit "$rc"
 }
 trap cleanup EXIT
 
@@ -94,9 +105,13 @@ else
 fi
 
 say "→ Mounting"
-MOUNT=$(hdiutil attach "$TMP/ClaudeNotch.dmg" -nobrowse -quiet -mountrandom "$TMP" \
-        | grep -o '/.*' | tail -1)
-[ -n "$MOUNT" ] && [ -d "$MOUNT/ClaudeNotch.app" ] \
+# Mount at a path we picked. Reading the mount point back out of hdiutil's
+# output does not survive -quiet, which prints nothing, and the tab-separated
+# columns it prints otherwise are not worth parsing.
+mkdir -p "$MOUNT"
+hdiutil attach "$TMP/ClaudeNotch.dmg" -nobrowse -quiet -mountpoint "$MOUNT" \
+    || die "Could not mount the disk image."
+[ -d "$MOUNT/ClaudeNotch.app" ] \
     || die "The disk image did not contain ClaudeNotch.app."
 
 # --- replace
