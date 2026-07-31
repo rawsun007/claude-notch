@@ -529,7 +529,7 @@
 "Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps." = "Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps.";
 
 /* Settings explanation */
-"brew upgrade --cask claudenotch" = "brew upgrade --cask claudenotch";
+"brew upgrade --cask rawsun007/tap/claudenotch" = "brew upgrade --cask rawsun007/tap/claudenotch";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "click to dismiss";

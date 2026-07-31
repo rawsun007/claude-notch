@@ -13,6 +13,9 @@
 set -euo pipefail
 
 REPO="rawsun007/claude-notch"
+# Fully qualified. A bare "claudenotch" is ambiguous the moment the token also
+# exists in another tap, and brew refuses rather than guessing.
+BREW_CASK="rawsun007/tap/claudenotch"
 CASK_URL="https://raw.githubusercontent.com/rawsun007/homebrew-tap/main/Casks/claudenotch.rb"
 APP="/Applications/ClaudeNotch.app"
 DMG_URL="https://github.com/${REPO}/releases/latest/download/ClaudeNotch.dmg"
@@ -58,10 +61,17 @@ say "ClaudeNotch v${LATEST} is available. You have v${CURRENT}."
 # --- do not fight Homebrew
 # Replacing a cask-installed app by hand leaves brew believing the old version
 # is still there, and the next `brew upgrade` will happily put it back.
-if command -v brew >/dev/null 2>&1 && brew list --cask claudenotch >/dev/null 2>&1; then
+#
+# Match against the list of installed casks rather than asking brew about the
+# name. `brew list --cask claudenotch` fails outright when the token exists in
+# more than one tap, and a failure there reads as "not installed by Homebrew",
+# which is how this guard was walked straight past on a machine that had a
+# leftover local tap. Listing what is installed cannot be ambiguous.
+if command -v brew >/dev/null 2>&1 \
+   && brew list --cask 2>/dev/null | grep -qx "claudenotch"; then
     say ""
     say "This copy was installed with Homebrew. Update it the same way:"
-    say "    brew upgrade --cask claudenotch"
+    say "    brew upgrade --cask ${BREW_CASK}"
     exit 0
 fi
 

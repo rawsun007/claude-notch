@@ -248,7 +248,7 @@ script (below) to remove everything cleanly.
 Installed with Homebrew:
 
 ```bash
-brew upgrade --cask claudenotch
+brew upgrade --cask rawsun007/tap/claudenotch
 ```
 
 Installed from the DMG, which Homebrew cannot update:

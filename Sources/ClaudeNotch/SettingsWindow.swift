@@ -599,11 +599,11 @@ struct SettingsView: View {
             }
             HStack(spacing: 8) {
                 Text(L("Homebrew:", comment: "Settings explanation")).font(.caption).foregroundStyle(.white.opacity(0.8))
-                Text(L("brew upgrade --cask claudenotch", comment: "Settings explanation"))
+                Text(L("brew upgrade --cask rawsun007/tap/claudenotch", comment: "Settings explanation"))
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.white)
                 Button {
-                    NSPasteboard.copyString("brew upgrade --cask claudenotch")
+                    NSPasteboard.copyString("brew upgrade --cask rawsun007/tap/claudenotch")
                     updateCmdCopied = true
                 } label: {
                     Image(systemName: updateCmdCopied ? "checkmark" : "doc.on.doc")
@@ -2253,6 +2253,6 @@ struct SettingsView: View {
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
         "Updating no longer means downloading the disk image and dragging it over the running app. Run ~/.claudenotch/bin/claudenotch-update.sh and it fetches the new version, checks it against the published checksum, swaps it in and relaunches. The command is on the About page below, ready to copy.",
-        "Installed with Homebrew? Keep using brew upgrade --cask claudenotch. The script checks, and stops rather than replacing a cask-installed copy behind Homebrew's back.",
+        "Installed with Homebrew? Keep using brew upgrade --cask rawsun007/tap/claudenotch. The script checks, and stops rather than replacing a cask-installed copy behind Homebrew's back.",
     ]
 }
