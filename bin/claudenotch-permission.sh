@@ -8,6 +8,11 @@
 
 set -u
 LOG=/tmp/claudenotch-hook.log
+# Overridable so tools/test-blocking-hooks.sh can point this at a server it
+# controls, with a timeout short enough to test. Nothing else sets them.
+HOST="${CLAUDENOTCH_HOST:-127.0.0.1}"
+PORT="${CLAUDENOTCH_PORT:-53127}"
+WAIT="${CLAUDENOTCH_TIMEOUT:-290}"
 
 input=$(cat)
 tool=$(printf '%s' "$input" | jq -r '.tool_name // "?"' 2>/dev/null)
@@ -20,14 +25,22 @@ emit_ask() {
     exit 0
 }
 
+# A payload we cannot read is not a payload we can show. Forwarding it built a
+# card with no tool name and no command on it, and whatever the user tapped on
+# that card came back here as a decision about a tool nobody could see. Ask
+# instead. (Skipped when jq is missing: that path already ends in ask.)
+if command -v jq >/dev/null 2>&1 && ! printf '%s' "$input" | jq -e . >/dev/null 2>&1; then
+    emit_ask "payload is not JSON"
+fi
+
 # AskUserQuestion gets its own pipeline — we mirror the question in the notch
 # and feed the selected answer back to Claude via the deny reason.
 if [ "$tool" = "AskUserQuestion" ]; then
-    nc -z 127.0.0.1 53127 2>/dev/null || emit_ask "notch not running (AskUserQuestion)"
-    response=$(printf '%s' "$input" | curl -s --max-time 290 -X POST \
+    nc -z "$HOST" "$PORT" 2>/dev/null || emit_ask "notch not running (AskUserQuestion)"
+    response=$(printf '%s' "$input" | curl -s --max-time "$WAIT" -X POST \
         -H 'Content-Type: application/json' \
         --data-binary @- \
-        http://127.0.0.1:53127/question || true)
+        http://$HOST:$PORT/question || true)
     if [ -z "$response" ] || [ "$(printf '%s' "$response" | jq -r '.cancelled // false' 2>/dev/null)" = "true" ]; then
         echo "[$(date '+%H:%M:%S')]   → AskUserQuestion: cancelled, falling back to terminal" >> "$LOG"
         emit_ask "question cancelled"
@@ -83,12 +96,12 @@ case "$tool" in
     *) ;;
 esac
 
-nc -z 127.0.0.1 53127 2>/dev/null || emit_ask "notch not running"
+nc -z "$HOST" "$PORT" 2>/dev/null || emit_ask "notch not running"
 
-response=$(printf '%s' "$input" | curl -s --max-time 290 -X POST \
+response=$(printf '%s' "$input" | curl -s --max-time "$WAIT" -X POST \
     -H 'Content-Type: application/json' \
     --data-binary @- \
-    http://127.0.0.1:53127/permission || true)
+    http://$HOST:$PORT/permission || true)
 
 [ -n "$response" ] || emit_ask "empty response from notch"
 command -v jq >/dev/null 2>&1 || emit_ask "jq missing"
@@ -113,7 +126,7 @@ if [ "$decision" = "allow" ]; then
         | curl -s --max-time 1 -X POST \
             -H 'Content-Type: application/json' \
             --data-binary @- \
-            http://127.0.0.1:53127/pretool >/dev/null 2>&1 &
+            http://$HOST:$PORT/pretool >/dev/null 2>&1 &
 fi
 
 printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"%s","permissionDecisionReason":%s}}\n' "$decision" "$reason_json"

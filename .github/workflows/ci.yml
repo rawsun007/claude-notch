@@ -53,3 +53,9 @@ jobs:
       # become Claude's, so the exit-0 paths are checked as well as the payloads.
       - name: Test the hook forwarders
         run: tools/test-hook-forwarders.sh
+
+      # The blocking hooks. Claude Code waits on their stdout before it may run
+      # a tool, so a hang here hangs the session and a stray line of output can
+      # be read as a decision the user never made.
+      - name: Test the blocking hooks
+        run: tools/test-blocking-hooks.sh

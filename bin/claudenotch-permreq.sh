@@ -8,6 +8,11 @@
 # Claude from getting an answer.
 set -u
 LOG=/tmp/claudenotch-hook.log
+# Overridable so tools/test-blocking-hooks.sh can point this at a server it
+# controls, with a timeout short enough to test. Nothing else sets them.
+HOST="${CLAUDENOTCH_HOST:-127.0.0.1}"
+PORT="${CLAUDENOTCH_PORT:-53127}"
+WAIT="${CLAUDENOTCH_TIMEOUT:-290}"
 
 input=$(cat)
 tool=$(printf '%s' "$input" | jq -r '.tool_name // "?"' 2>/dev/null)
@@ -20,14 +25,19 @@ pass_through() {
 }
 
 command -v jq >/dev/null 2>&1 || pass_through "jq missing"
-nc -z 127.0.0.1 53127 2>/dev/null || pass_through "notch not running"
+
+# Same rule as the PreToolUse hook: a payload we cannot read cannot be shown on
+# a card, so an answer to that card is not an answer about anything. Here it
+# would have approved a plan or a todo list nobody saw.
+printf '%s' "$input" | jq -e . >/dev/null 2>&1 || pass_through "payload is not JSON"
+nc -z "$HOST" "$PORT" 2>/dev/null || pass_through "notch not running"
 
 # Reuse the blocking permission card. The PermissionRequest payload carries the
 # same tool_name / tool_input the card needs, so /permission renders it as-is.
-response=$(printf '%s' "$input" | curl -s --max-time 290 -X POST \
+response=$(printf '%s' "$input" | curl -s --max-time "$WAIT" -X POST \
     -H 'Content-Type: application/json' \
     --data-binary @- \
-    http://127.0.0.1:53127/permission || true)
+    http://$HOST:$PORT/permission || true)
 
 [ -n "$response" ] || pass_through "empty response from notch"
 
