@@ -12,7 +12,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTALL_DIR="$HOME/.claudenotch/bin"
 
 mkdir -p "$INSTALL_DIR"
-for s in claudenotch-hook.sh \
+# claudenotch-common.sh first: every forwarder sources it, and one that
+# cannot find it exits 0 and silently stops reporting.
+for s in claudenotch-common.sh claudenotch-hook.sh \
          claudenotch-permission.sh claudenotch-notify.sh claudenotch-stop.sh \
          claudenotch-posttool.sh claudenotch-prompt.sh claudenotch-sessionend.sh \
          claudenotch-task.sh claudenotch-permreq.sh claudenotch-compact.sh \

@@ -48,3 +48,8 @@ jobs:
       # comparison deciding whether to do that has to be right.
       - name: Test the update script
         run: tools/test-update-script.sh
+
+      # These forward every hook Claude Code fires. A failure in one must never
+      # become Claude's, so the exit-0 paths are checked as well as the payloads.
+      - name: Test the hook forwarders
+        run: tools/test-hook-forwarders.sh

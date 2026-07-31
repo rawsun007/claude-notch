@@ -1,28 +1,28 @@
 #!/bin/bash
-# Claude Code PostToolUse hook: forward "what Claude just did" to ClaudeNotch.
-# Fire-and-forget — never blocks Claude.
+# Claude Code PostToolUse hook: forward "what Claude just did" to ClaudeNotch,
+# then signal that it is reasoning again between tool calls. Two posts, so this
+# does not use notch_forward. Fire-and-forget, never blocks Claude.
 set -u
-LOG=/tmp/claudenotch-hook.log
+COMMON="$(cd "$(dirname "$0")" && pwd)/claudenotch-common.sh"
+[ -r "$COMMON" ] || exit 0
+. "$COMMON"
+
 input=$(cat)
-echo "[$(date '+%H:%M:%S')] posttool hook fired" >> "$LOG"
-nc -z 127.0.0.1 53127 2>/dev/null || exit 0
-command -v jq >/dev/null 2>&1 || exit 0
-printf '%s' "$input" | jq -c '{
+notch_log "posttool hook fired"
+notch_ready || exit 0
+
+printf '%s' "$input" | notch_post activity '{
     tool_name:       (.tool_name        // ""),
     tool_input:      (.tool_input       // {}),
     tool_response:   (.tool_response    // null),
     cwd:             (.cwd              // ""),
     session_id:      (.session_id       // ""),
     transcript_path: (.transcript_path  // "")
-}' | curl -s --max-time 2 -X POST \
-       -H 'Content-Type: application/json' \
-       --data-binary @- \
-       http://127.0.0.1:53127/activity >/dev/null || true
+}'
 
-# Signal that Claude is now reasoning between tool calls.
-printf '%s' "$input" | jq -c '{cwd:(.cwd//""),session_id:(.session_id//"")}' \
-    | curl -s --max-time 2 -X POST \
-       -H 'Content-Type: application/json' \
-       --data-binary @- \
-       http://127.0.0.1:53127/thinking >/dev/null || true
+# Claude is now reasoning between tool calls.
+printf '%s' "$input" | notch_post thinking '{
+    cwd:        (.cwd        // ""),
+    session_id: (.session_id // "")
+}'
 exit 0
