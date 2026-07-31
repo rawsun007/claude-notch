@@ -2252,6 +2252,7 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "The version you are running now sits beside the page title in this window, and turns into a button when a newer release is out. Answering \"am I up to date\" used to mean a trip to the About page.",
+        "Updating no longer means downloading the disk image and dragging it over the running app. Run ~/.claudenotch/bin/claudenotch-update.sh and it fetches the new version, checks it against the published checksum, swaps it in and relaunches. The command is on the About page below, ready to copy.",
+        "Installed with Homebrew? Keep using brew upgrade --cask claudenotch. The script checks, and stops rather than replacing a cask-installed copy behind Homebrew's back.",
     ]
 }
