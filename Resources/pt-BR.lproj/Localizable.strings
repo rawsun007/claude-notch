@@ -4,6 +4,15 @@
    tools/l10n-check.py enforces it. Untranslated keys are omitted
    and fall back to English at runtime. */
 
+/* Settings explanation */
+"200K" = "200K";
+
+/* Settings explanation */
+"3 days" = "3 dias";
+
+/* Settings toggle explanation */
+"A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost." = "Um resumo diário do que o Claude fez, mais um apanhado semanal de sessões e custo estimado.";
+
 /* Settings sidebar section */
 "About" = "Sobre";
 
@@ -22,14 +31,23 @@
 /* Settings sidebar group */
 "Alerts & Cost" = "Alertas e custo";
 
+/* Settings explanation */
+"All-time counters, kept locally on this Mac." = "Contadores de sempre, guardados só neste Mac.";
+
 /* Button: approve the permission request */
 "Allow" = "Permitir";
 
 /* Button: approve every queued request. %d is how many */
 "Allow All (%d)" = "Permitir tudo (%d)";
 
+/* Settings toggle explanation */
+"Allow every tool request automatically. Turns the notch into a passive monitor. Use with care." = "Aprova automaticamente cada pedido de ferramenta. Transforma o notch num monitor passivo. Use com cuidado.";
+
 /* Button: allow a single over-budget command without raising the cap */
 "Allow once" = "Permitir uma vez";
+
+/* Settings toggle explanation */
+"Also send notch notifications to macOS Notification Center." = "Envia também as notificações do notch para a Central de Notificações do macOS.";
 
 /* Menu item: add an allow rule for every call of a tool. %@ is the tool name */
 "Always Allow All %@" = "Sempre permitir todos os %@";
@@ -40,11 +58,26 @@
 /* Menu button opening the always-allow choices */
 "Always Allow…" = "Sempre permitir…";
 
+/* Settings toggle explanation */
+"Always on: drag a file or folder onto the notch to open Claude there." = "Sempre ligado: arraste um arquivo ou pasta até o notch para abrir o Claude ali.";
+
+/* Settings toggle explanation */
+"Always show the notch card instead of hiding it behind the hardware notch until something happens." = "Mostra sempre o cartão do notch em vez de escondê-lo atrás do notch físico até algo acontecer.";
+
 /* Settings section heading */
 "Always-allow rules" = "Regras de sempre permitir";
 
+/* Settings explanation */
+"Applies straight away, no restart. The notch and this window are translated; the menu bar is still English." = "Aplica-se de imediato, sem reiniciar. O notch e esta janela estão traduzidos; a barra de menus continua em inglês.";
+
+/* Settings toggle explanation */
+"Ask for Touch ID before allowing a tool request from the notch." = "Pede Touch ID antes de permitir um pedido de ferramenta pelo notch.";
+
 /* Button: open a background agent in a terminal */
 "Attach" = "Conectar";
+
+/* Settings explanation */
+"Auto" = "Auto";
 
 /* Heading: this action was approved automatically by a rule */
 "Auto-allowed" = "Permitido automaticamente";
@@ -55,8 +88,14 @@
 /* Settings section heading */
 "Auto-approve for a while" = "Aprovação automática por um tempo";
 
+/* Settings explanation */
+"Auto-approve is on until you turn it off." = "A aprovação automática fica ligada até você desligá-la.";
+
 /* Settings toggle */
 "Auto-approve permissions" = "Aprovar permissões automaticamente";
+
+/* Settings toggle explanation */
+"Block new tool runs once a cap is crossed, instead of only warning." = "Bloqueia novas execuções depois de passar do limite, em vez de apenas avisar.";
 
 /* Settings toggle */
 "Break reminders" = "Lembretes de pausa";
@@ -76,14 +115,29 @@
 /* Settings button */
 "Check for updates…" = "Procurar atualizações…";
 
+/* Settings toggle */
+"Check what Claude actually did" = "Conferir o que o Claude realmente fez";
+
+/* Settings explanation */
+"Claude" = "Claude";
+
+/* Settings explanation */
+"Claude Code, living in your notch." = "Claude Code, morando no seu notch.";
+
 /* Settings section heading */
 "Claude usage (from transcripts)" = "Uso do Claude (pelas transcrições)";
 
 /* Heading of the expanded reply card */
 "Claude's last reply" = "Última resposta do Claude";
 
+/* Settings explanation */
+"ClaudeNotch" = "ClaudeNotch";
+
 /* Settings button */
 "Clear the active session" = "Limpar a sessão ativa";
+
+/* Settings explanation */
+"Closed a terminal by accident? Expand a project and resume right where you left off." = "Fechou um terminal sem querer? Expanda um projeto e retome de onde parou.";
 
 /* Settings section heading */
 "Code churn today" = "Rotatividade de código hoje";
@@ -106,8 +160,17 @@
 /* Settings button */
 "Cost budget alert" = "Alerta de orçamento";
 
+/* Settings explanation */
+"Costs are estimates at public API prices, not your subscription bill." = "Os custos são estimativas a preços públicos da API, não a sua fatura de subscrição.";
+
 /* Settings section heading */
 "Current session" = "Sessão atual";
+
+/* Settings explanation */
+"Custom" = "Personalizado";
+
+/* Settings explanation */
+"Custom title" = "Título personalizado";
 
 /* Settings toggle */
 "Daily and weekly digest" = "Resumo diário e semanal";
@@ -120,6 +183,9 @@
 
 /* Settings sidebar section */
 "Developer" = "Desenvolvedor";
+
+/* Settings toggle explanation */
+"Different sound for different kinds of tool request." = "Um som diferente para cada tipo de pedido de ferramenta.";
 
 /* Settings button */
 "Disable Codex integration" = "Desativar a integração do Codex";
@@ -139,17 +205,38 @@
 /* Settings button */
 "Enable Codex integration (beta)" = "Ativar a integração do Codex (beta)";
 
+/* Settings explanation */
+"Estimated at public API (pay-as-you-go) prices. On a Pro, Max, Team, or Enterprise subscription you pay a flat fee, so this is not your actual bill, it is what the usage would cost per token." = "Estimado a preços públicos da API (pagamento por uso). Numa subscrição Pro, Max, Team ou Enterprise paga uma taxa fixa, por isso esta não é a sua fatura real, é quanto esse uso custaria por token.";
+
 /* Settings section heading */
 "Estimated cost, last 4 weeks" = "Custo estimado, últimas 4 semanas";
 
 /* Settings section heading */
 "Estimated cost, last 7 days" = "Custo estimado, últimos 7 dias";
 
+/* Settings explanation */
+"Every session you finish is archived here with a one-line summary, its cost, and what it changed. Search to recall what you did in a project last week." = "Cada sessão que termina fica arquivada aqui com um resumo de uma linha, o custo e o que mudou. Pesquise para lembrar o que fez num projeto na semana passada.";
+
+/* Settings toggle explanation */
+"Exclude the notch from screen shares, recordings, and other apps' screenshots. It renders commands, paths, and code, so this is on by default." = "Exclui o notch de partilhas de ecrã, gravações e capturas de outras apps. Ele mostra comandos, caminhos e código, por isso vem ligado.";
+
 /* Settings section heading */
 "Files touched this session" = "Arquivos alterados nesta sessão";
 
+/* Settings section heading */
+"Finished tasks" = "Tarefas concluídas";
+
+/* Settings explanation */
+"Fire a sample card to see what the notch looks like." = "Dispare um cartão de exemplo para ver como o notch fica.";
+
+/* Settings explanation */
+"Follow macOS" = "Seguir o macOS";
+
 /* Settings sidebar section */
 "General" = "Geral";
+
+/* Settings explanation */
+"Generate" = "Gerar";
 
 /* Settings toggle */
 "Hard-stop at the cap" = "Parar ao atingir o limite";
@@ -162,6 +249,9 @@
 
 /* Button: press and hold to allow a destructive command */
 "Hold to Allow" = "Mantenha pressionado para permitir";
+
+/* Settings explanation */
+"Homebrew:" = "Homebrew:";
 
 /* Settings sidebar group */
 "Info" = "Informações";
@@ -181,6 +271,15 @@
 /* Settings toggle */
 "Launch at login" = "Abrir ao iniciar sessão";
 
+/* Settings explanation */
+"Less" = "Menos";
+
+/* Settings toggle explanation */
+"Let the Claude mascot live on the notch: it peeks, strolls, hangs off the edge, naps, and celebrates finished tasks. Click it to boop it." = "Deixe o mascote do Claude morar no notch: ele espreita, passeia, pendura-se na borda, tira sonecas e comemora tarefas concluídas. Clique para cutucá-lo.";
+
+/* Settings toggle explanation */
+"Let the pet perform on its own when the notch is idle. Turn this off to keep the pet quiet until you boop it or a task finishes." = "Deixe o mascote se apresentar sozinho quando o notch está parado. Desligue para que fique quieto até você cutucá-lo ou uma tarefa terminar.";
+
 /* Settings section heading */
 "Lines changed this session" = "Linhas alteradas nesta sessão";
 
@@ -193,8 +292,20 @@
 /* Settings section heading */
 "Model mix (last 7 days)" = "Mistura de modelos (últimos 7 dias)";
 
+/* Settings explanation */
+"More" = "Mais";
+
 /* Settings toggle */
 "Mute all sounds" = "Silenciar todos os sons";
+
+/* Settings explanation */
+"No finished sessions yet. They show up here after a session ends." = "Ainda não há sessões concluídas. Elas aparecem aqui quando uma sessão termina.";
+
+/* Settings explanation */
+"No matches" = "Nenhuma correspondência";
+
+/* Settings explanation */
+"No past sessions found yet." = "Ainda não há sessões anteriores.";
 
 /* Settings sidebar section */
 "Notch" = "Notch";
@@ -204,6 +315,12 @@
 
 /* Settings button */
 "Notification" = "Notificação";
+
+/* Settings toggle explanation */
+"Nudge you when a single run has been going for a long time." = "Avisa quando uma única execução já vai longa.";
+
+/* Settings toggle explanation */
+"Occasional reminder to step away after a long stretch at the keyboard." = "Lembrete ocasional para se levantar após um longo período ao teclado.";
 
 /* Button: bring the editor or terminal that started this session to the front */
 "Open IDE" = "Abrir IDE";
@@ -223,6 +340,9 @@
 /* Settings toggle */
 "Pet Mode" = "Modo mascote";
 
+/* Settings explanation */
+"Pet animations" = "Animações do mascote";
+
 /* Settings section heading */
 "Plan usage limits" = "Limites de uso do plano";
 
@@ -232,11 +352,20 @@
 /* Settings button */
 "Play all" = "Reproduzir tudo";
 
+/* Settings toggle explanation */
+"Post a Notification Center banner when a task finishes." = "Mostra um aviso na Central de Notificações quando uma tarefa termina.";
+
 /* Settings sidebar section */
 "Privacy" = "Privacidade";
 
+/* Settings explanation */
+"Project name" = "Nome do projeto";
+
 /* Settings section heading */
 "Projects & recent sessions" = "Projetos e sessões recentes";
+
+/* Settings toggle explanation */
+"Put the running session cost next to the menu-bar bell." = "Mostra o custo da sessão ao lado do sino na barra de menus.";
 
 /* Settings section heading */
 "Quick actions" = "Ações rápidas";
@@ -247,6 +376,9 @@
 /* Settings toggle */
 "Random antics" = "Travessuras aleatórias";
 
+/* Settings explanation */
+"Reading transcripts…" = "Lendo transcrições…";
+
 /* Button: open a composer to send a follow-up message */
 "Reply" = "Responder";
 
@@ -255,6 +387,9 @@
 
 /* Settings button */
 "Run setup again…" = "Executar a configuração novamente…";
+
+/* Settings explanation */
+"Sample cards" = "Cartões de exemplo";
 
 /* Button: submit the answer to Claude's question */
 "Send" = "Enviar";
@@ -274,6 +409,12 @@
 /* Settings toggle */
 "Show spend in the menu bar" = "Mostrar o gasto na barra de menus";
 
+/* Settings toggle explanation */
+"Silence every notch sound." = "Silencia todos os sons do notch.";
+
+/* Settings button. %@ is a duration such as 30 min */
+"Snooze for %@" = "Adiar por %@";
+
 /* Settings section heading */
 "Snooze passive cards" = "Adiar cartões passivos";
 
@@ -286,17 +427,35 @@
 /* Settings button */
 "Start Claude in a folder…" = "Iniciar o Claude em uma pasta…";
 
+/* Settings toggle explanation */
+"Start ClaudeNotch automatically when you log in." = "Abre o ClaudeNotch automaticamente ao iniciar sessão.";
+
 /* Settings button */
 "Start Codex in a folder…" = "Iniciar o Codex em uma pasta…";
 
 /* Settings section heading */
 "Status bar" = "Barra de status";
 
+/* Settings explanation */
+"Surface other coding agents in the notch. Codex support is experimental: session status, prompts, activity and notifications appear, but permission cards and cost are not wired yet." = "Mostra outros agentes de código no notch. O suporte a Codex é experimental: estado da sessão, prompts, atividade e notificações aparecem, mas cartões de permissão e custo ainda não estão ligados.";
+
 /* Settings section heading */
 "System permissions" = "Permissões do sistema";
 
 /* Settings button */
 "Task complete" = "Tarefa concluída";
+
+/* Settings button */
+"Task complete: claim contradicted" = "Tarefa concluída: afirmação contradita";
+
+/* Settings button */
+"Task complete: not demonstrated" = "Tarefa concluída: não demonstrada";
+
+/* Settings button */
+"Task complete: verified" = "Tarefa concluída: verificada";
+
+/* Settings explanation */
+"Terminal:" = "Terminal:";
 
 /* Tooltip on the version badge */
 "The version you are running" = "A versão que você está usando";
@@ -310,6 +469,12 @@
 /* Settings section heading */
 "Title" = "Título";
 
+/* Settings explanation */
+"Today" = "Hoje";
+
+/* Settings explanation */
+"Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess." = "Contagem de tokens dos registos do Codex. Sem custo em dólares: os preços do gpt não são públicos, por isso qualquer número seria um palpite.";
+
 /* Settings button */
 "Tool permission" = "Permissão de ferramenta";
 
@@ -322,17 +487,47 @@
 /* Button: stop enforcing the spending cap */
 "Turn off" = "Desativar";
 
+/* Settings explanation */
+"Turn on auto-approve for a set time and it switches itself back off, or keep it on until you turn it off." = "Ligue a aprovação automática por um tempo e ela se desliga sozinha, ou mantenha-a ligada até você desligar.";
+
 /* Settings badge: a newer version is available. %@ is the version number */
 "Update to v%@" = "Atualizar para v%@";
 
 /* Settings sidebar section */
 "Usage" = "Uso";
 
+/* Settings toggle explanation */
+"Warn as your 5-hour or weekly usage fills, once at 80% and once at 95%." = "Avisa à medida que o uso de 5 horas ou semanal enche, uma vez aos 80% e outra aos 95%.";
+
+/* Settings explanation */
+"Warn when estimated cost crosses a cap. Set a cap to 0 to disable it." = "Avisa quando o custo estimado passa de um limite. Defina o limite como 0 para desativar.";
+
+/* Settings explanation */
+"Week" = "Semana";
+
+/* Settings explanation */
+"What I shipped" = "O que eu entreguei";
+
 /* Settings picker label */
 "What the title shows" = "O que o título mostra";
 
+/* Settings section heading. %@ is the version number */
+"What's new in v%@" = "Novidades da v%@";
+
+/* Settings toggle explanation */
+"When a task finishes, compare the closing message against what the turn really did, and say so on the card if it claims a change it never made or says the tests pass when none ran. Off by default: it is an opinion about the work, and it stays quiet on an ordinary turn." = "Quando uma tarefa termina, compara a mensagem final com o que a vez realmente fez, e diz no cartão se ela alega uma mudança que nunca fez ou diz que os testes passam sem nenhum ter corrido. Desligado por omissão: é uma opinião sobre o trabalho e fica calado numa vez comum.";
+
+/* Settings explanation */
+"With Codex on, dropping a folder on the notch asks whether to open it in Claude Code or Codex." = "Com o Codex ligado, soltar uma pasta no notch pergunta se deve abri-la no Claude Code ou no Codex.";
+
+/* Settings explanation */
+"With per-tool sounds on, each kind of pop-up plays its own sound. Change any of them; the default is shown when you have not." = "Com sons por ferramenta ligados, cada tipo de aviso toca o seu som. Mude o que quiser; o padrão aparece quando não mudou.";
+
 /* Settings sidebar group */
 "Workspace" = "Espaço de trabalho";
+
+/* Settings explanation */
+"Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps." = "Os limites do seu plano Claude, conforme o Claude Code informou por último. São limites de uso, não tetos de dinheiro.";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "clique para dispensar";
@@ -342,3 +537,6 @@
 
 /* Placeholder when a session has reported no token usage */
 "no usage yet" = "sem uso ainda";
+
+/* Settings explanation */
+"running" = "em execução";

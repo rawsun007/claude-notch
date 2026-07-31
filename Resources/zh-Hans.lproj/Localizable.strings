@@ -4,6 +4,15 @@
    tools/l10n-check.py enforces it. Untranslated keys are omitted
    and fall back to English at runtime. */
 
+/* Settings explanation */
+"200K" = "200K";
+
+/* Settings explanation */
+"3 days" = "3 天";
+
+/* Settings toggle explanation */
+"A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost." = "每天一次的 Claude 工作摘要，外加每周的会话与预估费用汇总。";
+
 /* Settings sidebar section */
 "About" = "关于";
 
@@ -22,14 +31,23 @@
 /* Settings sidebar group */
 "Alerts & Cost" = "提醒与费用";
 
+/* Settings explanation */
+"All-time counters, kept locally on this Mac." = "全部历史计数，仅保存在这台 Mac 上。";
+
 /* Button: approve the permission request */
 "Allow" = "允许";
 
 /* Button: approve every queued request. %d is how many */
 "Allow All (%d)" = "全部允许 (%d)";
 
+/* Settings toggle explanation */
+"Allow every tool request automatically. Turns the notch into a passive monitor. Use with care." = "自动允许每个工具请求。刘海将变成被动的监视器。请谨慎使用。";
+
 /* Button: allow a single over-budget command without raising the cap */
 "Allow once" = "允许一次";
+
+/* Settings toggle explanation */
+"Also send notch notifications to macOS Notification Center." = "同时把刘海通知发送到 macOS 通知中心。";
 
 /* Menu item: add an allow rule for every call of a tool. %@ is the tool name */
 "Always Allow All %@" = "始终允许所有 %@";
@@ -40,11 +58,26 @@
 /* Menu button opening the always-allow choices */
 "Always Allow…" = "始终允许…";
 
+/* Settings toggle explanation */
+"Always on: drag a file or folder onto the notch to open Claude there." = "始终开启：把文件或文件夹拖到刘海上，即可在那里打开 Claude。";
+
+/* Settings toggle explanation */
+"Always show the notch card instead of hiding it behind the hardware notch until something happens." = "始终显示刘海卡片，而不是等到有事发生才从硬件刘海后弹出。";
+
 /* Settings section heading */
 "Always-allow rules" = "始终允许规则";
 
+/* Settings explanation */
+"Applies straight away, no restart. The notch and this window are translated; the menu bar is still English." = "立即生效，无需重启。刘海和此窗口已翻译；菜单栏仍为英文。";
+
+/* Settings toggle explanation */
+"Ask for Touch ID before allowing a tool request from the notch." = "从刘海允许工具请求前，先要求 Touch ID。";
+
 /* Button: open a background agent in a terminal */
 "Attach" = "接入";
+
+/* Settings explanation */
+"Auto" = "自动";
 
 /* Heading: this action was approved automatically by a rule */
 "Auto-allowed" = "已自动允许";
@@ -55,8 +88,14 @@
 /* Settings section heading */
 "Auto-approve for a while" = "临时自动批准";
 
+/* Settings explanation */
+"Auto-approve is on until you turn it off." = "自动批准会一直开启，直到你关闭它。";
+
 /* Settings toggle */
 "Auto-approve permissions" = "自动批准权限";
+
+/* Settings toggle explanation */
+"Block new tool runs once a cap is crossed, instead of only warning." = "超过上限后直接阻止新的工具运行，而不只是提醒。";
 
 /* Settings toggle */
 "Break reminders" = "休息提醒";
@@ -76,14 +115,29 @@
 /* Settings button */
 "Check for updates…" = "检查更新…";
 
+/* Settings toggle */
+"Check what Claude actually did" = "核对 Claude 实际做了什么";
+
+/* Settings explanation */
+"Claude" = "Claude";
+
+/* Settings explanation */
+"Claude Code, living in your notch." = "Claude Code，就住在你的刘海里。";
+
 /* Settings section heading */
 "Claude usage (from transcripts)" = "Claude 用量（来自记录）";
 
 /* Heading of the expanded reply card */
 "Claude's last reply" = "Claude 的最新回复";
 
+/* Settings explanation */
+"ClaudeNotch" = "ClaudeNotch";
+
 /* Settings button */
 "Clear the active session" = "清除当前会话";
+
+/* Settings explanation */
+"Closed a terminal by accident? Expand a project and resume right where you left off." = "不小心关掉了终端？展开项目，从你离开的地方继续。";
 
 /* Settings section heading */
 "Code churn today" = "今日代码改动量";
@@ -106,8 +160,17 @@
 /* Settings button */
 "Cost budget alert" = "费用预算提醒";
 
+/* Settings explanation */
+"Costs are estimates at public API prices, not your subscription bill." = "费用是按公开 API 价格估算的，不是你的订阅账单。";
+
 /* Settings section heading */
 "Current session" = "当前会话";
+
+/* Settings explanation */
+"Custom" = "自定义";
+
+/* Settings explanation */
+"Custom title" = "自定义标题";
 
 /* Settings toggle */
 "Daily and weekly digest" = "每日与每周摘要";
@@ -120,6 +183,9 @@
 
 /* Settings sidebar section */
 "Developer" = "开发者";
+
+/* Settings toggle explanation */
+"Different sound for different kinds of tool request." = "不同类型的工具请求使用不同的声音。";
 
 /* Settings button */
 "Disable Codex integration" = "停用 Codex 集成";
@@ -139,17 +205,38 @@
 /* Settings button */
 "Enable Codex integration (beta)" = "启用 Codex 集成（测试版）";
 
+/* Settings explanation */
+"Estimated at public API (pay-as-you-go) prices. On a Pro, Max, Team, or Enterprise subscription you pay a flat fee, so this is not your actual bill, it is what the usage would cost per token." = "按公开 API（按量付费）价格估算。若你使用 Pro、Max、Team 或 Enterprise 订阅，支付的是固定费用，所以这不是你的实际账单，而是这些用量按 token 计价会是多少。";
+
 /* Settings section heading */
 "Estimated cost, last 4 weeks" = "预估费用，近 4 周";
 
 /* Settings section heading */
 "Estimated cost, last 7 days" = "预估费用，近 7 天";
 
+/* Settings explanation */
+"Every session you finish is archived here with a one-line summary, its cost, and what it changed. Search to recall what you did in a project last week." = "你完成的每个会话都会归档在这里，附带一行摘要、费用和改动内容。搜索即可回想上周在某个项目里做了什么。";
+
+/* Settings toggle explanation */
+"Exclude the notch from screen shares, recordings, and other apps' screenshots. It renders commands, paths, and code, so this is on by default." = "将刘海从屏幕共享、录制和其他应用的截图中排除。它会显示命令、路径和代码，因此默认开启。";
+
 /* Settings section heading */
 "Files touched this session" = "本次会话修改的文件";
 
+/* Settings section heading */
+"Finished tasks" = "已完成的任务";
+
+/* Settings explanation */
+"Fire a sample card to see what the notch looks like." = "弹出一张示例卡片，看看刘海长什么样。";
+
+/* Settings explanation */
+"Follow macOS" = "跟随 macOS";
+
 /* Settings sidebar section */
 "General" = "通用";
+
+/* Settings explanation */
+"Generate" = "生成";
 
 /* Settings toggle */
 "Hard-stop at the cap" = "达到上限即阻止";
@@ -162,6 +249,9 @@
 
 /* Button: press and hold to allow a destructive command */
 "Hold to Allow" = "长按以允许";
+
+/* Settings explanation */
+"Homebrew:" = "Homebrew：";
 
 /* Settings sidebar group */
 "Info" = "信息";
@@ -181,6 +271,15 @@
 /* Settings toggle */
 "Launch at login" = "登录时启动";
 
+/* Settings explanation */
+"Less" = "较少";
+
+/* Settings toggle explanation */
+"Let the Claude mascot live on the notch: it peeks, strolls, hangs off the edge, naps, and celebrates finished tasks. Click it to boop it." = "让 Claude 吉祥物住在刘海上：它会探头、散步、挂在边缘、打盹，并在任务完成时庆祝。点一下就能戳它。";
+
+/* Settings toggle explanation */
+"Let the pet perform on its own when the notch is idle. Turn this off to keep the pet quiet until you boop it or a task finishes." = "刘海空闲时让宠物自己表演。关闭后，宠物会保持安静，直到你戳它或任务完成。";
+
 /* Settings section heading */
 "Lines changed this session" = "本次会话改动的行数";
 
@@ -193,8 +292,20 @@
 /* Settings section heading */
 "Model mix (last 7 days)" = "模型分布（近 7 天）";
 
+/* Settings explanation */
+"More" = "较多";
+
 /* Settings toggle */
 "Mute all sounds" = "静音所有声音";
+
+/* Settings explanation */
+"No finished sessions yet. They show up here after a session ends." = "还没有已完成的会话。会话结束后会显示在这里。";
+
+/* Settings explanation */
+"No matches" = "无匹配结果";
+
+/* Settings explanation */
+"No past sessions found yet." = "尚未找到过往会话。";
 
 /* Settings sidebar section */
 "Notch" = "刘海";
@@ -204,6 +315,12 @@
 
 /* Settings button */
 "Notification" = "通知";
+
+/* Settings toggle explanation */
+"Nudge you when a single run has been going for a long time." = "当某次运行持续很久时提醒你。";
+
+/* Settings toggle explanation */
+"Occasional reminder to step away after a long stretch at the keyboard." = "长时间敲键盘后，偶尔提醒你起身休息。";
 
 /* Button: bring the editor or terminal that started this session to the front */
 "Open IDE" = "打开 IDE";
@@ -223,6 +340,9 @@
 /* Settings toggle */
 "Pet Mode" = "宠物模式";
 
+/* Settings explanation */
+"Pet animations" = "宠物动画";
+
 /* Settings section heading */
 "Plan usage limits" = "套餐用量限制";
 
@@ -232,11 +352,20 @@
 /* Settings button */
 "Play all" = "全部播放";
 
+/* Settings toggle explanation */
+"Post a Notification Center banner when a task finishes." = "任务完成时，在通知中心弹出横幅。";
+
 /* Settings sidebar section */
 "Privacy" = "隐私";
 
+/* Settings explanation */
+"Project name" = "项目名称";
+
 /* Settings section heading */
 "Projects & recent sessions" = "项目与最近会话";
+
+/* Settings toggle explanation */
+"Put the running session cost next to the menu-bar bell." = "在菜单栏铃铛旁显示当前会话的花费。";
 
 /* Settings section heading */
 "Quick actions" = "快捷操作";
@@ -247,6 +376,9 @@
 /* Settings toggle */
 "Random antics" = "随机小动作";
 
+/* Settings explanation */
+"Reading transcripts…" = "正在读取记录…";
+
 /* Button: open a composer to send a follow-up message */
 "Reply" = "回复";
 
@@ -255,6 +387,9 @@
 
 /* Settings button */
 "Run setup again…" = "重新运行设置…";
+
+/* Settings explanation */
+"Sample cards" = "示例卡片";
 
 /* Button: submit the answer to Claude's question */
 "Send" = "发送";
@@ -274,6 +409,12 @@
 /* Settings toggle */
 "Show spend in the menu bar" = "在菜单栏显示花费";
 
+/* Settings toggle explanation */
+"Silence every notch sound." = "静音刘海的所有声音。";
+
+/* Settings button. %@ is a duration such as 30 min */
+"Snooze for %@" = "暂停 %@";
+
 /* Settings section heading */
 "Snooze passive cards" = "暂停被动卡片";
 
@@ -286,17 +427,35 @@
 /* Settings button */
 "Start Claude in a folder…" = "在文件夹中启动 Claude…";
 
+/* Settings toggle explanation */
+"Start ClaudeNotch automatically when you log in." = "登录时自动启动 ClaudeNotch。";
+
 /* Settings button */
 "Start Codex in a folder…" = "在文件夹中启动 Codex…";
 
 /* Settings section heading */
 "Status bar" = "状态栏";
 
+/* Settings explanation */
+"Surface other coding agents in the notch. Codex support is experimental: session status, prompts, activity and notifications appear, but permission cards and cost are not wired yet." = "在刘海中显示其他编程代理。Codex 支持仍是实验性的：会话状态、提示、活动和通知会出现，但权限卡片和费用尚未接入。";
+
 /* Settings section heading */
 "System permissions" = "系统权限";
 
 /* Settings button */
 "Task complete" = "任务完成";
+
+/* Settings button */
+"Task complete: claim contradicted" = "任务完成：说法与事实不符";
+
+/* Settings button */
+"Task complete: not demonstrated" = "任务完成：未获证实";
+
+/* Settings button */
+"Task complete: verified" = "任务完成：已核实";
+
+/* Settings explanation */
+"Terminal:" = "终端：";
 
 /* Tooltip on the version badge */
 "The version you are running" = "你当前运行的版本";
@@ -310,6 +469,12 @@
 /* Settings section heading */
 "Title" = "标题";
 
+/* Settings explanation */
+"Today" = "今天";
+
+/* Settings explanation */
+"Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess." = "来自 Codex 记录的 token 数量。不显示金额：gpt 定价未公开，任何数字都只是猜测。";
+
 /* Settings button */
 "Tool permission" = "工具权限";
 
@@ -322,17 +487,47 @@
 /* Button: stop enforcing the spending cap */
 "Turn off" = "关闭";
 
+/* Settings explanation */
+"Turn on auto-approve for a set time and it switches itself back off, or keep it on until you turn it off." = "按设定时长开启自动批准，到期会自动关闭；也可以一直开着，直到你手动关闭。";
+
 /* Settings badge: a newer version is available. %@ is the version number */
 "Update to v%@" = "更新到 v%@";
 
 /* Settings sidebar section */
 "Usage" = "用量";
 
+/* Settings toggle explanation */
+"Warn as your 5-hour or weekly usage fills, once at 80% and once at 95%." = "当 5 小时或每周用量接近上限时提醒，分别在 80% 和 95% 各提醒一次。";
+
+/* Settings explanation */
+"Warn when estimated cost crosses a cap. Set a cap to 0 to disable it." = "预估费用超过上限时提醒。把上限设为 0 即可关闭。";
+
+/* Settings explanation */
+"Week" = "本周";
+
+/* Settings explanation */
+"What I shipped" = "我交付了什么";
+
 /* Settings picker label */
 "What the title shows" = "标题显示内容";
 
+/* Settings section heading. %@ is the version number */
+"What's new in v%@" = "v%@ 的新增内容";
+
+/* Settings toggle explanation */
+"When a task finishes, compare the closing message against what the turn really did, and say so on the card if it claims a change it never made or says the tests pass when none ran. Off by default: it is an opinion about the work, and it stays quiet on an ordinary turn." = "任务完成时，把结束消息与这一轮实际做的事对比；如果它声称做了未做的改动，或说测试通过但根本没运行测试，就在卡片上指出来。默认关闭：这是对工作的评判，而且在普通的一轮里它不会出声。";
+
+/* Settings explanation */
+"With Codex on, dropping a folder on the notch asks whether to open it in Claude Code or Codex." = "开启 Codex 后，把文件夹拖到刘海上会询问用 Claude Code 还是 Codex 打开。";
+
+/* Settings explanation */
+"With per-tool sounds on, each kind of pop-up plays its own sound. Change any of them; the default is shown when you have not." = "开启按工具区分声音后，每种弹窗都会播放各自的声音。任意修改；未修改时显示默认值。";
+
 /* Settings sidebar group */
 "Workspace" = "工作区";
+
+/* Settings explanation */
+"Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps." = "你的 Claude 套餐限额，取自 Claude Code 最近一次上报。这是用量限制，不是金额上限。";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "点击关闭";
@@ -342,3 +537,6 @@
 
 /* Placeholder when a session has reported no token usage */
 "no usage yet" = "暂无用量";
+
+/* Settings explanation */
+"running" = "运行中";

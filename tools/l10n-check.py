@@ -23,7 +23,9 @@ EN = "en.lproj"
 
 ENTRY = re.compile(r'^"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)";$')
 # %@ %d %1$@ %.2f and friends, but not a bare "100%" or "%" alone.
-SPECIFIER = re.compile(r'%(?:\d+\$)?[-+ #0]*[\d.*]*(?:hh|h|ll|l|q|L|z|j|t)?[@dioux XeEfgGcsSpaA]')
+# The space flag ("% d") is deliberately not accepted: no string here uses it,
+# and allowing it made prose like "80% and once at 95%" read as a "%a".
+SPECIFIER = re.compile(r'%(?:\d+\$)?[-+#0]*[\d.*]*(?:hh|h|ll|l|q|L|z|j|t)?[@diouxXeEfgGcsSpaA]')
 
 
 def parse(path):

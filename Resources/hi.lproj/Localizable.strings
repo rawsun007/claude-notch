@@ -4,6 +4,15 @@
    tools/l10n-check.py enforces it. Untranslated keys are omitted
    and fall back to English at runtime. */
 
+/* Settings explanation */
+"200K" = "200K";
+
+/* Settings explanation */
+"3 days" = "3 दिन";
+
+/* Settings toggle explanation */
+"A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost." = "Claude ने क्या किया इसका दैनिक सारांश, साथ में सत्रों और अनुमानित लागत का साप्ताहिक विवरण।";
+
 /* Settings sidebar section */
 "About" = "परिचय";
 
@@ -22,14 +31,23 @@
 /* Settings sidebar group */
 "Alerts & Cost" = "अलर्ट और लागत";
 
+/* Settings explanation */
+"All-time counters, kept locally on this Mac." = "सर्वकालिक गणना, केवल इसी Mac पर संग्रहीत।";
+
 /* Button: approve the permission request */
 "Allow" = "अनुमति दें";
 
 /* Button: approve every queued request. %d is how many */
 "Allow All (%d)" = "सभी को अनुमति दें (%d)";
 
+/* Settings toggle explanation */
+"Allow every tool request automatically. Turns the notch into a passive monitor. Use with care." = "हर टूल अनुरोध स्वतः स्वीकार करें। नॉच केवल निगरानी करने वाला बन जाएगा। सावधानी से उपयोग करें।";
+
 /* Button: allow a single over-budget command without raising the cap */
 "Allow once" = "एक बार अनुमति दें";
+
+/* Settings toggle explanation */
+"Also send notch notifications to macOS Notification Center." = "नॉच की सूचनाएँ macOS नोटिफिकेशन सेंटर में भी भेजें।";
 
 /* Menu item: add an allow rule for every call of a tool. %@ is the tool name */
 "Always Allow All %@" = "हमेशा सभी %@ को अनुमति दें";
@@ -40,11 +58,26 @@
 /* Menu button opening the always-allow choices */
 "Always Allow…" = "हमेशा अनुमति दें…";
 
+/* Settings toggle explanation */
+"Always on: drag a file or folder onto the notch to open Claude there." = "हमेशा चालू: किसी फाइल या फोल्डर को नॉच पर खींचें और वहीं Claude खोलें।";
+
+/* Settings toggle explanation */
+"Always show the notch card instead of hiding it behind the hardware notch until something happens." = "कुछ होने तक हार्डवेयर नॉच के पीछे छिपाने के बजाय नॉच कार्ड हमेशा दिखाएँ।";
+
 /* Settings section heading */
 "Always-allow rules" = "हमेशा-अनुमति नियम";
 
+/* Settings explanation */
+"Applies straight away, no restart. The notch and this window are translated; the menu bar is still English." = "तुरंत लागू होता है, पुनः आरंभ की जरूरत नहीं। नॉच और यह विंडो अनूदित हैं; मेनू बार अब भी अंग्रेज़ी में है।";
+
+/* Settings toggle explanation */
+"Ask for Touch ID before allowing a tool request from the notch." = "नॉच से किसी टूल अनुरोध को अनुमति देने से पहले Touch ID माँगें।";
+
 /* Button: open a background agent in a terminal */
 "Attach" = "जोड़ें";
+
+/* Settings explanation */
+"Auto" = "स्वतः";
 
 /* Heading: this action was approved automatically by a rule */
 "Auto-allowed" = "स्वतः अनुमत";
@@ -55,8 +88,14 @@
 /* Settings section heading */
 "Auto-approve for a while" = "कुछ समय के लिए स्वतः स्वीकृति";
 
+/* Settings explanation */
+"Auto-approve is on until you turn it off." = "स्वतः स्वीकृति तब तक चालू रहेगी जब तक आप इसे बंद न करें।";
+
 /* Settings toggle */
 "Auto-approve permissions" = "अनुमतियाँ स्वतः स्वीकार करें";
+
+/* Settings toggle explanation */
+"Block new tool runs once a cap is crossed, instead of only warning." = "सीमा पार होने पर केवल चेतावनी देने के बजाय नए टूल रन रोक दें।";
 
 /* Settings toggle */
 "Break reminders" = "ब्रेक रिमाइंडर";
@@ -76,14 +115,29 @@
 /* Settings button */
 "Check for updates…" = "अपडेट देखें…";
 
+/* Settings toggle */
+"Check what Claude actually did" = "जाँचें कि Claude ने वास्तव में क्या किया";
+
+/* Settings explanation */
+"Claude" = "Claude";
+
+/* Settings explanation */
+"Claude Code, living in your notch." = "Claude Code, आपके नॉच में रहता है।";
+
 /* Settings section heading */
 "Claude usage (from transcripts)" = "Claude उपयोग (ट्रांसक्रिप्ट से)";
 
 /* Heading of the expanded reply card */
 "Claude's last reply" = "Claude का पिछला उत्तर";
 
+/* Settings explanation */
+"ClaudeNotch" = "ClaudeNotch";
+
 /* Settings button */
 "Clear the active session" = "सक्रिय सत्र साफ करें";
+
+/* Settings explanation */
+"Closed a terminal by accident? Expand a project and resume right where you left off." = "गलती से टर्मिनल बंद हो गया? प्रोजेक्ट खोलें और जहाँ छोड़ा था वहीं से जारी रखें।";
 
 /* Settings section heading */
 "Code churn today" = "आज का कोड चर्न";
@@ -106,8 +160,17 @@
 /* Settings button */
 "Cost budget alert" = "लागत बजट अलर्ट";
 
+/* Settings explanation */
+"Costs are estimates at public API prices, not your subscription bill." = "लागत सार्वजनिक API कीमतों पर अनुमान है, आपका सब्सक्रिप्शन बिल नहीं।";
+
 /* Settings section heading */
 "Current session" = "वर्तमान सत्र";
+
+/* Settings explanation */
+"Custom" = "कस्टम";
+
+/* Settings explanation */
+"Custom title" = "कस्टम शीर्षक";
 
 /* Settings toggle */
 "Daily and weekly digest" = "दैनिक और साप्ताहिक सारांश";
@@ -120,6 +183,9 @@
 
 /* Settings sidebar section */
 "Developer" = "डेवलपर";
+
+/* Settings toggle explanation */
+"Different sound for different kinds of tool request." = "अलग-अलग तरह के टूल अनुरोध के लिए अलग ध्वनि।";
 
 /* Settings button */
 "Disable Codex integration" = "Codex एकीकरण बंद करें";
@@ -139,17 +205,38 @@
 /* Settings button */
 "Enable Codex integration (beta)" = "Codex एकीकरण चालू करें (बीटा)";
 
+/* Settings explanation */
+"Estimated at public API (pay-as-you-go) prices. On a Pro, Max, Team, or Enterprise subscription you pay a flat fee, so this is not your actual bill, it is what the usage would cost per token." = "सार्वजनिक API (पे-ऐज़-यू-गो) कीमतों पर अनुमान। Pro, Max, Team या Enterprise सब्सक्रिप्शन पर आप एक निश्चित शुल्क देते हैं, इसलिए यह आपका वास्तविक बिल नहीं, बल्कि प्रति टोकन इस उपयोग की लागत है।";
+
 /* Settings section heading */
 "Estimated cost, last 4 weeks" = "अनुमानित लागत, पिछले 4 सप्ताह";
 
 /* Settings section heading */
 "Estimated cost, last 7 days" = "अनुमानित लागत, पिछले 7 दिन";
 
+/* Settings explanation */
+"Every session you finish is archived here with a one-line summary, its cost, and what it changed. Search to recall what you did in a project last week." = "आपका पूरा किया हर सत्र यहाँ एक-पंक्ति सारांश, लागत और बदलावों के साथ संग्रहीत होता है। पिछले सप्ताह किसी प्रोजेक्ट में क्या किया था, यह याद करने के लिए खोजें।";
+
+/* Settings toggle explanation */
+"Exclude the notch from screen shares, recordings, and other apps' screenshots. It renders commands, paths, and code, so this is on by default." = "स्क्रीन शेयर, रिकॉर्डिंग और अन्य ऐप के स्क्रीनशॉट से नॉच को बाहर रखें। इसमें कमांड, पाथ और कोड दिखते हैं, इसलिए यह डिफ़ॉल्ट रूप से चालू है।";
+
 /* Settings section heading */
 "Files touched this session" = "इस सत्र में छुई गई फाइलें";
 
+/* Settings section heading */
+"Finished tasks" = "पूर्ण किए गए कार्य";
+
+/* Settings explanation */
+"Fire a sample card to see what the notch looks like." = "नॉच कैसा दिखता है यह देखने के लिए एक नमूना कार्ड चलाएँ।";
+
+/* Settings explanation */
+"Follow macOS" = "macOS का अनुसरण करें";
+
 /* Settings sidebar section */
 "General" = "सामान्य";
+
+/* Settings explanation */
+"Generate" = "जनरेट करें";
 
 /* Settings toggle */
 "Hard-stop at the cap" = "सीमा पर पूरी तरह रोकें";
@@ -162,6 +249,9 @@
 
 /* Button: press and hold to allow a destructive command */
 "Hold to Allow" = "अनुमति देने के लिए दबाए रखें";
+
+/* Settings explanation */
+"Homebrew:" = "Homebrew:";
 
 /* Settings sidebar group */
 "Info" = "जानकारी";
@@ -181,6 +271,15 @@
 /* Settings toggle */
 "Launch at login" = "लॉगिन पर शुरू करें";
 
+/* Settings explanation */
+"Less" = "कम";
+
+/* Settings toggle explanation */
+"Let the Claude mascot live on the notch: it peeks, strolls, hangs off the edge, naps, and celebrates finished tasks. Click it to boop it." = "Claude के मैस्कॉट को नॉच पर रहने दें: यह झाँकता है, टहलता है, किनारे पर लटकता है, झपकी लेता है और कार्य पूरा होने पर जश्न मनाता है। इसे टैप करके छेड़ें।";
+
+/* Settings toggle explanation */
+"Let the pet perform on its own when the notch is idle. Turn this off to keep the pet quiet until you boop it or a task finishes." = "नॉच खाली होने पर पेट को अपने आप हरकत करने दें। इसे बंद करें तो पेट तब तक शांत रहेगा जब तक आप उसे छेड़ें या कोई कार्य पूरा न हो।";
+
 /* Settings section heading */
 "Lines changed this session" = "इस सत्र में बदली गई पंक्तियाँ";
 
@@ -193,8 +292,20 @@
 /* Settings section heading */
 "Model mix (last 7 days)" = "मॉडल मिश्रण (पिछले 7 दिन)";
 
+/* Settings explanation */
+"More" = "अधिक";
+
 /* Settings toggle */
 "Mute all sounds" = "सभी ध्वनियाँ बंद करें";
+
+/* Settings explanation */
+"No finished sessions yet. They show up here after a session ends." = "अभी कोई पूर्ण सत्र नहीं। सत्र समाप्त होने पर वे यहाँ दिखेंगे।";
+
+/* Settings explanation */
+"No matches" = "कोई मिलान नहीं";
+
+/* Settings explanation */
+"No past sessions found yet." = "अभी तक कोई पुराना सत्र नहीं मिला।";
 
 /* Settings sidebar section */
 "Notch" = "नॉच";
@@ -204,6 +315,12 @@
 
 /* Settings button */
 "Notification" = "सूचना";
+
+/* Settings toggle explanation */
+"Nudge you when a single run has been going for a long time." = "जब कोई एक रन बहुत देर से चल रहा हो तो याद दिलाता है।";
+
+/* Settings toggle explanation */
+"Occasional reminder to step away after a long stretch at the keyboard." = "कीबोर्ड पर लंबे समय के बाद कभी-कभी ब्रेक लेने की याद दिलाता है।";
 
 /* Button: bring the editor or terminal that started this session to the front */
 "Open IDE" = "IDE खोलें";
@@ -223,6 +340,9 @@
 /* Settings toggle */
 "Pet Mode" = "पेट मोड";
 
+/* Settings explanation */
+"Pet animations" = "पेट एनिमेशन";
+
 /* Settings section heading */
 "Plan usage limits" = "प्लान उपयोग सीमाएँ";
 
@@ -232,11 +352,20 @@
 /* Settings button */
 "Play all" = "सभी चलाएँ";
 
+/* Settings toggle explanation */
+"Post a Notification Center banner when a task finishes." = "कार्य पूरा होने पर नोटिफिकेशन सेंटर बैनर दिखाएँ।";
+
 /* Settings sidebar section */
 "Privacy" = "गोपनीयता";
 
+/* Settings explanation */
+"Project name" = "प्रोजेक्ट का नाम";
+
 /* Settings section heading */
 "Projects & recent sessions" = "प्रोजेक्ट और हाल के सत्र";
+
+/* Settings toggle explanation */
+"Put the running session cost next to the menu-bar bell." = "मेनू बार की घंटी के पास चालू सत्र की लागत दिखाएँ।";
 
 /* Settings section heading */
 "Quick actions" = "त्वरित क्रियाएँ";
@@ -247,6 +376,9 @@
 /* Settings toggle */
 "Random antics" = "यादृच्छिक हरकतें";
 
+/* Settings explanation */
+"Reading transcripts…" = "ट्रांसक्रिप्ट पढ़े जा रहे हैं…";
+
 /* Button: open a composer to send a follow-up message */
 "Reply" = "उत्तर दें";
 
@@ -255,6 +387,9 @@
 
 /* Settings button */
 "Run setup again…" = "सेटअप फिर से चलाएँ…";
+
+/* Settings explanation */
+"Sample cards" = "नमूना कार्ड";
 
 /* Button: submit the answer to Claude's question */
 "Send" = "भेजें";
@@ -274,6 +409,12 @@
 /* Settings toggle */
 "Show spend in the menu bar" = "मेनू बार में खर्च दिखाएँ";
 
+/* Settings toggle explanation */
+"Silence every notch sound." = "नॉच की सभी ध्वनियाँ बंद करें।";
+
+/* Settings button. %@ is a duration such as 30 min */
+"Snooze for %@" = "%@ के लिए स्थगित करें";
+
 /* Settings section heading */
 "Snooze passive cards" = "निष्क्रिय कार्ड स्थगित करें";
 
@@ -286,17 +427,35 @@
 /* Settings button */
 "Start Claude in a folder…" = "किसी फोल्डर में Claude शुरू करें…";
 
+/* Settings toggle explanation */
+"Start ClaudeNotch automatically when you log in." = "लॉगिन करते ही ClaudeNotch अपने आप शुरू करें।";
+
 /* Settings button */
 "Start Codex in a folder…" = "किसी फोल्डर में Codex शुरू करें…";
 
 /* Settings section heading */
 "Status bar" = "स्टेटस बार";
 
+/* Settings explanation */
+"Surface other coding agents in the notch. Codex support is experimental: session status, prompts, activity and notifications appear, but permission cards and cost are not wired yet." = "नॉच में अन्य कोडिंग एजेंट दिखाएँ। Codex समर्थन प्रयोगात्मक है: सत्र स्थिति, प्रॉम्प्ट, गतिविधि और सूचनाएँ दिखती हैं, पर अनुमति कार्ड और लागत अभी जुड़े नहीं हैं।";
+
 /* Settings section heading */
 "System permissions" = "सिस्टम अनुमतियाँ";
 
 /* Settings button */
 "Task complete" = "कार्य पूर्ण";
+
+/* Settings button */
+"Task complete: claim contradicted" = "कार्य पूर्ण: दावा खंडित";
+
+/* Settings button */
+"Task complete: not demonstrated" = "कार्य पूर्ण: सिद्ध नहीं";
+
+/* Settings button */
+"Task complete: verified" = "कार्य पूर्ण: सत्यापित";
+
+/* Settings explanation */
+"Terminal:" = "टर्मिनल:";
 
 /* Tooltip on the version badge */
 "The version you are running" = "आप जो संस्करण चला रहे हैं";
@@ -310,6 +469,12 @@
 /* Settings section heading */
 "Title" = "शीर्षक";
 
+/* Settings explanation */
+"Today" = "आज";
+
+/* Settings explanation */
+"Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess." = "Codex रोलआउट से टोकन गणना। डॉलर लागत नहीं: gpt की कीमत सार्वजनिक नहीं है, इसलिए कोई भी आँकड़ा अनुमान होगा।";
+
 /* Settings button */
 "Tool permission" = "टूल अनुमति";
 
@@ -322,17 +487,47 @@
 /* Button: stop enforcing the spending cap */
 "Turn off" = "बंद करें";
 
+/* Settings explanation */
+"Turn on auto-approve for a set time and it switches itself back off, or keep it on until you turn it off." = "तय समय के लिए स्वतः स्वीकृति चालू करें, वह अपने आप बंद हो जाएगी; या इसे तब तक चालू रखें जब तक आप बंद न करें।";
+
 /* Settings badge: a newer version is available. %@ is the version number */
 "Update to v%@" = "v%@ में अपडेट करें";
 
 /* Settings sidebar section */
 "Usage" = "उपयोग";
 
+/* Settings toggle explanation */
+"Warn as your 5-hour or weekly usage fills, once at 80% and once at 95%." = "जब आपका 5-घंटे या साप्ताहिक उपयोग भरने लगे तो चेतावनी दें, एक बार 80% पर और एक बार 95% पर।";
+
+/* Settings explanation */
+"Warn when estimated cost crosses a cap. Set a cap to 0 to disable it." = "अनुमानित लागत सीमा पार करने पर चेतावनी दें। सीमा 0 करने पर यह बंद हो जाती है।";
+
+/* Settings explanation */
+"Week" = "सप्ताह";
+
+/* Settings explanation */
+"What I shipped" = "मैंने क्या शिप किया";
+
 /* Settings picker label */
 "What the title shows" = "शीर्षक क्या दिखाए";
 
+/* Settings section heading. %@ is the version number */
+"What's new in v%@" = "v%@ में नया क्या है";
+
+/* Settings toggle explanation */
+"When a task finishes, compare the closing message against what the turn really did, and say so on the card if it claims a change it never made or says the tests pass when none ran. Off by default: it is an opinion about the work, and it stays quiet on an ordinary turn." = "कार्य पूरा होने पर, अंतिम संदेश की तुलना उस दौर में वास्तव में हुए काम से करें, और यदि वह ऐसा बदलाव बताए जो किया ही नहीं, या कहे कि टेस्ट पास हुए जबकि कोई चला ही नहीं, तो कार्ड पर बताएँ। डिफ़ॉल्ट रूप से बंद: यह काम पर एक राय है, और सामान्य दौर में यह चुप रहता है।";
+
+/* Settings explanation */
+"With Codex on, dropping a folder on the notch asks whether to open it in Claude Code or Codex." = "Codex चालू होने पर नॉच पर फोल्डर छोड़ने से पूछा जाता है कि उसे Claude Code में खोलें या Codex में।";
+
+/* Settings explanation */
+"With per-tool sounds on, each kind of pop-up plays its own sound. Change any of them; the default is shown when you have not." = "प्रति-टूल ध्वनियाँ चालू होने पर हर तरह का पॉप-अप अपनी ध्वनि बजाता है। किसी को भी बदलें; न बदलने पर डिफ़ॉल्ट दिखता है।";
+
 /* Settings sidebar group */
 "Workspace" = "वर्कस्पेस";
+
+/* Settings explanation */
+"Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps." = "आपके Claude प्लान की सीमाएँ, जैसा Claude Code ने पिछली बार बताया। ये उपयोग सीमाएँ हैं, पैसे की सीमा नहीं।";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "हटाने के लिए क्लिक करें";
@@ -342,3 +537,6 @@
 
 /* Placeholder when a session has reported no token usage */
 "no usage yet" = "अभी कोई उपयोग नहीं";
+
+/* Settings explanation */
+"running" = "चल रहा है";

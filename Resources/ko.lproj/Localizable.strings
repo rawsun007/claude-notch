@@ -4,6 +4,15 @@
    tools/l10n-check.py enforces it. Untranslated keys are omitted
    and fall back to English at runtime. */
 
+/* Settings explanation */
+"200K" = "200K";
+
+/* Settings explanation */
+"3 days" = "3일";
+
+/* Settings toggle explanation */
+"A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost." = "Claude가 한 일의 일일 요약과 세션 및 예상 비용의 주간 정리.";
+
 /* Settings sidebar section */
 "About" = "정보";
 
@@ -22,14 +31,23 @@
 /* Settings sidebar group */
 "Alerts & Cost" = "알림 및 비용";
 
+/* Settings explanation */
+"All-time counters, kept locally on this Mac." = "전체 기간 집계이며 이 Mac에만 저장됩니다.";
+
 /* Button: approve the permission request */
 "Allow" = "허용";
 
 /* Button: approve every queued request. %d is how many */
 "Allow All (%d)" = "모두 허용 (%d)";
 
+/* Settings toggle explanation */
+"Allow every tool request automatically. Turns the notch into a passive monitor. Use with care." = "모든 도구 요청을 자동으로 허용합니다. 노치는 수동 모니터가 됩니다. 주의해서 사용하세요.";
+
 /* Button: allow a single over-budget command without raising the cap */
 "Allow once" = "한 번만 허용";
+
+/* Settings toggle explanation */
+"Also send notch notifications to macOS Notification Center." = "노치 알림을 macOS 알림 센터로도 보냅니다.";
 
 /* Menu item: add an allow rule for every call of a tool. %@ is the tool name */
 "Always Allow All %@" = "%@ 항상 모두 허용";
@@ -40,11 +58,26 @@
 /* Menu button opening the always-allow choices */
 "Always Allow…" = "항상 허용…";
 
+/* Settings toggle explanation */
+"Always on: drag a file or folder onto the notch to open Claude there." = "항상 켜짐: 파일이나 폴더를 노치에 끌어다 놓으면 그 위치에서 Claude가 열립니다.";
+
+/* Settings toggle explanation */
+"Always show the notch card instead of hiding it behind the hardware notch until something happens." = "무언가 일어날 때까지 하드웨어 노치 뒤에 숨기지 않고 카드를 항상 표시합니다.";
+
 /* Settings section heading */
 "Always-allow rules" = "항상 허용 규칙";
 
+/* Settings explanation */
+"Applies straight away, no restart. The notch and this window are translated; the menu bar is still English." = "다시 시작할 필요 없이 바로 적용됩니다. 노치와 이 창은 번역되어 있고 메뉴 막대는 아직 영어입니다.";
+
+/* Settings toggle explanation */
+"Ask for Touch ID before allowing a tool request from the notch." = "노치에서 도구 요청을 허용하기 전에 Touch ID를 요구합니다.";
+
 /* Button: open a background agent in a terminal */
 "Attach" = "연결";
+
+/* Settings explanation */
+"Auto" = "자동";
 
 /* Heading: this action was approved automatically by a rule */
 "Auto-allowed" = "자동 허용됨";
@@ -55,8 +88,14 @@
 /* Settings section heading */
 "Auto-approve for a while" = "일정 시간 자동 승인";
 
+/* Settings explanation */
+"Auto-approve is on until you turn it off." = "자동 승인은 끌 때까지 유지됩니다.";
+
 /* Settings toggle */
 "Auto-approve permissions" = "권한 자동 승인";
+
+/* Settings toggle explanation */
+"Block new tool runs once a cap is crossed, instead of only warning." = "한도를 넘으면 경고에 그치지 않고 새 도구 실행을 막습니다.";
 
 /* Settings toggle */
 "Break reminders" = "휴식 알림";
@@ -76,14 +115,29 @@
 /* Settings button */
 "Check for updates…" = "업데이트 확인…";
 
+/* Settings toggle */
+"Check what Claude actually did" = "Claude가 실제로 한 일 확인";
+
+/* Settings explanation */
+"Claude" = "Claude";
+
+/* Settings explanation */
+"Claude Code, living in your notch." = "Claude Code가 노치에 살고 있습니다.";
+
 /* Settings section heading */
 "Claude usage (from transcripts)" = "Claude 사용량 (기록 기준)";
 
 /* Heading of the expanded reply card */
 "Claude's last reply" = "Claude의 마지막 답변";
 
+/* Settings explanation */
+"ClaudeNotch" = "ClaudeNotch";
+
 /* Settings button */
 "Clear the active session" = "활성 세션 지우기";
+
+/* Settings explanation */
+"Closed a terminal by accident? Expand a project and resume right where you left off." = "실수로 터미널을 닫았나요? 프로젝트를 펼쳐 하던 곳에서 이어가세요.";
 
 /* Settings section heading */
 "Code churn today" = "오늘의 코드 변경량";
@@ -106,8 +160,17 @@
 /* Settings button */
 "Cost budget alert" = "비용 예산 경고";
 
+/* Settings explanation */
+"Costs are estimates at public API prices, not your subscription bill." = "비용은 공개 API 가격 기준 추정치이며 구독 청구액이 아닙니다.";
+
 /* Settings section heading */
 "Current session" = "현재 세션";
+
+/* Settings explanation */
+"Custom" = "사용자 지정";
+
+/* Settings explanation */
+"Custom title" = "사용자 지정 제목";
 
 /* Settings toggle */
 "Daily and weekly digest" = "일간 및 주간 요약";
@@ -120,6 +183,9 @@
 
 /* Settings sidebar section */
 "Developer" = "개발자";
+
+/* Settings toggle explanation */
+"Different sound for different kinds of tool request." = "도구 요청 종류마다 다른 소리를 냅니다.";
 
 /* Settings button */
 "Disable Codex integration" = "Codex 통합 해제";
@@ -139,17 +205,38 @@
 /* Settings button */
 "Enable Codex integration (beta)" = "Codex 통합 사용 (베타)";
 
+/* Settings explanation */
+"Estimated at public API (pay-as-you-go) prices. On a Pro, Max, Team, or Enterprise subscription you pay a flat fee, so this is not your actual bill, it is what the usage would cost per token." = "공개 API(종량제) 가격 기준 추정치입니다. Pro, Max, Team, Enterprise 구독은 정액이므로 실제 청구액이 아니라 해당 사용량을 토큰 단가로 환산한 금액입니다.";
+
 /* Settings section heading */
 "Estimated cost, last 4 weeks" = "예상 비용, 최근 4주";
 
 /* Settings section heading */
 "Estimated cost, last 7 days" = "예상 비용, 최근 7일";
 
+/* Settings explanation */
+"Every session you finish is archived here with a one-line summary, its cost, and what it changed. Search to recall what you did in a project last week." = "완료한 모든 세션이 한 줄 요약, 비용, 변경 내용과 함께 여기에 보관됩니다. 지난주 어떤 프로젝트에서 무엇을 했는지 검색으로 확인하세요.";
+
+/* Settings toggle explanation */
+"Exclude the notch from screen shares, recordings, and other apps' screenshots. It renders commands, paths, and code, so this is on by default." = "화면 공유, 녹화, 다른 앱의 스크린샷에서 노치를 제외합니다. 명령과 경로, 코드가 보이므로 기본으로 켜져 있습니다.";
+
 /* Settings section heading */
 "Files touched this session" = "이 세션에서 변경한 파일";
 
+/* Settings section heading */
+"Finished tasks" = "완료된 작업";
+
+/* Settings explanation */
+"Fire a sample card to see what the notch looks like." = "샘플 카드를 띄워 노치 모습을 확인합니다.";
+
+/* Settings explanation */
+"Follow macOS" = "macOS 따르기";
+
 /* Settings sidebar section */
 "General" = "일반";
+
+/* Settings explanation */
+"Generate" = "생성";
 
 /* Settings toggle */
 "Hard-stop at the cap" = "한도 도달 시 차단";
@@ -162,6 +249,9 @@
 
 /* Button: press and hold to allow a destructive command */
 "Hold to Allow" = "길게 눌러 허용";
+
+/* Settings explanation */
+"Homebrew:" = "Homebrew:";
 
 /* Settings sidebar group */
 "Info" = "정보";
@@ -181,6 +271,15 @@
 /* Settings toggle */
 "Launch at login" = "로그인 시 실행";
 
+/* Settings explanation */
+"Less" = "적음";
+
+/* Settings toggle explanation */
+"Let the Claude mascot live on the notch: it peeks, strolls, hangs off the edge, naps, and celebrates finished tasks. Click it to boop it." = "Claude 마스코트가 노치에 살게 합니다. 빼꼼 내다보고, 거닐고, 가장자리에 매달리고, 낮잠을 자고, 작업이 끝나면 축하합니다. 클릭하면 콕 찌를 수 있습니다.";
+
+/* Settings toggle explanation */
+"Let the pet perform on its own when the notch is idle. Turn this off to keep the pet quiet until you boop it or a task finishes." = "노치가 유휴 상태일 때 펫이 스스로 움직이게 합니다. 끄면 콕 찌르거나 작업이 끝날 때까지 조용히 있습니다.";
+
 /* Settings section heading */
 "Lines changed this session" = "이 세션에서 변경된 줄";
 
@@ -193,8 +292,20 @@
 /* Settings section heading */
 "Model mix (last 7 days)" = "모델 구성 (최근 7일)";
 
+/* Settings explanation */
+"More" = "많음";
+
 /* Settings toggle */
 "Mute all sounds" = "모든 소리 끄기";
+
+/* Settings explanation */
+"No finished sessions yet. They show up here after a session ends." = "아직 완료된 세션이 없습니다. 세션이 끝나면 여기에 표시됩니다.";
+
+/* Settings explanation */
+"No matches" = "일치 항목 없음";
+
+/* Settings explanation */
+"No past sessions found yet." = "아직 지난 세션이 없습니다.";
 
 /* Settings sidebar section */
 "Notch" = "노치";
@@ -204,6 +315,12 @@
 
 /* Settings button */
 "Notification" = "알림";
+
+/* Settings toggle explanation */
+"Nudge you when a single run has been going for a long time." = "한 번의 실행이 오래 이어지면 알려줍니다.";
+
+/* Settings toggle explanation */
+"Occasional reminder to step away after a long stretch at the keyboard." = "오래 작업한 뒤 잠시 쉬라고 가끔 알려줍니다.";
 
 /* Button: bring the editor or terminal that started this session to the front */
 "Open IDE" = "IDE 열기";
@@ -223,6 +340,9 @@
 /* Settings toggle */
 "Pet Mode" = "펫 모드";
 
+/* Settings explanation */
+"Pet animations" = "펫 애니메이션";
+
 /* Settings section heading */
 "Plan usage limits" = "플랜 사용량 한도";
 
@@ -232,11 +352,20 @@
 /* Settings button */
 "Play all" = "모두 재생";
 
+/* Settings toggle explanation */
+"Post a Notification Center banner when a task finishes." = "작업이 끝나면 알림 센터 배너를 표시합니다.";
+
 /* Settings sidebar section */
 "Privacy" = "개인정보";
 
+/* Settings explanation */
+"Project name" = "프로젝트 이름";
+
 /* Settings section heading */
 "Projects & recent sessions" = "프로젝트 및 최근 세션";
+
+/* Settings toggle explanation */
+"Put the running session cost next to the menu-bar bell." = "메뉴 막대 종 옆에 현재 세션 비용을 표시합니다.";
 
 /* Settings section heading */
 "Quick actions" = "빠른 작업";
@@ -247,6 +376,9 @@
 /* Settings toggle */
 "Random antics" = "무작위 장난";
 
+/* Settings explanation */
+"Reading transcripts…" = "기록 읽는 중…";
+
 /* Button: open a composer to send a follow-up message */
 "Reply" = "답장";
 
@@ -255,6 +387,9 @@
 
 /* Settings button */
 "Run setup again…" = "설정 다시 실행…";
+
+/* Settings explanation */
+"Sample cards" = "샘플 카드";
 
 /* Button: submit the answer to Claude's question */
 "Send" = "보내기";
@@ -274,6 +409,12 @@
 /* Settings toggle */
 "Show spend in the menu bar" = "메뉴 막대에 지출 표시";
 
+/* Settings toggle explanation */
+"Silence every notch sound." = "노치의 모든 소리를 끕니다.";
+
+/* Settings button. %@ is a duration such as 30 min */
+"Snooze for %@" = "%@ 동안 일시 중지";
+
 /* Settings section heading */
 "Snooze passive cards" = "수동 카드 일시 중지";
 
@@ -286,17 +427,35 @@
 /* Settings button */
 "Start Claude in a folder…" = "폴더에서 Claude 시작…";
 
+/* Settings toggle explanation */
+"Start ClaudeNotch automatically when you log in." = "로그인할 때 ClaudeNotch를 자동으로 실행합니다.";
+
 /* Settings button */
 "Start Codex in a folder…" = "폴더에서 Codex 시작…";
 
 /* Settings section heading */
 "Status bar" = "상태 표시줄";
 
+/* Settings explanation */
+"Surface other coding agents in the notch. Codex support is experimental: session status, prompts, activity and notifications appear, but permission cards and cost are not wired yet." = "다른 코딩 에이전트를 노치에 표시합니다. Codex 지원은 실험적이며 세션 상태, 프롬프트, 활동, 알림은 표시되지만 권한 카드와 비용은 아직 연결되지 않았습니다.";
+
 /* Settings section heading */
 "System permissions" = "시스템 권한";
 
 /* Settings button */
 "Task complete" = "작업 완료";
+
+/* Settings button */
+"Task complete: claim contradicted" = "작업 완료: 주장과 불일치";
+
+/* Settings button */
+"Task complete: not demonstrated" = "작업 완료: 확인되지 않음";
+
+/* Settings button */
+"Task complete: verified" = "작업 완료: 확인됨";
+
+/* Settings explanation */
+"Terminal:" = "터미널:";
 
 /* Tooltip on the version badge */
 "The version you are running" = "현재 실행 중인 버전";
@@ -310,6 +469,12 @@
 /* Settings section heading */
 "Title" = "제목";
 
+/* Settings explanation */
+"Today" = "오늘";
+
+/* Settings explanation */
+"Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess." = "Codex 기록의 토큰 수입니다. 금액은 없습니다. gpt 가격이 공개되지 않아 어떤 수치도 추측이 되기 때문입니다.";
+
 /* Settings button */
 "Tool permission" = "도구 권한";
 
@@ -322,17 +487,47 @@
 /* Button: stop enforcing the spending cap */
 "Turn off" = "끄기";
 
+/* Settings explanation */
+"Turn on auto-approve for a set time and it switches itself back off, or keep it on until you turn it off." = "정해진 시간 동안 자동 승인을 켜면 스스로 꺼지고, 직접 끌 때까지 유지할 수도 있습니다.";
+
 /* Settings badge: a newer version is available. %@ is the version number */
 "Update to v%@" = "v%@(으)로 업데이트";
 
 /* Settings sidebar section */
 "Usage" = "사용량";
 
+/* Settings toggle explanation */
+"Warn as your 5-hour or weekly usage fills, once at 80% and once at 95%." = "5시간 또는 주간 사용량이 차오르면 80%와 95%에 한 번씩 알립니다.";
+
+/* Settings explanation */
+"Warn when estimated cost crosses a cap. Set a cap to 0 to disable it." = "예상 비용이 한도를 넘으면 경고합니다. 한도를 0으로 두면 꺼집니다.";
+
+/* Settings explanation */
+"Week" = "주간";
+
+/* Settings explanation */
+"What I shipped" = "내가 완료한 것";
+
 /* Settings picker label */
 "What the title shows" = "제목에 표시할 내용";
 
+/* Settings section heading. %@ is the version number */
+"What's new in v%@" = "v%@의 새로운 기능";
+
+/* Settings toggle explanation */
+"When a task finishes, compare the closing message against what the turn really did, and say so on the card if it claims a change it never made or says the tests pass when none ran. Off by default: it is an opinion about the work, and it stays quiet on an ordinary turn." = "작업이 끝나면 마무리 메시지를 그 턴이 실제로 한 일과 대조하고, 하지 않은 변경을 했다고 하거나 실행하지도 않은 테스트가 통과했다고 하면 카드에 알립니다. 기본은 꺼짐입니다. 작업에 대한 판단이며, 평범한 턴에서는 아무 말도 하지 않습니다.";
+
+/* Settings explanation */
+"With Codex on, dropping a folder on the notch asks whether to open it in Claude Code or Codex." = "Codex를 켜면 폴더를 노치에 놓을 때 Claude Code와 Codex 중 어디서 열지 묻습니다.";
+
+/* Settings explanation */
+"With per-tool sounds on, each kind of pop-up plays its own sound. Change any of them; the default is shown when you have not." = "도구별 소리를 켜면 팝업 종류마다 고유한 소리가 납니다. 원하는 대로 바꿀 수 있고, 바꾸지 않으면 기본값이 표시됩니다.";
+
 /* Settings sidebar group */
 "Workspace" = "작업 공간";
+
+/* Settings explanation */
+"Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps." = "Claude Code가 마지막으로 보고한 Claude 플랜 한도입니다. 금액이 아니라 사용량 한도입니다.";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "클릭하여 닫기";
@@ -342,3 +537,6 @@
 
 /* Placeholder when a session has reported no token usage */
 "no usage yet" = "사용량 없음";
+
+/* Settings explanation */
+"running" = "실행 중";

@@ -4,6 +4,15 @@
    tools/l10n-check.py enforces it. Untranslated keys are omitted
    and fall back to English at runtime. */
 
+/* Settings explanation */
+"200K" = "200K";
+
+/* Settings explanation */
+"3 days" = "3 日間";
+
+/* Settings toggle explanation */
+"A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost." = "Claude の作業の日次まとめと、セッションと推定コストの週次まとめ。";
+
 /* Settings sidebar section */
 "About" = "情報";
 
@@ -22,14 +31,23 @@
 /* Settings sidebar group */
 "Alerts & Cost" = "通知とコスト";
 
+/* Settings explanation */
+"All-time counters, kept locally on this Mac." = "累計のカウント。この Mac のみに保存されます。";
+
 /* Button: approve the permission request */
 "Allow" = "許可";
 
 /* Button: approve every queued request. %d is how many */
 "Allow All (%d)" = "すべて許可 (%d)";
 
+/* Settings toggle explanation */
+"Allow every tool request automatically. Turns the notch into a passive monitor. Use with care." = "すべてのツール要求を自動的に許可します。ノッチは受動的な表示だけになります。慎重に使ってください。";
+
 /* Button: allow a single over-budget command without raising the cap */
 "Allow once" = "1回だけ許可";
+
+/* Settings toggle explanation */
+"Also send notch notifications to macOS Notification Center." = "ノッチの通知を macOS の通知センターにも送ります。";
 
 /* Menu item: add an allow rule for every call of a tool. %@ is the tool name */
 "Always Allow All %@" = "%@ をすべて常に許可";
@@ -40,11 +58,26 @@
 /* Menu button opening the always-allow choices */
 "Always Allow…" = "常に許可…";
 
+/* Settings toggle explanation */
+"Always on: drag a file or folder onto the notch to open Claude there." = "常に有効：ファイルやフォルダをノッチにドラッグすると、その場所で Claude が開きます。";
+
+/* Settings toggle explanation */
+"Always show the notch card instead of hiding it behind the hardware notch until something happens." = "何かが起きるまでハードウェアのノッチに隠すのではなく、常にカードを表示します。";
+
 /* Settings section heading */
 "Always-allow rules" = "常に許可のルール";
 
+/* Settings explanation */
+"Applies straight away, no restart. The notch and this window are translated; the menu bar is still English." = "再起動なしですぐ反映されます。ノッチとこのウインドウは翻訳済みで、メニューバーは英語のままです。";
+
+/* Settings toggle explanation */
+"Ask for Touch ID before allowing a tool request from the notch." = "ノッチからツール要求を許可する前に Touch ID を求めます。";
+
 /* Button: open a background agent in a terminal */
 "Attach" = "接続";
+
+/* Settings explanation */
+"Auto" = "自動";
 
 /* Heading: this action was approved automatically by a rule */
 "Auto-allowed" = "自動許可済み";
@@ -55,8 +88,14 @@
 /* Settings section heading */
 "Auto-approve for a while" = "一定時間だけ自動承認";
 
+/* Settings explanation */
+"Auto-approve is on until you turn it off." = "自動承認は、オフにするまで有効です。";
+
 /* Settings toggle */
 "Auto-approve permissions" = "権限を自動承認";
+
+/* Settings toggle explanation */
+"Block new tool runs once a cap is crossed, instead of only warning." = "上限を超えたら、警告だけでなく新しいツールの実行を止めます。";
 
 /* Settings toggle */
 "Break reminders" = "休憩のリマインダー";
@@ -76,14 +115,29 @@
 /* Settings button */
 "Check for updates…" = "アップデートを確認…";
 
+/* Settings toggle */
+"Check what Claude actually did" = "Claude が実際に何をしたか確認";
+
+/* Settings explanation */
+"Claude" = "Claude";
+
+/* Settings explanation */
+"Claude Code, living in your notch." = "Claude Code が、ノッチに住んでいます。";
+
 /* Settings section heading */
 "Claude usage (from transcripts)" = "Claude の使用状況（記録から）";
 
 /* Heading of the expanded reply card */
 "Claude's last reply" = "Claude の最新の返信";
 
+/* Settings explanation */
+"ClaudeNotch" = "ClaudeNotch";
+
 /* Settings button */
 "Clear the active session" = "現在のセッションをクリア";
+
+/* Settings explanation */
+"Closed a terminal by accident? Expand a project and resume right where you left off." = "うっかりターミナルを閉じましたか。プロジェクトを開いて、中断した続きから再開できます。";
 
 /* Settings section heading */
 "Code churn today" = "本日のコード変更量";
@@ -106,8 +160,17 @@
 /* Settings button */
 "Cost budget alert" = "コスト予算の警告";
 
+/* Settings explanation */
+"Costs are estimates at public API prices, not your subscription bill." = "費用は公開 API 価格による推定で、サブスクリプションの請求額ではありません。";
+
 /* Settings section heading */
 "Current session" = "現在のセッション";
+
+/* Settings explanation */
+"Custom" = "カスタム";
+
+/* Settings explanation */
+"Custom title" = "カスタムタイトル";
 
 /* Settings toggle */
 "Daily and weekly digest" = "日次・週次のまとめ";
@@ -120,6 +183,9 @@
 
 /* Settings sidebar section */
 "Developer" = "開発者";
+
+/* Settings toggle explanation */
+"Different sound for different kinds of tool request." = "ツール要求の種類ごとに違う音を鳴らします。";
 
 /* Settings button */
 "Disable Codex integration" = "Codex 連携を無効にする";
@@ -139,17 +205,38 @@
 /* Settings button */
 "Enable Codex integration (beta)" = "Codex 連携を有効にする（ベータ）";
 
+/* Settings explanation */
+"Estimated at public API (pay-as-you-go) prices. On a Pro, Max, Team, or Enterprise subscription you pay a flat fee, so this is not your actual bill, it is what the usage would cost per token." = "公開 API（従量課金）価格での推定です。Pro、Max、Team、Enterprise では定額のため、これは実際の請求額ではなく、その使用量をトークン単価で計算した金額です。";
+
 /* Settings section heading */
 "Estimated cost, last 4 weeks" = "推定コスト（過去 4 週間）";
 
 /* Settings section heading */
 "Estimated cost, last 7 days" = "推定コスト（過去 7 日間）";
 
+/* Settings explanation */
+"Every session you finish is archived here with a one-line summary, its cost, and what it changed. Search to recall what you did in a project last week." = "完了したセッションは、一行の要約と費用、変更内容とともにここに保存されます。先週あるプロジェクトで何をしたかは検索で思い出せます。";
+
+/* Settings toggle explanation */
+"Exclude the notch from screen shares, recordings, and other apps' screenshots. It renders commands, paths, and code, so this is on by default." = "画面共有、録画、他アプリのスクリーンショットからノッチを除外します。コマンドやパス、コードが映るため、既定でオンです。";
+
 /* Settings section heading */
 "Files touched this session" = "このセッションで触れたファイル";
 
+/* Settings section heading */
+"Finished tasks" = "完了したタスク";
+
+/* Settings explanation */
+"Fire a sample card to see what the notch looks like." = "サンプルカードを表示して、ノッチの見え方を確認します。";
+
+/* Settings explanation */
+"Follow macOS" = "macOS に合わせる";
+
 /* Settings sidebar section */
 "General" = "一般";
+
+/* Settings explanation */
+"Generate" = "生成";
 
 /* Settings toggle */
 "Hard-stop at the cap" = "上限で完全に停止";
@@ -162,6 +249,9 @@
 
 /* Button: press and hold to allow a destructive command */
 "Hold to Allow" = "長押しで許可";
+
+/* Settings explanation */
+"Homebrew:" = "Homebrew：";
 
 /* Settings sidebar group */
 "Info" = "情報";
@@ -181,6 +271,15 @@
 /* Settings toggle */
 "Launch at login" = "ログイン時に起動";
 
+/* Settings explanation */
+"Less" = "少ない";
+
+/* Settings toggle explanation */
+"Let the Claude mascot live on the notch: it peeks, strolls, hangs off the edge, naps, and celebrates finished tasks. Click it to boop it." = "Claude のマスコットをノッチに住まわせます。のぞいたり、歩いたり、端にぶら下がったり、昼寝したり、タスク完了を祝ったりします。クリックでつつけます。";
+
+/* Settings toggle explanation */
+"Let the pet perform on its own when the notch is idle. Turn this off to keep the pet quiet until you boop it or a task finishes." = "ノッチが待機中のとき、ペットが自分で動きます。オフにすると、つつくかタスクが完了するまで静かにしています。";
+
 /* Settings section heading */
 "Lines changed this session" = "このセッションで変更した行";
 
@@ -193,8 +292,20 @@
 /* Settings section heading */
 "Model mix (last 7 days)" = "モデル構成（過去 7 日間）";
 
+/* Settings explanation */
+"More" = "多い";
+
 /* Settings toggle */
 "Mute all sounds" = "すべての音を消す";
+
+/* Settings explanation */
+"No finished sessions yet. They show up here after a session ends." = "完了したセッションはまだありません。セッションが終わるとここに表示されます。";
+
+/* Settings explanation */
+"No matches" = "一致するものがありません";
+
+/* Settings explanation */
+"No past sessions found yet." = "過去のセッションはまだありません。";
 
 /* Settings sidebar section */
 "Notch" = "ノッチ";
@@ -204,6 +315,12 @@
 
 /* Settings button */
 "Notification" = "通知";
+
+/* Settings toggle explanation */
+"Nudge you when a single run has been going for a long time." = "ひとつの実行が長く続いているときに知らせます。";
+
+/* Settings toggle explanation */
+"Occasional reminder to step away after a long stretch at the keyboard." = "長時間の作業のあと、席を立つよう時々知らせます。";
 
 /* Button: bring the editor or terminal that started this session to the front */
 "Open IDE" = "IDE を開く";
@@ -223,6 +340,9 @@
 /* Settings toggle */
 "Pet Mode" = "ペットモード";
 
+/* Settings explanation */
+"Pet animations" = "ペットのアニメーション";
+
 /* Settings section heading */
 "Plan usage limits" = "プランの使用量上限";
 
@@ -232,11 +352,20 @@
 /* Settings button */
 "Play all" = "すべて再生";
 
+/* Settings toggle explanation */
+"Post a Notification Center banner when a task finishes." = "タスクが完了したら、通知センターにバナーを表示します。";
+
 /* Settings sidebar section */
 "Privacy" = "プライバシー";
 
+/* Settings explanation */
+"Project name" = "プロジェクト名";
+
 /* Settings section heading */
 "Projects & recent sessions" = "プロジェクトと最近のセッション";
+
+/* Settings toggle explanation */
+"Put the running session cost next to the menu-bar bell." = "メニューバーのベルの横に、現在のセッションの費用を表示します。";
 
 /* Settings section heading */
 "Quick actions" = "クイック操作";
@@ -247,6 +376,9 @@
 /* Settings toggle */
 "Random antics" = "気まぐれな動き";
 
+/* Settings explanation */
+"Reading transcripts…" = "記録を読み込み中…";
+
 /* Button: open a composer to send a follow-up message */
 "Reply" = "返信";
 
@@ -255,6 +387,9 @@
 
 /* Settings button */
 "Run setup again…" = "セットアップをやり直す…";
+
+/* Settings explanation */
+"Sample cards" = "サンプルカード";
 
 /* Button: submit the answer to Claude's question */
 "Send" = "送信";
@@ -274,6 +409,12 @@
 /* Settings toggle */
 "Show spend in the menu bar" = "メニューバーに費用を表示";
 
+/* Settings toggle explanation */
+"Silence every notch sound." = "ノッチのすべての音を消します。";
+
+/* Settings button. %@ is a duration such as 30 min */
+"Snooze for %@" = "%@ 停止";
+
 /* Settings section heading */
 "Snooze passive cards" = "受動的なカードを一時停止";
 
@@ -286,17 +427,35 @@
 /* Settings button */
 "Start Claude in a folder…" = "フォルダで Claude を開始…";
 
+/* Settings toggle explanation */
+"Start ClaudeNotch automatically when you log in." = "ログイン時に ClaudeNotch を自動的に起動します。";
+
 /* Settings button */
 "Start Codex in a folder…" = "フォルダで Codex を開始…";
 
 /* Settings section heading */
 "Status bar" = "ステータスバー";
 
+/* Settings explanation */
+"Surface other coding agents in the notch. Codex support is experimental: session status, prompts, activity and notifications appear, but permission cards and cost are not wired yet." = "ほかのコーディングエージェントをノッチに表示します。Codex 対応は実験的で、セッション状態、プロンプト、アクティビティ、通知は出ますが、権限カードと費用は未対応です。";
+
 /* Settings section heading */
 "System permissions" = "システム権限";
 
 /* Settings button */
 "Task complete" = "タスク完了";
+
+/* Settings button */
+"Task complete: claim contradicted" = "タスク完了：主張と食い違い";
+
+/* Settings button */
+"Task complete: not demonstrated" = "タスク完了：未確認";
+
+/* Settings button */
+"Task complete: verified" = "タスク完了：確認済み";
+
+/* Settings explanation */
+"Terminal:" = "ターミナル：";
 
 /* Tooltip on the version badge */
 "The version you are running" = "実行中のバージョン";
@@ -310,6 +469,12 @@
 /* Settings section heading */
 "Title" = "タイトル";
 
+/* Settings explanation */
+"Today" = "今日";
+
+/* Settings explanation */
+"Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess." = "Codex の記録によるトークン数です。金額は出しません。gpt の価格は公開されておらず、数字を出しても当て推量になるためです。";
+
 /* Settings button */
 "Tool permission" = "ツールの権限";
 
@@ -322,17 +487,47 @@
 /* Button: stop enforcing the spending cap */
 "Turn off" = "オフにする";
 
+/* Settings explanation */
+"Turn on auto-approve for a set time and it switches itself back off, or keep it on until you turn it off." = "決めた時間だけ自動承認をオンにすると自動で戻ります。自分でオフにするまで有効のままにもできます。";
+
 /* Settings badge: a newer version is available. %@ is the version number */
 "Update to v%@" = "v%@ に更新";
 
 /* Settings sidebar section */
 "Usage" = "使用状況";
 
+/* Settings toggle explanation */
+"Warn as your 5-hour or weekly usage fills, once at 80% and once at 95%." = "5 時間または週の使用量が埋まってきたら、80% と 95% で一度ずつ知らせます。";
+
+/* Settings explanation */
+"Warn when estimated cost crosses a cap. Set a cap to 0 to disable it." = "推定コストが上限を超えたら知らせます。上限を 0 にすると無効になります。";
+
+/* Settings explanation */
+"Week" = "今週";
+
+/* Settings explanation */
+"What I shipped" = "やり遂げたこと";
+
 /* Settings picker label */
 "What the title shows" = "タイトルに表示する内容";
 
+/* Settings section heading. %@ is the version number */
+"What's new in v%@" = "v%@ の新機能";
+
+/* Settings toggle explanation */
+"When a task finishes, compare the closing message against what the turn really did, and say so on the card if it claims a change it never made or says the tests pass when none ran. Off by default: it is an opinion about the work, and it stays quiet on an ordinary turn." = "タスクが完了したら、締めのメッセージとその回で実際に行われたことを照合し、していない変更を主張していたり、テストを走らせていないのに通ったと言っていたらカードで指摘します。既定はオフです。仕事への評価であり、普通の回では何も言いません。";
+
+/* Settings explanation */
+"With Codex on, dropping a folder on the notch asks whether to open it in Claude Code or Codex." = "Codex を有効にすると、フォルダをノッチにドロップしたとき Claude Code と Codex のどちらで開くか尋ねます。";
+
+/* Settings explanation */
+"With per-tool sounds on, each kind of pop-up plays its own sound. Change any of them; the default is shown when you have not." = "ツールごとの音をオンにすると、ポップアップの種類ごとに音が鳴ります。自由に変更でき、未変更なら既定値が表示されます。";
+
 /* Settings sidebar group */
 "Workspace" = "ワークスペース";
+
+/* Settings explanation */
+"Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps." = "Claude Code が最後に報告した、プランの利用上限です。金額の上限ではなく使用量の上限です。";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "クリックで閉じる";
@@ -342,3 +537,6 @@
 
 /* Placeholder when a session has reported no token usage */
 "no usage yet" = "使用量はまだありません";
+
+/* Settings explanation */
+"running" = "実行中";
