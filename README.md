@@ -25,7 +25,7 @@ your editor, no more tabbing back to the terminal every few seconds.
 
 <br/>
 
-<img src="assets/demo.gif" alt="ClaudeNotch demo, approving Claude Code permissions from the notch" width="720" />
+<img src="assets/demo.gif" alt="ClaudeNotch demo, approving Claude Code permissions from the notch" width="700" />
 
 </div>
 
@@ -52,15 +52,19 @@ system, and shows no Dock icon, just a small bell in your menu bar.
 
 **Start a session from the notch**: drag a project folder onto the notch and a Claude Code session opens in that directory. No terminal, no `cd`.
 
-<img src="assets/start-from-notch.gif" alt="Dragging a folder onto the notch to start a Claude Code session" width="640" />
+<img src="assets/start-from-notch.gif" alt="Dragging a folder onto the notch to start a Claude Code session" width="700" />
 
 **A pet that reacts to your session**: the mascot lives in the notch and animates around what Claude is doing.
 
-<img src="assets/pet-demo.gif" alt="The ClaudeNotch pet animating in the notch" width="560" />
+<img src="assets/pet-demo.gif" alt="The ClaudeNotch pet animating in the notch" width="760" />
 
 **Little moments of delight**: playful touches that make the notch feel alive while you work.
 
 <img src="assets/spiderman.gif" alt="A playful animation in the notch" width="720" />
+
+**In your language**: pick one of ten languages in Settings and the notch and the settings window switch straight away, no restart.
+
+<img src="assets/multi-language.gif" alt="Switching the ClaudeNotch interface language in Settings" width="720" />
 
 ---
 
