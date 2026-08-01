@@ -121,6 +121,9 @@
 /* Settings explanation */
 "Claude" = "Claude";
 
+/* Settings explanation, freshness of the plan numbers */
+"Claude Code last checked this %@." = "Claude Code가 %@ 확인했습니다.";
+
 /* Settings explanation */
 "Claude Code, living in your notch." = "Claude Code가 노치에 살고 있습니다.";
 
@@ -162,6 +165,9 @@
 
 /* Settings explanation */
 "Costs are estimates at public API prices, not your subscription bill." = "비용은 공개 API 가격 기준 추정치이며 구독 청구액이 아닙니다.";
+
+/* Settings explanation */
+"Credits carry a session past the plan limits instead of stopping it, and are billed on top of the subscription." = "크레딧이 있으면 플랜 한도를 넘어도 세션이 멈추지 않고 계속되며, 구독과 별도로 청구됩니다.";
 
 /* Settings section heading */
 "Current session" = "현재 세션";
@@ -281,6 +287,9 @@
 "Let the pet perform on its own when the notch is idle. Turn this off to keep the pet quiet until you boop it or a task finishes." = "노치가 유휴 상태일 때 펫이 스스로 움직이게 합니다. 끄면 콕 찌르거나 작업이 끝날 때까지 조용히 있습니다.";
 
 /* Settings section heading */
+"Limits" = "한도";
+
+/* Settings section heading */
 "Lines changed this session" = "이 세션에서 변경된 줄";
 
 /* Settings toggle */
@@ -307,6 +316,9 @@
 /* Settings explanation */
 "No past sessions found yet." = "아직 지난 세션이 없습니다.";
 
+/* Settings explanation shown when the plan cache is missing */
+"No plan details yet. Claude Code writes them to its own config when it next talks to the API, so run a session and come back." = "아직 플랜 정보가 없습니다. Claude Code가 다음에 API와 통신할 때 자체 설정에 기록하므로, 세션을 한 번 실행한 뒤 다시 확인하세요.";
+
 /* Settings sidebar section */
 "Notch" = "노치";
 
@@ -321,6 +333,12 @@
 
 /* Settings toggle explanation */
 "Occasional reminder to step away after a long stretch at the keyboard." = "오래 작업한 뒤 잠시 쉬라고 가끔 알려줍니다.";
+
+/* Usage credits are switched off */
+"Off" = "꺼짐";
+
+/* Usage credits are switched on */
+"On" = "켜짐";
 
 /* Button: bring the editor or terminal that started this session to the front */
 "Open IDE" = "IDE 열기";
@@ -342,6 +360,9 @@
 
 /* Settings explanation */
 "Pet animations" = "펫 애니메이션";
+
+/* Settings sidebar section */
+"Plan" = "플랜";
 
 /* Settings section heading */
 "Plan usage limits" = "플랜 사용량 한도";
@@ -376,8 +397,17 @@
 /* Settings toggle */
 "Random antics" = "무작위 장난";
 
+/* The usage-credit spend limit is used up */
+"Reached" = "도달함";
+
+/* Settings explanation */
+"Read from the config Claude Code keeps on this Mac. Nothing is requested from Anthropic, and your account details never leave the machine." = "이 Mac에 있는 Claude Code 설정에서 읽어옵니다. Anthropic에 아무것도 요청하지 않으며 계정 정보는 기기를 벗어나지 않습니다.";
+
 /* Settings explanation */
 "Reading transcripts…" = "기록 읽는 중…";
+
+/* Button that re-reads the plan details */
+"Refresh" = "새로 고침";
 
 /* Button: open a composer to send a follow-up message */
 "Reply" = "답장";
@@ -496,6 +526,9 @@
 /* Settings sidebar section */
 "Usage" = "사용량";
 
+/* Settings section heading */
+"Usage credits" = "사용 크레딧";
+
 /* Settings toggle explanation */
 "Warn as your 5-hour or weekly usage fills, once at 80% and once at 95%." = "5시간 또는 주간 사용량이 차오르면 80%와 95%에 한 번씩 알립니다.";
 
@@ -528,6 +561,9 @@
 
 /* Settings explanation */
 "Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps." = "Claude Code가 마지막으로 보고한 Claude 플랜 한도입니다. 금액이 아니라 사용량 한도입니다.";
+
+/* Settings section heading */
+"Your plan" = "내 플랜";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "클릭하여 닫기";

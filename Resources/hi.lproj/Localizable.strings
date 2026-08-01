@@ -121,6 +121,9 @@
 /* Settings explanation */
 "Claude" = "Claude";
 
+/* Settings explanation, freshness of the plan numbers */
+"Claude Code last checked this %@." = "Claude Code ने इसे %@ जाँचा था।";
+
 /* Settings explanation */
 "Claude Code, living in your notch." = "Claude Code, आपके नॉच में रहता है।";
 
@@ -162,6 +165,9 @@
 
 /* Settings explanation */
 "Costs are estimates at public API prices, not your subscription bill." = "लागत सार्वजनिक API कीमतों पर अनुमान है, आपका सब्सक्रिप्शन बिल नहीं।";
+
+/* Settings explanation */
+"Credits carry a session past the plan limits instead of stopping it, and are billed on top of the subscription." = "क्रेडिट किसी सत्र को प्लान की सीमा के बाद रुकने के बजाय जारी रखने देते हैं, और इनका बिल सब्सक्रिप्शन के अतिरिक्त बनता है।";
 
 /* Settings section heading */
 "Current session" = "वर्तमान सत्र";
@@ -281,6 +287,9 @@
 "Let the pet perform on its own when the notch is idle. Turn this off to keep the pet quiet until you boop it or a task finishes." = "नॉच खाली होने पर पेट को अपने आप हरकत करने दें। इसे बंद करें तो पेट तब तक शांत रहेगा जब तक आप उसे छेड़ें या कोई कार्य पूरा न हो।";
 
 /* Settings section heading */
+"Limits" = "सीमाएँ";
+
+/* Settings section heading */
 "Lines changed this session" = "इस सत्र में बदली गई पंक्तियाँ";
 
 /* Settings toggle */
@@ -307,6 +316,9 @@
 /* Settings explanation */
 "No past sessions found yet." = "अभी तक कोई पुराना सत्र नहीं मिला।";
 
+/* Settings explanation shown when the plan cache is missing */
+"No plan details yet. Claude Code writes them to its own config when it next talks to the API, so run a session and come back." = "अभी प्लान की जानकारी नहीं है। Claude Code अगली बार API से बात करते समय इसे अपने कॉन्फ़िग में लिखता है, इसलिए एक सत्र चलाकर वापस आएँ।";
+
 /* Settings sidebar section */
 "Notch" = "नॉच";
 
@@ -321,6 +333,12 @@
 
 /* Settings toggle explanation */
 "Occasional reminder to step away after a long stretch at the keyboard." = "कीबोर्ड पर लंबे समय के बाद कभी-कभी ब्रेक लेने की याद दिलाता है।";
+
+/* Usage credits are switched off */
+"Off" = "बंद";
+
+/* Usage credits are switched on */
+"On" = "चालू";
 
 /* Button: bring the editor or terminal that started this session to the front */
 "Open IDE" = "IDE खोलें";
@@ -342,6 +360,9 @@
 
 /* Settings explanation */
 "Pet animations" = "पेट एनिमेशन";
+
+/* Settings sidebar section */
+"Plan" = "प्लान";
 
 /* Settings section heading */
 "Plan usage limits" = "प्लान उपयोग सीमाएँ";
@@ -376,8 +397,17 @@
 /* Settings toggle */
 "Random antics" = "यादृच्छिक हरकतें";
 
+/* The usage-credit spend limit is used up */
+"Reached" = "पहुँच गया";
+
+/* Settings explanation */
+"Read from the config Claude Code keeps on this Mac. Nothing is requested from Anthropic, and your account details never leave the machine." = "यह इसी Mac पर Claude Code की सहेजी गई कॉन्फ़िग से पढ़ा जाता है। Anthropic से कुछ नहीं माँगा जाता, और आपके खाते की जानकारी मशीन से बाहर नहीं जाती।";
+
 /* Settings explanation */
 "Reading transcripts…" = "ट्रांसक्रिप्ट पढ़े जा रहे हैं…";
+
+/* Button that re-reads the plan details */
+"Refresh" = "ताज़ा करें";
 
 /* Button: open a composer to send a follow-up message */
 "Reply" = "उत्तर दें";
@@ -496,6 +526,9 @@
 /* Settings sidebar section */
 "Usage" = "उपयोग";
 
+/* Settings section heading */
+"Usage credits" = "उपयोग क्रेडिट";
+
 /* Settings toggle explanation */
 "Warn as your 5-hour or weekly usage fills, once at 80% and once at 95%." = "जब आपका 5-घंटे या साप्ताहिक उपयोग भरने लगे तो चेतावनी दें, एक बार 80% पर और एक बार 95% पर।";
 
@@ -528,6 +561,9 @@
 
 /* Settings explanation */
 "Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps." = "आपके Claude प्लान की सीमाएँ, जैसा Claude Code ने पिछली बार बताया। ये उपयोग सीमाएँ हैं, पैसे की सीमा नहीं।";
+
+/* Settings section heading */
+"Your plan" = "आपका प्लान";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "हटाने के लिए क्लिक करें";

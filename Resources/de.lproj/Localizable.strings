@@ -121,6 +121,9 @@
 /* Settings explanation */
 "Claude" = "Claude";
 
+/* Settings explanation, freshness of the plan numbers */
+"Claude Code last checked this %@." = "Claude Code hat das %@ geprüft.";
+
 /* Settings explanation */
 "Claude Code, living in your notch." = "Claude Code, zu Hause in deinem Notch.";
 
@@ -162,6 +165,9 @@
 
 /* Settings explanation */
 "Costs are estimates at public API prices, not your subscription bill." = "Die Kosten sind Schätzungen zu öffentlichen API-Preisen, nicht deine Abo-Rechnung.";
+
+/* Settings explanation */
+"Credits carry a session past the plan limits instead of stopping it, and are billed on top of the subscription." = "Guthaben lässt eine Sitzung über die Tariflimits hinaus weiterlaufen, statt sie zu stoppen, und wird zusätzlich zum Abo abgerechnet.";
 
 /* Settings section heading */
 "Current session" = "Aktuelle Sitzung";
@@ -281,6 +287,9 @@
 "Let the pet perform on its own when the notch is idle. Turn this off to keep the pet quiet until you boop it or a task finishes." = "Das Maskottchen von sich aus auftreten lassen, wenn der Notch ruht. Aus lassen, damit es still bleibt, bis du es anstupst oder eine Aufgabe endet.";
 
 /* Settings section heading */
+"Limits" = "Limits";
+
+/* Settings section heading */
 "Lines changed this session" = "In dieser Sitzung geänderte Zeilen";
 
 /* Settings toggle */
@@ -307,6 +316,9 @@
 /* Settings explanation */
 "No past sessions found yet." = "Noch keine früheren Sitzungen gefunden.";
 
+/* Settings explanation shown when the plan cache is missing */
+"No plan details yet. Claude Code writes them to its own config when it next talks to the API, so run a session and come back." = "Noch keine Tarifdaten. Claude Code schreibt sie beim nächsten API-Kontakt in seine eigene Konfiguration, also starte eine Sitzung und komm zurück.";
+
 /* Settings sidebar section */
 "Notch" = "Notch";
 
@@ -321,6 +333,12 @@
 
 /* Settings toggle explanation */
 "Occasional reminder to step away after a long stretch at the keyboard." = "Gelegentliche Erinnerung, nach längerer Tastaturarbeit aufzustehen.";
+
+/* Usage credits are switched off */
+"Off" = "Aus";
+
+/* Usage credits are switched on */
+"On" = "An";
 
 /* Button: bring the editor or terminal that started this session to the front */
 "Open IDE" = "IDE öffnen";
@@ -342,6 +360,9 @@
 
 /* Settings explanation */
 "Pet animations" = "Maskottchen-Animationen";
+
+/* Settings sidebar section */
+"Plan" = "Tarif";
 
 /* Settings section heading */
 "Plan usage limits" = "Nutzungslimits des Tarifs";
@@ -376,8 +397,17 @@
 /* Settings toggle */
 "Random antics" = "Zufällige Kunststücke";
 
+/* The usage-credit spend limit is used up */
+"Reached" = "Erreicht";
+
+/* Settings explanation */
+"Read from the config Claude Code keeps on this Mac. Nothing is requested from Anthropic, and your account details never leave the machine." = "Aus der Konfiguration gelesen, die Claude Code auf diesem Mac führt. Bei Anthropic wird nichts abgefragt, und deine Kontodaten verlassen das Gerät nie.";
+
 /* Settings explanation */
 "Reading transcripts…" = "Transkripte werden gelesen…";
+
+/* Button that re-reads the plan details */
+"Refresh" = "Aktualisieren";
 
 /* Button: open a composer to send a follow-up message */
 "Reply" = "Antworten";
@@ -496,6 +526,9 @@
 /* Settings sidebar section */
 "Usage" = "Nutzung";
 
+/* Settings section heading */
+"Usage credits" = "Nutzungsguthaben";
+
 /* Settings toggle explanation */
 "Warn as your 5-hour or weekly usage fills, once at 80% and once at 95%." = "Warnt, während dein 5-Stunden- oder Wochenkontingent volläuft, einmal bei 80% und einmal bei 95%.";
 
@@ -528,6 +561,9 @@
 
 /* Settings explanation */
 "Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps." = "Die Limits deines Claude-Tarifs, wie Claude Code sie zuletzt gemeldet hat. Das sind Nutzungs-, keine Geldgrenzen.";
+
+/* Settings section heading */
+"Your plan" = "Dein Tarif";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "zum Schließen klicken";

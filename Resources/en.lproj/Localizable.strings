@@ -120,6 +120,9 @@
 /* Settings explanation */
 "Claude" = "Claude";
 
+/* Settings explanation, freshness of the plan numbers */
+"Claude Code last checked this %@." = "Claude Code last checked this %@.";
+
 /* Settings explanation */
 "Claude Code, living in your notch." = "Claude Code, living in your notch.";
 
@@ -161,6 +164,9 @@
 
 /* Settings explanation */
 "Costs are estimates at public API prices, not your subscription bill." = "Costs are estimates at public API prices, not your subscription bill.";
+
+/* Settings explanation */
+"Credits carry a session past the plan limits instead of stopping it, and are billed on top of the subscription." = "Credits carry a session past the plan limits instead of stopping it, and are billed on top of the subscription.";
 
 /* Settings section heading */
 "Current session" = "Current session";
@@ -280,6 +286,9 @@
 "Let the pet perform on its own when the notch is idle. Turn this off to keep the pet quiet until you boop it or a task finishes." = "Let the pet perform on its own when the notch is idle. Turn this off to keep the pet quiet until you boop it or a task finishes.";
 
 /* Settings section heading */
+"Limits" = "Limits";
+
+/* Settings section heading */
 "Lines changed this session" = "Lines changed this session";
 
 /* Settings toggle */
@@ -306,6 +315,9 @@
 /* Settings explanation */
 "No past sessions found yet." = "No past sessions found yet.";
 
+/* Settings explanation shown when the plan cache is missing */
+"No plan details yet. Claude Code writes them to its own config when it next talks to the API, so run a session and come back." = "No plan details yet. Claude Code writes them to its own config when it next talks to the API, so run a session and come back.";
+
 /* Settings sidebar section */
 "Notch" = "Notch";
 
@@ -320,6 +332,12 @@
 
 /* Settings toggle explanation */
 "Occasional reminder to step away after a long stretch at the keyboard." = "Occasional reminder to step away after a long stretch at the keyboard.";
+
+/* Usage credits are switched off */
+"Off" = "Off";
+
+/* Usage credits are switched on */
+"On" = "On";
 
 /* Button: bring the editor or terminal that started this session to the front */
 "Open IDE" = "Open IDE";
@@ -341,6 +359,9 @@
 
 /* Settings explanation */
 "Pet animations" = "Pet animations";
+
+/* Settings sidebar section */
+"Plan" = "Plan";
 
 /* Settings section heading */
 "Plan usage limits" = "Plan usage limits";
@@ -375,8 +396,17 @@
 /* Settings toggle */
 "Random antics" = "Random antics";
 
+/* The usage-credit spend limit is used up */
+"Reached" = "Reached";
+
+/* Settings explanation */
+"Read from the config Claude Code keeps on this Mac. Nothing is requested from Anthropic, and your account details never leave the machine." = "Read from the config Claude Code keeps on this Mac. Nothing is requested from Anthropic, and your account details never leave the machine.";
+
 /* Settings explanation */
 "Reading transcripts…" = "Reading transcripts…";
+
+/* Button that re-reads the plan details */
+"Refresh" = "Refresh";
 
 /* Button: open a composer to send a follow-up message */
 "Reply" = "Reply";
@@ -495,6 +525,9 @@
 /* Settings sidebar section */
 "Usage" = "Usage";
 
+/* Settings section heading */
+"Usage credits" = "Usage credits";
+
 /* Settings toggle explanation */
 "Warn as your 5-hour or weekly usage fills, once at 80% and once at 95%." = "Warn as your 5-hour or weekly usage fills, once at 80% and once at 95%.";
 
@@ -527,6 +560,9 @@
 
 /* Settings explanation */
 "Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps." = "Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps.";
+
+/* Settings section heading */
+"Your plan" = "Your plan";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "click to dismiss";

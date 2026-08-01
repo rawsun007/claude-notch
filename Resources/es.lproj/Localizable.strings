@@ -121,6 +121,9 @@
 /* Settings explanation */
 "Claude" = "Claude";
 
+/* Settings explanation, freshness of the plan numbers */
+"Claude Code last checked this %@." = "Claude Code lo comprobó %@.";
+
 /* Settings explanation */
 "Claude Code, living in your notch." = "Claude Code, viviendo en tu notch.";
 
@@ -162,6 +165,9 @@
 
 /* Settings explanation */
 "Costs are estimates at public API prices, not your subscription bill." = "Los costes son estimaciones a precios públicos de la API, no tu factura de suscripción.";
+
+/* Settings explanation */
+"Credits carry a session past the plan limits instead of stopping it, and are billed on top of the subscription." = "Los créditos permiten que una sesión continúe más allá de los límites del plan en vez de detenerse, y se facturan aparte de la suscripción.";
 
 /* Settings section heading */
 "Current session" = "Sesión actual";
@@ -281,6 +287,9 @@
 "Let the pet perform on its own when the notch is idle. Turn this off to keep the pet quiet until you boop it or a task finishes." = "Deja que la mascota actúe sola cuando el notch está inactivo. Desactívalo para que se quede quieta hasta que la toques o termine una tarea.";
 
 /* Settings section heading */
+"Limits" = "Límites";
+
+/* Settings section heading */
 "Lines changed this session" = "Líneas cambiadas en esta sesión";
 
 /* Settings toggle */
@@ -307,6 +316,9 @@
 /* Settings explanation */
 "No past sessions found yet." = "Aún no hay sesiones anteriores.";
 
+/* Settings explanation shown when the plan cache is missing */
+"No plan details yet. Claude Code writes them to its own config when it next talks to the API, so run a session and come back." = "Aún no hay datos del plan. Claude Code los escribe en su propia configuración la próxima vez que habla con la API, así que ejecuta una sesión y vuelve.";
+
 /* Settings sidebar section */
 "Notch" = "Notch";
 
@@ -321,6 +333,12 @@
 
 /* Settings toggle explanation */
 "Occasional reminder to step away after a long stretch at the keyboard." = "Recordatorio ocasional para levantarte tras un buen rato de teclado.";
+
+/* Usage credits are switched off */
+"Off" = "Desactivado";
+
+/* Usage credits are switched on */
+"On" = "Activado";
 
 /* Button: bring the editor or terminal that started this session to the front */
 "Open IDE" = "Abrir IDE";
@@ -342,6 +360,9 @@
 
 /* Settings explanation */
 "Pet animations" = "Animaciones de la mascota";
+
+/* Settings sidebar section */
+"Plan" = "Plan";
 
 /* Settings section heading */
 "Plan usage limits" = "Límites de uso del plan";
@@ -376,8 +397,17 @@
 /* Settings toggle */
 "Random antics" = "Travesuras aleatorias";
 
+/* The usage-credit spend limit is used up */
+"Reached" = "Alcanzado";
+
+/* Settings explanation */
+"Read from the config Claude Code keeps on this Mac. Nothing is requested from Anthropic, and your account details never leave the machine." = "Leído de la configuración que Claude Code guarda en este Mac. No se pide nada a Anthropic y los datos de tu cuenta nunca salen de la máquina.";
+
 /* Settings explanation */
 "Reading transcripts…" = "Leyendo transcripciones…";
+
+/* Button that re-reads the plan details */
+"Refresh" = "Actualizar";
 
 /* Button: open a composer to send a follow-up message */
 "Reply" = "Responder";
@@ -496,6 +526,9 @@
 /* Settings sidebar section */
 "Usage" = "Uso";
 
+/* Settings section heading */
+"Usage credits" = "Créditos de uso";
+
 /* Settings toggle explanation */
 "Warn as your 5-hour or weekly usage fills, once at 80% and once at 95%." = "Avisa cuando se llena tu uso de 5 horas o semanal, una vez al 80% y otra al 95%.";
 
@@ -528,6 +561,9 @@
 
 /* Settings explanation */
 "Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps." = "Los límites de tu plan de Claude, según lo último que informó Claude Code. Son límites de uso, no topes de dinero.";
+
+/* Settings section heading */
+"Your plan" = "Tu plan";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "clic para descartar";

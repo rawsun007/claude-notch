@@ -121,6 +121,9 @@
 /* Settings explanation */
 "Claude" = "Claude";
 
+/* Settings explanation, freshness of the plan numbers */
+"Claude Code last checked this %@." = "Claude Code 上次检查是在 %@。";
+
 /* Settings explanation */
 "Claude Code, living in your notch." = "Claude Code，就住在你的刘海里。";
 
@@ -162,6 +165,9 @@
 
 /* Settings explanation */
 "Costs are estimates at public API prices, not your subscription bill." = "费用是按公开 API 价格估算的，不是你的订阅账单。";
+
+/* Settings explanation */
+"Credits carry a session past the plan limits instead of stopping it, and are billed on top of the subscription." = "额度让会话在超出套餐限额后继续运行，而不是停下来，费用在订阅之外单独计算。";
 
 /* Settings section heading */
 "Current session" = "当前会话";
@@ -281,6 +287,9 @@
 "Let the pet perform on its own when the notch is idle. Turn this off to keep the pet quiet until you boop it or a task finishes." = "刘海空闲时让宠物自己表演。关闭后，宠物会保持安静，直到你戳它或任务完成。";
 
 /* Settings section heading */
+"Limits" = "限额";
+
+/* Settings section heading */
 "Lines changed this session" = "本次会话改动的行数";
 
 /* Settings toggle */
@@ -307,6 +316,9 @@
 /* Settings explanation */
 "No past sessions found yet." = "尚未找到过往会话。";
 
+/* Settings explanation shown when the plan cache is missing */
+"No plan details yet. Claude Code writes them to its own config when it next talks to the API, so run a session and come back." = "还没有套餐信息。Claude Code 下次连接 API 时会写入自己的配置，运行一次会话后再回来查看。";
+
 /* Settings sidebar section */
 "Notch" = "刘海";
 
@@ -321,6 +333,12 @@
 
 /* Settings toggle explanation */
 "Occasional reminder to step away after a long stretch at the keyboard." = "长时间敲键盘后，偶尔提醒你起身休息。";
+
+/* Usage credits are switched off */
+"Off" = "关闭";
+
+/* Usage credits are switched on */
+"On" = "开启";
 
 /* Button: bring the editor or terminal that started this session to the front */
 "Open IDE" = "打开 IDE";
@@ -342,6 +360,9 @@
 
 /* Settings explanation */
 "Pet animations" = "宠物动画";
+
+/* Settings sidebar section */
+"Plan" = "套餐";
 
 /* Settings section heading */
 "Plan usage limits" = "套餐用量限制";
@@ -376,8 +397,17 @@
 /* Settings toggle */
 "Random antics" = "随机小动作";
 
+/* The usage-credit spend limit is used up */
+"Reached" = "已达上限";
+
+/* Settings explanation */
+"Read from the config Claude Code keeps on this Mac. Nothing is requested from Anthropic, and your account details never leave the machine." = "读取自 Claude Code 保存在这台 Mac 上的配置。不会向 Anthropic 请求任何内容，你的账户信息也不会离开本机。";
+
 /* Settings explanation */
 "Reading transcripts…" = "正在读取记录…";
+
+/* Button that re-reads the plan details */
+"Refresh" = "刷新";
 
 /* Button: open a composer to send a follow-up message */
 "Reply" = "回复";
@@ -496,6 +526,9 @@
 /* Settings sidebar section */
 "Usage" = "用量";
 
+/* Settings section heading */
+"Usage credits" = "用量额度";
+
 /* Settings toggle explanation */
 "Warn as your 5-hour or weekly usage fills, once at 80% and once at 95%." = "当 5 小时或每周用量接近上限时提醒，分别在 80% 和 95% 各提醒一次。";
 
@@ -528,6 +561,9 @@
 
 /* Settings explanation */
 "Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps." = "你的 Claude 套餐限额，取自 Claude Code 最近一次上报。这是用量限制，不是金额上限。";
+
+/* Settings section heading */
+"Your plan" = "你的套餐";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "点击关闭";

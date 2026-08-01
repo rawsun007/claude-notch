@@ -56,6 +56,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case alerts = "Alerts"
     case sounds = "Sounds"
     case budget = "Budget"
+    case plan = "Plan"
     case privacy = "Privacy"
     case usage = "Usage"
     case history = "History"
@@ -72,6 +73,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .alerts: return "bell.badge"
         case .sounds: return "speaker.wave.2"
         case .budget: return "dollarsign.circle"
+        case .plan: return "creditcard"
         case .privacy: return "lock.shield"
         case .usage: return "chart.bar"
         case .history: return "clock.arrow.circlepath"
@@ -84,7 +86,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     static let nav: [(title: String, items: [SettingsSection])] = [
         ("Workspace", [.general, .notch, .pet]),
         ("Session", [.session]),
-        ("Alerts & Cost", [.alerts, .sounds, .budget]),
+        ("Alerts & Cost", [.alerts, .sounds, .budget, .plan]),
         ("Info", [.usage, .history, .privacy, .about]),
         ("Advanced", [.developer]),
     ]
@@ -117,6 +119,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         L("Alerts", comment: "Settings sidebar section"),
         L("Sounds", comment: "Settings sidebar section"),
         L("Budget", comment: "Settings sidebar section"),
+        L("Plan", comment: "Settings sidebar section"),
         L("Privacy", comment: "Settings sidebar section"),
         L("Usage", comment: "Settings sidebar section"),
         L("History", comment: "Settings sidebar section"),
@@ -268,6 +271,10 @@ struct SettingsSearchItem: Identifiable {
         .init(title: "Cost caps", keywords: "budget session day week dollars limit", section: .budget),
         .init(title: "Hard-stop at the cap", keywords: "block enforce", section: .budget),
 
+        .init(title: "Your plan", keywords: "pro max team enterprise subscription tier billing seat role", section: .plan),
+        .init(title: "Plan limits", keywords: "5 hour weekly opus session rate limit resets percent", section: .plan),
+        .init(title: "Usage credits", keywords: "extra usage credits overage balance auto reload spend limit monthly", section: .plan),
+
         .init(title: "Hide from screen capture", keywords: "recording screenshot privacy", section: .privacy),
         .init(title: "Require Touch ID", keywords: "biometric fingerprint", section: .privacy),
         .init(title: "Accessibility permission", keywords: "system", section: .privacy),
@@ -290,6 +297,7 @@ struct SettingsView: View {
     var onOpenSetup: (() -> Void)? = nil
     @State private var section: SettingsSection = .general
     @State private var claudeUsage: ClaudeUsageReader.Usage?
+    @State private var planSnapshot: PlanReader.Snapshot?
     @State private var heatTip: String?
     @State private var search = ""
     @State private var healthTick = 0
@@ -463,6 +471,7 @@ struct SettingsView: View {
         case .alerts:    alerts
         case .sounds:    sounds
         case .budget:    budget
+        case .plan:      plan
         case .privacy:   privacy
         case .usage:     usage
         case .history:   history
@@ -847,6 +856,128 @@ struct SettingsView: View {
             .buttonStyle(.plain)
         }
         .padding(.vertical, 8).padding(.horizontal, 14)
+    }
+
+    /// What plan you are on and what it has left, read out of Claude Code's own
+    /// cache. The Budget page answers "what am I spending"; this one answers
+    /// "what am I allowed", which until now was only visible as two unlabelled
+    /// percentages with no plan attached to them.
+    private var plan: some View {
+        page(L("Plan", comment: "Settings page title")) {
+            if let p = planSnapshot {
+                if let a = p.account {
+                    sectionLabel(L("Your plan", comment: "Settings section heading"))
+                    group {
+                        statRow("Plan", a.tier)
+                        if let billing = a.billing { divider; statRow("Billing", billing) }
+                        if let seat = a.seat { divider; statRow("Seat", seat.capitalized) }
+                        if let role = a.role { divider; statRow("Role", role.capitalized) }
+                        if let since = a.memberSince {
+                            divider
+                            statRow("Subscribed", since.formatted(date: .abbreviated, time: .omitted))
+                        }
+                        if let trial = a.trialEndsAt {
+                            divider
+                            statRow("Trial ends", trial.formatted(date: .abbreviated, time: .omitted))
+                        }
+                    }
+                }
+
+                if !p.limits.isEmpty {
+                    sectionLabel(L("Limits", comment: "Settings section heading"))
+                    group {
+                        ForEach(Array(p.limits.enumerated()), id: \.element.kind) { idx, limit in
+                            limitRow(limit.label,
+                                     pct: limit.percent / 100,
+                                     resetAt: limit.resetsAt,
+                                     window: limit.kind.hasPrefix("weekly") || limit.kind == "seven_day"
+                                             ? 7 * 24 * 3600 : 5 * 3600)
+                            if idx < p.limits.count - 1 { divider }
+                        }
+                    }
+                }
+
+                if let c = p.credits {
+                    sectionLabel(L("Usage credits", comment: "Settings section heading"))
+                    Text(L("Credits carry a session past the plan limits instead of stopping it, and are billed on top of the subscription.", comment: "Settings explanation"))
+                        .font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    group {
+                        statRow("Status", c.isEnabled
+                                ? L("On", comment: "Usage credits are switched on")
+                                : L("Off", comment: "Usage credits are switched off"))
+                        if let reason = c.disabledReason, !c.isEnabled {
+                            divider
+                            statRow("Reason", PlanReader.disabledReasonText(reason))
+                        }
+                        if let used = c.usedCredits {
+                            divider
+                            statRow("Used this month", money(used, c.currency))
+                        }
+                        if let limit = c.monthlyLimit {
+                            divider
+                            statRow("Monthly limit", money(limit, c.currency))
+                        }
+                        if let spent = c.spent, spent > 0 || c.isEnabled {
+                            divider
+                            statRow("Spent", money(spent, c.currency))
+                        }
+                        if let cap = c.spendLimit {
+                            divider
+                            statRow("Spend limit", money(cap, c.currency))
+                        }
+                        if let balance = c.balance {
+                            divider
+                            statRow("Balance", money(balance, c.currency))
+                        }
+                        if let reload = c.autoReload {
+                            divider
+                            statRow("Auto-reload", reload
+                                    ? L("On", comment: "Usage credits are switched on")
+                                    : L("Off", comment: "Usage credits are switched off"))
+                        }
+                        if c.spendLimitReached {
+                            divider
+                            statRow("Spend limit", L("Reached", comment: "The usage-credit spend limit is used up"))
+                        }
+                    }
+                    if let u = c.utilization, c.isEnabled {
+                        group { limitRow("Credit budget", pct: u / 100, resetAt: nil, window: 30 * 24 * 3600) }
+                    }
+                }
+
+                HStack(spacing: 10) {
+                    if let at = p.fetchedAt {
+                        Text(String(format: L("Claude Code last checked this %@.", comment: "Settings explanation, freshness of the plan numbers"),
+                                    at.formatted(.relative(presentation: .named))))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button(L("Refresh", comment: "Button that re-reads the plan details")) {
+                        planSnapshot = PlanReader.load()
+                    }
+                    .controlSize(.small)
+                }
+            } else {
+                Text(L("No plan details yet. Claude Code writes them to its own config when it next talks to the API, so run a session and come back.", comment: "Settings explanation shown when the plan cache is missing"))
+                    .font(.callout).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Text(L("Read from the config Claude Code keeps on this Mac. Nothing is requested from Anthropic, and your account details never leave the machine.", comment: "Settings explanation"))
+                .font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .task(id: section) {
+            guard section == .plan else { return }
+            planSnapshot = await Task.detached(priority: .utility) { PlanReader.load() }.value
+        }
+    }
+
+    /// An amount in whatever currency the credit block reports, falling back to
+    /// the locale's own formatting when it does not say.
+    private func money(_ amount: Double, _ currency: String?) -> String {
+        amount.formatted(.currency(code: currency ?? "USD"))
     }
 
     private var budget: some View {

@@ -121,6 +121,9 @@
 /* Settings explanation */
 "Claude" = "Claude";
 
+/* Settings explanation, freshness of the plan numbers */
+"Claude Code last checked this %@." = "Claude Code が最後に確認したのは %@ です。";
+
 /* Settings explanation */
 "Claude Code, living in your notch." = "Claude Code が、ノッチに住んでいます。";
 
@@ -162,6 +165,9 @@
 
 /* Settings explanation */
 "Costs are estimates at public API prices, not your subscription bill." = "費用は公開 API 価格による推定で、サブスクリプションの請求額ではありません。";
+
+/* Settings explanation */
+"Credits carry a session past the plan limits instead of stopping it, and are billed on top of the subscription." = "クレジットがあると、プランの上限を超えてもセッションは止まらず続きます。料金はサブスクリプションとは別に請求されます。";
 
 /* Settings section heading */
 "Current session" = "現在のセッション";
@@ -281,6 +287,9 @@
 "Let the pet perform on its own when the notch is idle. Turn this off to keep the pet quiet until you boop it or a task finishes." = "ノッチが待機中のとき、ペットが自分で動きます。オフにすると、つつくかタスクが完了するまで静かにしています。";
 
 /* Settings section heading */
+"Limits" = "上限";
+
+/* Settings section heading */
 "Lines changed this session" = "このセッションで変更した行";
 
 /* Settings toggle */
@@ -307,6 +316,9 @@
 /* Settings explanation */
 "No past sessions found yet." = "過去のセッションはまだありません。";
 
+/* Settings explanation shown when the plan cache is missing */
+"No plan details yet. Claude Code writes them to its own config when it next talks to the API, so run a session and come back." = "プラン情報はまだありません。Claude Code は次に API と通信したときに自身の設定へ書き込むので、セッションを一度実行してから戻ってきてください。";
+
 /* Settings sidebar section */
 "Notch" = "ノッチ";
 
@@ -321,6 +333,12 @@
 
 /* Settings toggle explanation */
 "Occasional reminder to step away after a long stretch at the keyboard." = "長時間の作業のあと、席を立つよう時々知らせます。";
+
+/* Usage credits are switched off */
+"Off" = "オフ";
+
+/* Usage credits are switched on */
+"On" = "オン";
 
 /* Button: bring the editor or terminal that started this session to the front */
 "Open IDE" = "IDE を開く";
@@ -342,6 +360,9 @@
 
 /* Settings explanation */
 "Pet animations" = "ペットのアニメーション";
+
+/* Settings sidebar section */
+"Plan" = "プラン";
 
 /* Settings section heading */
 "Plan usage limits" = "プランの使用量上限";
@@ -376,8 +397,17 @@
 /* Settings toggle */
 "Random antics" = "気まぐれな動き";
 
+/* The usage-credit spend limit is used up */
+"Reached" = "上限到達";
+
+/* Settings explanation */
+"Read from the config Claude Code keeps on this Mac. Nothing is requested from Anthropic, and your account details never leave the machine." = "この Mac にある Claude Code の設定から読み取っています。Anthropic には何も問い合わせず、アカウント情報が端末の外に出ることはありません。";
+
 /* Settings explanation */
 "Reading transcripts…" = "記録を読み込み中…";
+
+/* Button that re-reads the plan details */
+"Refresh" = "更新";
 
 /* Button: open a composer to send a follow-up message */
 "Reply" = "返信";
@@ -496,6 +526,9 @@
 /* Settings sidebar section */
 "Usage" = "使用状況";
 
+/* Settings section heading */
+"Usage credits" = "使用クレジット";
+
 /* Settings toggle explanation */
 "Warn as your 5-hour or weekly usage fills, once at 80% and once at 95%." = "5 時間または週の使用量が埋まってきたら、80% と 95% で一度ずつ知らせます。";
 
@@ -528,6 +561,9 @@
 
 /* Settings explanation */
 "Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps." = "Claude Code が最後に報告した、プランの利用上限です。金額の上限ではなく使用量の上限です。";
+
+/* Settings section heading */
+"Your plan" = "あなたのプラン";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "クリックで閉じる";
