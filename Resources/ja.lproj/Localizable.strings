@@ -259,6 +259,9 @@
 /* Settings explanation */
 "Homebrew:" = "Homebrew：";
 
+/* Button opening Anthropic's help page about usage credits */
+"How credits work" = "クレジットの仕組み";
+
 /* Settings sidebar group */
 "Info" = "情報";
 
@@ -294,6 +297,9 @@
 
 /* Settings toggle */
 "Long-run alerts" = "長時間実行の通知";
+
+/* Button opening the Anthropic usage settings page */
+"Manage on claude.ai" = "claude.ai で管理";
 
 /* Settings toggle */
 "Mirror to Notification Center" = "通知センターにも表示";

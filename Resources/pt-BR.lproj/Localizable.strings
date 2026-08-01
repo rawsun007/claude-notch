@@ -259,6 +259,9 @@
 /* Settings explanation */
 "Homebrew:" = "Homebrew:";
 
+/* Button opening Anthropic's help page about usage credits */
+"How credits work" = "Como funcionam os créditos";
+
 /* Settings sidebar group */
 "Info" = "Informações";
 
@@ -294,6 +297,9 @@
 
 /* Settings toggle */
 "Long-run alerts" = "Avisos de execução longa";
+
+/* Button opening the Anthropic usage settings page */
+"Manage on claude.ai" = "Gerir em claude.ai";
 
 /* Settings toggle */
 "Mirror to Notification Center" = "Espelhar na Central de Notificações";

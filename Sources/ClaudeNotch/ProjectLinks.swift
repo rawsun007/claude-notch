@@ -27,4 +27,12 @@ enum ProjectLinks {
     /// ~ rather than an expanded home directory: shorter on screen, and it
     /// survives being pasted somewhere else.
     static let updateCommand = "~/.claudenotch/bin/claudenotch-update.sh"
+
+    /// Anthropic's own pages, for the things this app reads but must not touch.
+    /// Switching usage credits on, setting a spend limit or buying more is a
+    /// billing change on someone's account: it belongs to them, on Anthropic's
+    /// site, behind their login, not to a menu bar app holding a token it
+    /// borrowed from another program.
+    static let planSettings = "https://claude.ai/settings/usage"
+    static let creditsHelp = "https://support.claude.com/articles/12429409"
 }

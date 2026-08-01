@@ -259,6 +259,9 @@
 /* Settings explanation */
 "Homebrew:" = "Homebrew:";
 
+/* Button opening Anthropic's help page about usage credits */
+"How credits work" = "크레딧 작동 방식";
+
 /* Settings sidebar group */
 "Info" = "정보";
 
@@ -294,6 +297,9 @@
 
 /* Settings toggle */
 "Long-run alerts" = "장시간 실행 알림";
+
+/* Button opening the Anthropic usage settings page */
+"Manage on claude.ai" = "claude.ai에서 관리";
 
 /* Settings toggle */
 "Mirror to Notification Center" = "알림 센터에 함께 표시";

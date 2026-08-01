@@ -953,6 +953,18 @@ struct SettingsView: View {
                 }
 
                 HStack(spacing: 10) {
+                    // Read-only by design: turning credits on, capping the spend
+                    // or buying more is a billing change, so it happens on
+                    // Anthropic's site under the account's own login.
+                    Link(L("Manage on claude.ai", comment: "Button opening the Anthropic usage settings page"),
+                         destination: URL(string: ProjectLinks.planSettings)!)
+                    Link(L("How credits work", comment: "Button opening Anthropic's help page about usage credits"),
+                         destination: URL(string: ProjectLinks.creditsHelp)!)
+                        .foregroundStyle(.secondary)
+                }
+                .font(.callout)
+
+                HStack(spacing: 10) {
                     if let at = p.fetchedAt {
                         Text(String(format: L("Claude Code last checked this %@.", comment: "Settings explanation, freshness of the plan numbers"),
                                     at.formatted(.relative(presentation: .named))))

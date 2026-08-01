@@ -259,6 +259,9 @@
 /* Settings explanation */
 "Homebrew:" = "Homebrew：";
 
+/* Button opening Anthropic's help page about usage credits */
+"How credits work" = "额度如何计费";
+
 /* Settings sidebar group */
 "Info" = "信息";
 
@@ -294,6 +297,9 @@
 
 /* Settings toggle */
 "Long-run alerts" = "长时间运行提醒";
+
+/* Button opening the Anthropic usage settings page */
+"Manage on claude.ai" = "在 claude.ai 上管理";
 
 /* Settings toggle */
 "Mirror to Notification Center" = "同步到通知中心";
