@@ -374,7 +374,7 @@ final class AppState: ObservableObject {
     // an update. Maintained per release alongside the changelog.
     var lastSeenVersion: String? = nil
     static let whatsNewHighlights =
-        "Settings is fully translated in all ten languages now, explanations included"
+        "A Plan page: your tier, every limit it has, and what usage credits have cost"
 
     /// Transient "live activity" card shown after an auto-approved action —
     /// shows WHAT changed, no buttons, auto-dismisses.

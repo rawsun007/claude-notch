@@ -2364,8 +2364,9 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "Every language is complete. Nine translations covered the short labels but fell back to English for the explanations under each toggle, which is the part that tells you what the toggle does. All 179 strings are translated now, so picking a language actually changes the whole window.",
-        "The two hooks that can hold up a session, the ones Claude Code waits on before it may run a tool, are covered by tests for the first time. That found a real one: when a payload arrived unreadable, the card appeared with no tool name and no command on it, and whatever you tapped came back as a decision about a tool you could not see. Both now hand the prompt back to the terminal instead.",
-        "The updater no longer walks past its own Homebrew guard when a cask name is ambiguous across taps, so it will not replace a Homebrew-installed copy by hand.",
+        "A Plan page, under Alerts & Cost. Which subscription this Mac is signed into, every limit that plan has rather than the two the status line reports, and what usage credits have cost. A Max plan meters Opus on its own, and that window now gets its own row and its own bar.",
+        "Your plan and its tightest limit can sit in the menu bar, next to the bell: Pro, 5H 91%. Whichever limit is closest to stopping you, since that is the only one worth the width. Off by default, in General.",
+        "The notch status bar has a usage-credits slot, and a card fires the first time credits pick up a session. Credits are the moment money starts and nothing announced it before: a session simply kept going where it would have stopped.",
+        "None of it is asked for over the network. It is read from the config Claude Code already keeps on this Mac, and turning credits on or buying more stays on Anthropic's site, where your account is.",
     ]
 }
