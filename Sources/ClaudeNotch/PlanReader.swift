@@ -175,8 +175,12 @@ enum PlanReader {
         if s.contains("enterprise") { return "Enterprise" }
         if s.contains("team")       { return "Team" }
         if s.contains("max") {
-            if let x = s.split(separator: "_").first(where: { $0.hasSuffix("x") }) { return "Max \(x)" }
-            return "Max"
+            // The multiplier component, "20x". Matched on a leading digit as
+            // well as the trailing x, because "max" itself ends in one.
+            let multiplier = s.split(separator: "_").first {
+                $0.hasSuffix("x") && ($0.first?.isNumber ?? false)
+            }
+            return multiplier.map { "Max \($0)" } ?? "Max"
         }
         if s.contains("pro")        { return "Pro" }
         if s.contains("free")       { return "Free" }
