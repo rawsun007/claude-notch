@@ -346,6 +346,12 @@ final class AppState: ObservableObject {
     @Published var hideFromScreenCapture: Bool = true
     // Append today's estimated spend to the menu bar icon. Off by default.
     @Published var showSpendInMenuBar: Bool = false
+    // Plan tier and the tightest limit, next to the menu-bar bell. Off by
+    // default: it names the account's plan, which not everyone wants on screen.
+    @Published var showPlanInMenuBar: Bool = false
+    // What plan this Mac is signed into, read from Claude Code's own cache.
+    // See AppState+Plan.
+    @Published var plan: PlanReader.Snapshot?
     weak var permissionMirror: PermissionMirroring?
 
     // Daily digest tracking — only shown once per day.
@@ -644,6 +650,9 @@ final class AppState: ObservableObject {
     let projectStaleAfter: TimeInterval = 300
     var staleTimer: Timer?
 
+    // Re-reads the plan cache. See AppState+Plan.
+    var planTimer: Timer?
+
     // Debounced write to ~/.claudenotch/state.json — coalesces bursts of
     // mutations (e.g. many history appends in a row) into one disk write.
     var persistTimer: Timer?
@@ -687,6 +696,7 @@ final class AppState: ObservableObject {
             self.digestNotificationsEnabled = snapshot.digestNotificationsEnabled ?? false
             self.hideFromScreenCapture = snapshot.hideFromScreenCapture ?? true
             self.showSpendInMenuBar = snapshot.showSpendInMenuBar ?? false
+            self.showPlanInMenuBar = snapshot.showPlanInMenuBar ?? false
             self.statusBarItems = snapshot.statusBarItems?
                 .compactMap(StatusBarItem.init) ?? [.fiveHourLimit, .weeklyLimit]
             self.contextWindowMode = snapshot.contextWindowMode.flatMap(ContextWindowMode.init) ?? .auto

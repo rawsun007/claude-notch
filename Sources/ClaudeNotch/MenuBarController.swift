@@ -384,6 +384,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             .sink { [weak self] _ in self?.refreshBadge() }
             .store(in: &cancellables)
 
+        // The plan is read on a timer rather than pushed by a hook, so the badge
+        // has to follow the value instead of the session that caused it.
+        state.$plan
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.refreshBadge() }
+            .store(in: &cancellables)
+
         refreshLoginItem()
         refreshPermissions()
         refreshRecentProjects()
@@ -704,6 +711,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             let spend = state.todaySpendUSD
             if spend >= 0.005 { parts.append(String(format: "$%.2f", spend)) }
         }
+        if state.showPlanInMenuBar, let plan = state.menuBarPlanLabel { parts.append(plan) }
         if parts.isEmpty {
             button.attributedTitle = NSAttributedString(string: "")
         } else {

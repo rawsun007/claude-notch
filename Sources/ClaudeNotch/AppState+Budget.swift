@@ -377,6 +377,7 @@ extension AppState {
             digestNotificationsEnabled: digestNotificationsEnabled,
             hideFromScreenCapture: hideFromScreenCapture,
             showSpendInMenuBar: showSpendInMenuBar,
+            showPlanInMenuBar: showPlanInMenuBar,
             enforceBudget: enforceBudget,
             statusBarItems: statusBarItems.map(\.rawValue),
             contextWindowMode: contextWindowMode.rawValue,

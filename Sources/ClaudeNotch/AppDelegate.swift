@@ -62,6 +62,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.state.fireWeeklyDigestIfNeeded()
         }
 
+        // Which plan this Mac is signed into, and how close its limits are. Read
+        // from Claude Code's own cache on a slow timer: no hook reports it, and
+        // it changes when Claude Code talks to the API rather than when a session
+        // does anything.
+        state.ensurePlanTimer()
+
         server = EventServer(port: 53127, state: state)
         do {
             try server.start()

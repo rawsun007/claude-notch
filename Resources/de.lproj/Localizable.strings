@@ -445,6 +445,9 @@
 /* Settings toggle */
 "Show spend in the menu bar" = "Ausgaben in der Menüleiste zeigen";
 
+/* Settings toggle */
+"Show your plan in the menu bar" = "Deinen Tarif in der Menüleiste zeigen";
+
 /* Settings toggle explanation */
 "Silence every notch sound." = "Alle Töne des Notch stummschalten.";
 
@@ -570,6 +573,9 @@
 
 /* Settings section heading */
 "Your plan" = "Dein Tarif";
+
+/* Settings toggle explanation */
+"Your plan and whichever limit is closest to full, next to the menu-bar bell, so how much you have left is answered without opening anything." = "Dein Tarif und das Limit, das am vollsten ist, neben der Glocke in der Menüleiste, damit du ohne etwas zu öffnen siehst, wie viel noch übrig ist.";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "zum Schließen klicken";

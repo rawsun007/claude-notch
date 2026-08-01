@@ -297,7 +297,6 @@ struct SettingsView: View {
     var onOpenSetup: (() -> Void)? = nil
     @State private var section: SettingsSection = .general
     @State private var claudeUsage: ClaudeUsageReader.Usage?
-    @State private var planSnapshot: PlanReader.Snapshot?
     @State private var heatTip: String?
     @State private var search = ""
     @State private var healthTick = 0
@@ -525,6 +524,10 @@ struct SettingsView: View {
                 row(L("Show spend in the menu bar", comment: "Settings toggle"),
                     L("Put the running session cost next to the menu-bar bell.", comment: "Settings toggle explanation"),
                     bind(\.showSpendInMenuBar, state.setShowSpendInMenuBar))
+                divider
+                row(L("Show your plan in the menu bar", comment: "Settings toggle"),
+                    L("Your plan and whichever limit is closest to full, next to the menu-bar bell, so how much you have left is answered without opening anything.", comment: "Settings toggle explanation"),
+                    bind(\.showPlanInMenuBar, state.setShowPlanInMenuBar))
             }
 
             sectionLabel(L("Quick actions", comment: "Settings section heading"))
@@ -864,7 +867,7 @@ struct SettingsView: View {
     /// percentages with no plan attached to them.
     private var plan: some View {
         page(L("Plan", comment: "Settings page title")) {
-            if let p = planSnapshot {
+            if let p = state.plan {
                 if let a = p.account {
                     sectionLabel(L("Your plan", comment: "Settings section heading"))
                     group {
@@ -972,7 +975,7 @@ struct SettingsView: View {
                     }
                     Spacer()
                     Button(L("Refresh", comment: "Button that re-reads the plan details")) {
-                        planSnapshot = PlanReader.load()
+                        state.refreshPlan()
                     }
                     .controlSize(.small)
                 }
@@ -987,8 +990,10 @@ struct SettingsView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .task(id: section) {
+            // The timer refreshes this in the background; opening the page is a
+            // moment where a stale reading would be noticed, so re-read then too.
             guard section == .plan else { return }
-            planSnapshot = await Task.detached(priority: .utility) { PlanReader.load() }.value
+            state.refreshPlan()
         }
     }
 

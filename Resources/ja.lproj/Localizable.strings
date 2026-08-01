@@ -445,6 +445,9 @@
 /* Settings toggle */
 "Show spend in the menu bar" = "メニューバーに費用を表示";
 
+/* Settings toggle */
+"Show your plan in the menu bar" = "メニューバーにプランを表示";
+
 /* Settings toggle explanation */
 "Silence every notch sound." = "ノッチのすべての音を消します。";
 
@@ -570,6 +573,9 @@
 
 /* Settings section heading */
 "Your plan" = "あなたのプラン";
+
+/* Settings toggle explanation */
+"Your plan and whichever limit is closest to full, next to the menu-bar bell, so how much you have left is answered without opening anything." = "メニューバーのベルの横に、プランと最も上限に近いリミットを表示します。何も開かずに残りがわかります。";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "クリックで閉じる";

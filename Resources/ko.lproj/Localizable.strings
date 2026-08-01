@@ -445,6 +445,9 @@
 /* Settings toggle */
 "Show spend in the menu bar" = "메뉴 막대에 지출 표시";
 
+/* Settings toggle */
+"Show your plan in the menu bar" = "메뉴 막대에 플랜 표시";
+
 /* Settings toggle explanation */
 "Silence every notch sound." = "노치의 모든 소리를 끕니다.";
 
@@ -570,6 +573,9 @@
 
 /* Settings section heading */
 "Your plan" = "내 플랜";
+
+/* Settings toggle explanation */
+"Your plan and whichever limit is closest to full, next to the menu-bar bell, so how much you have left is answered without opening anything." = "메뉴 막대 종 옆에 플랜과 가장 꽉 찬 한도를 표시해, 아무것도 열지 않고 얼마나 남았는지 알 수 있습니다.";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "클릭하여 닫기";

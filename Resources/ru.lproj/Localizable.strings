@@ -445,6 +445,9 @@
 /* Settings toggle */
 "Show spend in the menu bar" = "Показывать расходы в строке меню";
 
+/* Settings toggle */
+"Show your plan in the menu bar" = "Показывать тариф в строке меню";
+
 /* Settings toggle explanation */
 "Silence every notch sound." = "Отключить все звуки выреза.";
 
@@ -570,6 +573,9 @@
 
 /* Settings section heading */
 "Your plan" = "Ваш тариф";
+
+/* Settings toggle explanation */
+"Your plan and whichever limit is closest to full, next to the menu-bar bell, so how much you have left is answered without opening anything." = "Ваш тариф и лимит, который ближе всего к заполнению, рядом с колокольчиком в строке меню, чтобы знать остаток, ничего не открывая.";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "нажмите, чтобы закрыть";

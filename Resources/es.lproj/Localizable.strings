@@ -445,6 +445,9 @@
 /* Settings toggle */
 "Show spend in the menu bar" = "Mostrar el gasto en la barra de menús";
 
+/* Settings toggle */
+"Show your plan in the menu bar" = "Mostrar tu plan en la barra de menús";
+
 /* Settings toggle explanation */
 "Silence every notch sound." = "Silencia todos los sonidos del notch.";
 
@@ -570,6 +573,9 @@
 
 /* Settings section heading */
 "Your plan" = "Tu plan";
+
+/* Settings toggle explanation */
+"Your plan and whichever limit is closest to full, next to the menu-bar bell, so how much you have left is answered without opening anything." = "Tu plan y el límite que esté más cerca de llenarse, junto a la campana de la barra de menús, para saber cuánto te queda sin abrir nada.";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "clic para descartar";

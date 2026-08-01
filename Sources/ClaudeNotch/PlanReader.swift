@@ -18,14 +18,14 @@ enum PlanReader {
     struct Account: Equatable {
         var tier: String            // "Pro", "Max 20x", "Team"…
         var rawTier: String         // organization_type as written, for the tooltip
-        var email: String?          // which login this is, for people with several
-        var displayName: String?
-        var organization: String?   // nil when it is only the email restated
-        var billing: String?        // "Subscription", "Invoice"…
-        var role: String?           // "admin", "member"
-        var seat: String?           // seat tier on Team/Enterprise plans
-        var memberSince: Date?
-        var trialEndsAt: Date?
+        var email: String? = nil          // which login this is, for people with several
+        var displayName: String? = nil
+        var organization: String? = nil   // nil when it is only the email restated
+        var billing: String? = nil        // "Subscription", "Invoice"…
+        var role: String? = nil           // "admin", "member"
+        var seat: String? = nil           // seat tier on Team/Enterprise plans
+        var memberSince: Date? = nil
+        var trialEndsAt: Date? = nil
     }
 
     /// One rate-limit window. `kind` is Claude Code's own name for it, which is
