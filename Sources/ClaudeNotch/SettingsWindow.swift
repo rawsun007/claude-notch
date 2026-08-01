@@ -869,6 +869,12 @@ struct SettingsView: View {
                     sectionLabel(L("Your plan", comment: "Settings section heading"))
                     group {
                         statRow("Plan", a.tier)
+                        // Which login this is. People sign out of one account and
+                        // into another, and the limits below belong to whichever
+                        // one is current, so the page has to say which.
+                        if let email = a.email { divider; statRow("Account", email) }
+                        if let name = a.displayName { divider; statRow("Name", name) }
+                        if let org = a.organization { divider; statRow("Organization", org) }
                         if let billing = a.billing { divider; statRow("Billing", billing) }
                         if let seat = a.seat { divider; statRow("Seat", seat.capitalized) }
                         if let role = a.role { divider; statRow("Role", role.capitalized) }

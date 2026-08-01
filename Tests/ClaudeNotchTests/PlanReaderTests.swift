@@ -12,6 +12,9 @@ final class PlanReaderTests: XCTestCase {
     private let real = """
     {
       "oauthAccount": {
+        "emailAddress": "someone@example.com",
+        "displayName": "Someone",
+        "organizationName": "someone@example.com's Organization",
         "billingType": "stripe_subscription",
         "organizationType": "claude_pro",
         "organizationRole": "admin",
@@ -165,6 +168,26 @@ final class PlanReaderTests: XCTestCase {
 
     /// Plan names are matched loosely so a tier that does not exist yet reads as
     /// itself instead of disappearing.
+    /// The account row exists so somebody with two logins can tell which one the
+    /// limits below belong to.
+    func testAccountIdentity() {
+        let a = PlanReader.parse(real)?.account
+        XCTAssertEqual(a?.email, "someone@example.com")
+        XCTAssertEqual(a?.displayName, "Someone")
+        // A personal org is named after the email that owns it, so it would only
+        // restate the row above.
+        XCTAssertNil(a?.organization)
+    }
+
+    func testOrganizationNameOnlyShowsForARealTeam() {
+        XCTAssertNil(PlanReader.organizationName("a@b.com's Organization", email: "a@b.com"))
+        XCTAssertNil(PlanReader.organizationName("A@B.com's Organization", email: "a@b.com"))
+        XCTAssertNil(PlanReader.organizationName("", email: "a@b.com"))
+        XCTAssertNil(PlanReader.organizationName(nil, email: nil))
+        XCTAssertEqual(PlanReader.organizationName("Acme Inc", email: "a@b.com"), "Acme Inc")
+        XCTAssertEqual(PlanReader.organizationName("Acme Inc", email: nil), "Acme Inc")
+    }
+
     func testTierNames() {
         XCTAssertEqual(PlanReader.tierName("claude_pro"), "Pro")
         XCTAssertEqual(PlanReader.tierName("claude_max_20x"), "Max 20x")

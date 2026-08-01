@@ -18,6 +18,9 @@ enum PlanReader {
     struct Account: Equatable {
         var tier: String            // "Pro", "Max 20x", "Team"…
         var rawTier: String         // organization_type as written, for the tooltip
+        var email: String?          // which login this is, for people with several
+        var displayName: String?
+        var organization: String?   // nil when it is only the email restated
         var billing: String?        // "Subscription", "Invoice"…
         var role: String?           // "admin", "member"
         var seat: String?           // seat tier on Team/Enterprise plans
@@ -104,9 +107,13 @@ enum PlanReader {
         guard let o else { return nil }
         let raw = (o["organizationType"] as? String) ?? ""
         guard !raw.isEmpty else { return nil }
+        let email = (o["emailAddress"] as? String)?.nilIfEmpty
         return Account(
             tier: tierName(raw),
             rawTier: raw,
+            email: email,
+            displayName: (o["displayName"] as? String)?.nilIfEmpty,
+            organization: organizationName(o["organizationName"] as? String, email: email),
             billing: (o["billingType"] as? String).map(billingName),
             role: (o["organizationRole"] as? String)?.nilIfEmpty,
             seat: (o["seatTier"] as? String)?.nilIfEmpty,
@@ -187,6 +194,15 @@ enum PlanReader {
         return raw.replacingOccurrences(of: "claude_", with: "")
             .replacingOccurrences(of: "_", with: " ")
             .capitalized
+    }
+
+    /// A personal account's organization is named after the email that owns it,
+    /// "you@example.com's Organization", which says nothing the email row above
+    /// it does not. Dropped, so the row only appears for a real team.
+    static func organizationName(_ raw: String?, email: String?) -> String? {
+        guard let name = raw?.nilIfEmpty else { return nil }
+        if let email, name.localizedCaseInsensitiveContains(email) { return nil }
+        return name
     }
 
     static func billingName(_ raw: String) -> String {
