@@ -70,6 +70,12 @@ extension AppState {
         }
     }
 
+    /// The status-bar slots worth drawing. A credits slot with credits switched
+    /// off would read $0.00 for ever, so it is dropped rather than shown empty.
+    nonisolated static func visibleStatusItems(_ items: [StatusBarItem], creditsOn: Bool) -> [StatusBarItem] {
+        items.filter { $0 != .credits || creditsOn }
+    }
+
     // MARK: - Credits engaging
 
     /// Credits are the moment money starts, and nothing announces it: a session

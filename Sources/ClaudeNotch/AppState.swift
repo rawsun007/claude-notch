@@ -62,12 +62,14 @@ enum StatusBarItem: String, Codable, CaseIterable {
     case fiveHourLimit  // real 5-hour plan-limit usage % (from Claude Code statusLine)
     case weeklyLimit    // real weekly plan-limit usage %
     case sessionCost    // estimated current-session $ cost
+    case credits        // paid usage credits spent this period (only when enabled)
 
     var barLabel: String {
         switch self {
         case .fiveHourLimit: return "5H"
         case .weeklyLimit:   return "WK"
         case .sessionCost:   return "$"
+        case .credits:       return "CR"
         }
     }
 
@@ -76,6 +78,7 @@ enum StatusBarItem: String, Codable, CaseIterable {
         case .fiveHourLimit: return "5h plan limit"
         case .weeklyLimit:   return "Weekly plan limit"
         case .sessionCost:   return "Session cost (estimated $)"
+        case .credits:       return "Usage credits (only while they are on)"
         }
     }
 }

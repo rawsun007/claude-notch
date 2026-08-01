@@ -45,7 +45,29 @@ struct StatusBarRow: View {
         case .sessionCost:
             return BarData(pct: nil, text: ClaudeUsageReader.fmtMoney(state.currentCostUSD), showBar: false,
                            tooltip: "Estimated cost of this session")
+        case .credits:
+            // Real money, unlike the estimate beside it, so it says the amount
+            // rather than a percentage unless there is a budget to be a percentage of.
+            let c = state.plan?.credits
+            let spent = c?.spent ?? c?.usedCredits ?? 0
+            let pct = (c?.utilization).map { CGFloat($0 / 100) }
+            return BarData(pct: pct,
+                           text: ClaudeUsageReader.fmtMoney(spent),
+                           showBar: pct != nil,
+                           tooltip: creditTooltip(c))
         }
+    }
+
+    /// Credits are billed on top of the subscription, so the tooltip says what
+    /// the number is rather than leaving "CR $2.40" to be guessed at.
+    private func creditTooltip(_ c: PlanReader.Credits?) -> String {
+        guard let c else { return "Usage credits" }
+        let spent = c.spent ?? c.usedCredits ?? 0
+        let amount = ClaudeUsageReader.fmtMoney(spent)
+        if let limit = c.spendLimit ?? c.monthlyLimit {
+            return "Paid usage credits: \(amount) of \(ClaudeUsageReader.fmtMoney(limit)) this period"
+        }
+        return "Paid usage credits: \(amount) this period"
     }
 
     /// A usage percentage is only worth showing while the window it was measured
@@ -170,7 +192,8 @@ struct StatusBarRow: View {
     }
 
     var body: some View {
-        let items = state.statusBarItems
+        let items = AppState.visibleStatusItems(state.statusBarItems,
+                                                creditsOn: state.plan?.credits?.isEnabled ?? false)
         // Re-render every half minute so the countdowns actually count down.
         TimelineView(.periodic(from: .now, by: 30)) { _ in
             HStack(spacing: 0) {

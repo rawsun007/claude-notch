@@ -100,3 +100,20 @@ final class PlanLabelTests: XCTestCase {
         XCTAssertTrue(AppState.creditsJustEngaged(from: before, to: after))
     }
 }
+
+/// The status bar has two slots. A credits slot that reads $0.00 for ever is
+/// one of them wasted, so it only appears while credits are actually on.
+extension PlanLabelTests {
+
+    func testCreditsSlotOnlyAppearsWhileCreditsAreOn() {
+        let picked: [StatusBarItem] = [.fiveHourLimit, .credits]
+        XCTAssertEqual(AppState.visibleStatusItems(picked, creditsOn: true), [.fiveHourLimit, .credits])
+        XCTAssertEqual(AppState.visibleStatusItems(picked, creditsOn: false), [.fiveHourLimit])
+    }
+
+    func testEveryOtherSlotIsUnaffected() {
+        let picked: [StatusBarItem] = [.weeklyLimit, .sessionCost]
+        XCTAssertEqual(AppState.visibleStatusItems(picked, creditsOn: false), picked)
+        XCTAssertEqual(AppState.visibleStatusItems([], creditsOn: true), [])
+    }
+}
