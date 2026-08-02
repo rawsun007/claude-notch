@@ -1,5 +1,6 @@
 # Swift / SwiftPM build artifacts
 .build/
+.build-x86_64/
 .swiftpm/
 Package.resolved
 *.xcodeproj/

@@ -2,11 +2,45 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-echo "→ swift build -c release"
+# Universal (arm64 + x86_64). A single-slice build still installs cleanly on the
+# wrong Mac through Homebrew and then refuses to launch, which reads as "the app
+# is broken" rather than "wrong architecture", so both slices ship every time.
+#
+# `swift build --arch arm64 --arch x86_64` needs xcbuild, which only full Xcode
+# provides; this machine (and anyone on Command Line Tools) has no such thing.
+# Two single-arch builds plus lipo gets the same fat binary out of the CLT
+# toolchain, since the macOS SDK carries both architectures. Set
+# CLAUDENOTCH_SKIP_UNIVERSAL=1 for a native-only build while iterating.
+echo "→ swift build -c release (arm64)"
 swift build -c release
-
 BIN=.build/release/ClaudeNotch
 [ -f "$BIN" ] || { echo "build failed"; exit 1; }
+
+if [ "${CLAUDENOTCH_SKIP_UNIVERSAL:-0}" = "1" ]; then
+    echo "  ⚠ CLAUDENOTCH_SKIP_UNIVERSAL=1 — native-only build, do NOT release this"
+else
+    X86_TRIPLE=x86_64-apple-macosx13.0
+    echo "→ swift build -c release (x86_64, cross)"
+    swift build -c release --scratch-path .build-x86_64 \
+        -Xswiftc -target -Xswiftc "$X86_TRIPLE" \
+        -Xcc -target -Xcc "$X86_TRIPLE"
+
+    echo "→ lipo -create"
+    mkdir -p .build/universal
+    lipo -create -output .build/universal/ClaudeNotch \
+        .build/release/ClaudeNotch .build-x86_64/release/ClaudeNotch
+    BIN=.build/universal/ClaudeNotch
+
+    # Never ship a single-slice binary by accident.
+    ARCHS=$(lipo -archs "$BIN")
+    for want in arm64 x86_64; do
+        case " $ARCHS " in
+            *" $want "*) ;;
+            *) echo "build failed: $BIN is missing the $want slice (has: $ARCHS)"; exit 1 ;;
+        esac
+    done
+    echo "  universal binary: $ARCHS"
+fi
 
 APP="ClaudeNotch.app"
 echo "→ Assembling $APP"
