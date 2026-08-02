@@ -103,6 +103,13 @@ system, and shows no Dock icon, just a small bell in your menu bar.
 
 ## 🚀 Install
 
+**Needs:** macOS 13 Ventura or later, on Apple Silicon or Intel.
+
+> **Intel Macs:** builds from `main` are universal (arm64 + x86_64). The last
+> published release, v0.13.0, is Apple Silicon only, so Homebrew refuses it on
+> an Intel Mac rather than installing an app that will not launch. Until the
+> next release lands, Intel users can build from source (below).
+
 ### The easy way (recommended)
 
 1. **[⬇ Download ClaudeNotch.dmg](https://github.com/rawsun007/claude-notch/releases/latest/download/ClaudeNotch.dmg)**
@@ -143,8 +150,18 @@ Requires macOS 13+, Swift 5.9+ (`xcode-select --install`), and `jq` (`brew insta
 ```bash
 git clone https://github.com/rawsun007/claude-notch.git
 cd claude-notch
-./build.sh        # produces ClaudeNotch.app
+./build.sh        # produces ClaudeNotch.app (universal: arm64 + x86_64)
 ./install.sh      # copies to /Applications, wires Claude Code hooks, launches
+```
+
+`build.sh` compiles both architectures and `lipo`s them together, then fails if
+either slice is missing, so a single-arch build can never reach a release.
+Command Line Tools are enough: `swift build --arch arm64 --arch x86_64` needs
+full Xcode, so the second slice is cross-compiled into its own scratch path
+instead. That costs about a minute per build, so while iterating:
+
+```bash
+CLAUDENOTCH_SKIP_UNIVERSAL=1 ./build.sh   # native slice only, never release this
 ```
 
 Want your macOS permission grants (Accessibility) to survive every rebuild? Run
@@ -239,7 +256,13 @@ once, and you're set from then on.
 No. Everything runs locally over a localhost hook. Nothing leaves your machine.
 
 **Which AI tools does it support?**
-Claude Code today. Support for more agents may come as the project grows.
+Claude Code and the Codex CLI. Setup wires hooks into `~/.claude` and `~/.codex`,
+and sessions from both show up side by side in the notch, each tagged with the
+agent it came from.
+
+**Which Macs does it run on?**
+macOS 13 Ventura and later, Apple Silicon or Intel. See the note under
+[Install](#-install) about Intel and the current release.
 
 **Can I uninstall the hooks?**
 Yes, your `settings.json` is backed up during setup, and there's an uninstall
@@ -286,42 +309,63 @@ rm -rf /Applications/ClaudeNotch.app ~/.claudenotch
 <details>
 <summary>Click to expand</summary>
 
+The spine: Claude Code and Codex fire hooks over HTTP, `EventServer` parses and
+normalizes them, `AppState` holds the result, `NotchView` draws it. Blocking
+hooks (permission, question) hold the connection open until you answer, and your
+decision becomes the response.
+
 ```
 Sources/ClaudeNotch/
-  main.swift                       : boots as a menu-bar accessory app (no Dock)
-  AppDelegate.swift                : wires window, menu bar, HTTP server, hotkey
-  AppState.swift                   : app state, live sessions, frontmost tracking
-  NotchView.swift                  : the SwiftUI notch UI + animations
+  main.swift / AppDelegate.swift   : boots as a menu-bar accessory app (no Dock)
+  EventServer.swift                : localhost HTTP server + blocking permission
+  AppState.swift                   : the single source of truth (@MainActor)
+  AppState+*.swift                 : one file per concern, Pet / Usage / Budget /
+                                     Git / TaskMeter / Sessions / Compose /
+                                     History / Export / Queues / Alerts / Sound
+  SessionModels / UsageModels /
+  RequestModels.swift              : the value types the rest is built on
+  Persistence.swift                : always-allow rules, history and stats on disk
+
+  NotchView.swift                  : the notch's root view + card sizing
   NotchShape.swift                 : the concave "Dynamic Island" shape
   NotchWindowController.swift      : borderless panel that follows your screen
-  KeyboardMonitor.swift            : Enter/Esc handling without stealing focus
-  GlobalHotkey.swift               : the ⌥⌘N composer shortcut
-  MouseTracker.swift               : hover detection over the notch
-  EventServer.swift                : localhost HTTP server + blocking permission
-  ClaudeUsageReader.swift          : context + cost meter from session transcripts
-  ToolPreviewParser.swift          : diff/danger preview for a tool call
-  BiometricAuth.swift              : Touch ID / Face ID confirm for dangerous commands
+  NotchPermissionCard.swift        : banners, diff preview, hold-to-confirm
+  NotchSessionList / NotchStatusBar / NotchIdlePill / NotchCards /
+  NotchComposeCards / NotchHistoryCard / NotchPetViews / NotchMarkdown
+  SettingsWindow.swift             : settings, search, History page, standup
   MenuBarController.swift          : the menu-bar bell and its menu
-  HookInstaller.swift              : wires/unwires Claude Code hooks in-app
-  TerminalAutomator.swift          : types into your session + "Start Claude in folder"
-  OnboardingView.swift             : first-run setup flow
-  OnboardingState.swift            : permission checks for onboarding
-  OnboardingWindowController.swift : the onboarding window
-  UpdateChecker.swift              : checks GitHub for new releases
-  Persistence.swift                : saves your always-allow rules, history & stats
+  Onboarding*.swift                : first-run setup and hook install
 
-bin/                          : the Claude Code hook scripts
-build.sh                      : builds ClaudeNotch.app
+  AgentAdapter.swift               : Claude / Codex / Grok differences in one place
+  ClaudeUsageReader / CodexReader  : cost, context and plan state from transcripts
+  SessionResumer / BackgroundAgents: resumable sessions, the `claude --bg` roster
+  TerminalAutomator.swift          : launches or resumes an agent in a terminal
+  HookInstaller.swift              : wires/unwires hooks in ~/.claude and ~/.codex
+  ToolPreviewParser.swift          : diff/danger preview for a tool call
+  BiometricAuth.swift              : Touch ID confirm for dangerous commands
+  KeyboardMonitor / MouseTracker /
+  GlobalHotkey / FocusTracker      : keys, hover, ⌥⌘N composer, break timer
+  PetEngine.swift / PetRig.swift   : the pet, logic split from rendering
+  Shell / Git / FileSlice /
+  DebugLog / CrashReporter         : the shared helpers everything reuses
+  UpdateChecker.swift              : checks GitHub for new releases
+
+bin/                          : the Claude Code + Codex hook scripts
+build.sh                      : builds ClaudeNotch.app (universal binary)
 install.sh                    : installs to /Applications + wires hooks
-tools/                        : DMG builder, icon generators, signing cert, releaser
+tools/                        : DMG builder, icon generators, signing cert,
+                                releaser, download-stats.sh
+Tests/                        : XCTest suite, run by CI on every push
 ```
 
 **Localhost endpoints** (for tinkering):
 
 | Endpoint | What it does |
 |----------|--------------|
+| `POST /hook` | One endpoint for every event, dispatched on the payload's own type |
 | `POST /permission` | Blocks until you click; returns `{"decision":"allow\|deny\|ask","reason":"…"}` |
 | `POST /question` | Blocks until you answer; returns your picks (or a typed answer) |
+| `POST /extpretool` | Codex tool call: brief card if safe, blocking allow/deny if dangerous |
 | `POST /notification` | Sticky orange "needs your input" card |
 | `POST /stop` | Sticky green "task done" card |
 | `POST /activity` | Updates the live "what Claude's doing" strip |
@@ -329,6 +373,10 @@ tools/                        : DMG builder, icon generators, signing cert, rele
 | `POST /task` | Task created/completed, for the per-session progress meter |
 | `POST /sessionend` | Drops a finished session from the notch |
 | `POST /pretool` | Brief blue thinking pulse |
+| `POST /compact` | Context was compacted, resets the context meter |
+| `POST /statusline` | Feeds the status line's model, cost and context numbers |
+| `POST /subagentstart` | A subagent spun up under the session |
+| `POST /thinking` | Back to thinking after a tool finished |
 | `POST /ping` | Liveness check |
 
 </details>
