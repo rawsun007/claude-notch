@@ -2364,9 +2364,8 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "A Plan page, under Alerts & Cost. Which subscription this Mac is signed into, every limit that plan has rather than the two the status line reports, and what usage credits have cost. A Max plan meters Opus on its own, and that window now gets its own row and its own bar.",
-        "Your plan and its tightest limit can sit in the menu bar, next to the bell: Pro, 5H 91%. Whichever limit is closest to stopping you, since that is the only one worth the width. Off by default, in General.",
-        "The notch status bar has a usage-credits slot, and a card fires the first time credits pick up a session. Credits are the moment money starts and nothing announced it before: a session simply kept going where it would have stopped.",
-        "None of it is asked for over the network. It is read from the config Claude Code already keeps on this Mac, and turning credits on or buying more stays on Anthropic's site, where your account is.",
+        "ClaudeNotch runs on Intel Macs. Every build before this one carried a single Apple Silicon slice, so Homebrew installed it on an Intel Mac and the app then refused to open, which reads as a broken app rather than the wrong machine. The disk image is universal now.",
+        "The build fails rather than shipping half of that. It compiles both architectures, lipos them together, and checks the result carries both slices, so a single-architecture app cannot reach a release again.",
+        "Nothing else changed. If you are on Apple Silicon this release is the previous one, byte for byte in behaviour, and the upgrade is worth taking only to stay current.",
     ]
 }

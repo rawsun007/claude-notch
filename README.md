@@ -103,12 +103,8 @@ system, and shows no Dock icon, just a small bell in your menu bar.
 
 ## 🚀 Install
 
-**Needs:** macOS 13 Ventura or later, on Apple Silicon or Intel.
-
-> **Intel Macs:** builds from `main` are universal (arm64 + x86_64). The last
-> published release, v0.13.0, is Apple Silicon only, so Homebrew refuses it on
-> an Intel Mac rather than installing an app that will not launch. Until the
-> next release lands, Intel users can build from source (below).
+**Needs:** macOS 13 Ventura or later, on Apple Silicon or Intel. The disk image
+is universal from v0.14.0 onward; earlier releases are Apple Silicon only.
 
 ### The easy way (recommended)
 
