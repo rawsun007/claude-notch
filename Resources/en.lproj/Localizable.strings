@@ -220,6 +220,9 @@
 "Estimated cost, last 7 days" = "Estimated cost, last 7 days";
 
 /* Settings explanation */
+"Every noise the app makes, one row each. Pick a different sound, or pick None to silence just that one. The prompts follow the alert sound above until you give them one of their own." = "Every noise the app makes, one row each. Pick a different sound, or pick None to silence just that one. The prompts follow the alert sound above until you give them one of their own.";
+
+/* Settings explanation */
 "Every session you finish is archived here with a one-line summary, its cost, and what it changed. Search to recall what you did in a project last week." = "Every session you finish is archived here with a one-line summary, its cost, and what it changed. Search to recall what you did in a project last week.";
 
 /* Settings toggle explanation */
@@ -455,6 +458,9 @@
 
 /* Settings section heading */
 "Snooze passive cards" = "Snooze passive cards";
+
+/* Settings section heading */
+"Sound per event" = "Sound per event";
 
 /* Settings section heading */
 "Sound per pop-up type" = "Sound per pop-up type";

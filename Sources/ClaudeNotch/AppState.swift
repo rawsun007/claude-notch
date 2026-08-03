@@ -10,6 +10,61 @@ import UniformTypeIdentifiers
 
 /// An individual item that can appear in the always-visible bottom status bar.
 /// The user picks up to two. Order is preserved (first item on the left).
+/// Every moment the app makes a noise, as something the user can retune or
+/// silence on its own. A prompt appearing is worth hearing; the tick that
+/// confirms your own keypress often is not, and before this the only way to
+/// stop it was to mute everything.
+///
+/// `defaultSound` is nil for the two events that follow the alert sound (or the
+/// per-tool sound) rather than owning one, so changing the alert sound keeps
+/// changing them, exactly as it did before.
+enum SoundEvent: String, CaseIterable, Identifiable {
+    case permission, question, completed, autoApproved
+    case approved, dismissed, messageSent, blocked
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .permission:   return "Permission prompt"
+        case .question:     return "Question prompt"
+        case .completed:    return "Task finished"
+        case .autoApproved: return "Auto-approved action"
+        case .approved:     return "You allowed or answered"
+        case .dismissed:    return "You denied or dismissed"
+        case .messageSent:  return "Message sent to the terminal"
+        case .blocked:      return "Hotkey ignored"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .permission:   return "Claude is asking to run something"
+        case .question:     return "Claude is asking you to choose"
+        case .completed:    return "A task finished and the card appeared"
+        case .autoApproved: return "An action matched an always-allow rule"
+        case .approved:     return "Confirming your own tap or keypress"
+        case .dismissed:    return "Confirming a deny or an Esc"
+        case .messageSent:  return "The composer typed into your session"
+        case .blocked:      return "The composer hotkey while a prompt is up"
+        }
+    }
+
+    /// nil means "whatever the alert sound is", which is what these did before
+    /// they were listed separately.
+    var defaultSound: String? {
+        switch self {
+        case .permission, .question: return nil
+        case .completed:    return "Glass"
+        case .autoApproved: return "Pop"
+        case .approved:     return "Tink"
+        case .dismissed:    return "Pop"
+        case .messageSent:  return "Tink"
+        case .blocked:      return "Funk"
+        }
+    }
+}
+
 /// Groups tools into a handful of categories, each with its own alert sound
 /// when "Per-tool sounds" is on. Users can override the default per category.
 enum ToolSoundCategory: String, CaseIterable, Identifiable {
@@ -290,6 +345,10 @@ final class AppState: ObservableObject {
     /// Per-category sound overrides (category key -> sound name). Empty entries
     /// fall back to ToolSoundCategory.defaultSound. Persisted.
     @Published var perToolSoundMap: [String: String] = [:]
+    /// Per-event sound overrides (SoundEvent key -> sound name, or
+    /// AppState.silentSound to mute that one event). No entry means the event's
+    /// own default. Persisted.
+    @Published var eventSoundMap: [String: String] = [:]
     @Published var persistentNotchDisplay: Bool = false
     // Pet mode: the idle icon is the animated Claude Code mascot, and it lives
     // its own little life in and around the notch while the notch is at rest.
@@ -680,6 +739,7 @@ final class AppState: ObservableObject {
             self.perToolSounds = snapshot.perToolSounds ?? false
             self.completionAuditEnabled = snapshot.completionAuditEnabled ?? false
             self.perToolSoundMap = snapshot.perToolSoundMap ?? [:]
+            self.eventSoundMap = snapshot.eventSoundMap ?? [:]
             self.persistentNotchDisplay = snapshot.persistentNotchDisplay ?? false
             self.petEnabled = snapshot.petEnabled ?? true
             self.petRandomEnabled = snapshot.petRandomEnabled ?? true
@@ -884,6 +944,14 @@ final class AppState: ObservableObject {
         "Funk", "Pop", "Tink", "Glass", "Submarine", "Hero", "Blow", "Bottle",
         "Frog", "Morse", "Ping", "Purr", "Sosumi"
     ]
+
+    /// Picked in place of a sound to silence one event without muting the rest.
+    /// Not an NSSound name: nothing is named this, and playSound bails on it
+    /// before ever asking AppKit for it.
+    static let silentSound = "None"
+
+    /// What the pickers offer: silence first, then the system sounds.
+    static let selectableSounds = [silentSound] + availableSounds
 
     // MARK: - Waiting-on-you re-alert state (logic lives in AppState+Alerts.swift)
 

@@ -73,7 +73,7 @@ extension AppState {
                 recordToolRequested(req.toolName, dangerousShown: req.isDangerous)
             }
             permissionQueue.append(req)
-            playAlert(toolName: req.toolName)
+            play(.permission, toolName: req.toolName)
             if mirrorToNotificationCenter { permissionMirror?.mirror(req) }
             recompute()
             return
@@ -190,7 +190,7 @@ extension AppState {
                 outcome: .info
             ))
         }
-        playAlert(toolName: req.toolName)
+        play(.permission, toolName: req.toolName)
         // Mirror blocking cards to native notifications (lock screen / other
         // Space; auto-suppressed during Focus). Notifications aren't blocking,
         // so they don't need a remote-actionable surface.
@@ -207,7 +207,7 @@ extension AppState {
         // Soft, distinct "Pop" — and debounced, so a burst of auto-approved
         // edits doesn't machine-gun the sound (which read as an error).
         if Date().timeIntervalSince(lastAutoSoundAt) > 0.8 {
-            playSound("Pop")
+            play(.autoApproved)
             lastAutoSoundAt = Date()
         }
         autoInfo = req
@@ -301,7 +301,7 @@ extension AppState {
 
     func enqueueQuestion(_ req: QuestionRequest) {
         questionQueue.append(req)
-        playAlert()
+        play(.question)
         recompute()
     }
 
@@ -333,9 +333,9 @@ extension AppState {
             outcome: outcome
         ))
         if answers != nil {
-            playSound("Tink")
+            play(.approved)
         } else {
-            playSound("Pop")
+            play(.dismissed)
         }
         recompute()
         returnKeyboardToTerminal(preferred: first.originatorBundleID)
@@ -459,8 +459,8 @@ extension AppState {
 
     private func playFeedback(for decision: PermissionDecision) {
         switch decision {
-        case .allow: playSound("Tink")    // small success "tick"
-        case .deny:  playSound("Pop")     // soft dismiss
+        case .allow: play(.approved)     // small success "tick"
+        case .deny:  play(.dismissed)    // soft dismiss
         case .ask:   break
         }
     }

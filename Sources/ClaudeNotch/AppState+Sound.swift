@@ -1,12 +1,30 @@
 import Foundation
 import AppKit
 
-// Alert sounds, including the per-tool sound categories.
+// Alert sounds: the global mute, the per-tool categories, and the per-event
+// overrides that let one noise be retuned or silenced without touching the rest.
 
 extension AppState {
     func playSound(_ name: String) {
         guard !soundMuted else { return }
+        guard name != AppState.silentSound, !name.isEmpty else { return }
         NSSound(named: NSSound.Name(name))?.play()
+    }
+
+    /// Play whatever this event is currently set to. Events with no default of
+    /// their own (the permission and question prompts) fall through to the alert
+    /// sound, or to the per-tool sound when that is on, which is what they did
+    /// before they were listed separately.
+    func play(_ event: SoundEvent, toolName: String? = nil) {
+        if let override = eventSoundMap[event.rawValue] {
+            playSound(override)
+            return
+        }
+        if let own = event.defaultSound {
+            playSound(own)
+            return
+        }
+        playAlert(toolName: toolName)
     }
 
     func playAlert(toolName: String? = nil) {
@@ -17,6 +35,26 @@ extension AppState {
             name = alertSound
         }
         playSound(name)
+    }
+
+    /// What this event plays right now: its override, its own default, or the
+    /// alert sound it borrows. The settings picker shows this.
+    func sound(for event: SoundEvent) -> String {
+        if let override = eventSoundMap[event.rawValue] { return override }
+        if let own = event.defaultSound { return own }
+        return alertSound
+    }
+
+    /// Set (or clear, when back to the event's own default) the sound for an
+    /// event. AppState.silentSound is stored like any other choice: it is a
+    /// deliberate "stay quiet", not an absence of preference.
+    func setSound(_ event: SoundEvent, _ sound: String) {
+        if let own = event.defaultSound, sound == own {
+            eventSoundMap.removeValue(forKey: event.rawValue)
+        } else {
+            eventSoundMap[event.rawValue] = sound
+        }
+        schedulePersist()
     }
 
     /// The user-set (or default) chime for a tool when "Per-tool sounds" is on.
@@ -41,6 +79,6 @@ extension AppState {
     }
 
     func playChime() {
-        playSound("Glass")
+        play(.completed)
     }
 }

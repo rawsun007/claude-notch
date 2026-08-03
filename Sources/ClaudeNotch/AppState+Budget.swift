@@ -233,7 +233,7 @@ extension AppState {
             resolver: { _, _ in })
         req.budgetBlock = BudgetBlock(scope: "session", cost: 10.40, cap: 10)
         permissionQueue.append(req)
-        playAlert(toolName: "Bash")
+        play(.permission, toolName: "Bash")
         recompute()
     }
 
@@ -360,6 +360,7 @@ extension AppState {
             alertSound: alertSound,
             perToolSounds: perToolSounds,
             perToolSoundMap: perToolSoundMap,
+            eventSoundMap: eventSoundMap,
             persistentNotchDisplay: persistentNotchDisplay,
             petEnabled: petEnabled,
             petRandomEnabled: petRandomEnabled,

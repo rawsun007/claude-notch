@@ -109,7 +109,7 @@ extension AppState {
     func summonCompose() {
         switch mode {
         case .permission, .question:
-            playSound("Funk")
+            play(.blocked)
             return
         default:
             beginCompose()

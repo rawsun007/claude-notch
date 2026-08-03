@@ -86,7 +86,7 @@ extension AppState {
         // as Claude's first prompt. No Accessibility needed.
         if let cwd = composeProjectCwd, !cwd.isEmpty {
             TerminalAutomator.startClaude(in: cwd, message: text)
-            playSound("Tink")
+            play(.messageSent)
             cancelCompose()
             return
         }
@@ -106,7 +106,7 @@ extension AppState {
             return
         }
         TerminalAutomator.sendText(text, toBundleID: bid)
-        playSound("Tink")
+        play(.messageSent)
         cancelCompose()
     }
 
@@ -120,10 +120,10 @@ extension AppState {
            !NSRunningApplication.runningApplications(withBundleIdentifier: bid).isEmpty,
            TerminalAutomator.isAccessibilityTrusted {
             TerminalAutomator.sendText(msg, toBundleID: bid)
-            playSound("Tink")
+            play(.messageSent)
         } else if !cwd.isEmpty {
             TerminalAutomator.startClaude(in: cwd, message: msg)
-            playSound("Tink")
+            play(.messageSent)
         }
     }
 

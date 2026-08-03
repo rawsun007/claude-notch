@@ -836,7 +836,29 @@ struct SettingsView: View {
                 .disabled(state.soundMuted)
                 .opacity(state.soundMuted ? 0.5 : 1)
             }
+
+            sectionLabel(L("Sound per event", comment: "Settings section heading"))
+            Text(L("Every noise the app makes, one row each. Pick a different sound, or pick None to silence just that one. The prompts follow the alert sound above until you give them one of their own.", comment: "Settings explanation"))
+                .font(.callout).foregroundStyle(.secondary)
+            group {
+                let events = SoundEvent.allCases
+                ForEach(Array(events.enumerated()), id: \.element) { idx, event in
+                    soundPickerRow(event.label, event.detail,
+                                   get: { state.sound(for: event) },
+                                   set: { state.setSound(event, $0) })
+                    if idx < events.count - 1 { divider }
+                }
+            }
+            .disabled(state.soundMuted)
+            .opacity(state.soundMuted ? 0.5 : 1)
         }
+    }
+
+    /// Audition a choice. Silence has nothing to audition, and asking AppKit
+    /// for a sound named "None" would just fail quietly, so it stops here.
+    private static func preview(_ name: String) {
+        guard name != AppState.silentSound else { return }
+        NSSound(named: NSSound.Name(name))?.play()
     }
 
     private func soundPickerRow(_ title: String, _ subtitle: String?, get: @escaping () -> String, set: @escaping (String) -> Void) -> some View {
@@ -848,15 +870,16 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             Picker("", selection: Binding(
                 get: get,
-                set: { set($0); NSSound(named: NSSound.Name($0))?.play() }
+                set: { set($0); Self.preview($0) }
             )) {
-                ForEach(AppState.availableSounds, id: \.self) { Text($0).tag($0) }
+                ForEach(AppState.selectableSounds, id: \.self) { Text($0).tag($0) }
             }
             .labelsHidden().fixedSize().controlSize(.small)
-            Button { NSSound(named: NSSound.Name(get()))?.play() } label: {
-                Image(systemName: "play.circle")
+            Button { Self.preview(get()) } label: {
+                Image(systemName: get() == AppState.silentSound ? "speaker.slash" : "play.circle")
             }
             .buttonStyle(.plain)
+            .disabled(get() == AppState.silentSound)
         }
         .padding(.vertical, 8).padding(.horizontal, 14)
     }
