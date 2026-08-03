@@ -2009,14 +2009,25 @@ struct SettingsView: View {
 
             DisclosureGroup(isExpanded: $devPetDemosOpen) {
                 group {
-                    // Same order the Pet page uses, so the two never disagree
-                    // about what the pet can do.
-                    let demoable = PetActivity.everydayCases + PetActivity.specialCases
-                    actionRow(L("Play all", comment: "Settings button"), "play.circle") { state.demoPet(demoable) }
+                    // The same two lists the Pet page shows. This one used to be
+                    // a single flat run, which is where the Spider-Pet went to
+                    // hide among the naps.
+                    let everyday = PetActivity.everydayCases
+                    let specials = PetActivity.specialCases
+                    actionRow(L("Play all", comment: "Settings button"), "play.circle") {
+                        state.demoPet(everyday + specials)
+                    }
                     divider
-                    ForEach(Array(demoable.enumerated()), id: \.element) { idx, activity in
+                    ForEach(everyday, id: \.self) { activity in
                         actionRow(Self.petDemoTitle(activity), "pawprint") { state.demoPet([activity]) }
-                        if idx < demoable.count - 1 { divider }
+                        divider
+                    }
+                    listHeading(L("Guest appearances", comment: "Settings section heading"))
+                    ForEach(Array(specials.enumerated()), id: \.element) { idx, activity in
+                        if let guest = activity.special {
+                            specialPetRow(activity, guest)
+                            if idx < specials.count - 1 { divider }
+                        }
                     }
                 }
                 .padding(.top, 6)
@@ -2356,6 +2367,16 @@ struct SettingsView: View {
 
     private var divider: some View {
         Divider().padding(.leading, 14)
+    }
+
+    /// A heading INSIDE a grouped list, for splitting one card into runs.
+    /// sectionLabel sits between cards and would break the card in two here.
+    private func listHeading(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 10).padding(.bottom, 4).padding(.horizontal, 14)
     }
 
     private func sectionLabel(_ text: String) -> some View {
