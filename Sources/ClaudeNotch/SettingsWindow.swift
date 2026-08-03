@@ -9,7 +9,7 @@ import IOKit.hid
 /// already persist, so a flip here survives a relaunch just like the menu did.
 @MainActor
 final class SettingsWindowController {
-    private var window: NSWindow?
+    var window: NSWindow?
     weak var appState: AppState?
     /// Invoked by the About page's "Run setup again" button.
     var onOpenSetup: (() -> Void)?
@@ -135,7 +135,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 /// The rounded search box used on the list pages (sessions, history). One
 /// component so the three-way icon + field + clear-button layout and its
 /// chrome don't get re-typed (and drift) at every call site.
-private struct SearchField: View {
+struct SearchField: View {
     let placeholder: String
     @Binding var text: String
 
@@ -296,18 +296,18 @@ struct SettingsSearchItem: Identifiable {
 struct SettingsView: View {
     @ObservedObject var state: AppState
     var onOpenSetup: (() -> Void)? = nil
-    @State private var section: SettingsSection = .general
-    @State private var claudeUsage: ClaudeUsageReader.Usage?
+    @State var section: SettingsSection = .general
+    @State var claudeUsage: ClaudeUsageReader.Usage?
     @State private var heatTip: String?
     @State private var search = ""
     @State private var healthTick = 0
     // Past Claude Code sessions grouped by project (read off disk), and which
     // project rows the user has expanded to reveal their resumable sessions.
-    @State private var projectSessions: [(cwd: String, project: String, sessions: [ResumableSession])] = []
+    @State var projectSessions: [(cwd: String, project: String, sessions: [ResumableSession])] = []
     @State private var expandedProjects: Set<String> = []
-    @State private var sessionSearch = ""
+    @State var sessionSearch = ""
     // Free-text filter over the archived session digest history.
-    @State private var historySearch = ""
+    @State var historySearch = ""
     // Generated "what I shipped" standup text + the day-window it covers.
     @State private var standupText = ""
     @State private var standupDays = 1
@@ -317,15 +317,15 @@ struct SettingsView: View {
     // Lazily-loaded last-assistant-reply previews, keyed by session id.
     @State private var sessionPreviews: [String: String] = [:]
     // Session the user tapped delete on, awaiting confirmation.
-    @State private var pendingDelete: ResumableSession?
+    @State var pendingDelete: ResumableSession?
     // Inline session-rename editor state.
     @State private var editingNoteId: String?
     @State private var editingNoteText = ""
     @State private var updateCmdCopied = false
     @State private var terminalCmdCopied = false
-    @State private var codexTotals: CodexReader.CodexTotals?
-    @State private var devSampleCardsOpen = false
-    @State private var devPetDemosOpen = false
+    @State var codexTotals: CodexReader.CodexTotals?
+    @State var devSampleCardsOpen = false
+    @State var devPetDemosOpen = false
 
     private var searchResults: [SettingsSearchItem] {
         SettingsSearchItem.matching(search)
@@ -799,7 +799,7 @@ struct SettingsView: View {
 
     /// A guest appearance says what it is dressed as, what it references and
     /// when it landed, since a costume nobody recognises is just a glitch.
-    private func specialPetRow(_ activity: PetActivity,
+    func specialPetRow(_ activity: PetActivity,
                                _ guest: PetActivity.SpecialAppearance) -> some View {
         Button { state.demoPet([activity]) } label: {
             HStack(spacing: 10) {
@@ -954,196 +954,17 @@ struct SettingsView: View {
         .padding(.vertical, 8).padding(.horizontal, 14)
     }
 
-    /// What plan you are on and what it has left, read out of Claude Code's own
-    /// cache. The Budget page answers "what am I spending"; this one answers
-    /// "what am I allowed", which until now was only visible as two unlabelled
-    /// percentages with no plan attached to them.
-    private var plan: some View {
-        page(L("Plan", comment: "Settings page title")) {
-            if let p = state.plan {
-                if let a = p.account {
-                    sectionLabel(L("Your plan", comment: "Settings section heading"))
-                    group {
-                        statRow("Plan", a.tier)
-                        // Which login this is. People sign out of one account and
-                        // into another, and the limits below belong to whichever
-                        // one is current, so the page has to say which.
-                        if let email = a.email { divider; statRow("Account", email) }
-                        if let name = a.displayName { divider; statRow("Name", name) }
-                        if let org = a.organization { divider; statRow("Organization", org) }
-                        if let billing = a.billing { divider; statRow("Billing", billing) }
-                        if let seat = a.seat { divider; statRow("Seat", seat.capitalized) }
-                        if let role = a.role { divider; statRow("Role", role.capitalized) }
-                        if let since = a.memberSince {
-                            divider
-                            statRow("Subscribed", since.formatted(date: .abbreviated, time: .omitted))
-                        }
-                        if let trial = a.trialEndsAt {
-                            divider
-                            statRow("Trial ends", trial.formatted(date: .abbreviated, time: .omitted))
-                        }
-                    }
-                }
-
-                if !p.limits.isEmpty {
-                    sectionLabel(L("Limits", comment: "Settings section heading"))
-                    group {
-                        ForEach(Array(p.limits.enumerated()), id: \.element.kind) { idx, limit in
-                            limitRow(limit.label,
-                                     pct: limit.percent / 100,
-                                     resetAt: limit.resetsAt,
-                                     window: limit.kind.hasPrefix("weekly") || limit.kind == "seven_day"
-                                             ? 7 * 24 * 3600 : 5 * 3600)
-                            if idx < p.limits.count - 1 { divider }
-                        }
-                    }
-                }
-
-                if let c = p.credits {
-                    sectionLabel(L("Usage credits", comment: "Settings section heading"))
-                    Text(L("Credits carry a session past the plan limits instead of stopping it, and are billed on top of the subscription.", comment: "Settings explanation"))
-                        .font(.callout).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    group {
-                        statRow("Status", c.isEnabled
-                                ? L("On", comment: "Usage credits are switched on")
-                                : L("Off", comment: "Usage credits are switched off"))
-                        if let reason = c.disabledReason, !c.isEnabled {
-                            divider
-                            statRow("Reason", PlanReader.disabledReasonText(reason))
-                        }
-                        if let used = c.usedCredits {
-                            divider
-                            statRow("Used this month", money(used, c.currency))
-                        }
-                        if let limit = c.monthlyLimit {
-                            divider
-                            statRow("Monthly limit", money(limit, c.currency))
-                        }
-                        if let spent = c.spent, spent > 0 || c.isEnabled {
-                            divider
-                            statRow("Spent", money(spent, c.currency))
-                        }
-                        if let cap = c.spendLimit {
-                            divider
-                            statRow("Spend limit", money(cap, c.currency))
-                        }
-                        if let balance = c.balance {
-                            divider
-                            statRow("Balance", money(balance, c.currency))
-                        }
-                        if let reload = c.autoReload {
-                            divider
-                            statRow("Auto-reload", reload
-                                    ? L("On", comment: "Usage credits are switched on")
-                                    : L("Off", comment: "Usage credits are switched off"))
-                        }
-                        if c.spendLimitReached {
-                            divider
-                            statRow("Spend limit", L("Reached", comment: "The usage-credit spend limit is used up"))
-                        }
-                    }
-                    if let u = c.utilization, c.isEnabled {
-                        group { limitRow("Credit budget", pct: u / 100, resetAt: nil, window: 30 * 24 * 3600) }
-                    }
-                }
-
-                HStack(spacing: 10) {
-                    // Read-only by design: turning credits on, capping the spend
-                    // or buying more is a billing change, so it happens on
-                    // Anthropic's site under the account's own login.
-                    Link(L("Manage on claude.ai", comment: "Button opening the Anthropic usage settings page"),
-                         destination: URL(string: ProjectLinks.planSettings)!)
-                    Link(L("How credits work", comment: "Button opening Anthropic's help page about usage credits"),
-                         destination: URL(string: ProjectLinks.creditsHelp)!)
-                        .foregroundStyle(.secondary)
-                }
-                .font(.callout)
-
-                HStack(spacing: 10) {
-                    if let at = p.fetchedAt {
-                        Text(String(format: L("Claude Code last checked this %@.", comment: "Settings explanation, freshness of the plan numbers"),
-                                    at.formatted(.relative(presentation: .named))))
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button(L("Refresh", comment: "Button that re-reads the plan details")) {
-                        state.refreshPlan()
-                    }
-                    .controlSize(.small)
-                }
-            } else {
-                Text(L("No plan details yet. Claude Code writes them to its own config when it next talks to the API, so run a session and come back.", comment: "Settings explanation shown when the plan cache is missing"))
-                    .font(.callout).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Text(L("Read from the config Claude Code keeps on this Mac. Nothing is requested from Anthropic, and your account details never leave the machine.", comment: "Settings explanation"))
-                .font(.caption).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .task(id: section) {
-            // The timer refreshes this in the background; opening the page is a
-            // moment where a stale reading would be noticed, so re-read then too.
-            guard section == .plan else { return }
-            state.refreshPlan()
-        }
-    }
-
     /// An amount in whatever currency the credit block reports, falling back to
     /// the locale's own formatting when it does not say.
-    private func money(_ amount: Double, _ currency: String?) -> String {
+    func money(_ amount: Double, _ currency: String?) -> String {
         amount.formatted(.currency(code: currency ?? "USD"))
-    }
-
-    private var budget: some View {
-        page(L("Budget", comment: "Settings page title")) {
-            if state.fiveHourLimitPercent >= 0 || state.weeklyLimitPercent >= 0 {
-                sectionLabel(L("Plan usage limits", comment: "Settings section heading"))
-                Text(L("Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps.", comment: "Settings explanation"))
-                    .font(.callout).foregroundStyle(.secondary)
-                group {
-                    if state.fiveHourLimitPercent >= 0 {
-                        limitRow("5-hour limit", pct: state.fiveHourLimitPercent,
-                                 resetAt: state.fiveHourResetAt, window: 5 * 3600)
-                    }
-                    if state.fiveHourLimitPercent >= 0, state.weeklyLimitPercent >= 0 { divider }
-                    if state.weeklyLimitPercent >= 0 {
-                        limitRow("Weekly limit", pct: state.weeklyLimitPercent,
-                                 resetAt: state.weeklyResetAt, window: 7 * 24 * 3600)
-                    }
-                }
-                if let updated = state.limitsUpdatedAt {
-                    Text("Updated \(updated.formatted(.relative(presentation: .named))).")
-                        .font(.caption2).foregroundStyle(.tertiary)
-                }
-            }
-
-            Text(L("Warn when estimated cost crosses a cap. Set a cap to 0 to disable it.", comment: "Settings explanation"))
-                .font(.callout).foregroundStyle(.secondary)
-            sectionLabel(L("Caps (USD)", comment: "Settings section heading"))
-            group {
-                capRow("Per session", get: { state.sessionCostCap }, set: { state.setSessionCostCap($0) })
-                divider
-                capRow("Per day", get: { state.dailyCostCap }, set: { state.setDailyCostCap($0) })
-                divider
-                capRow("Per 5-hour window", get: { state.fiveHourCostCap }, set: { state.setFiveHourCostCap($0) })
-                divider
-                capRow("Per week", get: { state.weeklyCostCap }, set: { state.setWeeklyCostCap($0) })
-            }
-            group {
-                row(L("Hard-stop at the cap", comment: "Settings toggle"),
-                    L("Block new tool runs once a cap is crossed, instead of only warning.", comment: "Settings toggle explanation"),
-                    Binding(get: { state.enforceBudget }, set: { state.setEnforceBudget($0) }))
-            }
-        }
     }
 
     /// A plan-usage limit as a labelled progress bar plus a reset countdown and
     /// a burn-rate forecast. `pct` is 0...1; the bar tints amber past 75% and
     /// red past 90%. `window` is the limit's period (5h or 7d) used to estimate
     /// how fast usage is climbing.
-    private func limitRow(_ title: String, pct: Double, resetAt: Date?, window: TimeInterval) -> some View {
+    func limitRow(_ title: String, pct: Double, resetAt: Date?, window: TimeInterval) -> some View {
         let clamped = min(1, max(0, pct))
         let tint: Color = clamped >= 0.9 ? .red : (clamped >= 0.75 ? .orange : .accentColor)
         return VStack(alignment: .leading, spacing: 6) {
@@ -1203,7 +1024,7 @@ struct SettingsView: View {
         return h > 0 ? "\(d)d \(h)h" : "\(d)d"
     }
 
-    private func capRow(_ title: String, get: @escaping () -> Double, set: @escaping (Double) -> Void) -> some View {
+    func capRow(_ title: String, get: @escaping () -> Double, set: @escaping (Double) -> Void) -> some View {
         HStack {
             Text(title)
             Spacer()
@@ -1299,157 +1120,8 @@ struct SettingsView: View {
         .padding(.vertical, 8).padding(.horizontal, 14)
     }
 
-    private var session: some View {
-        page(L("Session", comment: "Settings page title")) {
-            sectionLabel(L("Current session", comment: "Settings section heading"))
-            group {
-                actionRow(L("Send a message to Claude…", comment: "Settings button"), "paperplane") {
-                    state.beginCompose()
-                    window()?.close()
-                }
-                divider
-                actionRow(L("Clear the active session", comment: "Settings button"), "xmark.circle") { state.clearSession() }
-            }
-
-            sectionLabel(L("Finished tasks", comment: "Settings section heading"))
-            group {
-                row(L("Check what Claude actually did", comment: "Settings toggle"),
-                    L("When a task finishes, compare the closing message against what the turn really did, and say so on the card if it claims a change it never made or says the tests pass when none ran. Off by default: it is an opinion about the work, and it stays quiet on an ordinary turn.", comment: "Settings toggle explanation"),
-                    Binding(get: { state.completionAuditEnabled },
-                            set: { state.setCompletionAuditEnabled($0) }))
-            }
-
-            sectionLabel(L("Auto-approve for a while", comment: "Settings section heading"))
-            Text(L("Turn on auto-approve for a set time and it switches itself back off, or keep it on until you turn it off.", comment: "Settings explanation"))
-                .font(.callout).foregroundStyle(.secondary)
-            group {
-                actionRow(L("Keep on until I turn it off", comment: "Settings button"), "infinity") { state.setAutoApprove(true) }
-                divider
-                let windows = [15, 30, 60, 120]
-                ForEach(Array(windows.enumerated()), id: \.element) { idx, m in
-                    actionRow(windowLabel(m), "clock") { state.enableAutoApprove(forMinutes: m) }
-                    if idx < windows.count - 1 { divider }
-                }
-            }
-            if let until = state.autoApproveUntil {
-                Text("Auto-approve on until \(until.formatted(date: .omitted, time: .shortened)).")
-                    .font(.caption).foregroundStyle(.orange)
-                Button("Turn off now") { state.setAutoApprove(false) }
-            } else if state.autoApprove {
-                Text(L("Auto-approve is on until you turn it off.", comment: "Settings explanation"))
-                    .font(.caption).foregroundStyle(.orange)
-                Button("Turn off now") { state.setAutoApprove(false) }
-            }
-
-            sectionLabel(L("Snooze passive cards", comment: "Settings section heading"))
-            group {
-                let windows = [15, 30, 60]
-                ForEach(Array(windows.enumerated()), id: \.element) { idx, m in
-                    actionRow(String(format: L("Snooze for %@", comment: "Settings button. %@ is a duration such as 30 min"), windowLabel(m)), "moon.zzz") { state.snooze(forMinutes: m) }
-                    if idx < windows.count - 1 { divider }
-                }
-            }
-            if let until = state.snoozedUntil {
-                Text("Snoozed until \(until.formatted(date: .omitted, time: .shortened)).")
-                    .font(.caption).foregroundStyle(.orange)
-                Button("Cancel snooze") { state.cancelSnooze() }
-            }
-
-            sectionLabel(L("Projects & recent sessions", comment: "Settings section heading"))
-            Text(L("Closed a terminal by accident? Expand a project and resume right where you left off.", comment: "Settings explanation"))
-                .font(.callout).foregroundStyle(.secondary)
-            if projectSessions.isEmpty {
-                group {
-                    HStack {
-                        Text(L("No past sessions found yet.", comment: "Settings explanation"))
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                    }
-                    .padding(.vertical, 10).padding(.horizontal, 14)
-                }
-            } else {
-                SearchField(placeholder: "Filter by project or prompt…", text: $sessionSearch)
-
-                let matches = filteredProjectSessions
-                if matches.isEmpty {
-                    group {
-                        HStack {
-                            Text("No sessions match “\(sessionSearch)”.")
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                        }
-                        .padding(.vertical, 10).padding(.horizontal, 14)
-                    }
-                } else {
-                    group {
-                        ForEach(Array(matches.enumerated()), id: \.element.cwd) { idx, proj in
-                            projectRow(proj, forceOpen: !sessionSearch.isEmpty)
-                            if idx < matches.count - 1 { divider }
-                        }
-                    }
-                }
-            }
-
-            let diff = state.currentDiffStat
-            if diff.added > 0 || diff.removed > 0 {
-                sectionLabel(L("Lines changed this session", comment: "Settings section heading"))
-                group {
-                    HStack(spacing: 12) {
-                        Text("+\(diff.added)")
-                            .font(.body.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(.green)
-                        Text("-\(diff.removed)")
-                            .font(.body.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(.red)
-                        Spacer()
-                        Text("net \(diff.added - diff.removed >= 0 ? "+" : "")\(diff.added - diff.removed)")
-                            .font(.callout).foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 10).padding(.horizontal, 14)
-                }
-            }
-
-            if !state.currentTouchedFiles.isEmpty {
-                sectionLabel(L("Files touched this session", comment: "Settings section heading"))
-                group {
-                    let files = Array(state.currentTouchedFiles.prefix(10))
-                    ForEach(Array(files.enumerated()), id: \.element) { idx, path in
-                        actionRow((path as NSString).lastPathComponent, "doc") {
-                            AppState.openEditedFile(path)
-                        }
-                        if idx < files.count - 1 { divider }
-                    }
-                }
-                Button("Reveal all in Finder") {
-                    let urls = state.currentTouchedFiles.map { URL(fileURLWithPath: $0) }
-                    NSWorkspace.shared.activateFileViewerSelecting(urls)
-                }
-                .padding(.top, 2)
-            }
-        }
-        .task(id: section) {
-            guard section == .session else { return }
-            let codexOn = HookInstaller.isCodexInstalled
-            let loaded = await Task.detached(priority: .utility) {
-                SessionResumer.allAgentSessionsByProject(includeCodex: codexOn)
-            }.value
-            projectSessions = loaded
-        }
-        .confirmationDialog(
-            "Move this session to the Trash?",
-            isPresented: Binding(get: { pendingDelete != nil },
-                                 set: { if !$0 { pendingDelete = nil } }),
-            presenting: pendingDelete
-        ) { s in
-            Button("Move to Trash", role: .destructive) { deleteSession(s) }
-            Button("Cancel", role: .cancel) { pendingDelete = nil }
-        } message: { s in
-            Text("“\(s.title)” goes to the Trash. You can restore it from there; Claude Code won't be able to resume it while it's trashed.")
-        }
-    }
-
     /// Trash a session transcript and drop it from the in-memory list.
-    private func deleteSession(_ s: ResumableSession) {
+    func deleteSession(_ s: ResumableSession) {
         SessionResumer.trash(s.fileURL)
         for i in projectSessions.indices {
             projectSessions[i].sessions.removeAll { $0.id == s.id }
@@ -1462,7 +1134,7 @@ struct SettingsView: View {
     /// Projects filtered by the search box. Empty search returns the first 10
     /// projects untouched; otherwise every project whose name matches, plus
     /// projects with a matching session (narrowed to just the matches).
-    private var filteredProjectSessions: [(cwd: String, project: String, sessions: [ResumableSession])] {
+    var filteredProjectSessions: [(cwd: String, project: String, sessions: [ResumableSession])] {
         let q = sessionSearch.trimmingCharacters(in: .whitespaces).lowercased()
         var out: [(cwd: String, project: String, sessions: [ResumableSession])]
         if q.isEmpty {
@@ -1489,7 +1161,7 @@ struct SettingsView: View {
     /// `forceOpen` keeps a row expanded during an active search regardless of
     /// the manual toggle state.
     @ViewBuilder
-    private func projectRow(_ proj: (cwd: String, project: String, sessions: [ResumableSession]), forceOpen: Bool = false) -> some View {
+    func projectRow(_ proj: (cwd: String, project: String, sessions: [ResumableSession]), forceOpen: Bool = false) -> some View {
         let isOpen = forceOpen || expandedProjects.contains(proj.cwd)
         Button {
             if isOpen { expandedProjects.remove(proj.cwd) }
@@ -1642,165 +1314,16 @@ struct SettingsView: View {
         editingNoteText = ""
     }
 
-    private func windowLabel(_ minutes: Int) -> String {
+    func windowLabel(_ minutes: Int) -> String {
         minutes < 60 ? "\(minutes) minutes" : "\(minutes / 60) hour\(minutes >= 120 ? "s" : "")"
     }
 
-    private func window() -> NSWindow? {
+    func window() -> NSWindow? {
         NSApp.windows.first { $0.title == "ClaudeNotch Settings" }
     }
 
-    private var usage: some View {
-        page(L("Usage", comment: "Settings page title")) {
-            let churn = state.churnToday
-            if churn.added > 0 || churn.removed > 0 {
-                sectionLabel(L("Code churn today", comment: "Settings section heading"))
-                HStack(spacing: 12) {
-                    churnStat("Lines added", "+\(churn.added)", .green)
-                    churnStat("Lines removed", "-\(churn.removed)", .red)
-                    churnStat("Net", "\(churn.added - churn.removed >= 0 ? "+" : "")\(churn.added - churn.removed)", .primary)
-                }
-            }
-
-            if let u = claudeUsage {
-                let trend = spendTrendData(u)
-                if trend.contains(where: { $0.cost > 0 }) {
-                    sectionLabel(L("Estimated cost, last 7 days", comment: "Settings section heading"))
-                    Text(L("Estimated at public API (pay-as-you-go) prices. On a Pro, Max, Team, or Enterprise subscription you pay a flat fee, so this is not your actual bill, it is what the usage would cost per token.", comment: "Settings explanation"))
-                        .font(.caption).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    spendTrend(trend)
-                        .padding(14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .cardChrome()
-                }
-                let weekly = ClaudeUsageReader.weeklyCostBuckets(daily: u.dailyCostUSD, weeks: 4, asOf: Date())
-                if weekly.contains(where: { $0.cost > 0 }) {
-                    sectionLabel(L("Estimated cost, last 4 weeks", comment: "Settings section heading"))
-                    spendTrend(weekly)
-                        .padding(14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .cardChrome()
-                }
-            }
-
-            sectionLabel(L("Activity, last 7 weeks", comment: "Settings section heading"))
-            activityHeatmap
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .cardChrome()
-
-            Text(L("All-time counters, kept locally on this Mac.", comment: "Settings explanation"))
-                .font(.callout).foregroundStyle(.secondary)
-            group {
-                statRow("Permissions allowed", "\(state.stats.allowed)")
-                divider
-                statRow("Permissions denied", "\(state.stats.denied)")
-                divider
-                statRow("Auto-approved", "\(state.stats.autoApproved)")
-                divider
-                statRow("Dangerous commands flagged", "\(state.stats.dangerousFlagged)")
-                divider
-                statRow("Questions answered", "\(state.stats.questionsAnswered)")
-                divider
-                statRow("Active days", "\(state.stats.activeDays.count)")
-                divider
-                statRow("Sessions recorded", "\(state.sessionHistory.count)")
-            }
-            if !state.stats.toolCounts.isEmpty {
-                sectionLabel(L("Top tools", comment: "Settings section heading"))
-                group {
-                    let top = state.stats.toolCounts.sorted { $0.value > $1.value }.prefix(6)
-                    ForEach(Array(top.enumerated()), id: \.element.key) { idx, kv in
-                        statRow(kv.key, "\(kv.value)")
-                        if idx < top.count - 1 { divider }
-                    }
-                }
-            }
-
-            let spendLeaders = state.weekCostByProject
-                .filter { $0.value > 0 && AppState.isRealProject($0.key) }
-                .sorted { $0.value > $1.value }
-                .prefix(6)
-            if !spendLeaders.isEmpty {
-                sectionLabel(L("Top projects by estimated cost (7 days)", comment: "Settings section heading"))
-                let maxSpend = spendLeaders.first?.value ?? 1
-                group {
-                    ForEach(Array(spendLeaders.enumerated()), id: \.element.key) { idx, kv in
-                        spendLeaderRow(project: (kv.key as NSString).lastPathComponent,
-                                       cost: kv.value, fraction: maxSpend > 0 ? kv.value / maxSpend : 0)
-                        if idx < spendLeaders.count - 1 { divider }
-                    }
-                }
-            }
-
-            sectionLabel(L("Claude usage (from transcripts)", comment: "Settings section heading"))
-            Text(L("Costs are estimates at public API prices, not your subscription bill.", comment: "Settings explanation"))
-                .font(.caption).foregroundStyle(.secondary)
-            if let u = claudeUsage {
-                group {
-                    statRow("Today", "\(formatTokens(u.today.total)) tok · \(usd(u.today.costUSD))")
-                    divider
-                    statRow("Last 5 hours", "\(formatTokens(u.fiveHour.total)) tok · \(usd(u.fiveHour.costUSD))")
-                    divider
-                    statRow("This week", "\(formatTokens(u.week.total)) tok · \(usd(u.week.costUSD))")
-                    divider
-                    statRow("Sessions this week", "\(u.sessionsWeek)")
-                    divider
-                    statRow("Cache hit rate", "\(Int(u.cacheHitRate * 100))%")
-                    divider
-                    statRow("Cache savings", usd(u.cacheSavingsUSD))
-                }
-
-                let models = u.weekByModel
-                    .filter { $0.value.costUSD > 0 }
-                    .sorted { $0.value.costUSD > $1.value.costUSD }
-                if !models.isEmpty {
-                    sectionLabel(L("Model mix (last 7 days)", comment: "Settings section heading"))
-                    let maxCost = models.first?.value.costUSD ?? 1
-                    group {
-                        ForEach(Array(models.enumerated()), id: \.element.key) { idx, kv in
-                            spendLeaderRow(project: kv.key, cost: kv.value.costUSD,
-                                           fraction: maxCost > 0 ? kv.value.costUSD / maxCost : 0)
-                            if idx < models.count - 1 { divider }
-                        }
-                    }
-                }
-
-                Button {
-                    state.exportSessionHistory()
-                } label: {
-                    Label("Export session history (CSV)", systemImage: "square.and.arrow.up")
-                }
-                .padding(.top, 2)
-            } else {
-                Text(L("Reading transcripts…", comment: "Settings explanation")).font(.callout).foregroundStyle(.secondary)
-            }
-
-            if HookInstaller.isCodexInstalled, let c = codexTotals, !c.isEmpty {
-                sectionLabel(L("Codex usage (tokens)", comment: "Settings section heading"))
-                Text(L("Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess.", comment: "Settings explanation"))
-                    .font(.caption).foregroundStyle(.secondary)
-                group {
-                    statRow("Today", "\(formatTokens(c.todayTokens)) tok · \(c.sessionsToday) session\(c.sessionsToday == 1 ? "" : "s")")
-                    divider
-                    statRow("This week", "\(formatTokens(c.weekTokens)) tok · \(c.sessionsWeek) session\(c.sessionsWeek == 1 ? "" : "s")")
-                }
-            }
-        }
-        .task(id: section) {
-            guard section == .usage else { return }
-            let codexOn = HookInstaller.isCodexInstalled
-            let (usage, ctotals) = await Task.detached(priority: .utility) {
-                (ClaudeUsageReader.compute(), codexOn ? CodexReader.tokenTotals() : nil)
-            }.value
-            claudeUsage = usage
-            codexTotals = ctotals
-        }
-    }
-
     /// Last 7 days of spend as (weekday label, cost), oldest to newest.
-    private func spendTrendData(_ u: ClaudeUsageReader.Usage) -> [(label: String, cost: Double)] {
+    func spendTrendData(_ u: ClaudeUsageReader.Usage) -> [(label: String, cost: Double)] {
         let cal = Calendar.current
         let key = DateFormatter(); key.locale = Locale(identifier: "en_US_POSIX"); key.dateFormat = "yyyy-MM-dd"
         let lab = DateFormatter(); lab.locale = Locale(identifier: "en_US_POSIX"); lab.dateFormat = "EEE"
@@ -1812,7 +1335,7 @@ struct SettingsView: View {
     }
 
     /// A row of vertical bars, one per day, scaled to the priciest day.
-    private func spendTrend(_ data: [(label: String, cost: Double)]) -> some View {
+    func spendTrend(_ data: [(label: String, cost: Double)]) -> some View {
         let maxCost = max(data.map(\.cost).max() ?? 0, 0.0001)
         return HStack(alignment: .bottom, spacing: 10) {
             ForEach(Array(data.enumerated()), id: \.offset) { _, day in
@@ -1831,16 +1354,16 @@ struct SettingsView: View {
         }
     }
 
-    private func formatTokens(_ n: Int) -> String {
+    func formatTokens(_ n: Int) -> String {
         if n >= 1_000_000 { return String(format: "%.1fM", Double(n) / 1_000_000) }
         if n >= 1_000 { return String(format: "%.1fK", Double(n) / 1_000) }
         return "\(n)"
     }
-    private func usd(_ v: Double) -> String { String(format: "$%.2f", v) }
+    func usd(_ v: Double) -> String { String(format: "$%.2f", v) }
 
     private static let weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
-    private var activityHeatmap: some View {
+    var activityHeatmap: some View {
         let cal = Calendar.current
         let weeks = 7
         let today = Date()
@@ -1931,7 +1454,7 @@ struct SettingsView: View {
 
     /// A ranked project-spend row: name, a proportional bar, and the dollar
     /// amount. `fraction` is this project's spend over the top project's.
-    private func spendLeaderRow(project: String, cost: Double, fraction: Double) -> some View {
+    func spendLeaderRow(project: String, cost: Double, fraction: Double) -> some View {
         HStack(spacing: 10) {
             Text(project).lineLimit(1).frame(width: 130, alignment: .leading)
             GeometryReader { geo in
@@ -1949,7 +1472,7 @@ struct SettingsView: View {
     }
 
     /// A single big-number tile for the code-churn row.
-    private func churnStat(_ label: String, _ value: String, _ color: Color) -> some View {
+    func churnStat(_ label: String, _ value: String, _ color: Color) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(value)
                 .font(.title2.weight(.semibold).monospacedDigit())
@@ -1961,7 +1484,7 @@ struct SettingsView: View {
         .cardChrome()
     }
 
-    private func statRow(_ title: String, _ value: String) -> some View {
+    func statRow(_ title: String, _ value: String) -> some View {
         HStack {
             Text(title)
             Spacer()
@@ -1970,149 +1493,34 @@ struct SettingsView: View {
         .padding(.vertical, 8).padding(.horizontal, 14)
     }
 
-    private var developer: some View {
-        page(L("Developer", comment: "Settings page title")) {
-            Text(L("Fire a sample card to see what the notch looks like.", comment: "Settings explanation"))
-                .font(.callout).foregroundStyle(.secondary)
-            DisclosureGroup(isExpanded: $devSampleCardsOpen) {
-                group {
-                    actionRow(L("Tool permission", comment: "Settings button"), "terminal") { demoPermission() }
-                    divider
-                    actionRow(L("Destructive command", comment: "Settings button"), "exclamationmark.triangle") { demoDangerous() }
-                    divider
-                    actionRow(L("Edit with diff preview", comment: "Settings button"), "doc.text.magnifyingglass") { demoDiff() }
-                    divider
-                    actionRow(L("Auto-approve (live activity)", comment: "Settings button"), "bolt.badge.a") { demoAutoApprove() }
-                    divider
-                    actionRow(L("Notification", comment: "Settings button"), "bell") { demoNotification() }
-                    divider
-                    actionRow(L("Task complete", comment: "Settings button"), "checkmark.seal") { demoCompleted() }
-                    divider
-                    // Built from the same list the menu bar reads, so the two
-                    // Demos menus cannot drift apart again.
-                    ForEach(Array(DemoCards.auditVerdicts.enumerated()), id: \.offset) { _, item in
-                        actionRow(L(item.title, comment: "Settings button"), item.symbol) {
-                            demoAudit(item.verdict)
-                        }
-                        divider
-                    }
-                    actionRow(L("Thinking pulse", comment: "Settings button"), "brain") { state.pingThinking(label: "Editing AuthMiddleware.swift") }
-                    divider
-                    actionRow(L("Cost budget alert", comment: "Settings button"), "dollarsign.circle") { state.demoBudgetAlert() }
-                    divider
-                    actionRow(L("Budget hard-stop", comment: "Settings button"), "hand.raised") { state.demoBudgetBlock() }
-                }
-                .padding(.top, 6)
-            } label: {
-                Text(L("Sample cards", comment: "Settings explanation")).font(.callout.weight(.semibold))
-            }
 
-            DisclosureGroup(isExpanded: $devPetDemosOpen) {
-                group {
-                    // The same two lists the Pet page shows. This one used to be
-                    // a single flat run, which is where the Spider-Pet went to
-                    // hide among the naps.
-                    let everyday = PetActivity.everydayCases
-                    let specials = PetActivity.specialCases
-                    actionRow(L("Play all", comment: "Settings button"), "play.circle") {
-                        state.demoPet(everyday + specials)
-                    }
-                    divider
-                    ForEach(everyday, id: \.self) { activity in
-                        actionRow(activity.title, "pawprint") { state.demoPet([activity]) }
-                        divider
-                    }
-                    listHeading(L("Guest appearances", comment: "Settings section heading"))
-                    ForEach(Array(specials.enumerated()), id: \.element) { idx, activity in
-                        if let guest = activity.special {
-                            specialPetRow(activity, guest)
-                            if idx < specials.count - 1 { divider }
-                        }
-                    }
-                }
-                .padding(.top, 6)
-            } label: {
-                Text(L("Pet animations", comment: "Settings explanation")).font(.callout.weight(.semibold))
-            }
-        }
-    }
-
-
-    private func demoPermission() {
+    func demoPermission() {
         state.enqueuePermission(DemoCards.permission(), bypassRules: true)
     }
-    private func demoDangerous() {
+    func demoDangerous() {
         state.enqueuePermission(DemoCards.dangerous(), bypassRules: true)
     }
-    private func demoNotification() {
+    func demoNotification() {
         state.enqueuePermission(DemoCards.notification(), bypassRules: true)
     }
-    private func demoCompleted() {
+    func demoCompleted() {
         state.enqueueCompleted(DemoCards.completed())
     }
-    private func demoAudit(_ verdict: CompletionAudit.Verdict) {
+    func demoAudit(_ verdict: CompletionAudit.Verdict) {
         state.enqueueCompleted(DemoCards.audited(verdict))
     }
-    private func demoDiff() {
+    func demoDiff() {
         state.enqueuePermission(DemoCards.diff(), bypassRules: true)
     }
-    private func demoAutoApprove() {
+    func demoAutoApprove() {
         state.demoAutoApprove(DemoCards.autoApproved())
-    }
-
-    private var about: some View {
-        page(L("About", comment: "Settings page title")) {
-            HStack(spacing: 14) {
-                Image(nsImage: NSApp.applicationIconImage)
-                    .resizable()
-                    .frame(width: 56, height: 56)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(L("ClaudeNotch", comment: "Settings explanation")).font(.title2.weight(.semibold))
-                    Text(L("Claude Code, living in your notch.", comment: "Settings explanation"))
-                        .font(.callout).foregroundStyle(.secondary)
-                    Text("Version \(Self.appVersion)")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            .padding(.vertical, 4)
-            if !Self.whatsNew.isEmpty {
-                sectionLabel(String(format: L("What's new in v%@", comment: "Settings section heading. %@ is the version number"), Self.appVersion))
-                group {
-                    ForEach(Array(Self.whatsNew.enumerated()), id: \.offset) { idx, line in
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: "sparkle").font(.caption).foregroundStyle(Color.accentColor)
-                                .padding(.top, 2)
-                            Text(line).font(.callout)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.vertical, 8).padding(.horizontal, 14)
-                        if idx < Self.whatsNew.count - 1 { divider }
-                    }
-                }
-            }
-            group {
-                aboutLink("Full changelog", ProjectLinks.changelog)
-                divider
-                aboutLink("Source on GitHub", ProjectLinks.github)
-            }
-            group {
-                actionRow(L("Send feedback", comment: "Settings button"), "bubble.left.and.bubble.right") { Self.openFeedback() }
-                divider
-                actionRow(L("Check for updates…", comment: "Settings button"), "arrow.down.circle") { UpdateChecker.shared.check(userInitiated: true) }
-                if onOpenSetup != nil {
-                    divider
-                    actionRow(L("Run setup again…", comment: "Settings button"), "wand.and.stars") { onOpenSetup?() }
-                }
-            }
-        }
     }
 
     // MARK: building blocks
 
     // Archived session digests filtered by the search box: match project,
     // summary, model, branch, or agent so "what did I do in project X" works.
-    private var filteredHistory: [SessionRecord] {
+    var filteredHistory: [SessionRecord] {
         let q = historySearch.trimmingCharacters(in: .whitespaces).lowercased()
         guard !q.isEmpty else { return state.sessionHistory }
         return state.sessionHistory.filter { r in
@@ -2122,70 +1530,9 @@ struct SettingsView: View {
         }
     }
 
-    private var history: some View {
-        page(L("History", comment: "Settings page title")) {
-            Text(L("Every session you finish is archived here with a one-line summary, its cost, and what it changed. Search to recall what you did in a project last week.", comment: "Settings explanation"))
-                .font(.callout).foregroundStyle(.secondary)
-
-            if state.sessionHistory.isEmpty {
-                group {
-                    HStack {
-                        Text(L("No finished sessions yet. They show up here after a session ends.", comment: "Settings explanation"))
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                    }
-                    .padding(.vertical, 10).padding(.horizontal, 14)
-                }
-            } else {
-                standupSection
-                let total = state.sessionHistory.reduce(into: (cost: 0.0, add: 0, rem: 0)) { acc, r in
-                    acc.cost += r.costUSD
-                    acc.add += r.linesAdded ?? 0
-                    acc.rem += r.linesRemoved ?? 0
-                }
-                HStack(spacing: 14) {
-                    Text("\(state.sessionHistory.count) sessions")
-                    Text(ClaudeUsageReader.fmtMoney(total.cost)).foregroundStyle(.secondary)
-                    Text("+\(total.add)").foregroundStyle(.green)
-                    Text("-\(total.rem)").foregroundStyle(.red)
-                }
-                .font(.callout.monospacedDigit())
-
-                SearchField(placeholder: "Search by project, summary, branch…", text: $historySearch)
-
-                let matches = filteredHistory
-                if matches.isEmpty {
-                    group {
-                        HStack {
-                            Text("No sessions match “\(historySearch)”.")
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                        }
-                        .padding(.vertical, 10).padding(.horizontal, 14)
-                    }
-                } else {
-                    group {
-                        ForEach(Array(matches.prefix(100).enumerated()), id: \.element.id) { idx, r in
-                            historyRow(r)
-                            if idx < min(matches.count, 100) - 1 { divider }
-                        }
-                    }
-                }
-
-                HStack {
-                    Button("Export…") { state.exportSessionHistory() }
-                    Spacer()
-                    Button("Clear history", role: .destructive) { state.clearSessionHistory() }
-                        .foregroundStyle(.red)
-                }
-                .padding(.top, 2)
-            }
-        }
-    }
-
     // "What I shipped": one-click standup built from the session digests + git
     // commits over the chosen window, ready to paste into a standup or update.
-    private var standupSection: some View {
+    var standupSection: some View {
         group {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
@@ -2246,7 +1593,7 @@ struct SettingsView: View {
         }
     }
 
-    private func historyRow(_ r: SessionRecord) -> some View {
+    func historyRow(_ r: SessionRecord) -> some View {
         Button {
             NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: r.cwd)])
         } label: {
@@ -2289,7 +1636,7 @@ struct SettingsView: View {
         .help("Reveal \(r.cwd) in Finder")
     }
 
-    private func page<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
+    func page<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .firstTextBaseline) {
                 Text(title).font(.largeTitle.weight(.bold))
@@ -2339,20 +1686,20 @@ struct SettingsView: View {
         }
     }
 
-    private func group<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+    func group<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         VStack(spacing: 0) { content() }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
             .cardChrome()
     }
 
-    private var divider: some View {
+    var divider: some View {
         Divider().padding(.leading, 14)
     }
 
     /// A heading INSIDE a grouped list, for splitting one card into runs.
     /// sectionLabel sits between cards and would break the card in two here.
-    private func listHeading(_ text: String) -> some View {
+    func listHeading(_ text: String) -> some View {
         Text(text.uppercased())
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
@@ -2360,7 +1707,7 @@ struct SettingsView: View {
             .padding(.top, 10).padding(.bottom, 4).padding(.horizontal, 14)
     }
 
-    private func sectionLabel(_ text: String) -> some View {
+    func sectionLabel(_ text: String) -> some View {
         Text(text.uppercased())
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
@@ -2379,7 +1726,7 @@ struct SettingsView: View {
         .padding(.vertical, 8).padding(.horizontal, 14)
     }
 
-    private func actionRow(_ title: String, _ symbol: String, _ action: @escaping () -> Void) -> some View {
+    func actionRow(_ title: String, _ symbol: String, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 10) {
                 Image(systemName: symbol).frame(width: 18)
@@ -2392,7 +1739,7 @@ struct SettingsView: View {
         .buttonStyle(.plain)
     }
 
-    private func row(_ title: String, _ subtitle: String?, _ isOn: Binding<Bool>) -> some View {
+    func row(_ title: String, _ subtitle: String?, _ isOn: Binding<Bool>) -> some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -2411,7 +1758,7 @@ struct SettingsView: View {
         .padding(.horizontal, 14)
     }
 
-    private func aboutLink(_ title: String, _ url: String) -> some View {
+    func aboutLink(_ title: String, _ url: String) -> some View {
         Button {
             if let u = URL(string: url) { NSWorkspace.shared.open(u) }
         } label: {
