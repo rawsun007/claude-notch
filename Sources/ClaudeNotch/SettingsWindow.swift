@@ -1808,8 +1808,8 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "Every sound the app makes can now be retuned or silenced on its own, on the Sounds page. The tick that confirms your own keypress, the pop when you deny something, the chime when a task finishes: each one is a row, and each row has None. Before this the only lever was Mute all sounds, which also took away the prompt you actually wanted to hear.",
-        "Nothing changes unless you open that page. Every event keeps the sound it always had, and the permission and question prompts still follow the alert sound, so moving that still moves them.",
-        "The Pet page lists what the mascot can do, split in two. Everyday is the pet being itself. Guest appearances is the pet dressed as something else, like the Spider-Pet, and each costume carries the month it arrived, because a joke from a particular month should say so.",
+        "Housekeeping, with nothing new to use. The menu bar and the settings page each carried their own copy of the pet animation names and had drifted apart, so the same animation was called two different things depending on where you looked. There is one list now, and the menu bar reads in sentence case to match everything else.",
+        "Underneath: the sound preferences moved into one type that owns both the settings and the rules for reading them, so a preference cannot be changed without being saved. The settings window was one 2,500-line file holding all fourteen pages, and is now one file per page.",
+        "If you are on 0.15.0 there is no reason to hurry. Nothing you can see or click has changed apart from those labels.",
     ]
 }
