@@ -781,7 +781,7 @@ struct SettingsView: View {
             .opacity(state.petEnabled ? 1 : 0.5)
 
             sectionLabel(L("Guest appearances", comment: "Settings section heading"))
-            Text(L("The pet dressed as something else, each one a nod to whatever was in the air when it was built. The date says when it arrived.", comment: "Settings explanation"))
+            Text(L("The pet dressed as something else, each one a nod to whatever was in the air when it was built.", comment: "Settings explanation"))
                 .font(.callout).foregroundStyle(.secondary)
             group {
                 let specials = PetActivity.specialCases
