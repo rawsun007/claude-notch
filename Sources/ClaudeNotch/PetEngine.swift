@@ -56,6 +56,48 @@ enum PetActivity: String, CaseIterable, Equatable {
     case spiderHang   // hangs upside-down off the notch on a web, in the suit
     case fret         // slumps and cries: a plan limit is almost gone
 
+    /// A guest appearance: the pet dressing up as something outside itself,
+    /// nodding at whatever was in the air when it was added. These age in a way
+    /// the everyday animations do not, which is exactly why each one carries the
+    /// date it arrived: a joke from a particular month should say so rather than
+    /// pretend it was always part of the mascot.
+    struct SpecialAppearance {
+        /// What it is dressed as, for the settings row.
+        let name: String
+        /// What it riffs on, in plain words.
+        let reference: String
+        /// ISO yyyy-mm-dd. The day the costume shipped.
+        let addedOn: String
+    }
+
+    /// nil for the everyday repertoire: peeking, strolling, napping, the things
+    /// the mascot does as itself.
+    var special: SpecialAppearance? {
+        switch self {
+        case .spiderHang:
+            return SpecialAppearance(
+                name: "Spider-Pet",
+                reference: "Spider-Man, upside-down on a web, with the theme to match",
+                addedOn: "2026-07-15")
+        default:
+            return nil
+        }
+    }
+
+    var isSpecial: Bool { special != nil }
+
+    /// The everyday repertoire, minus the resting state, which is not something
+    /// you can ask to watch.
+    static var everydayCases: [PetActivity] {
+        allCases.filter { $0 != .tucked && !$0.isSpecial }
+    }
+
+    /// Guest appearances, newest first, so a new costume is the first thing seen.
+    static var specialCases: [PetActivity] {
+        allCases.filter(\.isSpecial)
+            .sorted { ($0.special?.addedOn ?? "") > ($1.special?.addedOn ?? "") }
+    }
+
     /// Sprite size in points. Big enough to read as a creature at arm's length
     /// from the screen, not a favicon: the mascot is the feature, and the notch
     /// is the only thing near it for scale.
