@@ -92,8 +92,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundleDisplayName</key><string>ClaudeNotch</string>
     <key>CFBundleExecutable</key><string>ClaudeNotch</string>
     <key>CFBundleIconFile</key><string>AppIcon</string>
-    <key>CFBundleShortVersionString</key><string>0.14.0</string>
-    <key>CFBundleVersion</key><string>115</string>
+    <key>CFBundleShortVersionString</key><string>0.15.0</string>
+    <key>CFBundleVersion</key><string>116</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>LSUIElement</key><true/>
