@@ -2480,8 +2480,8 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "ClaudeNotch runs on Intel Macs. Every build before this one carried a single Apple Silicon slice, so Homebrew installed it on an Intel Mac and the app then refused to open, which reads as a broken app rather than the wrong machine. The disk image is universal now.",
-        "The build fails rather than shipping half of that. It compiles both architectures, lipos them together, and checks the result carries both slices, so a single-architecture app cannot reach a release again.",
-        "Nothing else changed. If you are on Apple Silicon this release is the previous one, byte for byte in behaviour, and the upgrade is worth taking only to stay current.",
+        "Every sound the app makes can now be retuned or silenced on its own, on the Sounds page. The tick that confirms your own keypress, the pop when you deny something, the chime when a task finishes: each one is a row, and each row has None. Before this the only lever was Mute all sounds, which also took away the prompt you actually wanted to hear.",
+        "Nothing changes unless you open that page. Every event keeps the sound it always had, and the permission and question prompts still follow the alert sound, so moving that still moves them.",
+        "The Pet page lists what the mascot can do, split in two. Everyday is the pet being itself. Guest appearances is the pet dressed as something else, like the Spider-Pet, and each costume carries the month it arrived, because a joke from a particular month should say so.",
     ]
 }
