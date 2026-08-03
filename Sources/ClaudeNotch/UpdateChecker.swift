@@ -49,7 +49,7 @@ final class UpdateChecker: @unchecked Sendable {
                let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
                let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let tag = obj["tag_name"] as? String {
-                let latest = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
+                let latest = Self.version(fromTag: tag)
                 if Self.isNewer(latest, than: current) { newVersion = latest }
             } else if error != nil || data == nil {
                 failed = true
@@ -68,10 +68,21 @@ final class UpdateChecker: @unchecked Sendable {
         }.resume()
     }
 
+    /// "v0.15.1" -> "0.15.1". Releases are tagged with the v, versions are not.
+    static func version(fromTag tag: String) -> String {
+        let trimmed = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.hasPrefix("v") ? String(trimmed.dropFirst()) : trimmed
+    }
+
     /// Compare dotted version strings numerically (e.g. "0.2.10" > "0.2.9").
+    ///
+    /// Each part is read up to its first non-digit, so "1.2.3-beta" compares as
+    /// 1.2.3. A leading v is stripped first: without that, "v1.0.0" read as
+    /// 0.0.0 and the app would decide it was already up to date forever. The
+    /// caller strips it too, but this is the function that must not be fooled.
     static func isNewer(_ a: String, than b: String) -> Bool {
         func parts(_ s: String) -> [Int] {
-            s.split(separator: ".").map { Int($0.prefix(while: \.isNumber)) ?? 0 }
+            version(fromTag: s).split(separator: ".").map { Int($0.prefix(while: \.isNumber)) ?? 0 }
         }
         let pa = parts(a), pb = parts(b)
         for i in 0..<max(pa.count, pb.count) {
