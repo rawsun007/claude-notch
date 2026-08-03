@@ -2009,7 +2009,9 @@ struct SettingsView: View {
 
             DisclosureGroup(isExpanded: $devPetDemosOpen) {
                 group {
-                    let demoable = PetActivity.allCases.filter { $0 != .tucked }
+                    // Same order the Pet page uses, so the two never disagree
+                    // about what the pet can do.
+                    let demoable = PetActivity.everydayCases + PetActivity.specialCases
                     actionRow(L("Play all", comment: "Settings button"), "play.circle") { state.demoPet(demoable) }
                     divider
                     ForEach(Array(demoable.enumerated()), id: \.element) { idx, activity in

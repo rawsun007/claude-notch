@@ -191,11 +191,26 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             holder.view = row
             petMenu.addItem(holder)
         }
-        let demoable = PetActivity.allCases.filter { $0 != .tucked }
-        addPetRow("Play All") { demoable }
+        let everyday = PetActivity.everydayCases
+        let specials = PetActivity.specialCases
+        addPetRow("Play All") { everyday + specials }
         petMenu.addItem(.separator())
-        for activity in demoable {
+        for activity in everyday {
             addPetRow(MenuBarController.petDemoTitle(activity)) { [activity] }
+        }
+        // Guest appearances sit under their own heading, dated, so a costume
+        // reads as a thing from a particular month and not as a stray animation.
+        if !specials.isEmpty {
+            petMenu.addItem(.separator())
+            let header = NSMenuItem(title: "Guest appearances", action: nil, keyEquivalent: "")
+            header.isEnabled = false
+            petMenu.addItem(header)
+            for activity in specials {
+                guard let guest = activity.special else { continue }
+                addPetRow("\(guest.name), \(SettingsView.arrivedLabel(guest.addedOn).lowercased())") {
+                    [activity]
+                }
+            }
         }
         let petItem = NSMenuItem(title: "Pet", action: nil, keyEquivalent: "")
         petItem.submenu = petMenu
