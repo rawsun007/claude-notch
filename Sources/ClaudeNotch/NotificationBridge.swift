@@ -23,10 +23,10 @@ final class NotificationBridge: NSObject, PermissionMirroring {
     private static let catSafe = "CN_PERMISSION"
     private static let catDanger = "CN_PERMISSION_DANGER"
     private static let catDone = "CN_DONE"
-    private static let actAllow = "CN_ALLOW"
-    private static let actDeny = "CN_DENY"
-    private static let actDenyReason = "CN_DENY_REASON"
-    private static let actReply = "CN_REPLY"
+    static let actAllow = "CN_ALLOW"
+    static let actDeny = "CN_DENY"
+    static let actDenyReason = "CN_DENY_REASON"
+    static let actReply = "CN_REPLY"
 
     private var authorized = false
 
@@ -204,27 +204,47 @@ extension NotificationBridge: UNUserNotificationCenterDelegate {
         }
     }
 
+    /// What tapping a notification button should do. Pure, and deliberately
+    /// separate from doing it: this is where the rule lives that a dangerous
+    /// command can never be allowed from a notification, and a rule that matters
+    /// is a rule worth testing without a notification centre attached.
+    enum RemoteOutcome: Equatable {
+        case allow
+        case deny(reason: String?)
+        /// Bring the app forward and make them look at the card: either the
+        /// action was the body tap, or it was Allow on a dangerous command.
+        case focusApp
+    }
+
+    /// A dangerous command reaching this with Allow means a stale notification
+    /// is still showing a button we stopped offering. Defend in depth: the
+    /// answer is the app's own card, with Touch ID in front of it, never a
+    /// remote yes.
+    nonisolated static func outcome(for action: String, isDangerous: Bool,
+                                    reason: String?) -> RemoteOutcome {
+        switch action {
+        case actAllow:
+            return isDangerous ? .focusApp : .allow
+        case actDeny:
+            return .deny(reason: nil)
+        case actDenyReason:
+            return .deny(reason: (reason?.isEmpty == false) ? reason : nil)
+        default:
+            // Default action = tapped the body.
+            return .focusApp
+        }
+    }
+
     @MainActor
     private func handle(id: String, action: String, reason: String?) {
         guard let state, let uuid = UUID(uuidString: id),
               let req = state.permissionQueue.first(where: { $0.id == uuid }) else { return }
-        switch action {
-        case Self.actAllow:
-            // Dangerous commands can't be allowed remotely — defend in depth in
-            // case a stale notification still shows the action.
-            if req.isDangerous {
-                NSApp.activate(ignoringOtherApps: true)
-            } else {
-                state.resolvePermission(req, decision: .allow)
-            }
-        case Self.actDeny:
-            state.resolvePermission(req, decision: .deny)
-        case Self.actDenyReason:
-            state.resolvePermission(req, decision: .deny,
-                                    reason: (reason?.isEmpty == false) ? reason : nil)
-        default:
-            // Default action = tapped the body. Bring the app forward so they
-            // can use the notch card (and Touch ID for dangerous commands).
+        switch Self.outcome(for: action, isDangerous: req.isDangerous, reason: reason) {
+        case .allow:
+            state.resolvePermission(req, decision: .allow)
+        case .deny(let reason):
+            state.resolvePermission(req, decision: .deny, reason: reason)
+        case .focusApp:
             NSApp.activate(ignoringOtherApps: true)
         }
     }
