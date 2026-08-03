@@ -12,7 +12,7 @@
 /* Settings toggle explanation */
 "A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost." = "A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost.";
 
-/* Settings sidebar section */
+/* Settings page title */
 "About" = "About";
 
 /* Settings section heading */
@@ -99,7 +99,7 @@
 /* Settings toggle */
 "Break reminders" = "Break reminders";
 
-/* Settings sidebar section */
+/* Settings page title */
 "Budget" = "Budget";
 
 /* Settings button */
@@ -186,7 +186,7 @@
 /* Settings button */
 "Destructive command" = "Destructive command";
 
-/* Settings sidebar section */
+/* Settings page title */
 "Developer" = "Developer";
 
 /* Settings toggle explanation */
@@ -258,7 +258,7 @@
 /* Settings toggle */
 "Hide from screen capture" = "Hide from screen capture";
 
-/* Settings sidebar section */
+/* Settings page title */
 "History" = "History";
 
 /* Button: press and hold to allow a destructive command */
@@ -375,7 +375,7 @@
 /* Settings explanation */
 "Pet animations" = "Pet animations";
 
-/* Settings sidebar section */
+/* Settings page title */
 "Plan" = "Plan";
 
 /* Settings section heading */
@@ -444,7 +444,7 @@
 /* Settings button */
 "Send feedback" = "Send feedback";
 
-/* Settings sidebar section */
+/* Settings page title */
 "Session" = "Session";
 
 /* Settings section heading */
@@ -546,7 +546,7 @@
 /* Settings badge: a newer version is available. %@ is the version number */
 "Update to v%@" = "Update to v%@";
 
-/* Settings sidebar section */
+/* Settings page title */
 "Usage" = "Usage";
 
 /* Settings section heading */
