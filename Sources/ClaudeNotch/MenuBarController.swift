@@ -196,7 +196,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         addPetRow("Play All") { everyday + specials }
         petMenu.addItem(.separator())
         for activity in everyday {
-            addPetRow(MenuBarController.petDemoTitle(activity)) { [activity] }
+            addPetRow(activity.title) { [activity] }
         }
         // Guest appearances sit under their own heading, dated, so a costume
         // reads as a thing from a particular month and not as a stray animation.
@@ -670,27 +670,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         state.demoBudgetBlock()
     }
 
-    /// Human-readable name for a pet activity. Not derived from the raw value:
-    /// "hangLeft" is a fine identifier and a poor menu item.
-    private static func petDemoTitle(_ activity: PetActivity) -> String {
-        switch activity {
-        case .tucked:     return "Tucked"
-        case .peek:       return "Peek"
-        case .lookAround: return "Look Around"
-        case .hangLeft:   return "Hang Off Left Corner"
-        case .hangRight:  return "Hang Off Right Corner"
-        case .stroll:     return "Stroll"
-        case .sleep:      return "Sleep"
-        case .celebrate:  return "Celebrate"
-        case .boop:       return "Boop"
-        case .spin:       return "Backflip"
-        case .rope:       return "Dangle on a Rope"
-        case .watch:      return "Watch Claude Work"
-        case .flinch:     return "Flinch (something broke)"
-        case .spiderHang: return "Spider-Pet (hang upside-down)"
-        case .fret:       return "Fret (limit almost up)"
-        }
-    }
 
 
     @objc private func clearAllowlist() {

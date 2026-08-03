@@ -56,6 +56,29 @@ enum PetActivity: String, CaseIterable, Equatable {
     case spiderHang   // hangs upside-down off the notch on a web, in the suit
     case fret         // slumps and cries: a plan limit is almost gone
 
+    /// What to call this on screen. Not derived from the raw value: "hangLeft"
+    /// is a fine identifier and a poor row label. Sentence case, like the rest
+    /// of the app's UI text.
+    var title: String {
+        switch self {
+        case .tucked:     return "Tucked"
+        case .peek:       return "Peek"
+        case .lookAround: return "Look around"
+        case .hangLeft:   return "Hang off left corner"
+        case .hangRight:  return "Hang off right corner"
+        case .stroll:     return "Stroll"
+        case .sleep:      return "Sleep"
+        case .celebrate:  return "Celebrate"
+        case .boop:       return "Boop"
+        case .spin:       return "Backflip"
+        case .rope:       return "Dangle on a rope"
+        case .watch:      return "Watch Claude work"
+        case .flinch:     return "Flinch (something broke)"
+        case .spiderHang: return "Spider-Pet (hang upside-down)"
+        case .fret:       return "Fret (limit almost up)"
+        }
+    }
+
     /// A guest appearance: the pet dressing up as something outside itself,
     /// nodding at whatever was in the air when it was added. These age in a way
     /// the everyday animations do not, which is exactly why each one carries the

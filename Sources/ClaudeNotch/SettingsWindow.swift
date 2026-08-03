@@ -773,7 +773,7 @@ struct SettingsView: View {
             group {
                 let everyday = PetActivity.everydayCases
                 ForEach(Array(everyday.enumerated()), id: \.element) { idx, activity in
-                    actionRow(Self.petDemoTitle(activity), "pawprint") { state.demoPet([activity]) }
+                    actionRow(activity.title, "pawprint") { state.demoPet([activity]) }
                     if idx < everyday.count - 1 { divider }
                 }
             }
@@ -2019,7 +2019,7 @@ struct SettingsView: View {
                     }
                     divider
                     ForEach(everyday, id: \.self) { activity in
-                        actionRow(Self.petDemoTitle(activity), "pawprint") { state.demoPet([activity]) }
+                        actionRow(activity.title, "pawprint") { state.demoPet([activity]) }
                         divider
                     }
                     listHeading(L("Guest appearances", comment: "Settings section heading"))
@@ -2037,25 +2037,6 @@ struct SettingsView: View {
         }
     }
 
-    private static func petDemoTitle(_ activity: PetActivity) -> String {
-        switch activity {
-        case .tucked:     return "Tucked"
-        case .peek:       return "Peek"
-        case .lookAround: return "Look around"
-        case .hangLeft:   return "Hang off left corner"
-        case .hangRight:  return "Hang off right corner"
-        case .stroll:     return "Stroll"
-        case .sleep:      return "Sleep"
-        case .celebrate:  return "Celebrate"
-        case .boop:       return "Boop"
-        case .spin:       return "Backflip"
-        case .rope:       return "Dangle on a rope"
-        case .watch:      return "Watch Claude work"
-        case .flinch:     return "Flinch (something broke)"
-        case .spiderHang: return "Spider-Pet (hang upside-down)"
-        case .fret:       return "Fret (limit almost up)"
-        }
-    }
 
     private func demoPermission() {
         state.enqueuePermission(DemoCards.permission(), bypassRules: true)

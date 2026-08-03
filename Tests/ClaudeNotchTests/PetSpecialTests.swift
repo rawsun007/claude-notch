@@ -75,3 +75,23 @@ final class PetSpecialLabelTests: XCTestCase {
                        "a bad date should be visible in the UI, not swallowed into an empty label")
     }
 }
+
+/// The screens draw a pet activity by asking the activity what it is called.
+/// They used to each carry their own copy of that switch, which is how the menu
+/// bar ended up saying "Look Around" while the settings page said "Look around".
+final class PetActivityTitleTests: XCTestCase {
+
+    func testEveryActivityHasAReadableName() {
+        for activity in PetActivity.allCases {
+            XCTAssertFalse(activity.title.isEmpty, "\(activity.rawValue) has no title")
+            XCTAssertNotEqual(activity.title, activity.rawValue,
+                              "\(activity.rawValue) is an identifier, not a label")
+        }
+    }
+
+    func testTitlesAreUnique() {
+        let titles = PetActivity.allCases.map(\.title)
+        XCTAssertEqual(Set(titles).count, titles.count,
+                       "two activities sharing a label make a menu you cannot navigate")
+    }
+}
