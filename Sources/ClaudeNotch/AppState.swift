@@ -342,13 +342,17 @@ final class AppState: ObservableObject {
     // Sound preferences (persisted).
     @Published var alertSound: String = "Funk"
     @Published var perToolSounds: Bool = false
-    /// Per-category sound overrides (category key -> sound name). Empty entries
-    /// fall back to ToolSoundCategory.defaultSound. Persisted.
-    @Published var perToolSoundMap: [String: String] = [:]
-    /// Per-event sound overrides (SoundEvent key -> sound name, or
-    /// AppState.silentSound to mute that one event). No entry means the event's
-    /// own default. Persisted.
-    @Published var eventSoundMap: [String: String] = [:]
+    /// Which sound each tool category and each event plays. Read freely; change
+    /// it only through updateSoundPrefs, so a preference cannot be set and then
+    /// quietly not saved.
+    @Published private(set) var soundPrefs = SoundPreferences()
+
+    /// The one way to change a sound preference. Everything that persists lives
+    /// on the other side of this call, so no caller has to remember it.
+    func updateSoundPrefs(_ change: (inout SoundPreferences) -> Void) {
+        change(&soundPrefs)
+        schedulePersist()
+    }
     @Published var persistentNotchDisplay: Bool = false
     // Pet mode: the idle icon is the animated Claude Code mascot, and it lives
     // its own little life in and around the notch while the notch is at rest.
@@ -738,8 +742,8 @@ final class AppState: ObservableObject {
             self.alertSound = snapshot.alertSound ?? "Funk"
             self.perToolSounds = snapshot.perToolSounds ?? false
             self.completionAuditEnabled = snapshot.completionAuditEnabled ?? false
-            self.perToolSoundMap = snapshot.perToolSoundMap ?? [:]
-            self.eventSoundMap = snapshot.eventSoundMap ?? [:]
+            self.soundPrefs = SoundPreferences(perTool: snapshot.perToolSoundMap ?? [:],
+                                               perEvent: snapshot.eventSoundMap ?? [:])
             self.persistentNotchDisplay = snapshot.persistentNotchDisplay ?? false
             self.petEnabled = snapshot.petEnabled ?? true
             self.petRandomEnabled = snapshot.petRandomEnabled ?? true
@@ -946,9 +950,7 @@ final class AppState: ObservableObject {
     ]
 
     /// Picked in place of a sound to silence one event without muting the rest.
-    /// Not an NSSound name: nothing is named this, and playSound bails on it
-    /// before ever asking AppKit for it.
-    static let silentSound = "None"
+    static var silentSound: String { SoundPreferences.silent }
 
     /// What the pickers offer: silence first, then the system sounds.
     static let selectableSounds = [silentSound] + availableSounds

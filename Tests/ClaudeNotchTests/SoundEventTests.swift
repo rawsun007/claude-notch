@@ -38,9 +38,9 @@ final class SoundEventTests: XCTestCase {
     func testChoosingTheDefaultAgainClearsTheOverride() {
         let s = AppState()
         s.setSound(.completed, "Hero")
-        XCTAssertEqual(s.eventSoundMap["completed"], "Hero")
+        XCTAssertEqual(s.soundPrefs.perEvent["completed"], "Hero")
         s.setSound(.completed, "Glass")
-        XCTAssertNil(s.eventSoundMap["completed"],
+        XCTAssertNil(s.soundPrefs.perEvent["completed"],
                      "back at the default, nothing should be stored to carry forward")
         XCTAssertEqual(s.sound(for: .completed), "Glass")
     }
@@ -82,12 +82,17 @@ final class SoundEventTests: XCTestCase {
         s.setSound(.completed, "Hero")
 
         var snap = Persistence.Snapshot(history: [], allowRules: [], recentProjects: [])
-        snap.eventSoundMap = s.eventSoundMap
+        snap.eventSoundMap = s.soundPrefs.perEvent
         let data = try XCTUnwrap(Persistence.encode(snap))
         let back = try XCTUnwrap(Persistence.decode(data))
 
+        let saved = try XCTUnwrap(back.eventSoundMap)
         let restored = AppState()
-        restored.eventSoundMap = try XCTUnwrap(back.eventSoundMap)
+        restored.updateSoundPrefs { prefs in
+            for (key, sound) in saved {
+                if let event = SoundEvent(rawValue: key) { prefs.set(event, sound) }
+            }
+        }
         XCTAssertEqual(restored.sound(for: .autoApproved), AppState.silentSound)
         XCTAssertEqual(restored.sound(for: .completed), "Hero")
         XCTAssertEqual(restored.sound(for: .approved), "Tink",

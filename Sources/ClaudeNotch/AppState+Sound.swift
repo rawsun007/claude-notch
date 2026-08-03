@@ -7,7 +7,7 @@ import AppKit
 extension AppState {
     func playSound(_ name: String) {
         guard !soundMuted else { return }
-        guard name != AppState.silentSound, !name.isEmpty else { return }
+        guard name != SoundPreferences.silent, !name.isEmpty else { return }
         NSSound(named: NSSound.Name(name))?.play()
     }
 
@@ -16,15 +16,13 @@ extension AppState {
     /// sound, or to the per-tool sound when that is on, which is what they did
     /// before they were listed separately.
     func play(_ event: SoundEvent, toolName: String? = nil) {
-        if let override = eventSoundMap[event.rawValue] {
-            playSound(override)
+        // Only the events that borrow the alert sound care about which tool
+        // asked; the rest resolve to a sound of their own.
+        if event.defaultSound == nil, soundPrefs.perEvent[event.rawValue] == nil {
+            playAlert(toolName: toolName)
             return
         }
-        if let own = event.defaultSound {
-            playSound(own)
-            return
-        }
-        playAlert(toolName: toolName)
+        playSound(soundPrefs.sound(for: event, alertSound: alertSound))
     }
 
     func playAlert(toolName: String? = nil) {
@@ -37,45 +35,27 @@ extension AppState {
         playSound(name)
     }
 
-    /// What this event plays right now: its override, its own default, or the
-    /// alert sound it borrows. The settings picker shows this.
+    /// What this event plays right now. The settings picker shows this.
     func sound(for event: SoundEvent) -> String {
-        if let override = eventSoundMap[event.rawValue] { return override }
-        if let own = event.defaultSound { return own }
-        return alertSound
+        soundPrefs.sound(for: event, alertSound: alertSound)
     }
 
-    /// Set (or clear, when back to the event's own default) the sound for an
-    /// event. AppState.silentSound is stored like any other choice: it is a
-    /// deliberate "stay quiet", not an absence of preference.
     func setSound(_ event: SoundEvent, _ sound: String) {
-        if let own = event.defaultSound, sound == own {
-            eventSoundMap.removeValue(forKey: event.rawValue)
-        } else {
-            eventSoundMap[event.rawValue] = sound
-        }
-        schedulePersist()
+        updateSoundPrefs { $0.set(event, sound) }
     }
 
     /// The user-set (or default) chime for a tool when "Per-tool sounds" is on.
     func soundForTool(_ tool: String) -> String {
-        let category = ToolSoundCategory.category(for: tool)
-        return perToolSoundMap[category.rawValue] ?? category.defaultSound
+        soundPrefs.sound(for: ToolSoundCategory.category(for: tool))
     }
 
-    /// Set (or clear, when equal to the default) the sound for a category.
     func setToolSound(_ category: ToolSoundCategory, _ sound: String) {
-        if sound == category.defaultSound {
-            perToolSoundMap.removeValue(forKey: category.rawValue)
-        } else {
-            perToolSoundMap[category.rawValue] = sound
-        }
-        schedulePersist()
+        updateSoundPrefs { $0.set(category, sound) }
     }
 
     /// The current sound for a category (override or default).
     func toolSound(_ category: ToolSoundCategory) -> String {
-        perToolSoundMap[category.rawValue] ?? category.defaultSound
+        soundPrefs.sound(for: category)
     }
 
     func playChime() {
