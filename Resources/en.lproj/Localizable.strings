@@ -225,6 +225,9 @@
 /* Settings explanation */
 "Every session you finish is archived here with a one-line summary, its cost, and what it changed. Search to recall what you did in a project last week." = "Every session you finish is archived here with a one-line summary, its cost, and what it changed. Search to recall what you did in a project last week.";
 
+/* Settings section heading */
+"Everyday" = "Everyday";
+
 /* Settings toggle explanation */
 "Exclude the notch from screen shares, recordings, and other apps' screenshots. It renders commands, paths, and code, so this is on by default." = "Exclude the notch from screen shares, recordings, and other apps' screenshots. It renders commands, paths, and code, so this is on by default.";
 
@@ -245,6 +248,9 @@
 
 /* Settings explanation */
 "Generate" = "Generate";
+
+/* Settings section heading */
+"Guest appearances" = "Guest appearances";
 
 /* Settings toggle */
 "Hard-stop at the cap" = "Hard-stop at the cap";
@@ -501,6 +507,9 @@
 /* Settings explanation */
 "Terminal:" = "Terminal:";
 
+/* Settings explanation */
+"The pet dressed as something else, each one a nod to whatever was in the air when it was built. The date says when it arrived." = "The pet dressed as something else, each one a nod to whatever was in the air when it was built. The date says when it arrived.";
+
 /* Tooltip on the version badge */
 "The version you are running" = "The version you are running";
 
@@ -554,6 +563,9 @@
 
 /* Settings explanation */
 "What I shipped" = "What I shipped";
+
+/* Settings explanation */
+"What the pet does as itself. Click any of them to watch it now." = "What the pet does as itself. Click any of them to watch it now.";
 
 /* Settings picker label */
 "What the title shows" = "What the title shows";

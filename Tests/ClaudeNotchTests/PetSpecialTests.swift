@@ -58,3 +58,20 @@ final class PetSpecialTests: XCTestCase {
                        "the newest costume should be the first one you see")
     }
 }
+
+/// The settings row turns the stored ISO date into something readable. It runs
+/// on a fixed locale for parsing, so a user in a non-Gregorian calendar still
+/// gets a date rather than the raw string.
+final class PetSpecialLabelTests: XCTestCase {
+
+    func testISODateBecomesAMonthAndYear() {
+        let label = SettingsView.arrivedLabel("2026-07-15")
+        XCTAssertTrue(label.hasPrefix("Added "), "got \(label)")
+        XCTAssertTrue(label.contains("2026"), "the year is the part that dates the joke, got \(label)")
+    }
+
+    func testAMalformedDateShowsItselfRatherThanNothing() {
+        XCTAssertEqual(SettingsView.arrivedLabel("someday"), "someday",
+                       "a bad date should be visible in the UI, not swallowed into an empty label")
+    }
+}

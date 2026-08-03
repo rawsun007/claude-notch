@@ -242,6 +242,7 @@ struct SettingsSearchItem: Identifiable {
         .init(title: "Context window size", keywords: "200k 1m auto tokens", section: .notch),
 
         .init(title: "Pet Mode", keywords: "mascot creature animation boop", section: .pet),
+        .init(title: "Guest appearances", keywords: "spider-pet spiderman costume special event cameo pet", section: .pet),
 
         .init(title: "Send a message to Claude", keywords: "compose prompt", section: .session),
         .init(title: "Clear the active session", keywords: "reset", section: .session),
@@ -765,7 +766,76 @@ struct SettingsView: View {
                     bind(\.petRandomEnabled, state.setPetRandomEnabled))
                     .disabled(!state.petEnabled)
             }
+
+            sectionLabel(L("Everyday", comment: "Settings section heading"))
+            Text(L("What the pet does as itself. Click any of them to watch it now.", comment: "Settings explanation"))
+                .font(.callout).foregroundStyle(.secondary)
+            group {
+                let everyday = PetActivity.everydayCases
+                ForEach(Array(everyday.enumerated()), id: \.element) { idx, activity in
+                    actionRow(Self.petDemoTitle(activity), "pawprint") { state.demoPet([activity]) }
+                    if idx < everyday.count - 1 { divider }
+                }
+            }
+            .disabled(!state.petEnabled)
+            .opacity(state.petEnabled ? 1 : 0.5)
+
+            sectionLabel(L("Guest appearances", comment: "Settings section heading"))
+            Text(L("The pet dressed as something else, each one a nod to whatever was in the air when it was built. The date says when it arrived.", comment: "Settings explanation"))
+                .font(.callout).foregroundStyle(.secondary)
+            group {
+                let specials = PetActivity.specialCases
+                ForEach(Array(specials.enumerated()), id: \.element) { idx, activity in
+                    if let guest = activity.special {
+                        specialPetRow(activity, guest)
+                        if idx < specials.count - 1 { divider }
+                    }
+                }
+            }
+            .disabled(!state.petEnabled)
+            .opacity(state.petEnabled ? 1 : 0.5)
         }
+    }
+
+    /// A guest appearance says what it is dressed as, what it references and
+    /// when it landed, since a costume nobody recognises is just a glitch.
+    private func specialPetRow(_ activity: PetActivity,
+                               _ guest: PetActivity.SpecialAppearance) -> some View {
+        Button { state.demoPet([activity]) } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "sparkles")
+                    .frame(width: 18)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(guest.name)
+                        Text(Self.arrivedLabel(guest.addedOn))
+                            .font(.caption)
+                            .padding(.horizontal, 6).padding(.vertical, 1)
+                            .background(Color.secondary.opacity(0.15), in: Capsule())
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(guest.reference).font(.caption).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "play.circle").foregroundStyle(.secondary)
+            }
+            .contentShape(Rectangle())
+            .padding(.vertical, 8).padding(.horizontal, 14)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// "Added Jul 2026" from an ISO date, falling back to the raw string rather
+    /// than showing nothing if a costume ever lands with a malformed date.
+    static func arrivedLabel(_ iso: String) -> String {
+        let parser = DateFormatter()
+        parser.calendar = Calendar(identifier: .gregorian)
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        parser.dateFormat = "yyyy-MM-dd"
+        guard let date = parser.date(from: iso) else { return iso }
+        let out = DateFormatter()
+        out.setLocalizedDateFormatFromTemplate("MMM y")
+        return "Added " + out.string(from: date)
     }
 
     private var alerts: some View {
