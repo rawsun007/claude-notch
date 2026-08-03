@@ -26,18 +26,18 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var breakRemindersItem: NSMenuItem!
     private var longRunItem: NSMenuItem!
     private var rateLimitItem: NSMenuItem!
-    private var autoApproveItem: NSMenuItem!
-    private var autoApproveMenu: NSMenu!
-    private var snoozeItem: NSMenuItem!
-    private var snoozeMenu: NSMenu!
+    var autoApproveItem: NSMenuItem!
+    var autoApproveMenu: NSMenu!
+    var snoozeItem: NSMenuItem!
+    var snoozeMenu: NSMenu!
     private var soundItem: NSMenuItem!
-    private var soundMenu: NSMenu!
-    private var costBudgetItem: NSMenuItem!
-    private var costBudgetMenu: NSMenu!
-    private var statusBarItem: NSMenuItem!
-    private var statusBarMenu: NSMenu!
-    private var notchTitleItem: NSMenuItem!
-    private var notchTitleMenu: NSMenu!
+    var soundMenu: NSMenu!
+    var costBudgetItem: NSMenuItem!
+    var costBudgetMenu: NSMenu!
+    var statusBarItem: NSMenuItem!
+    var statusBarMenu: NSMenu!
+    var notchTitleItem: NSMenuItem!
+    var notchTitleMenu: NSMenu!
     private var touchIDItem: NSMenuItem?   // only when this Mac has biometrics
     private var notifyMirrorItem: NSMenuItem!
     private var completionNotifItem: NSMenuItem!
@@ -48,19 +48,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var menuSpendItem: NSMenuItem!
     // Keep-open row views for the Sound submenu — clicking these does not
     // dismiss the menu, so the user can preview multiple sounds.
-    private var soundRowViews: [String: KeepOpenRowView] = [:]
-    private var muteRowView: KeepOpenRowView?
-    private var perToolRowView: KeepOpenRowView?
+    var soundRowViews: [String: KeepOpenRowView] = [:]
+    var muteRowView: KeepOpenRowView?
+    var perToolRowView: KeepOpenRowView?
     private var updateItem: NSMenuItem!
     private var spendItem: NSMenuItem!
     private var spendMenu: NSMenu!
     private var checkUpdateItem: NSMenuItem!
-    private var insightsMenu: NSMenu!
+    var insightsMenu: NSMenu!
     private var insightsItem: NSMenuItem!
-    private var claudeUsageMenu: NSMenu!
+    var claudeUsageMenu: NSMenu!
     private var claudeUsageItem: NSMenuItem!
-    private var cachedClaudeUsage: ClaudeUsageReader.Usage?
-    private var claudeUsageComputing = false
+    var cachedClaudeUsage: ClaudeUsageReader.Usage?
+    var claudeUsageComputing = false
     private var cancellables = Set<AnyCancellable>()
     private var permissionsTimer: Timer?
     private var isMenuOpen = false
@@ -854,44 +854,44 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     // MARK: - Auto-Approve / Snooze / Sound actions
 
-    @objc private func toggleAutoApprove() {
+    @objc func toggleAutoApprove() {
         state.setAutoApprove(!state.autoApprove)
         refreshPrefs()
     }
 
-    @objc private func autoApproveForAction(_ sender: NSMenuItem) {
+    @objc func autoApproveForAction(_ sender: NSMenuItem) {
         state.enableAutoApprove(forMinutes: sender.tag)
         refreshPrefs()
     }
 
-    @objc private func turnOffAutoApprove() {
+    @objc func turnOffAutoApprove() {
         state.setAutoApprove(false)
         refreshPrefs()
     }
 
-    @objc private func snoozeForAction(_ sender: NSMenuItem) {
+    @objc func snoozeForAction(_ sender: NSMenuItem) {
         state.snooze(forMinutes: sender.tag)
         refreshPrefs()
     }
 
-    @objc private func cancelSnoozeAction() {
+    @objc func cancelSnoozeAction() {
         state.cancelSnooze()
         refreshPrefs()
     }
 
     // Cost budgets. tag carries the dollar amount (0 = off).
-    @objc private func setSessionCapAction(_ sender: NSMenuItem) {
+    @objc func setSessionCapAction(_ sender: NSMenuItem) {
         state.setSessionCostCap(Double(sender.tag))
         refreshCostBudgetMenu()
     }
 
-    @objc private func setDailyCapAction(_ sender: NSMenuItem) {
+    @objc func setDailyCapAction(_ sender: NSMenuItem) {
         state.setDailyCostCap(Double(sender.tag))
         refreshCostBudgetMenu()
     }
 
     // Status-bar item toggle. tag maps to StatusBarItem index in CaseIterable order.
-    @objc private func toggleStatusBarItemAction(_ sender: NSMenuItem) {
+    @objc func toggleStatusBarItemAction(_ sender: NSMenuItem) {
         let allItems = StatusBarItem.allCases
         guard sender.tag < allItems.count else { return }
         let tapped = allItems[sender.tag]
@@ -906,7 +906,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     // Context-window override. tag: 0 = auto, 1 = 200K, 2 = 1M.
-    @objc private func setContextWindowModeAction(_ sender: NSMenuItem) {
+    @objc func setContextWindowModeAction(_ sender: NSMenuItem) {
         let mode: ContextWindowMode = sender.tag == 1 ? .w200k : (sender.tag == 2 ? .w1M : .auto)
         state.setContextWindowMode(mode)
         refreshStatusBarMenu()
@@ -1002,12 +1002,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         NSWorkspace.shared.activateFileViewerSelecting(urls)
     }
 
-    @objc private func toggleEnforceBudget() {
+    @objc func toggleEnforceBudget() {
         state.setEnforceBudget(!state.enforceBudget)
         refreshCostBudgetMenu()
     }
 
-    @objc private func dismissDigest() {
+    @objc func dismissDigest() {
         state.markDigestShown()
         refreshInsights()
     }
@@ -1034,45 +1034,17 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshStatusBarMenu()
     }
 
-    private func refreshNotchTitleMenu() {
-        notchTitleMenu.removeAllItems()
-        // Submenu title reflects the current choice (and the resolved label).
-        // With no session running there is no project to resolve, and showing the
-        // "Claude" fallback here reads as though the setting did not take. Say
-        // what is actually going on instead.
-        let resolved: String = {
-            if state.notchTitleMode == .project, state.currentProject.isEmpty {
-                return "Project name (no session yet)"
-            }
-            return state.entityName
-        }()
-        notchTitleItem.title = "Notch Title: \(resolved)"
-
-        func row(_ title: String, mode: NotchTitleMode, action: Selector) {
-            let mi = NSMenuItem(title: title, action: action, keyEquivalent: "")
-            mi.target = self
-            mi.state = state.notchTitleMode == mode ? .on : .off
-            notchTitleMenu.addItem(mi)
-        }
-        row("Claude", mode: .claude, action: #selector(setNotchTitleClaude))
-        row("Project name", mode: .project, action: #selector(setNotchTitleProject))
-        let customLabel = state.customNotchTitle.isEmpty
-            ? "Custom…"
-            : "Custom: \(state.customNotchTitle)…"
-        row(customLabel, mode: .custom, action: #selector(setNotchTitleCustom))
-    }
-
-    @objc private func setNotchTitleClaude() {
+    @objc func setNotchTitleClaude() {
         state.setNotchTitleMode(.claude)
         refreshNotchTitleMenu()
     }
 
-    @objc private func setNotchTitleProject() {
+    @objc func setNotchTitleProject() {
         state.setNotchTitleMode(.project)
         refreshNotchTitleMenu()
     }
 
-    @objc private func setNotchTitleCustom() {
+    @objc func setNotchTitleCustom() {
         // Accessory apps must activate first or the modal lands behind everything.
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
@@ -1091,295 +1063,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         refreshNotchTitleMenu()
     }
 
-    private func refreshStatusBarMenu() {
-        statusBarMenu.removeAllItems()
-
-        func header(_ s: String) {
-            let mi = NSMenuItem(title: s, action: nil, keyEquivalent: "")
-            mi.isEnabled = false
-            statusBarMenu.addItem(mi)
-        }
-
-        // Title: show labels of selected items.
-        let selectedLabels = state.statusBarItems.map(\.barLabel)
-        statusBarItem.title = selectedLabels.isEmpty
-            ? "Status Bar: off"
-            : "Status Bar: \(selectedLabels.joined(separator: " · "))"
-
-        // Item checkboxes — max 2 selected. Disable unselected items when full.
-        let selected = state.statusBarItems
-        let full = selected.count >= 2
-        header("Show in bar (pick up to 2)")
-        for (idx, item) in StatusBarItem.allCases.enumerated() {
-            let isOn = selected.contains(item)
-            let mi = NSMenuItem(title: item.menuLabel,
-                                action: #selector(toggleStatusBarItemAction(_:)),
-                                keyEquivalent: "")
-            mi.target = self
-            mi.tag = idx
-            mi.state = isOn ? .on : .off
-            mi.isEnabled = isOn || !full   // grey out unchosen items when 2 already selected
-            statusBarMenu.addItem(mi)
-        }
-        if selected.contains(.fiveHourLimit) || selected.contains(.weeklyLimit) {
-            let note = NSMenuItem(title: "  plan limits need the status-line forwarder (auto-installed)", action: nil, keyEquivalent: "")
-            note.isEnabled = false
-            statusBarMenu.addItem(note)
-        }
-
-        // Context-window denominator override (affects the context bar, not the status row).
-        statusBarMenu.addItem(.separator())
-        header("Context window")
-        let windows: [(String, Int, Bool)] = [
-            ("Auto (detect from model)", 0, state.contextWindowMode == .auto),
-            ("200K", 1, state.contextWindowMode == .w200k),
-            ("1M", 2, state.contextWindowMode == .w1M),
-        ]
-        for (label, tag, on) in windows {
-            let mi = NSMenuItem(title: label, action: #selector(setContextWindowModeAction(_:)), keyEquivalent: "")
-            mi.target = self
-            mi.tag = tag
-            mi.state = on ? .on : .off
-            statusBarMenu.addItem(mi)
-        }
-    }
-
-    private func refreshCostBudgetMenu() {
-        costBudgetMenu.removeAllItems()
-        let mn = ClaudeUsageReader.fmtMoney
-
-        // Title reflects whichever caps are set.
-        var parts: [String] = []
-        if state.sessionCostCap > 0 { parts.append("session \(mn(state.sessionCostCap))") }
-        if state.dailyCostCap > 0 { parts.append("daily \(mn(state.dailyCostCap))") }
-        costBudgetItem.title = parts.isEmpty ? "Cost Budget" : "Cost Budget: \(parts.joined(separator: ", "))"
-
-        func header(_ s: String) {
-            let mi = NSMenuItem(title: s, action: nil, keyEquivalent: "")
-            mi.isEnabled = false
-            costBudgetMenu.addItem(mi)
-        }
-        func caps(_ title: String, current: Double, action: Selector, presets: [Int], spent: Double) {
-            header(title)
-            // Current spend line.
-            let spentItem = NSMenuItem(title: "  spent so far: ~\(mn(spent))", action: nil, keyEquivalent: "")
-            spentItem.isEnabled = false
-            costBudgetMenu.addItem(spentItem)
-            // Off + presets, with a checkmark on the active one.
-            for dollars in [0] + presets {
-                let label = dollars == 0 ? "Off" : "$\(dollars)"
-                let mi = NSMenuItem(title: label, action: action, keyEquivalent: "")
-                mi.target = self
-                mi.tag = dollars
-                mi.state = Int(current.rounded()) == dollars ? .on : .off
-                costBudgetMenu.addItem(mi)
-            }
-        }
-
-        caps("Per-session cap, warn at 80% / 100%",
-             current: state.sessionCostCap, action: #selector(setSessionCapAction(_:)),
-             presets: [1, 2, 5, 10, 25], spent: state.currentCostUSD)
-        costBudgetMenu.addItem(.separator())
-        caps("Daily cap, across all sessions today",
-             current: state.dailyCostCap, action: #selector(setDailyCapAction(_:)),
-             presets: [5, 10, 25, 50, 100], spent: state.todayCostUSD)
-
-        costBudgetMenu.addItem(.separator())
-        let enforce = NSMenuItem(title: "Enforce: block new commands at 100%",
-                                 action: #selector(toggleEnforceBudget), keyEquivalent: "")
-        enforce.target = self
-        enforce.state = state.enforceBudget ? .on : .off
-        enforce.toolTip = "When a cap is reached, hold new tool calls for a decision (Deny / Allow once / Raise cap) instead of letting them run, even under auto-approve."
-        costBudgetMenu.addItem(enforce)
-    }
-
-    private func refreshAutoApproveMenu() {
-        autoApproveMenu.removeAllItems()
-
-        if state.autoApprove {
-            if let until = state.autoApproveUntil {
-                let remaining = max(0, Int(ceil(until.timeIntervalSinceNow / 60)))
-                autoApproveItem.title = "Auto-Approve: On (\(remaining)m left)"
-            } else {
-                autoApproveItem.title = "Auto-Approve: On"
-            }
-        } else {
-            autoApproveItem.title = "Auto-Approve"
-        }
-
-        let toggle = NSMenuItem(title: "Auto-Approve All", action: #selector(toggleAutoApprove), keyEquivalent: "")
-        toggle.target = self
-        toggle.state = (state.autoApprove && state.autoApproveUntil == nil) ? .on : .off
-        autoApproveMenu.addItem(toggle)
-        autoApproveMenu.addItem(.separator())
-
-        for minutes in [5, 15, 30, 60] {
-            let label = minutes < 60 ? "For \(minutes) minutes" : "For 1 hour"
-            let mi = NSMenuItem(title: label, action: #selector(autoApproveForAction(_:)), keyEquivalent: "")
-            mi.target = self
-            mi.tag = minutes
-            autoApproveMenu.addItem(mi)
-        }
-
-        if state.autoApprove {
-            autoApproveMenu.addItem(.separator())
-            let cancel = NSMenuItem(title: "Turn off", action: #selector(turnOffAutoApprove), keyEquivalent: "")
-            cancel.target = self
-            autoApproveMenu.addItem(cancel)
-        }
-    }
-
-    private func refreshSnoozeMenu() {
-        snoozeMenu.removeAllItems()
-
-        if let until = state.snoozedUntil, until > Date() {
-            let remaining = max(0, Int(ceil(until.timeIntervalSinceNow / 60)))
-            snoozeItem.title = "Snooze: \(remaining)m left"
-        } else {
-            snoozeItem.title = "Snooze"
-        }
-
-        let header = NSMenuItem(title: "Suppress non-blocking cards for…", action: nil, keyEquivalent: "")
-        header.isEnabled = false
-        snoozeMenu.addItem(header)
-
-        for minutes in [15, 30, 60, 120] {
-            let label: String
-            if minutes < 60 { label = "\(minutes) minutes" }
-            else if minutes == 60 { label = "1 hour" }
-            else { label = "\(minutes/60) hours" }
-            let mi = NSMenuItem(title: label, action: #selector(snoozeForAction(_:)), keyEquivalent: "")
-            mi.target = self
-            mi.tag = minutes
-            snoozeMenu.addItem(mi)
-        }
-
-        if state.isSnoozed {
-            snoozeMenu.addItem(.separator())
-            let cancel = NSMenuItem(title: "Cancel snooze", action: #selector(cancelSnoozeAction), keyEquivalent: "")
-            cancel.target = self
-            snoozeMenu.addItem(cancel)
-        }
-    }
-
-    private func refreshSoundMenu() {
-        soundMenu.removeAllItems()
-        soundRowViews.removeAll()
-
-        // Mute toggle — keep-open so the user can toggle and then immediately
-        // pick / preview sounds without re-opening the menu.
-        let mute = KeepOpenRowView(
-            title: state.soundMuted ? "Sounds Muted" : "Mute Sounds",
-            checked: state.soundMuted
-        )
-        mute.handler = { [weak self] in
-            guard let self else { return }
-            self.state.setSoundMuted(!self.state.soundMuted)
-            self.muteRowView?.update(
-                title: self.state.soundMuted ? "Sounds Muted" : "Mute Sounds",
-                checked: self.state.soundMuted
-            )
-        }
-        let muteHolder = NSMenuItem()
-        muteHolder.view = mute
-        soundMenu.addItem(muteHolder)
-        muteRowView = mute
-
-        // Per-tool toggle — keep-open.
-        let perTool = KeepOpenRowView(title: "Per-tool sounds", checked: state.perToolSounds)
-        perTool.handler = { [weak self] in
-            guard let self else { return }
-            self.state.setPerToolSounds(!self.state.perToolSounds)
-            self.perToolRowView?.update(title: "Per-tool sounds", checked: self.state.perToolSounds)
-        }
-        let perToolHolder = NSMenuItem()
-        perToolHolder.view = perTool
-        soundMenu.addItem(perToolHolder)
-        perToolRowView = perTool
-
-        soundMenu.addItem(.separator())
-        let header = NSMenuItem(title: "Alert sound (click to preview)", action: nil, keyEquivalent: "")
-        header.isEnabled = false
-        soundMenu.addItem(header)
-
-        // Sound picker — keep-open per row, plays a preview on click.
-        for sound in AppState.availableSounds {
-            let row = KeepOpenRowView(title: sound, checked: sound == state.alertSound)
-            row.handler = { [weak self] in
-                guard let self else { return }
-                let previous = self.state.alertSound
-                self.state.setAlertSound(sound)
-                if !self.state.soundMuted {
-                    NSSound(named: NSSound.Name(sound))?.play()
-                }
-                self.soundRowViews[previous]?.update(title: previous, checked: false)
-                self.soundRowViews[sound]?.update(title: sound, checked: true)
-            }
-            let holder = NSMenuItem()
-            holder.view = row
-            soundMenu.addItem(holder)
-            soundRowViews[sound] = row
-        }
-    }
-
-    private func refreshInsights() {
-        insightsMenu.removeAllItems()
-        let s = state.stats
-
-        func row(_ title: String, enabled: Bool = false) {
-            let mi = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-            mi.isEnabled = enabled
-            insightsMenu.addItem(mi)
-        }
-
-        // Daily digest — shown once per day when yesterday had activity.
-        if state.shouldShowDigest {
-            if let spend = state.yesterdaySpend {
-                let cost = String(format: "$%.2f", spend.costUSD)
-                let sessions = spend.sessionCount == 1 ? "1 session" : "\(spend.sessionCount) sessions"
-                var line = "🌙  Yesterday: \(cost)  ·  \(sessions)"
-                if !spend.topProject.isEmpty { line += "  ·  \(spend.topProject)" }
-                row(line)
-            } else if let y = state.yesterdayCounts {
-                row("🌙  Yesterday: \(y.tools) tools  ·  \(y.allowed) allowed  ·  \(y.denied) denied")
-            }
-            let dismiss = NSMenuItem(title: "Dismiss digest", action: #selector(dismissDigest), keyEquivalent: "")
-            dismiss.target = self
-            insightsMenu.addItem(dismiss)
-            insightsMenu.addItem(.separator())
-        }
-
-        if let t = state.stats.dailyCounts[AppState.dayKey(Date())] {
-            row("Today:  \(t.tools) tools  ·  \(t.allowed) allowed  ·  \(t.denied) denied")
-        } else {
-            row("Today:  no activity yet")
-        }
-        row("This session:  \(state.sessionTools) tools · \(state.sessionAllowed) allowed · \(state.sessionDenied) denied")
-        insightsMenu.addItem(.separator())
-        row("Approved:  \(s.allowed)   (\(s.autoApproved) auto)")
-        row("Denied:  \(s.denied)")
-        row("Risky commands flagged:  \(s.dangerousFlagged)")
-        row("Questions answered:  \(s.questionsAnswered)")
-
-        let top = s.toolCounts.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }.prefix(5)
-        if !top.isEmpty {
-            insightsMenu.addItem(.separator())
-            row("Most-used tools")
-            for (tool, n) in top { row("    \(tool):  \(n)") }
-        }
-
-        insightsMenu.addItem(.separator())
-        row("Active days:  \(state.activeDayCount)    ·    Streak:  \(state.currentStreak)🔥")
-        if let first = s.firstUsed {
-            let df = DateFormatter()
-            df.dateStyle = .medium
-            row("Using ClaudeNotch since \(df.string(from: first))")
-        }
-
-        insightsMenu.addItem(.separator())
-        appendHeatmap()
-    }
-
     /// Render the cached usage immediately, then recompute in the background if
     /// the cache is missing or older than ~30s (parsing transcripts hits disk).
     private func refreshClaudeUsage() {
@@ -1396,122 +1079,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 self.renderClaudeUsage()
             }
         }
-    }
-
-    private func renderClaudeUsage() {
-        claudeUsageMenu.removeAllItems()
-        func row(_ title: String) {
-            let mi = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-            mi.isEnabled = false
-            claudeUsageMenu.addItem(mi)
-        }
-        func monoRow(_ title: String) {
-            let mono = NSFont.userFixedPitchFont(ofSize: NSFont.systemFontSize) ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
-            let mi = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-            mi.isEnabled = false
-            mi.attributedTitle = NSAttributedString(string: title, attributes: [.font: mono])
-            claudeUsageMenu.addItem(mi)
-        }
-        guard let u = cachedClaudeUsage else {
-            row(claudeUsageComputing ? "Computing…" : "No usage data yet")
-            return
-        }
-        guard u.hasData else {
-            row("No Claude usage in the last 7 days")
-            return
-        }
-        let tk = ClaudeUsageReader.fmtTokens
-        let mn = ClaudeUsageReader.fmtMoney
-        if u.today.total > 0 {
-            row("Today:  \(tk(u.today.total)) tokens  ·  ~\(mn(u.today.costUSD))")
-            if u.todayVsAverage > 0 {
-                row(String(format: "    %.1f× your daily average", u.todayVsAverage))
-            }
-        } else {
-            row("Today:  no activity yet")
-        }
-        row("This week:  \(tk(u.week.total)) tokens  ·  ~\(mn(u.week.costUSD))")
-
-        // 7-day token sparkline.
-        let spark = ClaudeUsageReader.sparkline(daily: u.dailyTokens)
-        claudeUsageMenu.addItem(.separator())
-        row("Tokens, last 7 days")
-        monoRow("    " + spark.bars)
-        monoRow("    " + spark.labels)
-
-        claudeUsageMenu.addItem(.separator())
-        if u.sessionsWeek > 0 {
-            row("Sessions (7 days):  \(u.sessionsWeek)  ·  ~\(tk(u.avgTokensPerSession))/session")
-        }
-        if u.cacheHitRate > 0 {
-            row("Cache:  \(Int((u.cacheHitRate * 100).rounded()))% reused  ·  saved ~\(mn(u.cacheSavingsUSD))")
-        }
-        if !u.topHours.isEmpty {
-            row("Busiest:  " + u.topHours.map { ClaudeUsageReader.hourLabel($0) }.joined(separator: "  ·  "))
-        }
-
-        let byModel = u.weekByModel.sorted { $0.value.total != $1.value.total ? $0.value.total > $1.value.total : $0.key < $1.key }
-        if !byModel.isEmpty {
-            claudeUsageMenu.addItem(.separator())
-            row("By model (7 days)")
-            for (model, t) in byModel {
-                row("    \(model):  \(tk(t.total))  ·  ~\(mn(t.costUSD))")
-            }
-        }
-
-        // Sorted by cost (most expensive repos first), since that's what you
-        // usually want to know.
-        let byProject = u.weekByProject.sorted { $0.value.costUSD != $1.value.costUSD ? $0.value.costUSD > $1.value.costUSD : $0.key < $1.key }.prefix(6)
-        if !byProject.isEmpty {
-            claudeUsageMenu.addItem(.separator())
-            row("Top projects by cost (7 days)")
-            for (cwd, t) in byProject {
-                row("    \(ClaudeUsageReader.projectName(cwd)):  ~\(mn(t.costUSD))  ·  \(tk(t.total))")
-            }
-        }
-
-        claudeUsageMenu.addItem(.separator())
-        row("Est. cost if billed at public API rates")
-    }
-
-    /// Append a 7×7 text heatmap of the last 49 days to the Insights submenu.
-    private func appendHeatmap() {
-        let symbols = ["·", "▫", "▪", "▣", "■"]
-        let mono = NSFont.userFixedPitchFont(ofSize: NSFont.systemFontSize) ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
-
-        let header = NSMenuItem(title: "Activity, last 7 weeks", action: nil, keyEquivalent: "")
-        header.isEnabled = false
-        insightsMenu.addItem(header)
-
-        let cal = Calendar.current
-        var grid: [[Int]] = Array(repeating: Array(repeating: 0, count: 7), count: 7)
-        for i in 0..<49 {
-            guard let day = cal.date(byAdding: .day, value: -(48 - i), to: Date()) else { continue }
-            let n = state.stats.dailyCounts[AppState.dayKey(day)]?.tools ?? 0
-            let level: Int
-            switch n {
-            case 0:      level = 0
-            case 1...5:  level = 1
-            case 6...15: level = 2
-            case 16...30: level = 3
-            default:     level = 4
-            }
-            grid[i / 7][i % 7] = level
-        }
-
-        for row in grid {
-            let s = "    " + row.map { symbols[$0] }.joined(separator: "  ")
-            let mi = NSMenuItem(title: s, action: nil, keyEquivalent: "")
-            mi.isEnabled = false
-            mi.attributedTitle = NSAttributedString(string: s, attributes: [.font: mono])
-            insightsMenu.addItem(mi)
-        }
-
-        let legend = "    less  " + symbols.joined(separator: " ") + "  more"
-        let leg = NSMenuItem(title: legend, action: nil, keyEquivalent: "")
-        leg.isEnabled = false
-        leg.attributedTitle = NSAttributedString(string: legend, attributes: [.font: mono])
-        insightsMenu.addItem(leg)
     }
 
     /// Our bundled notch+spark glyph, falling back to an SF Symbol if the
