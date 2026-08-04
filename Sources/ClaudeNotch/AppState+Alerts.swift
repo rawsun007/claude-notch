@@ -105,6 +105,9 @@ extension AppState {
     }
 
     private func checkReAlert() {
+        // Piggybacks the same 30-second tick: a separate timer for this would
+        // be a second thing waking the CPU to ask the same question.
+        checkReturnFromAway()
         let now = Date()
         for req in permissionQueue where req.kind == .toolUse {
             guard reAlertDue(id: req.id, receivedAt: req.receivedAt, now: now) else { continue }

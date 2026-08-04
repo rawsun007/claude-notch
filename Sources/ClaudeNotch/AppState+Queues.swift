@@ -288,7 +288,14 @@ extension AppState {
             project: (task.cwd as NSString).lastPathComponent,
             outcome: .info
         ))
-        playChime()
+        // A chime to an empty room is just noise for whoever else is in it. The
+        // card still queues and waits; only the sound is held, and it is played
+        // once on return rather than once per task.
+        if userIsAway {
+            noteCompletedWhileAway()
+        } else {
+            playChime()
+        }
         recompute()
         // Fire a native banner if the user has switched away from the notch.
         if completionNotificationsEnabled, !NSApp.isActive {

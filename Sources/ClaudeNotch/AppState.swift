@@ -349,6 +349,14 @@ final class AppState: ObservableObject {
     /// way an always-allow rule would be. Drives the suggestion on the card.
     /// Persisted, capped (see AppState+Suggestions).
     @Published var repeatApprovals: [String: Int] = [:]
+
+    /// Tasks that finished while nobody was at the machine, waiting to be
+    /// announced once on return. Not persisted: coming back tomorrow to "4
+    /// tasks finished while you were away" is not news, it is a stale receipt.
+    @Published var completedWhileAway: Int = 0
+    /// How idle the machine is, in seconds. A property so tests can hand the
+    /// away logic a number instead of waiting three minutes for one.
+    var idleSecondsProvider: () -> TimeInterval = { AppState.systemIdleSeconds() }
     static let repeatApprovalsCap = 64
 
     @Published private(set) var soundPrefs = SoundPreferences()
