@@ -1808,8 +1808,10 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page. Keep this in
     /// sync with the top changelog entry when cutting a release.
     static let whatsNew: [String] = [
-        "Housekeeping, with nothing new to use. The menu bar and the settings page each carried their own copy of the pet animation names and had drifted apart, so the same animation was called two different things depending on where you looked. There is one list now, and the menu bar reads in sentence case to match everything else.",
-        "Underneath: the sound preferences moved into one type that owns both the settings and the rules for reading them, so a preference cannot be changed without being saved. The settings window was one 2,500-line file holding all fourteen pages, and is now one file per page.",
-        "If you are on 0.15.0 there is no reason to hurry. Nothing you can see or click has changed apart from those labels.",
+        "The task meter works again. A session with a live task list showed no progress at all, because a task's id arrives buried in prose in the tool's reply and the app was looking for it in a shape it never came in. It counts them now, and it no longer starts the list over every time you finish one.",
+        "Much less CPU while Claude is working. After every prompt the transcript is watched for five minutes, and the app was re-reading and re-parsing half a megabyte of it twice a second to learn nothing had changed. It checks the file's size first now: measured on a 10 MB transcript, 7.6% CPU became 0.8%.",
+        "A card that keeps getting waved through now says so. After the third time you approve the same command by hand, it reads \"allowed 3 times\" next to Always Allow, so the rule is one click away at the moment it is obvious. Never for dangerous commands, and never for a rule you already have.",
+        "The chime waits for you. A task finishing while you are away from the keyboard no longer plays to an empty room: one sound when you come back, and VoiceOver hears how many finished while you were gone.",
+        "Two cards VoiceOver could not hear now speak: an auto-approved call, which is the thing most worth auditing and the one that happens without you, and the composer, which is the one card that takes your keyboard.",
     ]
 }
