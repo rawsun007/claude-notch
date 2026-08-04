@@ -117,6 +117,15 @@ final class EventServer {
                 return extractTaskId(from: task)
             }
         }
+        // The common wrapper: {"content": [{"type": "text", "text": "Task #1 …"}]}.
+        // Without this the dict branch above finds no id key, falls through
+        // every other case, and the task is never counted.
+        if let dict = response as? [String: Any], let content = dict["content"] {
+            if let id = extractTaskId(from: content) { return id }
+        }
+        if let dict = response as? [String: Any], let text = dict["text"] as? String {
+            if let id = extractTaskId(from: text) { return id }
+        }
         if let s = response as? String,
            let range = s.range(of: #"\d+"#, options: .regularExpression) {
             return String(s[range])
@@ -512,6 +521,13 @@ final class EventServer {
             let status = (input["status"] as? String) ?? ""
             if !taskId.isEmpty {
                 Task { @MainActor [weak state] in
+                    // Count it as created first, whatever the status. TaskCreate
+                    // carries no id in its input (only subject/description, with
+                    // the id buried in the reply), so an update is often the
+                    // first time the app hears a task's id at all. Without this
+                    // a whole list could be worked through and the meter would
+                    // sit at zero, which is what it did.
+                    state?.noteTaskCreated(id: taskId, subject: subject, sessionId: sessionId)
                     switch status {
                     case "completed": state?.noteTaskCompleted(id: taskId, sessionId: sessionId)
                     case "deleted":   state?.noteTaskDeleted(id: taskId, sessionId: sessionId)

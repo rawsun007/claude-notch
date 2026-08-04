@@ -248,3 +248,78 @@ final class EventServerOriginTests: XCTestCase {
             req("POST /hook HTTP/1.1\r\nHost: attacker.example\r\n\r\n")))
     }
 }
+
+/// TaskCreate's INPUT carries no id: only subject, description and activeForm,
+/// with the id buried in the reply text. So the meter depends entirely on
+/// digging the id out of a response whose shape nobody documented, and on an
+/// update being allowed to introduce a task the app never saw created.
+final class TaskIdShapeTests: XCTestCase {
+
+    /// The shape a tool reply actually arrives in most of the time. Before this
+    /// was handled the dict branch found no id key, every other branch missed,
+    /// and a whole task list could be worked through with the meter at zero.
+    func testAnIdInsideAContentArray() {
+        let response: [String: Any] = [
+            "content": [["type": "text", "text": "Task #1 created successfully: Split the settings pages"]]
+        ]
+        XCTAssertEqual(EventServer.extractTaskId(from: response), "1")
+    }
+
+    func testAnIdInsideASingleTextBlock() {
+        XCTAssertEqual(EventServer.extractTaskId(from: ["text": "Task #42 created successfully"]), "42")
+    }
+
+    func testABareStringStillWorks() {
+        XCTAssertEqual(EventServer.extractTaskId(from: "Task #7 created successfully: x"), "7")
+    }
+
+    func testAnExplicitIdKeyStillWinsOverProseInTheSameReply() {
+        let response: [String: Any] = [
+            "taskId": "99",
+            "content": [["type": "text", "text": "Task #1 created successfully"]],
+        ]
+        XCTAssertEqual(EventServer.extractTaskId(from: response), "99",
+                       "a named field is a fact; a number in a sentence is a guess")
+    }
+
+    func testNothingUsableIsNotAnId() {
+        XCTAssertNil(EventServer.extractTaskId(from: ["content": [["type": "text", "text": "done"]]]))
+        XCTAssertNil(EventServer.extractTaskId(from: [String: Any]()))
+    }
+}
+
+/// The meter reads created and completed ids off the session. These pin what
+/// the notch will actually show for the sequence a real task list produces.
+@MainActor
+final class TaskMeterProgressTests: XCTestCase {
+
+    func testAnUpdateIntroducesATaskTheAppNeverSawCreated() {
+        let s = AppState()
+        s.noteTaskCreated(id: "1", subject: "First", sessionId: "sess")
+        s.noteTaskCompleted(id: "1", sessionId: "sess")
+        s.noteTaskCreated(id: "2", subject: "Second", sessionId: "sess")
+
+        let session = s.sessions.values.first { $0.createdTaskIds.contains("1") }
+        XCTAssertEqual(session?.taskTotal, 2)
+        XCTAssertEqual(session?.taskDone, 1, "one of two done is what the notch should draw")
+    }
+
+    /// A completion for a task that was never announced must not read as
+    /// "2 of 1 done", which is what an unguarded counter would produce.
+    func testDoneCanNeverExceedTotal() {
+        let s = AppState()
+        s.noteTaskCompleted(id: "ghost", sessionId: "sess")
+        let session = s.sessions.values.first { $0.completedTaskIds.contains("ghost") }
+        XCTAssertEqual(session?.taskTotal, 1)
+        XCTAssertEqual(session?.taskDone, 1)
+    }
+
+    func testTodoWriteCountsWinWhenBothExist() {
+        let s = AppState()
+        s.noteTaskCreated(id: "1", subject: "x", sessionId: "sess")
+        s.noteTodos(total: 6, done: 4, sessionId: "sess")
+        let session = s.sessions["sess"] ?? s.sessions.values.first
+        XCTAssertEqual(session?.taskTotal, 6, "the checklist snapshot is the fuller picture")
+        XCTAssertEqual(session?.taskDone, 4)
+    }
+}
