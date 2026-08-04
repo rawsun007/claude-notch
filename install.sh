@@ -24,7 +24,13 @@ cp -R ClaudeNotch.app /Applications/
 # ("are identical"), which under set -e would abort the install.
 HOOK_DIR="$HOME/.claudenotch/bin"
 mkdir -p "$HOOK_DIR"
-rm -f "$HOOK_DIR"/*.sh
+# Only the scripts we ship, by name: a blanket `rm *.sh` also deleted files the
+# app itself writes there (the Codex forwarder), leaving ~/.codex/hooks.json
+# pointing at a missing command, i.e. "hook exited with code 127" on every
+# Codex event until the integration was toggled off and on again.
+for f in bin/*.sh; do
+    rm -f "$HOOK_DIR/$(basename "$f")"
+done
 cp bin/*.sh "$HOOK_DIR/"
 chmod +x "$HOOK_DIR"/*.sh
 echo "→ Installed hook scripts to $HOOK_DIR"
