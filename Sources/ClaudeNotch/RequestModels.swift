@@ -165,7 +165,7 @@ struct DailySpendSummary {
     func mirror(_ req: PermissionRequest)
     func withdraw(_ id: UUID)
     func withdrawAll()
-    func sendCompletion(project: String, snippet: String,
+    func sendCompletion(project: String, snippet: String, agentName: String,
                         cwd: String, originatorBundleID: String?)
     func sendDigest(_ summary: DailySpendSummary)
 }
@@ -178,16 +178,22 @@ final class CompletedTask: Identifiable, Equatable {
     let cwd: String
     let receivedAt = Date()
     let originatorBundleID: String?
+    /// Who to name as having finished: the agent that ran the turn, or the
+    /// user's custom notch title. Carried on the task so the native banner
+    /// says the same thing the card does.
+    let entityName: String
     /// Whether the turn did what its closing message said it did. `.silent`
     /// for the ordinary case, which is most of them.
     var audit: CompletionAudit.Verdict = .silent
 
-    init(title: String, detail: String, source: String, cwd: String, originatorBundleID: String? = nil) {
+    init(title: String, detail: String, source: String, cwd: String,
+         originatorBundleID: String? = nil, entityName: String = "Claude") {
         self.title = title
         self.detail = detail
         self.source = source
         self.cwd = cwd
         self.originatorBundleID = originatorBundleID
+        self.entityName = entityName
     }
 
     static func == (lhs: CompletedTask, rhs: CompletedTask) -> Bool {

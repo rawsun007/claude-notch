@@ -317,6 +317,7 @@ extension AppState {
         if completionNotificationsEnabled, !NSApp.isActive {
             let project = (task.cwd as NSString).lastPathComponent
             permissionMirror?.sendCompletion(project: project, snippet: task.detail,
+                                             agentName: task.entityName,
                                              cwd: task.cwd,
                                              originatorBundleID: task.originatorBundleID)
         }

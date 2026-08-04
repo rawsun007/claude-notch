@@ -178,6 +178,7 @@ extension AppState {
             permissionMirror?.sendCompletion(
                 project: project.isEmpty ? title : "\(project), \(title)",
                 snippet: detail.isEmpty ? title : detail,
+                agentName: completionEntityName(sessionId: sessionId, cwd: cwd),
                 cwd: "", originatorBundleID: nil)   // failures aren't replyable
         }
     }

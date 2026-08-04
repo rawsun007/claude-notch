@@ -188,6 +188,31 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Who to name on a "… finished" card for one session. Unlike `entityName`
+    /// this is per-session, so a Codex turn never reports "Claude finished"
+    /// while a Claude session is also open. A custom notch title still wins:
+    /// if the user named the assistant in settings, that is its name here too.
+    func completionEntityName(sessionId: String, cwd: String = "") -> String {
+        if notchTitleMode == .custom {
+            let t = customNotchTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !t.isEmpty { return t }
+        }
+        return sessionAgent(sessionId: sessionId, cwd: cwd).notchLabel
+    }
+
+    /// The agent that ran a session, from its model. Sessions are keyed by id,
+    /// or by cwd when the hook carried no id, so try both. Falls back to the
+    /// status line's model, then to Claude (the home agent).
+    func sessionAgent(sessionId: String, cwd: String = "") -> AgentKind {
+        var normCwd = cwd
+        while normCwd.count > 1, normCwd.hasSuffix("/") { normCwd.removeLast() }
+        let model = sessions[sessionId]?.model
+            ?? (normCwd.isEmpty ? nil : sessions[normCwd]?.model)
+            ?? ""
+        if !model.isEmpty { return AgentKind.infer(fromModel: model) }
+        return currentModel.isEmpty ? .claude : AgentKind.infer(fromModel: currentModel)
+    }
+
     func setNotchTitleMode(_ mode: NotchTitleMode) {
         notchTitleMode = mode
         schedulePersist()

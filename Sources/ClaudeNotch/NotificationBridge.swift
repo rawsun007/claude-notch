@@ -128,12 +128,13 @@ final class NotificationBridge: NSObject, PermissionMirroring {
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     }
 
-    func sendCompletion(project: String, snippet: String,
+    func sendCompletion(project: String, snippet: String, agentName: String,
                         cwd: String, originatorBundleID: String?) {
         guard Bundle.main.bundleIdentifier != nil, authorized else { return }
         let content = UNMutableNotificationContent()
-        content.title = project.isEmpty ? "Claude finished" : project
-        content.subtitle = project.isEmpty ? "" : "Claude finished"
+        let done = "\(agentName) finished"
+        content.title = project.isEmpty ? done : project
+        content.subtitle = project.isEmpty ? "" : done
         if !snippet.isEmpty { content.body = String(snippet.prefix(200)) }
         content.sound = .default
         content.threadIdentifier = "claudenotch-done"

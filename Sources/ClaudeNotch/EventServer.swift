@@ -794,16 +794,21 @@ final class EventServer {
         Task { @MainActor [weak state] in
             guard let state else { return }
             state.markSessionDone(cwd: cwd, sessionId: sessionId)
-            let title = (payload["title"] as? String) ?? "Claude finished"
+            // Name the agent that actually ran (and the user's custom title when
+            // they set one) — a Codex turn must not report "Claude finished".
+            let agent = state.sessionAgent(sessionId: sessionId, cwd: cwd)
+            let entity = state.completionEntityName(sessionId: sessionId, cwd: cwd)
+            let title = (payload["title"] as? String) ?? "\(entity) finished"
             let detail = (payload["detail"] as? String) ?? detailFromHookPayload(payload)
-            let source = (payload["source"] as? String) ?? "Claude Code"
+            let source = (payload["source"] as? String) ?? agent.displayName
             let frontBID = Self.capturedOriginator(state: state)
             let task = CompletedTask(
                 title: title,
                 detail: detail,
                 source: source,
                 cwd: (payload["cwd"] as? String) ?? "",
-                originatorBundleID: frontBID
+                originatorBundleID: frontBID,
+                entityName: entity
             )
             state.enqueueCompleted(task)
         }
