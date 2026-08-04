@@ -241,10 +241,17 @@ extension AppState {
     /// toward the session's "N/M" meter. If the previous batch was already
     /// fully complete, a fresh creation starts a new list (so the denominator
     /// doesn't grow without bound across a long session).
-    func noteTaskCreated(id: String, subject: String = "", sessionId: String = "") {
+    /// `viaUpdate` is set when the id came from a status change rather than a
+    /// creation. That distinction decides whether a finished batch may be
+    /// cleared: working through a list one task at a time means every update
+    /// arrives with the batch momentarily complete, and clearing on those would
+    /// reset the meter to 0 of 1 after every single task.
+    func noteTaskCreated(id: String, subject: String = "", sessionId: String = "",
+                         viaUpdate: Bool = false) {
         guard !id.isEmpty else { return }
         upsertSession(id: sessionId, cwd: currentCwd, create: true) { s in
-            if !s.createdTaskIds.isEmpty,
+            if !viaUpdate,
+               !s.createdTaskIds.isEmpty,
                s.completedTaskIds.count >= s.createdTaskIds.count {
                 s.createdTaskIds.removeAll()
                 s.completedTaskIds.removeAll()

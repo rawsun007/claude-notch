@@ -293,15 +293,43 @@ final class TaskIdShapeTests: XCTestCase {
 @MainActor
 final class TaskMeterProgressTests: XCTestCase {
 
-    func testAnUpdateIntroducesATaskTheAppNeverSawCreated() {
+    /// The sequence a real list produces: three tasks announced up front, then
+    /// worked one at a time. The meter has to climb 0/3, 1/3, 2/3.
+    func testWorkingThroughAListClimbsRatherThanResetting() {
+        let s = AppState()
+        for id in ["1", "2", "3"] {
+            s.noteTaskCreated(id: id, subject: "Task \(id)", sessionId: "sess")
+        }
+        XCTAssertEqual(s.sessions["sess"]?.taskTotal, 3)
+        XCTAssertEqual(s.sessions["sess"]?.taskDone, 0)
+
+        // Each status change re-announces its task's id, which is how a task
+        // whose creation carried no id gets counted at all.
+        s.noteTaskCreated(id: "1", sessionId: "sess", viaUpdate: true)
+        s.noteTaskCompleted(id: "1", sessionId: "sess")
+        s.noteTaskCreated(id: "2", sessionId: "sess", viaUpdate: true)
+
+        XCTAssertEqual(s.sessions["sess"]?.taskTotal, 3,
+                       "starting the second task must not throw away the other two")
+        XCTAssertEqual(s.sessions["sess"]?.taskDone, 1)
+
+        s.noteTaskCreated(id: "2", sessionId: "sess", viaUpdate: true)
+        s.noteTaskCompleted(id: "2", sessionId: "sess")
+        XCTAssertEqual(s.sessions["sess"]?.taskDone, 2, "1 of 3, then 2 of 3")
+        XCTAssertEqual(s.sessions["sess"]?.taskTotal, 3)
+    }
+
+    /// The batch still resets, but only when a genuine creation says a new list
+    /// has started, or a long session's denominator would grow forever.
+    func testAFreshCreationAfterAFinishedBatchStartsANewList() {
         let s = AppState()
         s.noteTaskCreated(id: "1", subject: "First", sessionId: "sess")
         s.noteTaskCompleted(id: "1", sessionId: "sess")
         s.noteTaskCreated(id: "2", subject: "Second", sessionId: "sess")
 
-        let session = s.sessions.values.first { $0.createdTaskIds.contains("1") }
-        XCTAssertEqual(session?.taskTotal, 2)
-        XCTAssertEqual(session?.taskDone, 1, "one of two done is what the notch should draw")
+        XCTAssertEqual(s.sessions["sess"]?.taskTotal, 1)
+        XCTAssertEqual(s.sessions["sess"]?.taskDone, 0,
+                       "everything before was finished, so this is a new list, not a fourth item")
     }
 
     /// A completion for a task that was never announced must not read as
@@ -309,17 +337,15 @@ final class TaskMeterProgressTests: XCTestCase {
     func testDoneCanNeverExceedTotal() {
         let s = AppState()
         s.noteTaskCompleted(id: "ghost", sessionId: "sess")
-        let session = s.sessions.values.first { $0.completedTaskIds.contains("ghost") }
-        XCTAssertEqual(session?.taskTotal, 1)
-        XCTAssertEqual(session?.taskDone, 1)
+        XCTAssertEqual(s.sessions["sess"]?.taskTotal, 1)
+        XCTAssertEqual(s.sessions["sess"]?.taskDone, 1)
     }
 
     func testTodoWriteCountsWinWhenBothExist() {
         let s = AppState()
         s.noteTaskCreated(id: "1", subject: "x", sessionId: "sess")
         s.noteTodos(total: 6, done: 4, sessionId: "sess")
-        let session = s.sessions["sess"] ?? s.sessions.values.first
-        XCTAssertEqual(session?.taskTotal, 6, "the checklist snapshot is the fuller picture")
-        XCTAssertEqual(session?.taskDone, 4)
+        XCTAssertEqual(s.sessions["sess"]?.taskTotal, 6, "the checklist snapshot is the fuller picture")
+        XCTAssertEqual(s.sessions["sess"]?.taskDone, 4)
     }
 }

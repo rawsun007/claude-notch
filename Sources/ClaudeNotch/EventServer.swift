@@ -527,7 +527,8 @@ final class EventServer {
                     // first time the app hears a task's id at all. Without this
                     // a whole list could be worked through and the meter would
                     // sit at zero, which is what it did.
-                    state?.noteTaskCreated(id: taskId, subject: subject, sessionId: sessionId)
+                    state?.noteTaskCreated(id: taskId, subject: subject,
+                                           sessionId: sessionId, viaUpdate: true)
                     switch status {
                     case "completed": state?.noteTaskCompleted(id: taskId, sessionId: sessionId)
                     case "deleted":   state?.noteTaskDeleted(id: taskId, sessionId: sessionId)
