@@ -16,6 +16,8 @@ final class EventServer {
     // generation id were single shared values).
     private var transcriptPollTokens: [String: Int] = [:]
 
+    /// Last read size per transcript path, for skipping unchanged files.
+    private var transcriptSizes: [String: UInt64] = [:]
     // taskId → subject, learned from TaskCreate / TaskUpdate(with subject).
     // Lets us put a human label on TaskUpdate calls that only carry {taskId, status}.
     private var taskRegistry: [String: String] = [:]
@@ -911,7 +913,26 @@ final class EventServer {
         }
     }
 
+    private func transcriptGrew(path: String) -> Bool {
+        let size = (try? FileManager.default.attributesOfItem(atPath: path)[.size] as? UInt64) ?? nil
+        guard let size else { return true }   // cannot tell: do the work
+        return transcriptPollLock.withLock {
+            let previous = transcriptSizes[path]
+            transcriptSizes[path] = size
+            return previous != size
+        }
+    }
+
     private func pollTranscript(path: String, sessionId: String, token: Int, until deadline: Date) {
+        // Polling runs for five minutes after a prompt, and a turn is usually
+        // over long before that: the rest of the window was spent re-reading and
+        // re-parsing half a megabyte, twice, every 700ms, to discover the file
+        // had not changed. A transcript is append-only, so its size answers that
+        // for the price of a stat.
+        guard transcriptGrew(path: path) else {
+            scheduleNextPoll(path: path, sessionId: sessionId, token: token, until: deadline)
+            return
+        }
         readAndPushClaudeResponse(transcriptPath: path, sessionId: sessionId)
         // Refresh task progress from the transcript (the source of truth), so
         // the notch bar stays accurate mid-task and recovers even if a TodoWrite
@@ -921,6 +942,10 @@ final class EventServer {
                 state?.noteTodos(total: todos.total, done: todos.done, sessionId: sessionId)
             }
         }
+        scheduleNextPoll(path: path, sessionId: sessionId, token: token, until: deadline)
+    }
+
+    private func scheduleNextPoll(path: String, sessionId: String, token: Int, until deadline: Date) {
         guard Date() < deadline else { finishPolling(path: path, token: token); return }
         workQueue.asyncAfter(deadline: .now() + .milliseconds(700)) { [weak self] in
             guard let self else { return }
