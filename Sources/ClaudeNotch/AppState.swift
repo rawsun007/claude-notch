@@ -345,6 +345,12 @@ final class AppState: ObservableObject {
     /// Which sound each tool category and each event plays. Read freely; change
     /// it only through updateSoundPrefs, so a preference cannot be set and then
     /// quietly not saved.
+    /// How many times each exact command has been approved by hand, keyed the
+    /// way an always-allow rule would be. Drives the suggestion on the card.
+    /// Persisted, capped (see AppState+Suggestions).
+    @Published var repeatApprovals: [String: Int] = [:]
+    static let repeatApprovalsCap = 64
+
     @Published private(set) var soundPrefs = SoundPreferences()
 
     /// The one way to change a sound preference. Everything that persists lives
@@ -742,6 +748,7 @@ final class AppState: ObservableObject {
             self.alertSound = snapshot.alertSound ?? "Funk"
             self.perToolSounds = snapshot.perToolSounds ?? false
             self.completionAuditEnabled = snapshot.completionAuditEnabled ?? false
+            self.repeatApprovals = snapshot.repeatApprovals ?? [:]
             self.soundPrefs = SoundPreferences(perTool: snapshot.perToolSoundMap ?? [:],
                                                perEvent: snapshot.eventSoundMap ?? [:])
             self.persistentNotchDisplay = snapshot.persistentNotchDisplay ?? false

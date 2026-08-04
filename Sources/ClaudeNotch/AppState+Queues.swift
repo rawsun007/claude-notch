@@ -358,13 +358,15 @@ extension AppState {
         if decision == .allow {
             switch alwaysAllow {
             case .none:
-                break
+                noteManualApproval(req)
             case .tool:
                 allowRules.insert(AllowRule(tool: req.toolName, commandRegex: nil))
+                clearApprovalCount(for: req)
                 schedulePersist()
             case .exactCommand:
                 let escaped = NSRegularExpression.escapedPattern(for: req.detail)
                 allowRules.insert(AllowRule(tool: req.toolName, commandRegex: "^\(escaped)$"))
+                clearApprovalCount(for: req)
                 schedulePersist()
             }
         }

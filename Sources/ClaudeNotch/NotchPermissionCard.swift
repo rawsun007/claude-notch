@@ -30,6 +30,9 @@ struct PermissionCard: View {
     var onDisableEnforce: (() -> Void)? = nil
     var raiseCapTarget: Double = 0
     var showPet: Bool = false
+    /// How many times this exact command has already been approved by hand.
+    /// Zero means say nothing: the nudge is for a habit, not a second time.
+    var priorApprovals: Int = 0
 
     private var isBudgetBlocked: Bool { request.budgetBlock != nil }
     private var accentColor: Color {
@@ -181,6 +184,19 @@ struct PermissionCard: View {
                     .fixedSize()
                     .accessibilityLabel("Always allow")
                     .accessibilityHint("Choose to always allow this exact command, or every \(request.toolName) call")
+
+                    // The button has always been here and hardly anyone uses
+                    // it: mid-flow the fastest key is Return, and making a rule
+                    // is admin for later. Once the same command has been waved
+                    // through several times, say so, at the one moment the
+                    // answer is obvious.
+                    if priorApprovals > 0 {
+                        Text(String(format: L("allowed %d times", comment: "Hint next to Always Allow. %d is how many times this exact command was approved before"), priorApprovals))
+                            .font(.system(size: 11))
+                            .foregroundColor(.white.opacity(0.55))
+                            .fixedSize()
+                            .accessibilityLabel(String(format: L("You have allowed this command %d times before", comment: "VoiceOver form of the repeat-approval hint"), priorApprovals))
+                    }
                 }
                 Spacer()
                 if request.isDangerous {

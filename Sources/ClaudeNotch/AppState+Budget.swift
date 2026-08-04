@@ -361,6 +361,7 @@ extension AppState {
             perToolSounds: perToolSounds,
             perToolSoundMap: soundPrefs.perTool,
             eventSoundMap: soundPrefs.perEvent,
+            repeatApprovals: repeatApprovals,
             persistentNotchDisplay: persistentNotchDisplay,
             petEnabled: petEnabled,
             petRandomEnabled: petRandomEnabled,

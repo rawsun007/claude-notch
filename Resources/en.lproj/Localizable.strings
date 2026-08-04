@@ -585,6 +585,9 @@
 /* Settings sidebar group */
 "Workspace" = "Workspace";
 
+/* VoiceOver form of the repeat-approval hint */
+"You have allowed this command %d times before" = "You have allowed this command %d times before";
+
 /* Settings explanation */
 "Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps." = "Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps.";
 
@@ -593,6 +596,9 @@
 
 /* Settings toggle explanation */
 "Your plan and whichever limit is closest to full, next to the menu-bar bell, so how much you have left is answered without opening anything." = "Your plan and whichever limit is closest to full, next to the menu-bar bell, so how much you have left is answered without opening anything.";
+
+/* Hint next to Always Allow. %d is how many times this exact command was approved before */
+"allowed %d times" = "allowed %d times";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "click to dismiss";

@@ -679,7 +679,8 @@ struct NotchView: View {
                     onRaiseCap: { state.raiseBudgetAndAllow() },
                     onDisableEnforce: { state.disableEnforcementAndAllow() },
                     raiseCapTarget: req.budgetBlock.map { state.raisedCapTarget(for: $0) } ?? 0,
-                    showPet: state.petEnabled
+                    showPet: state.petEnabled,
+                    priorApprovals: state.suggestsRule(for: req) ? state.approvalCount(for: req) : 0
                 )
                 // Fresh card per request id so the hold-to-confirm gesture
                 // state (pressing / progress) can't carry over to the next one.
