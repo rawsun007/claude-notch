@@ -26,7 +26,23 @@ extension AppState {
                 if case .contradicted = task.audit { priority = .high }
             }
             Announcer.say(line, priority: priority)
-        case .idle, .history, .responseDetail, .compose, .thinking, .autoInfo:
+        case .autoInfo(let req):
+            // A sighted user sees a card saying something was allowed on their
+            // behalf. Saying nothing here means a VoiceOver user is the only
+            // one who never learns an auto-approve rule fired, which is exactly
+            // the thing they would want to audit. Low priority: it is done,
+            // nothing is waiting, and it must not cut across a blocking card.
+            Announcer.say("Auto-approved. \(PermissionCard.spokenAsk(for: req))",
+                          priority: .low)
+        case .compose:
+            // The composer takes the keyboard, so unlike every other card the
+            // user needs to know where their typing is about to go.
+            if case .denyReason = composePurpose {
+                Announcer.say("Deny with a reason. Type the reason for Claude, then Command Return to send.")
+            } else {
+                Announcer.say("Message composer. Type a message, then Command Return to send it to your session.")
+            }
+        case .idle, .history, .responseDetail, .thinking:
             break
         }
     }

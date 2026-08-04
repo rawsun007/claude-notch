@@ -114,3 +114,36 @@ final class AnnouncerTests: XCTestCase {
         XCTAssertEqual(DiffPreviewView.spoken(hunk), "No changes")
     }
 }
+
+/// Every card a sighted user can see should be a card a VoiceOver user hears
+/// about. These pin the two that used to say nothing at all.
+@MainActor
+final class AnnouncementCoverageTests: XCTestCase {
+
+    private func request(detail: String = "npm test") -> PermissionRequest {
+        PermissionRequest(kind: .toolUse, title: "Run shell command", detail: detail,
+                          toolName: "Bash", source: "test", cwd: "/tmp",
+                          resolver: { _, _ in })
+    }
+
+    /// An auto-approved call is the one thing a user most wants to audit, and
+    /// it is the one that happens without them. Silence here means the rule
+    /// firing is invisible to exactly the person who cannot see the card.
+    func testAnAutoApprovedCallIsSpokenWithWhatItRan() {
+        let spoken = "Auto-approved. " + PermissionCard.spokenAsk(for: request(detail: "npm run build"))
+        XCTAssertTrue(spoken.hasPrefix("Auto-approved."))
+        XCTAssertTrue(spoken.contains("npm run build"),
+                      "hearing that something was approved without hearing what is no better than silence")
+        XCTAssertTrue(spoken.contains("Bash"))
+    }
+
+    func testTheSpokenAskCarriesTheDangerFirst() {
+        let dangerous = PermissionRequest(kind: .toolUse, title: "Run shell command",
+                                          detail: "rm -rf /tmp/x", toolName: "Bash",
+                                          source: "test", cwd: "/tmp",
+                                          dangerReasons: ["recursive delete"],
+                                          resolver: { _, _ in })
+        XCTAssertTrue(PermissionCard.spokenAsk(for: dangerous).hasPrefix("Dangerous."),
+                      "the warning has to arrive before the command, not after it")
+    }
+}
