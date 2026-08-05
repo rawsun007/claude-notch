@@ -539,7 +539,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         TerminalAutomator.resume(model: s.model, sessionId: s.id, in: s.cwd)
     }
 
-    @objc private func copyStandup() {
+    /// Also reachable from `claudenotch://standup`, hence not private.
+    @objc func copyStandup() {
         let records = state.sessionHistory
         let dirs = state.recentProjects
         Task { [weak self] in

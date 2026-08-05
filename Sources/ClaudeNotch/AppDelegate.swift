@@ -110,6 +110,64 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         false
     }
 
+    // MARK: - claudenotch:// URLs
+
+    /// Handle `claudenotch://` links. See URLScheme.swift for the grammar and
+    /// for why a project arrives as a name rather than as a path.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            guard let action = NotchURL.parse(url) else {
+                NSLog("ClaudeNotch: ignoring unrecognised URL \(url.scheme ?? "?")://…")
+                continue
+            }
+            perform(action)
+        }
+    }
+
+    private func perform(_ action: NotchURLAction) {
+        switch action {
+        case .open:
+            // Same effect as putting the cursor on the notch, so a link can
+            // reveal the card without the user reaching for the trackpad.
+            state.setHovering(true)
+            notch.window.makeKey()
+        case .settings:
+            settings.show()
+        case .history:
+            state.openHistory()
+        case .standup:
+            menu.copyStandup()
+        case .compose(let project):
+            state.beginCompose(project: project)
+            notch.window.makeKey()
+        case .resume(let project):
+            resumeFromURL(project: project)
+        }
+    }
+
+    /// Resume the newest session, or the newest one in a named project.
+    ///
+    /// The name is matched against the sessions Claude Code has already written
+    /// to disk; nothing is launched from the URL itself, so a link can only
+    /// reopen a directory the user has genuinely worked in.
+    private func resumeFromURL(project: String?) {
+        let includeCodex = HookInstaller.isCodexInstalled
+        Task.detached(priority: .userInitiated) {
+            let session: ResumableSession?
+            if let project {
+                session = SessionResumer.allAgentSessionsByProject(includeCodex: includeCodex)
+                    .first { $0.project == project }?
+                    .sessions.first
+            } else {
+                session = SessionResumer.mostRecent(includeCodex: includeCodex)
+            }
+            guard let session else { return }
+            await MainActor.run {
+                TerminalAutomator.resume(model: session.model, sessionId: session.id, in: session.cwd)
+            }
+        }
+    }
+
     /// Install a minimal main menu with a standard Edit menu. Without it, this
     /// accessory (LSUIElement) app has no menu at all, so ⌘X / ⌘C / ⌘V / ⌘A are
     /// never dispatched to the focused field: typing worked, but pasting into

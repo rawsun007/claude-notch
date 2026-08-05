@@ -208,6 +208,29 @@ prompt as usual, so nothing breaks.
 
 ---
 
+## 🔗 Drive it from anything: `claudenotch://`
+
+Anything that can open a URL can drive the notch: a Shortcut, a Raycast or
+Alfred script, a Stream Deck button, a link in your notes, or plain
+`open` in a terminal.
+
+| URL | What it does |
+|-----|--------------|
+| `claudenotch://open` | Reveal the notch card, as hovering it would |
+| `claudenotch://resume` | Resume the most recent session |
+| `claudenotch://resume/myapp` | Resume the most recent session in that project |
+| `claudenotch://compose` | Open the quick message composer |
+| `claudenotch://compose/myapp` | Compose aimed at that project |
+| `claudenotch://standup` | Copy today's standup to the clipboard |
+| `claudenotch://history` | Open the history drawer |
+| `claudenotch://settings` | Open the settings window |
+
+A project is a **name**, never a path. A link can only reopen a directory you
+have genuinely worked in, so a web page cannot point the agent somewhere of its
+own choosing.
+
+---
+
 ## 🔒 Privacy
 
 Everything stays on your machine. ClaudeNotch talks to Claude Code over a
