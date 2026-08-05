@@ -355,7 +355,10 @@ struct QuestionCard: View {
                     .foregroundColor(.purple.opacity(0.9))
                     .textCase(.uppercase)
                 Text("·").foregroundColor(.white.opacity(0.3))
-                Text("\(request.questions.count) question\(request.questions.count == 1 ? "" : "s")")
+                Text(request.questions.count == 1
+                     ? L("1 question", comment: "Header count when the card asks exactly one question")
+                     : String(format: L("%d questions", comment: "Header count. %d is how many questions the card asks"),
+                              request.questions.count))
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.55))
                 Spacer()
@@ -447,8 +450,8 @@ struct QuestionCard: View {
             .font(.system(size: 12, weight: .medium))
             .foregroundColor(.white)
             .focused($focusedOther, equals: qIdx)
-            .accessibilityLabel("Your own answer")
-            .accessibilityHint("Type an answer if none of the options fit")
+            .accessibilityLabel(L("Your own answer", comment: "VoiceOver label for the free-text answer field"))
+            .accessibilityHint(L("Type an answer if none of the options fit", comment: "VoiceOver hint for the free-text answer field"))
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 8)

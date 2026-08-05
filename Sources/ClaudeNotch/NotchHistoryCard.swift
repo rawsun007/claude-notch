@@ -14,11 +14,11 @@ enum HistoryFilter: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .all:        return "All"
-        case .allowed:    return "Allowed"
-        case .denied:     return "Denied"
-        case .dangerous:  return "Risky"
-        case .questions:  return "Q&A"
+        case .all:        return L("All", comment: "History filter: show every entry")
+        case .allowed:    return L("Allowed", comment: "History filter: only approved requests")
+        case .denied:     return L("Denied", comment: "History filter: only rejected requests")
+        case .dangerous:  return L("Risky", comment: "History filter: only requests flagged as dangerous")
+        case .questions:  return L("Q&A", comment: "History filter: only questions the agent asked")
         }
     }
     func matches(_ e: HistoryEntry) -> Bool {
@@ -36,6 +36,16 @@ enum HistoryTab: String, CaseIterable {
     case sessions = "Sessions"
     case projects = "Projects"
     case events   = "Events"
+
+    /// The raw values are the persisted identity, so the tab strip reads this
+    /// instead of showing them.
+    var label: String {
+        switch self {
+        case .sessions: return L("Sessions", comment: "History tab: past sessions")
+        case .projects: return L("Projects", comment: "History tab: spend and activity per project")
+        case .events:   return L("Events", comment: "History tab strip label for the activity log")
+        }
+    }
 }
 
 struct ProjectStats: Identifiable {
@@ -150,11 +160,15 @@ struct HistoryCard: View {
                     }
                 }
                 .frame(height: 16, alignment: .bottom)
-                Text("Last 7 days: \(ClaudeUsageReader.fmtMoney(w.total))")
+                Text(String(format: L("Last 7 days: %@",
+                                      comment: "Sparkline caption. %@ is a money total"),
+                            ClaudeUsageReader.fmtMoney(w.total)))
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundColor(.white.opacity(0.85))
                 Text("·").foregroundColor(.white.opacity(0.3))
-                Text("\(w.sessions) session\(w.sessions == 1 ? "" : "s")")
+                Text(w.sessions == 1
+                     ? L("1 session", comment: "Count when exactly one session is being summarised")
+                     : String(format: L("%d sessions", comment: "Count of sessions being summarised"), w.sessions))
                     .font(.system(size: 11, design: .rounded))
                     .foregroundColor(.white.opacity(0.5))
                 Spacer(minLength: 0)
@@ -168,8 +182,11 @@ struct HistoryCard: View {
             // The sparkline is shape only, so the spoken form is the totals it
             // sits next to, plus today's figure the tallest bar is drawing.
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Spend, last 7 days")
-            .accessibilityValue("\(ClaudeUsageReader.fmtMoney(w.total)) across \(w.sessions) session\(w.sessions == 1 ? "" : "s"). Today \(ClaudeUsageReader.fmtMoney(w.daily.last ?? 0)).")
+            .accessibilityLabel(L("Spend, last 7 days", comment: "VoiceOver label for the spend sparkline"))
+            .accessibilityValue(String(format: L("%1$@ across %2$d sessions. Today %3$@.",
+                                                 comment: "VoiceOver value for the spend sparkline. %1$@ is the week total, %2$d is the session count, %3$@ is today's spend"),
+                                       ClaudeUsageReader.fmtMoney(w.total), w.sessions,
+                                       ClaudeUsageReader.fmtMoney(w.daily.last ?? 0)))
         }
     }
 
@@ -214,25 +231,25 @@ struct HistoryCard: View {
                 .foregroundColor(.white.opacity(0.5))
             Spacer()
             if tab == .sessions {
-                Button("Export") { state.exportSessionHistory() }
+                Button(L("Export", comment: "Button: write the history out to a file")) { state.exportSessionHistory() }
                     .buttonStyle(.plain)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.white.opacity(0.55))
                     .disabled(state.sessionHistory.isEmpty)
                 Text("·").foregroundColor(.white.opacity(0.2))
-                Button("Clear") { state.clearSessionHistory() }
+                Button(L("Clear", comment: "Button: delete the stored history")) { state.clearSessionHistory() }
                     .buttonStyle(.plain)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.white.opacity(0.55))
                     .disabled(state.sessionHistory.isEmpty)
             } else if tab == .events {
-                Button("Export") { state.exportHistory() }
+                Button(L("Export", comment: "Button: write the history out to a file")) { state.exportHistory() }
                     .buttonStyle(.plain)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.white.opacity(0.55))
                     .disabled(state.history.isEmpty)
                 Text("·").foregroundColor(.white.opacity(0.2))
-                Button("Clear") { state.clearHistory() }
+                Button(L("Clear", comment: "Button: delete the stored history")) { state.clearHistory() }
                     .buttonStyle(.plain)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.white.opacity(0.55))
@@ -250,9 +267,9 @@ struct HistoryCard: View {
     }
     private var tabTitle: String {
         switch tab {
-        case .sessions: return "Sessions"
-        case .projects: return "Projects"
-        case .events:   return "Activity"
+        case .sessions: return L("Sessions", comment: "History tab: past sessions")
+        case .projects: return L("Projects", comment: "History tab: spend and activity per project")
+        case .events:   return L("Activity", comment: "History tab: the log of resolved cards")
         }
     }
 
@@ -275,7 +292,7 @@ struct HistoryCard: View {
         HStack(spacing: 6) {
             ForEach(HistoryTab.allCases, id: \.rawValue) { t in
                 Button { tab = t } label: {
-                    Text(t.rawValue)
+                    Text(t.label)
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundColor(tab == t ? .black : .white.opacity(0.7))
                         .padding(.horizontal, 10)
@@ -299,12 +316,17 @@ struct HistoryCard: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(.white.opacity(0.4))
-            TextField(tab == .events ? "Search tool, command, project…" : "Search project…", text: $search)
+            TextField(tab == .events
+                      ? L("Search tool, command, project…", comment: "Placeholder in the activity search field")
+                      : L("Search project…", comment: "Placeholder in the project search field"),
+                      text: $search)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
                 .foregroundColor(.white)
                 .focused($searchFocused)
-                .accessibilityLabel(tab == .events ? "Search history" : "Search projects")
+                .accessibilityLabel(tab == .events
+                                    ? L("Search history", comment: "VoiceOver label for the activity search field")
+                                    : L("Search projects", comment: "VoiceOver label for the project search field"))
             if !search.isEmpty {
                 Button { search = "" } label: {
                     Image(systemName: "xmark.circle.fill")
@@ -312,7 +334,7 @@ struct HistoryCard: View {
                         .foregroundColor(.white.opacity(0.4))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Clear search")
+                .accessibilityLabel(L("Clear search", comment: "VoiceOver label for the button that empties the search field"))
             }
         }
         .padding(.horizontal, 10)
@@ -386,8 +408,8 @@ struct HistoryCard: View {
         case .events:
             if filteredEvents.isEmpty {
                 emptyLabel(state.history.isEmpty
-                    ? "Nothing yet, permissions and questions you resolve will show up here."
-                    : "No events match your search.")
+                    ? L("Nothing yet, permissions and questions you resolve will show up here.", comment: "Empty state for the activity tab before anything has been resolved")
+                    : L("No events match your search.", comment: "Empty state for the activity tab when a search matches nothing"))
             } else {
                 ScrollView {
                     VStack(spacing: 4) { ForEach(filteredEvents) { HistoryRow(entry: $0) } }
@@ -431,7 +453,7 @@ struct HistoryCard: View {
     private var footer: some View {
         HStack {
             Spacer()
-            NotchButton(label: "Close", style: .primary, shortcut: "⏎") {
+            NotchButton(label: L("Close", comment: "Button: close the card"), style: .primary, shortcut: "⏎") {
                 state.closeHistory()
             }
         }
@@ -469,13 +491,13 @@ struct SessionHistoryRow: View {
                             HStack(spacing: 3) {
                                 Image(systemName: "play.fill")
                                     .font(.system(size: 8, weight: .semibold))
-                                Text("Resume")
+                                Text(L("Resume", comment: "Button: start the agent again in this project"))
                                     .font(.system(size: 10, weight: .semibold, design: .rounded))
                             }
                             .foregroundColor(.green.opacity(0.9))
                         }
                         .buttonStyle(.plain)
-                        .help("Start Claude in \(record.cwd)")
+                        .help(String(format: L("Start Claude in %@", comment: "Tooltip on Resume. %@ is a directory"), record.cwd))
                     } else {
                         Text(timeAgo(record.startedAt))
                             .font(.system(size: 10, design: .rounded))
@@ -518,7 +540,7 @@ struct SessionHistoryRow: View {
         // pointer it does not exist. Expose it as a row action instead, which
         // reaches it from the VoiceOver actions rotor with no visual change.
         .accessibilityElement(children: .combine)
-        .accessibilityAction(named: "Resume") { onResume?() }
+        .accessibilityAction(named: Text(L("Resume", comment: "Button: start the agent again in this project"))) { onResume?() }
     }
 
     private func label(_ text: String, icon: String) -> some View {
@@ -586,15 +608,17 @@ struct ProjectStatsRow: View {
                             HStack(spacing: 3) {
                                 Image(systemName: "play.fill")
                                     .font(.system(size: 8, weight: .semibold))
-                                Text("Resume")
+                                Text(L("Resume", comment: "Button: start the agent again in this project"))
                                     .font(.system(size: 10, weight: .semibold, design: .rounded))
                             }
                             .foregroundColor(.green.opacity(0.9))
                         }
                         .buttonStyle(.plain)
-                        .help("Start Claude in \(stats.cwd)")
+                        .help(String(format: L("Start Claude in %@", comment: "Tooltip on Resume. %@ is a directory"), stats.cwd))
                     } else {
-                        Text("\(stats.sessionCount) session\(stats.sessionCount == 1 ? "" : "s")")
+                        Text(stats.sessionCount == 1
+                             ? L("1 session", comment: "Count when exactly one session is being summarised")
+                             : String(format: L("%d sessions", comment: "Count of sessions being summarised"), stats.sessionCount))
                             .font(.system(size: 10, design: .rounded))
                             .foregroundColor(.white.opacity(0.4))
                     }
@@ -633,7 +657,7 @@ struct ProjectStatsRow: View {
         .onHover { hovering = $0 }
         .help(stats.cwd)
         .accessibilityElement(children: .combine)
-        .accessibilityAction(named: "Resume") { onResume?() }
+        .accessibilityAction(named: Text(L("Resume", comment: "Button: start the agent again in this project"))) { onResume?() }
     }
 
     private func statChip(_ text: String, icon: String) -> some View {

@@ -18,14 +18,27 @@ struct IdlePill: View {
 
     private var nameText: String {
         hasMultipleSessions
-            ? "\(state.entityName) · \(state.activeSessionCount) sessions"
+            ? String(format: L("%1$@ · %2$d sessions",
+                               comment: "Idle card title with more than one session. %1$@ is the agent name, %2$d is how many sessions"),
+                     state.entityName, state.activeSessionCount)
             : state.entityName
     }
 
     private var statusText: String {
-        if state.claudeActionStatus == "thinking" { return "Thinking" }
-        if state.isClaudeWorking { return "Running command" }
-        return "Ready"
+        if state.claudeActionStatus == "thinking" {
+            return L("Thinking", comment: "Status: the agent is reasoning, not running a tool")
+        }
+        if state.isClaudeWorking {
+            return L("Running command", comment: "Status: the agent is running a tool call")
+        }
+        return L("Ready", comment: "Status: the agent is idle and waiting")
+    }
+
+    /// VoiceOver reads the name and the status as one phrase, so the two are
+    /// joined by a format string rather than concatenated in the view.
+    private var statusAccessibilityLabel: String {
+        String(format: L("Claude Code, %@", comment: "VoiceOver label for the status line. %@ is the status word"),
+               statusText)
     }
 
     private var statusDotColor: Color {
@@ -46,7 +59,7 @@ struct IdlePill: View {
                     .font(.system(size: 10, design: .rounded))
                     .foregroundStyle(Self.shimmerGradient(phase: phase))
                     .lineLimit(1)
-                    .accessibilityLabel("Claude Code, \(statusText)")
+                    .accessibilityLabel(statusAccessibilityLabel)
             }
         } else {
             Text(statusText)
@@ -131,7 +144,9 @@ struct IdlePill: View {
                 if isOpen {
                     let agentCount = state.totalRunningAgentCount
                     if agentCount > 0 {
-                        Text(agentCount == 1 ? "1 agent" : "\(agentCount) agents")
+                        Text(agentCount == 1
+                             ? L("1 agent", comment: "Badge: exactly one background agent is running")
+                             : String(format: L("%d agents", comment: "Badge: how many background agents are running"), agentCount))
                             .font(.system(size: 9, weight: .medium, design: .rounded))
                             .foregroundColor(.purple.opacity(0.95))
                             .padding(.horizontal, 5)
@@ -141,14 +156,17 @@ struct IdlePill: View {
                     }
                     let fileCount = state.currentTouchedFiles.count
                     if fileCount > 0 {
-                        Text(fileCount == 1 ? "1 file" : "\(fileCount) files")
+                        Text(fileCount == 1
+                             ? L("1 file", comment: "Badge: exactly one file was edited this session")
+                             : String(format: L("%d files", comment: "Badge: how many files were edited this session"), fileCount))
                             .font(.system(size: 9, weight: .medium, design: .rounded))
                             .foregroundColor(.cyan.opacity(0.95))
                             .padding(.horizontal, 5)
                             .padding(.vertical, 2)
                             .background(Color.cyan.opacity(0.15))
                             .cornerRadius(4)
-                            .help("Files Claude edited this session, full list in the menu bar")
+                            .help(L("Files Claude edited this session, full list in the menu bar",
+                                    comment: "Tooltip on the edited-files badge"))
                     }
                 }
                 Spacer(minLength: 0)
@@ -159,8 +177,8 @@ struct IdlePill: View {
                             .foregroundColor(.white.opacity(0.45))
                     }
                     .buttonStyle(.plain)
-                    .help("Show history")
-                    .accessibilityLabel("Show history")
+                    .help(L("Show history", comment: "Tooltip: open the activity history panel"))
+                    .accessibilityLabel(L("Show history", comment: "Tooltip: open the activity history panel"))
                 }
                 if canExpand {
                     Button { state.showResponseDetail() } label: {
@@ -169,8 +187,8 @@ struct IdlePill: View {
                             .foregroundColor(.white.opacity(0.45))
                     }
                     .buttonStyle(.plain)
-                    .help("Expand response")
-                    .accessibilityLabel("Expand response")
+                    .help(L("Expand response", comment: "Tooltip: show the agent's full reply"))
+                    .accessibilityLabel(L("Expand response", comment: "Tooltip: show the agent's full reply"))
                 }
             }
 
@@ -210,7 +228,7 @@ struct IdlePill: View {
                 }
                 if isOpen {
                     if !effort.isEmpty {
-                        Text("\(effort) effort")
+                        Text(String(format: L("%@ effort", comment: "Reasoning effort label. %@ is a level such as high"), effort))
                             .font(.system(size: 10, design: .rounded))
                             .foregroundColor(.white.opacity(0.35))
                             .lineLimit(1)
@@ -227,7 +245,8 @@ struct IdlePill: View {
                                 .lineLimit(1)
                                 .fixedSize(horizontal: true, vertical: false)
                         }
-                        .help("Checked-out git branch: \(topBranch)")
+                        .help(String(format: L("Checked-out git branch: %@",
+                                               comment: "Tooltip on the branch chip. %@ is the branch name"), topBranch))
                     }
                 }
                 Spacer(minLength: 0)

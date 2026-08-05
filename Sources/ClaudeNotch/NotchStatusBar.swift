@@ -33,18 +33,20 @@ struct StatusBarRow: View {
             return BarData(pct: p, text: p.map { "\(Int(($0 * 100).rounded()))%" } ?? "—", showBar: true,
                            resetIn: showCountdown ? Self.countdown(state.fiveHourResetAt) : "",
                            age: Self.readingAge(state.limitsUpdatedAt),
-                           tooltip: limitTooltip("5-hour limit", pct: p, resetAt: state.fiveHourResetAt,
+                           tooltip: limitTooltip(L("5-hour limit", comment: "Name of the rolling five-hour usage window"),
+                                                 pct: p, resetAt: state.fiveHourResetAt,
                                                  forecast: state.fiveHourForecast))
         case .weeklyLimit:
             let p = Self.livePercent(state.weeklyLimitPercent, resetAt: state.weeklyResetAt)
             return BarData(pct: p, text: p.map { "\(Int(($0 * 100).rounded()))%" } ?? "—", showBar: true,
                            resetIn: showCountdown ? Self.countdown(state.weeklyResetAt) : "",
                            age: Self.readingAge(state.limitsUpdatedAt),
-                           tooltip: limitTooltip("Weekly limit", pct: p, resetAt: state.weeklyResetAt,
+                           tooltip: limitTooltip(L("Weekly limit", comment: "Name of the weekly usage window"),
+                                                 pct: p, resetAt: state.weeklyResetAt,
                                                  forecast: state.weeklyForecast))
         case .sessionCost:
             return BarData(pct: nil, text: ClaudeUsageReader.fmtMoney(state.currentCostUSD), showBar: false,
-                           tooltip: "Estimated cost of this session")
+                           tooltip: L("Estimated cost of this session", comment: "Tooltip on the session-cost readout"))
         case .credits:
             // Real money, unlike the estimate beside it, so it says the amount
             // rather than a percentage unless there is a budget to be a percentage of.
@@ -61,13 +63,16 @@ struct StatusBarRow: View {
     /// Credits are billed on top of the subscription, so the tooltip says what
     /// the number is rather than leaving "CR $2.40" to be guessed at.
     private func creditTooltip(_ c: PlanReader.Credits?) -> String {
-        guard let c else { return "Usage credits" }
+        guard let c else { return L("Usage credits", comment: "Tooltip when the credit amount is unknown") }
         let spent = c.spent ?? c.usedCredits ?? 0
         let amount = ClaudeUsageReader.fmtMoney(spent)
         if let limit = c.spendLimit ?? c.monthlyLimit {
-            return "Paid usage credits: \(amount) of \(ClaudeUsageReader.fmtMoney(limit)) this period"
+            return String(format: L("Paid usage credits: %1$@ of %2$@ this period",
+                                    comment: "Credit tooltip with a cap. %1$@ is spent, %2$@ is the cap"),
+                          amount, ClaudeUsageReader.fmtMoney(limit))
         }
-        return "Paid usage credits: \(amount) this period"
+        return String(format: L("Paid usage credits: %@ this period",
+                                comment: "Credit tooltip with no cap. %@ is the amount spent"), amount)
     }
 
     /// A usage percentage is only worth showing while the window it was measured
@@ -102,21 +107,30 @@ struct StatusBarRow: View {
     private func limitTooltip(_ name: String, pct: CGFloat?, resetAt: Date?,
                               forecast: BurnRate.Forecast? = nil) -> String {
         var parts: [String] = [name]
-        if let pct { parts.append("\(Int((pct * 100).rounded()))% used") }
+        if let pct {
+            parts.append(String(format: L("%d%% used", comment: "Limit tooltip fragment. %d is a percentage"),
+                                Int((pct * 100).rounded())))
+        }
         // Only when the cap would arrive before the window resets, and soon
         // enough to change what you do next.
         if let f = forecast, !f.resetsFirst,
            f.secondsRemaining <= BurnRate.worthWarningWithin {
-            parts.append("about \(BurnRate.humanDuration(f.secondsRemaining)) left at this rate")
+            parts.append(String(format: L("about %@ left at this rate",
+                                          comment: "Limit tooltip fragment. %@ is a duration such as 40 min"),
+                                BurnRate.humanDuration(f.secondsRemaining)))
         }
         if let resetAt {
-            parts.append("resets in \(ClaudeUsageReader.resetCountdown(until: resetAt)) "
-                         + "(\(Self.resetClockFormatter.string(from: resetAt)))")
+            parts.append(String(format: L("resets in %1$@ (%2$@)",
+                                          comment: "Limit tooltip fragment. %1$@ is a countdown, %2$@ is a clock time"),
+                                ClaudeUsageReader.resetCountdown(until: resetAt),
+                                Self.resetClockFormatter.string(from: resetAt)))
         }
         if let age = Self.readingAge(state.limitsUpdatedAt) {
-            parts.append("last reported \(age) ago")
+            parts.append(String(format: L("last reported %@ ago",
+                                          comment: "Limit tooltip fragment. %@ is how long ago the reading arrived"), age))
         }
-        parts.append("Claude Code only reports usage while a session is running")
+        parts.append(L("Claude Code only reports usage while a session is running",
+                       comment: "Limit tooltip fragment explaining why a reading can be stale"))
         return parts.joined(separator: " · ")
     }
 
@@ -175,7 +189,7 @@ struct StatusBarRow: View {
                 }
                 // An old reading must not pass for a current one.
                 if let age = data.age {
-                    Text("· \(age) old")
+                    Text(String(format: L("· %@ old", comment: "Staleness marker beside a usage reading. %@ is an age such as 12 min"), age))
                         .font(.system(size: 9, design: .rounded))
                         .foregroundColor(.white.opacity(0.28))
                         .lineLimit(1)

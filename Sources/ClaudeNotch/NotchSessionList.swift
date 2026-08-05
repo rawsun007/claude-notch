@@ -29,7 +29,8 @@ struct SessionsList: View {
                     RoundedRectangle(cornerRadius: 3, style: .continuous)
                         .fill(Color.teal.opacity(0.18))
                 )
-                .help("\(agent.displayName) session")
+                .help(String(format: L("%@ session", comment: "Tooltip on the agent chip. %@ is the agent's name"),
+                             agent.displayName))
         }
     }
 
@@ -148,9 +149,11 @@ struct SessionsList: View {
                                     .foregroundColor(.purple.opacity(0.9))
                                 }
                                 .buttonStyle(.plain)
-                                .help("Open this background agent in a terminal (claude attach \(session.backgroundAgentId))")
-                                .accessibilityLabel("Attach to background agent")
-                                .accessibilityHint("Opens it in a terminal")
+                                .help(String(format: L("Open this background agent in a terminal (claude attach %@)",
+                                                       comment: "Tooltip on the Attach button. %@ is the agent id"),
+                                             session.backgroundAgentId))
+                                .accessibilityLabel(L("Attach to background agent", comment: "VoiceOver label for the Attach button"))
+                                .accessibilityHint(L("Opens it in a terminal", comment: "VoiceOver hint for the Attach button"))
                             }
                             // The open PR for this branch. Claude Code resolves it,
                             // so the notch can link straight to it instead of the
@@ -176,9 +179,11 @@ struct SessionsList: View {
                                 .buttonStyle(.plain)
                                 .disabled(session.prURL.isEmpty)
                                 .help(NotchView.prTooltip(number: session.prNumber, state: session.prState))
-                                .accessibilityLabel("Pull request \(session.prNumber)")
+                                .accessibilityLabel(String(format: L("Pull request %d",
+                                                                     comment: "VoiceOver label for the PR chip. %d is the PR number"),
+                                                           session.prNumber))
                                 .accessibilityValue(session.prState)
-                                .accessibilityHint("Opens the pull request in your browser")
+                                .accessibilityHint(L("Opens the pull request in your browser", comment: "VoiceOver hint for the PR chip"))
                             }
                             // Two sessions in the same repo look identical in this
                             // list. The worktree is what tells them apart.
@@ -192,7 +197,9 @@ struct SessionsList: View {
                                 }
                                 .font(.system(size: 9, design: .rounded))
                                 .foregroundColor(.white.opacity(0.4))
-                                .help("Git worktree: \(session.worktree)")
+                                .help(String(format: L("Git worktree: %@",
+                                                       comment: "Tooltip on the worktree chip. %@ is the worktree name"),
+                                             session.worktree))
                             }
                             if let waitStart = state.pendingWaitStart(forCwd: session.cwd) {
                                 TimelineView(.periodic(from: .now, by: 15)) { _ in
@@ -204,10 +211,13 @@ struct SessionsList: View {
                                         .background(Color.orange.opacity(0.18))
                                         .cornerRadius(4)
                                 }
-                                .help("Waiting for your answer")
+                                .help(L("Waiting for your answer", comment: "Tooltip on the hourglass shown while a card is unanswered"))
                             }
                             if session.runningAgentCount > 0 {
-                                Text(session.runningAgentCount == 1 ? "1 agent" : "\(session.runningAgentCount) agents")
+                                Text(session.runningAgentCount == 1
+                                     ? L("1 agent", comment: "Badge: exactly one background agent is running")
+                                     : String(format: L("%d agents", comment: "Badge: how many background agents are running"),
+                                              session.runningAgentCount))
                                     .font(.system(size: 9, weight: .medium, design: .rounded))
                                     .foregroundColor(.purple.opacity(0.95))
                                     .padding(.horizontal, 5)
@@ -292,12 +302,16 @@ struct TaskMeter: View {
                 .foregroundColor(.white.opacity(complete ? 0.8 : 0.55))
                 .lineLimit(1)
         }
-        .help("\(done) of \(total) tasks done")
+        .help(String(format: L("%1$d of %2$d tasks done",
+                               comment: "Tooltip on the task meter. %1$d is finished tasks, %2$d is the total"),
+                     done, total))
         // A capsule and "3/7" — the bar carries no meaning out loud and the
         // fraction reads as "three slash seven".
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Task progress")
-        .accessibilityValue("\(done) of \(total) tasks done")
+        .accessibilityLabel(L("Task progress", comment: "VoiceOver label for the task meter"))
+        .accessibilityValue(String(format: L("%1$d of %2$d tasks done",
+                                             comment: "Tooltip on the task meter. %1$d is finished tasks, %2$d is the total"),
+                                   done, total))
     }
 }
 
@@ -358,17 +372,23 @@ struct ContextCostBar: View {
         return "\(fmtK(tokens))/\(fmtK(maxTokens))"
     }
     private var tooltipText: String {
-        let base = "Context \(Int((percent * 100).rounded()))% full"
-        let tok  = tokens > 0 ? " · \(tokens.formatted()) / \(maxTokens.formatted()) tokens" : ""
-        let cost: String
-        if self.cost > 0 {
-            cost = costIsReported
-                ? " · \(ClaudeUsageReader.fmtMoney(self.cost)) this session (Claude Code's own figure)"
-                : " · est. \(ClaudeUsageReader.fmtMoney(self.cost)) this session (estimated from the transcript)"
-        } else {
-            cost = ""
+        var parts = [String(format: L("Context %d%% full",
+                                      comment: "Context meter tooltip. %d is how full the context window is"),
+                            Int((percent * 100).rounded()))]
+        if tokens > 0 {
+            parts.append(String(format: L("%1$@ / %2$@ tokens",
+                                          comment: "Context meter tooltip fragment. %1$@ is tokens used, %2$@ is the window size"),
+                                tokens.formatted(), maxTokens.formatted()))
         }
-        return base + tok + cost
+        if self.cost > 0 {
+            let money = ClaudeUsageReader.fmtMoney(self.cost)
+            parts.append(costIsReported
+                ? String(format: L("%@ this session (Claude Code's own figure)",
+                                   comment: "Cost tooltip fragment for a reported cost. %@ is a money amount"), money)
+                : String(format: L("est. %@ this session (estimated from the transcript)",
+                                   comment: "Cost tooltip fragment for an estimated cost. %@ is a money amount"), money))
+        }
+        return parts.joined(separator: " · ")
     }
 
     var body: some View {
@@ -417,7 +437,7 @@ struct ContextCostBar: View {
         // Same tooltip, spoken: the interpuncts the tooltip uses as separators
         // are read aloud as nothing at all, so they become sentence breaks.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Context and cost")
+        .accessibilityLabel(L("Context and cost", comment: "VoiceOver label for the context and cost meter"))
         .accessibilityValue(tooltipText.replacingOccurrences(of: " · ", with: ". "))
     }
 }

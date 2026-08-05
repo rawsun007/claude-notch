@@ -199,9 +199,11 @@ struct ResponseDetailCard: View {
 
             HStack {
                 Spacer()
-                NotchButton(label: copied ? "Copied ✓" : "Copy",
+                NotchButton(label: copied
+                            ? L("Copied ✓", comment: "Button state right after the reply was copied")
+                            : L("Copy", comment: "Button: copy the reply to the clipboard"),
                             style: .secondary, shortcut: "⌘C", action: copyReply)
-                NotchButton(label: "Close", style: .primary, shortcut: "⏎") {
+                NotchButton(label: L("Close", comment: "Button: close the card"), style: .primary, shortcut: "⏎") {
                     state.closeResponseDetail()
                 }
             }

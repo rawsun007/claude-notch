@@ -121,19 +121,19 @@ enum StatusBarItem: String, Codable, CaseIterable {
 
     var barLabel: String {
         switch self {
-        case .fiveHourLimit: return "5H"
-        case .weeklyLimit:   return "WK"
-        case .sessionCost:   return "$"
-        case .credits:       return "CR"
+        case .fiveHourLimit: return L("5H", comment: "Two-letter status bar label for the five-hour limit")
+        case .weeklyLimit:   return L("WK", comment: "Two-letter status bar label for the weekly limit")
+        case .sessionCost:   return L("$", comment: "Status bar label for the session cost, a currency symbol")
+        case .credits:       return L("CR", comment: "Two-letter status bar label for paid usage credits")
         }
     }
 
     var menuLabel: String {
         switch self {
-        case .fiveHourLimit: return "5h plan limit"
-        case .weeklyLimit:   return "Weekly plan limit"
-        case .sessionCost:   return "Session cost (estimated $)"
-        case .credits:       return "Usage credits (only while they are on)"
+        case .fiveHourLimit: return L("5h plan limit", comment: "Menu item naming the five-hour usage window")
+        case .weeklyLimit:   return L("Weekly plan limit", comment: "Menu item naming the weekly usage window")
+        case .sessionCost:   return L("Session cost (estimated $)", comment: "Menu item naming the session cost readout")
+        case .credits:       return L("Usage credits (only while they are on)", comment: "Menu item naming the paid-credit readout")
         }
     }
 }
