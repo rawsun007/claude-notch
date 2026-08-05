@@ -51,8 +51,8 @@ enum NotchURL {
         guard url.scheme?.lowercased() == scheme else { return nil }
 
         // claudenotch://resume/foo puts the verb in the host; claudenotch:///resume/foo
-        // and claudenotch:resume/foo put it in the path. Accept both rather than
-        // making the caller know which form URLComponents produced.
+        // puts it in the path. Accept both rather than making the caller know
+        // which form URLComponents produced.
         var segments = url.path
             .split(separator: "/", omittingEmptySubsequences: true)
             .map(String.init)
