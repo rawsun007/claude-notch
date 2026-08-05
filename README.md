@@ -229,6 +229,34 @@ A project is a **name**, never a path. A link can only reopen a directory you
 have genuinely worked in, so a web page cannot point the agent somewhere of its
 own choosing.
 
+### AppleScript and Shortcuts
+
+The same verbs are scriptable, which also works from Shortcuts' **Run
+AppleScript** action, Stream Deck, Keyboard Maestro, and your own scripts.
+Open ClaudeNotch in Script Editor's dictionary browser to see it all.
+
+```applescript
+tell application "ClaudeNotch"
+    resume session "myapp"     -- true if a session was found
+    compose message "myapp"
+    copy standup               -- also returns the text
+    show notch                 -- or: show history / show settings
+end tell
+```
+
+Scripting can also read back what the notch knows, which a URL cannot:
+
+```applescript
+tell application "ClaudeNotch"
+    get today spend        --> 4.12      (US dollars, estimated)
+    get session count      --> 3
+    get working count      --> 1         (running a tool right now)
+    get pending count      --> 1         (cards waiting on you)
+    get current project    --> "myapp"
+    get current activity   --> "Bash: npm test"
+end tell
+```
+
 ---
 
 ## 🔒 Privacy

@@ -81,6 +81,12 @@ if [ -d Resources ]; then
     cp -R Resources/*.lproj "$APP/Contents/Resources/" 2>/dev/null || true
 fi
 
+# AppleScript dictionary. Info.plist points OSAScriptingDefinition at this, and
+# it is what Script Editor and Shortcuts' Run AppleScript action read.
+if [ -f Resources/ClaudeNotch.sdef ]; then
+    cp Resources/ClaudeNotch.sdef "$APP/Contents/Resources/ClaudeNotch.sdef"
+fi
+
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -97,6 +103,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>LSUIElement</key><true/>
+    <key>NSAppleScriptEnabled</key><true/>
+    <key>OSAScriptingDefinition</key><string>ClaudeNotch.sdef</string>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>

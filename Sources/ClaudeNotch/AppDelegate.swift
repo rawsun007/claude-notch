@@ -120,11 +120,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSLog("ClaudeNotch: ignoring unrecognised URL \(url.scheme ?? "?")://…")
                 continue
             }
-            perform(action)
+            run(action)
         }
     }
 
-    private func perform(_ action: NotchURLAction) {
+    /// Also the AppleScript entry point (see AppleScriptSupport.swift), hence
+    /// not private.
+    func run(_ action: NotchURLAction) {
         switch action {
         case .open:
             // Same effect as putting the cursor on the notch, so a link can
@@ -141,16 +143,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             state.beginCompose(project: project)
             notch.window.makeKey()
         case .resume(let project):
-            resumeFromURL(project: project)
+            resumeForScripting(project: project)
         }
     }
+
+    // MARK: - Scripting
 
     /// Resume the newest session, or the newest one in a named project.
     ///
     /// The name is matched against the sessions Claude Code has already written
-    /// to disk; nothing is launched from the URL itself, so a link can only
-    /// reopen a directory the user has genuinely worked in.
-    private func resumeFromURL(project: String?) {
+    /// to disk; nothing is launched from the URL or the script itself, so a
+    /// caller can only reopen a directory the user has genuinely worked in.
+    ///
+    /// The scan reads hundreds of transcripts, so it runs off the main thread
+    /// and reports back through `found`. AppleScript suspends its command
+    /// around that rather than freezing the notch while it waits.
+    func resumeForScripting(project: String?, found: (@Sendable @MainActor (Bool) -> Void)? = nil) {
         let includeCodex = HookInstaller.isCodexInstalled
         Task.detached(priority: .userInitiated) {
             let session: ResumableSession?
@@ -161,9 +169,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             } else {
                 session = SessionResumer.mostRecent(includeCodex: includeCodex)
             }
-            guard let session else { return }
             await MainActor.run {
-                TerminalAutomator.resume(model: session.model, sessionId: session.id, in: session.cwd)
+                if let session {
+                    TerminalAutomator.resume(model: session.model, sessionId: session.id, in: session.cwd)
+                }
+                found?(session != nil)
+            }
+        }
+    }
+
+    func composeForScripting(project: String?) {
+        run(.compose(project: project))
+    }
+
+    /// Build today's standup, copy it, and hand the text back so a script can
+    /// post it somewhere instead of going through the clipboard.
+    func standupForScripting(done: @escaping @Sendable @MainActor (String) -> Void) {
+        let records = state.sessionHistory
+        let dirs = state.recentProjects
+        Task.detached(priority: .userInitiated) {
+            let text = AppState.standupText(records: records, extraDirs: dirs, days: 1)
+            await MainActor.run {
+                NSPasteboard.copyString(text)
+                done(text)
             }
         }
     }

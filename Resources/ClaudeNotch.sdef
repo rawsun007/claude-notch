@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+
+<!--
+  ClaudeNotch's AppleScript dictionary.
+
+  The same verbs as the claudenotch:// URL scheme (see URLScheme.swift), in the
+  form Script Editor, Shortcuts' "Run AppleScript" action, and every automation
+  tool on macOS already understand. Scripting reaches further than a URL can:
+  it can also read back what the notch knows, which is what makes a status
+  widget or a menu-bar script possible.
+-->
+<dictionary title="ClaudeNotch Terminology">
+
+    <suite name="Standard Suite" code="????" description="Common commands.">
+        <command name="quit" code="aevtquit" description="Quit ClaudeNotch."/>
+    </suite>
+
+    <suite name="ClaudeNotch Suite" code="CnTc" description="Drive the notch.">
+
+        <!-- No `inherits`: this dictionary does not import Apple's Standard
+             Suite application class, so there is nothing to inherit from and
+             naming one would leave the class unresolved. -->
+        <class name="application" code="capp" description="The running ClaudeNotch.">
+            <cocoa class="NSApplication"/>
+            <property name="today spend" code="TdSp" type="real" access="r"
+                      description="Estimated cost of today's Claude usage, in US dollars.">
+                <cocoa key="scriptingTodaySpend"/>
+            </property>
+            <property name="session count" code="SsCt" type="integer" access="r"
+                      description="How many Claude or Codex sessions are live right now.">
+                <cocoa key="scriptingSessionCount"/>
+            </property>
+            <property name="working count" code="WkCt" type="integer" access="r"
+                      description="How many of those sessions are running a tool this moment.">
+                <cocoa key="scriptingWorkingCount"/>
+            </property>
+            <property name="current project" code="CrPj" type="text" access="r"
+                      description="The project the most recently active session is in, or an empty string.">
+                <cocoa key="scriptingCurrentProject"/>
+            </property>
+            <property name="current activity" code="CrAc" type="text" access="r"
+                      description="What that session is doing, or an empty string when it is idle.">
+                <cocoa key="scriptingCurrentActivity"/>
+            </property>
+            <property name="pending count" code="PdCt" type="integer" access="r"
+                      description="How many permission or question cards are waiting for you.">
+                <cocoa key="scriptingPendingCount"/>
+            </property>
+        </class>
+
+        <command name="resume session" code="CnTcRsme"
+                 description="Resume the most recent session, or the most recent one in a project.">
+            <cocoa class="NotchResumeCommand"/>
+            <direct-parameter type="text" optional="yes"
+                              description="A project name. Omit for the most recent session anywhere."/>
+            <result type="boolean" description="True when a session was found and reopened."/>
+        </command>
+
+        <command name="compose message" code="CnTcCmps"
+                 description="Open the quick message composer.">
+            <cocoa class="NotchComposeCommand"/>
+            <direct-parameter type="text" optional="yes"
+                              description="A project name to aim the composer at."/>
+        </command>
+
+        <command name="copy standup" code="CnTcStdp"
+                 description="Copy today's what-I-shipped summary to the clipboard.">
+            <cocoa class="NotchStandupCommand"/>
+            <result type="text" description="The text that was copied."/>
+        </command>
+
+        <command name="show settings" code="CnTcStgs" description="Open the settings window.">
+            <cocoa class="NotchShowSettingsCommand"/>
+        </command>
+
+        <command name="show history" code="CnTcHsty" description="Open the history drawer.">
+            <cocoa class="NotchShowHistoryCommand"/>
+        </command>
+
+        <command name="show notch" code="CnTcShNt" description="Reveal the notch card.">
+            <cocoa class="NotchShowNotchCommand"/>
+        </command>
+
+    </suite>
+
+</dictionary>
