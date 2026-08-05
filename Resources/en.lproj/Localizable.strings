@@ -198,6 +198,9 @@
 /* Settings toggle explanation */
 "Ask for Touch ID before allowing a tool request from the notch." = "Ask for Touch ID before allowing a tool request from the notch.";
 
+/* Budget forecast warning. %1$@ is a money cap, %2$@ is a clock time */
+"At this rate you pass your %1$@ daily cap around %2$@." = "At this rate you pass your %1$@ daily cap around %2$@.";
+
 /* Button: open a background agent in a terminal */
 "Attach" = "Attach";
 
@@ -428,6 +431,9 @@
 
 /* Settings toggle */
 "Daily and weekly digest" = "Daily and weekly digest";
+
+/* Settings row: mean spend per completed day */
+"Daily average" = "Daily average";
 
 /* History filter: only rejected requests */
 "Denied" = "Denied";
@@ -759,6 +765,9 @@
 /* Usage credits are switched on */
 "On" = "On";
 
+/* Card title for the spend forecast warning */
+"On course to pass your daily budget" = "On course to pass your daily budget";
+
 /* Button: bring the editor or terminal that started this session to the front */
 "Open IDE" = "Open IDE";
 
@@ -794,6 +803,9 @@
 
 /* Credit tooltip with no cap. %@ is the amount spent */
 "Paid usage credits: %@ this period" = "Paid usage credits: %@ this period";
+
+/* Settings row: when today's spend crosses the cap */
+"Passes the daily cap" = "Passes the daily cap";
 
 /* Settings toggle */
 "Per-tool sounds" = "Per-tool sounds";
@@ -842,6 +854,12 @@
 
 /* Settings explanation */
 "Project name" = "Project name";
+
+/* Caveat under the spend projection. %1$d is days measured, %2$d is days remaining */
+"Projected from %1$d day(s) of spend, with %2$d still to go. Estimated at public API prices, not your subscription bill." = "Projected from %1$d day(s) of spend, with %2$d still to go. Estimated at public API prices, not your subscription bill.";
+
+/* Settings row: what the month is on course to cost */
+"Projected month end" = "Projected month end";
 
 /* History tab: spend and activity per project */
 "Projects" = "Projects";
@@ -1104,6 +1122,9 @@
 /* Heading of the danger banner */
 "This command is destructive" = "This command is destructive";
 
+/* Settings row: spend since the first of the month */
+"This month so far" = "This month so far";
+
 /* Spend submenu row: cost this week */
 "This week" = "This week";
 
@@ -1115,6 +1136,9 @@
 
 /* Card body after copying the standup */
 "Today's \"what I shipped\" is on your clipboard." = "Today's \"what I shipped\" is on your clipboard.";
+
+/* Settings row: projected spend for the whole day */
+"Today, at this rate" = "Today, at this rate";
 
 /* Settings explanation */
 "Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess." = "Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess.";
@@ -1208,6 +1232,9 @@
 
 /* Settings toggle explanation */
 "When a task finishes, compare the closing message against what the turn really did, and say so on the card if it claims a change it never made or says the tests pass when none ran. Off by default: it is an opinion about the work, and it stays quiet on an ordinary turn." = "When a task finishes, compare the closing message against what the turn really did, and say so on the card if it claims a change it never made or says the tests pass when none ran. Off by default: it is an opinion about the work, and it stays quiet on an ordinary turn.";
+
+/* Settings section heading */
+"Where this is heading" = "Where this is heading";
 
 /* Onboarding step description for installing the hooks */
 "Wires permission prompts, notifications, and questions through the notch. Backs up your existing ~/.claude/settings.json first." = "Wires permission prompts, notifications, and questions through the notch. Backs up your existing ~/.claude/settings.json first.";

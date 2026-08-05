@@ -37,7 +37,33 @@ extension AppState {
         if level > dailyWarnLevel {
             dailyWarnLevel = level
             warnBudget(scope: "daily", level: level, cost: cost, cap: dailyCostCap)
+            return
         }
+        // Nothing crossed yet, but the day's rate may already say it will.
+        // Worth one heads-up while there is still time to do something about
+        // it, which is the whole difference between this and the 100% alert.
+        warnBudgetForecastIfNeeded(cost: cost, today: today)
+    }
+
+    /// Speak once a day when today's rate is on course to pass the daily cap.
+    ///
+    /// Silent when the threshold alerts have already fired for today: being
+    /// told you are heading for a cap you have just been told you crossed is
+    /// the kind of duplicate that teaches people to ignore the card.
+    func warnBudgetForecastIfNeeded(cost: Double, today: String) {
+        guard dailyWarnLevel == 0, dailyForecastWarnDate != today else { return }
+        let forecast = CostForecast.today(spent: cost, cap: dailyCostCap)
+        guard let text = CostForecast.warning(forecast, cap: dailyCostCap) else { return }
+        dailyForecastWarnDate = today
+        enqueuePermission(PermissionRequest(
+            kind: .notification,
+            title: L("On course to pass your daily budget", comment: "Card title for the spend forecast warning"),
+            detail: text,
+            toolName: "Budget",
+            source: "Cost budget",
+            cwd: currentCwd,
+            resolver: { _, _ in }
+        ))
     }
 
     /// Push rolling 5-hour and weekly cost totals for the status bar.

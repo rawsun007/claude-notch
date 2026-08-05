@@ -165,6 +165,8 @@ extension SettingsView {
                 }
             }
 
+            forecastSection
+
             Text(L("Warn when estimated cost crosses a cap. Set a cap to 0 to disable it.", comment: "Settings explanation"))
                 .font(.callout).foregroundStyle(.secondary)
             sectionLabel(L("Caps (USD)", comment: "Settings section heading"))
@@ -181,6 +183,60 @@ extension SettingsView {
                 row(L("Hard-stop at the cap", comment: "Settings toggle"),
                     L("Block new tool runs once a cap is crossed, instead of only warning.", comment: "Settings toggle explanation"),
                     Binding(get: { state.enforceBudget }, set: { state.setEnforceBudget($0) }))
+            }
+        }
+        // The projections read the per-day cost map, which is filled by a
+        // transcript scan. Without this the page would show yesterday's numbers
+        // (or none at all) until something else happened to refresh it.
+        .task(id: section) {
+            guard section == SettingsSection.budget else { return }
+            state.refreshProjectSpend()
+            let today = await Task.detached(priority: .utility) {
+                ClaudeUsageReader.compute().today.costUSD
+            }.value
+            state.noteTodayCost(today)
+        }
+    }
+
+    /// Where the spend is heading, rather than where it has been.
+    ///
+    /// The caps below warn at 80% and 100%, which is late: by the time the
+    /// second one fires the money is gone. This says what today finishes at and
+    /// what the month comes to, while there is still a decision to make.
+    @ViewBuilder
+    private var forecastSection: some View {
+        let monthly = CostForecast.month(dailyCostUSD: state.weekCostByDay)
+        let daily = CostForecast.today(spent: state.todayCostUSD, cap: state.dailyCostCap)
+        if monthly != nil || daily != nil {
+            sectionLabel(L("Where this is heading", comment: "Settings section heading"))
+            group {
+                if let d = daily {
+                    statRow(L("Today, at this rate", comment: "Settings row: projected spend for the whole day"),
+                            ClaudeUsageReader.fmtMoney(d.projectedTotal))
+                    if let crossesAt = d.crossesAt {
+                        divider
+                        statRow(L("Passes the daily cap", comment: "Settings row: when today's spend crosses the cap"),
+                                crossesAt.formatted(date: .omitted, time: .shortened))
+                    }
+                }
+                if let m = monthly {
+                    if daily != nil { divider }
+                    statRow(L("This month so far", comment: "Settings row: spend since the first of the month"),
+                            ClaudeUsageReader.fmtMoney(m.spentSoFar))
+                    divider
+                    statRow(L("Daily average", comment: "Settings row: mean spend per completed day"),
+                            ClaudeUsageReader.fmtMoney(m.dailyAverage))
+                    divider
+                    statRow(L("Projected month end", comment: "Settings row: what the month is on course to cost"),
+                            ClaudeUsageReader.fmtMoney(m.projectedTotal))
+                }
+            }
+            if let m = monthly {
+                Text(String(format: L("Projected from %1$d day(s) of spend, with %2$d still to go. Estimated at public API prices, not your subscription bill.",
+                                      comment: "Caveat under the spend projection. %1$d is days measured, %2$d is days remaining"),
+                            m.daysMeasured, m.daysRemaining))
+                    .font(.caption2).foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

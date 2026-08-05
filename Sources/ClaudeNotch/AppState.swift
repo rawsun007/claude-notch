@@ -712,6 +712,10 @@ final class AppState: ObservableObject {
     var sessionWarnLevel: [String: Int] = [:]
     var dailyWarnLevel: Int = 0
     var dailyWarnDate: String = ""
+    /// Day the "you are on course to pass the cap" forecast last spoke. It says
+    /// its piece once a day: it is a heads-up, and a heads-up repeated every
+    /// time the total ticks up is just noise.
+    var dailyForecastWarnDate: String = ""
 
     // Per-session live state. Keyed by session_id (or normalized cwd when a
     // hook didn't carry one). The global fields above stay as a mirror of the
