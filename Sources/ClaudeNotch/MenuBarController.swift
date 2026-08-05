@@ -82,55 +82,61 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         let menu = NSMenu()
         let buildStamp = MenuBarController.buildTimestamp()
-        let header = NSMenuItem(title: "ClaudeNotch  ·  build \(buildStamp)", action: nil, keyEquivalent: "")
+        let header = NSMenuItem(title: String(format: L("ClaudeNotch  ·  build %@", comment: "Menu header. %@ is a build timestamp"), buildStamp),
+                                action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)
 
-        statusItem = NSMenuItem(title: "No Active Session", action: #selector(clearSession), keyEquivalent: "")
+        statusItem = NSMenuItem(title: L("No Active Session", comment: "Menu item shown when no agent is running"),
+                                action: #selector(clearSession), keyEquivalent: "")
         statusItem.target = self
         menu.addItem(statusItem)
 
         // Hidden until the update checker finds a newer release.
-        updateItem = NSMenuItem(title: "Update available", action: #selector(openUpdate), keyEquivalent: "")
+        updateItem = NSMenuItem(title: L("Update available", comment: "Menu item: a newer release exists"),
+                                action: #selector(openUpdate), keyEquivalent: "")
         updateItem.target = self
         updateItem.isHidden = true
         menu.addItem(updateItem)
 
         // Spend breakdown submenu (today / 5-hour / week), filled on menu open.
         spendMenu = NSMenu()
-        spendItem = NSMenuItem(title: "Spend", action: nil, keyEquivalent: "")
+        spendItem = NSMenuItem(title: L("Spend", comment: "Menu item opening the cost breakdown"), action: nil, keyEquivalent: "")
         spendItem.submenu = spendMenu
         menu.addItem(spendItem)
 
         menu.addItem(.separator())
 
         // Start Claude in a folder
-        let startHere = NSMenuItem(title: "Start Claude in Folder…", action: #selector(startClaudePicker), keyEquivalent: "o")
+        let startHere = NSMenuItem(title: L("Start Claude in Folder…", comment: "Menu item: pick a folder and launch Claude there"),
+                                   action: #selector(startClaudePicker), keyEquivalent: "o")
         startHere.target = self
         menu.addItem(startHere)
 
         // Resume the most recent Claude Code session on disk — one click back
         // into where you were after a terminal was closed by accident. Title +
         // enabled state are refreshed in menuWillOpen from what's on disk.
-        resumeLastItem = NSMenuItem(title: "Resume Last Session", action: #selector(resumeLast), keyEquivalent: "")
+        resumeLastItem = NSMenuItem(title: L("Resume Last Session", comment: "Menu item: reopen the most recent session"),
+                                    action: #selector(resumeLast), keyEquivalent: "")
         resumeLastItem.target = self
         menu.addItem(resumeLastItem)
 
         // One-click standup: copy today's "what I shipped" to the clipboard,
         // built from finished sessions + git commits, ready to paste.
-        let standupMI = NSMenuItem(title: "Copy Today's Standup", action: #selector(copyStandup), keyEquivalent: "")
+        let standupMI = NSMenuItem(title: L("Copy Today's Standup", comment: "Menu item: copy a summary of today's work"),
+                                   action: #selector(copyStandup), keyEquivalent: "")
         standupMI.target = self
         menu.addItem(standupMI)
 
         // Recent projects submenu (populated dynamically)
         recentProjectsMenu = NSMenu()
-        recentProjectsItem = NSMenuItem(title: "Recent Projects", action: nil, keyEquivalent: "")
+        recentProjectsItem = NSMenuItem(title: L("Recent Projects", comment: "Menu item opening the recent-project launcher"), action: nil, keyEquivalent: "")
         recentProjectsItem.submenu = recentProjectsMenu
         menu.addItem(recentProjectsItem)
 
         // Files Claude edited this session (populated dynamically); click to open.
         touchedFilesMenu = NSMenu()
-        touchedFilesItem = NSMenuItem(title: "Files Touched", action: nil, keyEquivalent: "")
+        touchedFilesItem = NSMenuItem(title: L("Files Touched", comment: "Menu item listing the files edited this session"), action: nil, keyEquivalent: "")
         touchedFilesItem.submenu = touchedFilesMenu
         touchedFilesItem.isHidden = true
         // Migrated to Settings > Session; created (refresh code still runs on it)
@@ -222,30 +228,32 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         // Insights — local usage stats (rebuilt each time the menu opens).
         insightsMenu = NSMenu()
-        insightsItem = NSMenuItem(title: "Insights", action: nil, keyEquivalent: "")
+        insightsItem = NSMenuItem(title: L("Insights", comment: "Submenu: local usage statistics"), action: nil, keyEquivalent: "")
         insightsItem.submenu = insightsMenu
 
         // Claude Usage — token usage + estimated cost from Claude Code's own
         // transcripts. Rebuilt on open; the parse runs off the main thread.
         claudeUsageMenu = NSMenu()
-        claudeUsageItem = NSMenuItem(title: "Claude Usage", action: nil, keyEquivalent: "")
+        claudeUsageItem = NSMenuItem(title: L("Claude Usage", comment: "Submenu: token usage read from the transcripts"), action: nil, keyEquivalent: "")
         claudeUsageItem.submenu = claudeUsageMenu
 
         // Permissions & setup — grouped into a submenu.
         let permsMenu = NSMenu()
 
-        accessibilityItem = NSMenuItem(title: "Accessibility: Checking…", action: #selector(promptAccessibility), keyEquivalent: "")
+        accessibilityItem = NSMenuItem(title: L("Accessibility: Checking…", comment: "Permission row before the check finishes"),
+                                       action: #selector(promptAccessibility), keyEquivalent: "")
         accessibilityItem.target = self
         permsMenu.addItem(accessibilityItem)
 
-        inputMonitoringItem = NSMenuItem(title: "Input Monitoring: Checking…", action: #selector(promptInputMonitoring), keyEquivalent: "")
+        inputMonitoringItem = NSMenuItem(title: L("Input Monitoring: Checking…", comment: "Permission row before the check finishes"),
+                                         action: #selector(promptInputMonitoring), keyEquivalent: "")
         inputMonitoringItem.target = self
         permsMenu.addItem(inputMonitoringItem)
 
         permsMenu.addItem(.separator())
 
         allowlistMenu = NSMenu()
-        allowlistItem = NSMenuItem(title: "Always-Allow Rules: —", action: nil, keyEquivalent: "")
+        allowlistItem = NSMenuItem(title: L("Always-Allow Rules: —", comment: "Submenu title when there are no allow rules"), action: nil, keyEquivalent: "")
         allowlistItem.submenu = allowlistMenu
         permsMenu.addItem(allowlistItem)
 
@@ -253,7 +261,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         // on Macs that actually have biometrics.
         if BiometricAuth.isAvailable {
             permsMenu.addItem(.separator())
-            let ti = NSMenuItem(title: "Require \(BiometricAuth.label) for dangerous commands",
+            let ti = NSMenuItem(title: String(format: L("Require %@ for dangerous commands", comment: "Toggle. %@ is Touch ID or Face ID"), BiometricAuth.label),
                                 action: #selector(toggleTouchID), keyEquivalent: "")
             ti.target = self
             ti.state = state.requireTouchID ? .on : .off
@@ -262,32 +270,32 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
 
         permsMenu.addItem(.separator())
-        notifyMirrorItem = NSMenuItem(title: "Mirror Alerts to Notifications",
+        notifyMirrorItem = NSMenuItem(title: L("Mirror Alerts to Notifications", comment: "Toggle: also post cards to Notification Center"),
                                       action: #selector(toggleNotificationMirror), keyEquivalent: "")
         notifyMirrorItem.target = self
-        notifyMirrorItem.toolTip = "Also send blocking permission prompts to Notification Center so you can Allow or Deny from the lock screen or another Space. Respects Do Not Disturb."
+        notifyMirrorItem.toolTip = L("Also send blocking permission prompts to Notification Center so you can Allow or Deny from the lock screen or another Space. Respects Do Not Disturb.", comment: "Tooltip on the notification mirror toggle")
         notifyMirrorItem.state = state.mirrorToNotificationCenter ? .on : .off
         permsMenu.addItem(notifyMirrorItem)
 
-        completionNotifItem = NSMenuItem(title: "Notify When Claude Finishes",
+        completionNotifItem = NSMenuItem(title: L("Notify When Claude Finishes", comment: "Toggle: notify on task completion"),
                                          action: #selector(toggleCompletionNotifications), keyEquivalent: "")
         completionNotifItem.target = self
-        completionNotifItem.toolTip = "Send a native notification when a Claude task completes and you are in another app. Off by default."
+        completionNotifItem.toolTip = L("Send a native notification when a Claude task completes and you are in another app. Off by default.", comment: "Tooltip on the completion notification toggle")
         completionNotifItem.state = state.completionNotificationsEnabled ? .on : .off
         permsMenu.addItem(completionNotifItem)
 
-        digestNotifItem = NSMenuItem(title: "Daily Spend Digest",
+        digestNotifItem = NSMenuItem(title: L("Daily Spend Digest", comment: "Toggle: a morning summary of yesterday's spend"),
                                      action: #selector(toggleDigestNotifications), keyEquivalent: "")
         digestNotifItem.target = self
-        digestNotifItem.toolTip = "Send a morning notification with yesterday's cost, session count, and top project. Off by default."
+        digestNotifItem.toolTip = L("Send a morning notification with yesterday's cost, session count, and top project. Off by default.", comment: "Tooltip on the daily digest toggle")
         digestNotifItem.state = state.digestNotificationsEnabled ? .on : .off
         permsMenu.addItem(digestNotifItem)
 
         permsMenu.addItem(.separator())
-        screenCaptureItem = NSMenuItem(title: "Hide from Screen Recordings",
+        screenCaptureItem = NSMenuItem(title: L("Hide from Screen Recordings", comment: "Toggle: keep the notch out of screen shares"),
                                        action: #selector(toggleScreenCapture), keyEquivalent: "")
         screenCaptureItem.target = self
-        screenCaptureItem.toolTip = "Keep the notch out of screen shares, recordings, and other apps' screenshots. You still see it live; viewers don't. On by default."
+        screenCaptureItem.toolTip = L("Keep the notch out of screen shares, recordings, and other apps' screenshots. You still see it live; viewers don't. On by default.", comment: "Tooltip on the hide-from-capture toggle")
         screenCaptureItem.state = state.hideFromScreenCapture ? .on : .off
         permsMenu.addItem(screenCaptureItem)
 
@@ -295,85 +303,92 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         permsItem.submenu = permsMenu
         _ = permsItem
 
-        persistentNotchItem = NSMenuItem(title: "Persistent Notch Display", action: #selector(togglePersistentNotchDisplay), keyEquivalent: "")
+        persistentNotchItem = NSMenuItem(title: L("Persistent Notch Display", comment: "Toggle: keep the notch card open"),
+                                         action: #selector(togglePersistentNotchDisplay), keyEquivalent: "")
         persistentNotchItem.target = self
 
-        petModeItem = NSMenuItem(title: "Pet Mode", action: #selector(togglePetMode), keyEquivalent: "")
+        petModeItem = NSMenuItem(title: L("Pet Mode", comment: "Toggle: show the pet in the notch"), action: #selector(togglePetMode), keyEquivalent: "")
         petModeItem.target = self
 
-        breakRemindersItem = NSMenuItem(title: "Break Reminders",
+        breakRemindersItem = NSMenuItem(title: L("Break Reminders", comment: "Toggle: remind me to take a break"),
                                        action: #selector(toggleBreakReminders), keyEquivalent: "")
         breakRemindersItem.target = self
 
-        longRunItem = NSMenuItem(title: "Alert on Long Tool Runs",
+        longRunItem = NSMenuItem(title: L("Alert on Long Tool Runs", comment: "Toggle: warn when a tool call takes a long time"),
                                  action: #selector(toggleLongRun), keyEquivalent: "")
         longRunItem.target = self
 
-        rateLimitItem = NSMenuItem(title: "Warn Near Rate Limits",
+        rateLimitItem = NSMenuItem(title: L("Warn Near Rate Limits", comment: "Toggle: warn as a usage limit approaches"),
                                    action: #selector(toggleRateLimit), keyEquivalent: "")
         rateLimitItem.target = self
 
-        menuSpendItem = NSMenuItem(title: "Show Today's Spend in Menu Bar",
+        menuSpendItem = NSMenuItem(title: L("Show Today's Spend in Menu Bar", comment: "Toggle: put the day's cost in the menu bar"),
                                    action: #selector(toggleMenuSpend), keyEquivalent: "")
         menuSpendItem.target = self
         menuSpendItem.state = state.showSpendInMenuBar ? .on : .off
 
         // Auto-Approve submenu: permanent toggle + timed windows.
         autoApproveMenu = NSMenu()
-        autoApproveItem = NSMenuItem(title: "Auto-Approve", action: nil, keyEquivalent: "")
+        autoApproveItem = NSMenuItem(title: L("Auto-Approve", comment: "Submenu: approve requests without asking"), action: nil, keyEquivalent: "")
         autoApproveItem.submenu = autoApproveMenu
 
         // Snooze submenu: pause non-blocking cards for a window.
         snoozeMenu = NSMenu()
-        snoozeItem = NSMenuItem(title: "Snooze", action: nil, keyEquivalent: "")
+        snoozeItem = NSMenuItem(title: L("Snooze", comment: "Submenu: pause non-blocking cards"), action: nil, keyEquivalent: "")
         snoozeItem.submenu = snoozeMenu
 
         // Sound submenu: mute + per-tool toggle + alert sound picker.
         soundMenu = NSMenu()
-        soundItem = NSMenuItem(title: "Sound", action: nil, keyEquivalent: "")
+        soundItem = NSMenuItem(title: L("Sound", comment: "Submenu: alert sound settings"), action: nil, keyEquivalent: "")
         soundItem.submenu = soundMenu
 
         // Cost Budget submenu: per-session + daily $ caps with a heads-up alert.
         costBudgetMenu = NSMenu()
-        costBudgetItem = NSMenuItem(title: "Cost Budget", action: nil, keyEquivalent: "")
+        costBudgetItem = NSMenuItem(title: L("Cost Budget", comment: "Submenu: spending caps"), action: nil, keyEquivalent: "")
         costBudgetItem.submenu = costBudgetMenu
 
         // Status Bar submenu: what the bottom bar shows + context-window override.
         statusBarMenu = NSMenu()
-        statusBarItem = NSMenuItem(title: "Status Bar", action: nil, keyEquivalent: "")
+        statusBarItem = NSMenuItem(title: L("Status Bar", comment: "Submenu: what the notch status bar shows"), action: nil, keyEquivalent: "")
         statusBarItem.submenu = statusBarMenu
 
         // Notch Title submenu: what the first segment of the title shows.
         notchTitleMenu = NSMenu()
-        notchTitleItem = NSMenuItem(title: "Notch Title", action: nil, keyEquivalent: "")
+        notchTitleItem = NSMenuItem(title: L("Notch Title", comment: "Submenu: what the notch title shows"), action: nil, keyEquivalent: "")
         notchTitleItem.submenu = notchTitleMenu
 
-        loginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        loginItem = NSMenuItem(title: L("Launch at Login", comment: "Toggle: start the app when the Mac logs in"),
+                               action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
         loginItem.target = self
 
-        checkUpdateItem = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdatesNow), keyEquivalent: "")
+        checkUpdateItem = NSMenuItem(title: L("Check for Updates…", comment: "Menu item: look for a newer release now"),
+                                     action: #selector(checkForUpdatesNow), keyEquivalent: "")
         checkUpdateItem.target = self
 
         // The one config entry the menu keeps: open the full settings window.
-        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
+        let settingsItem = NSMenuItem(title: L("Settings…", comment: "Menu item: open the settings window"),
+                                      action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.keyEquivalentModifierMask = [.command, .option]
         settingsItem.target = self
         menu.addItem(settingsItem)
 
-        let feedback = NSMenuItem(title: "Send Feedback…", action: #selector(sendFeedback), keyEquivalent: "")
+        let feedback = NSMenuItem(title: L("Send Feedback…", comment: "Menu item: report a bug or ask for a feature"),
+                                  action: #selector(sendFeedback), keyEquivalent: "")
         feedback.target = self
         menu.addItem(feedback)
 
         // Only appears once a crash report has actually been written, so it's a
         // "grab this file for your bug report" shortcut, not permanent clutter.
-        crashLogsItem = NSMenuItem(title: "Reveal Crash Logs…", action: #selector(revealCrashLogs), keyEquivalent: "")
+        crashLogsItem = NSMenuItem(title: L("Reveal Crash Logs…", comment: "Menu item: show the crash report files in Finder"),
+                                   action: #selector(revealCrashLogs), keyEquivalent: "")
         crashLogsItem.target = self
         crashLogsItem.isHidden = true
         menu.addItem(crashLogsItem)
 
         menu.addItem(.separator())
 
-        let quit = NSMenuItem(title: "Quit ClaudeNotch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quit = NSMenuItem(title: L("Quit ClaudeNotch", comment: "Menu item: quit the app"),
+                              action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
 
         menu.delegate = self
@@ -465,21 +480,26 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 self.spendMenu.removeAllItems()
-                for (label, cost) in [("Today", u.today.costUSD),
-                                      ("Last 5 hours", u.fiveHour.costUSD),
-                                      ("This week", u.week.costUSD)] {
-                    let mi = NSMenuItem(title: "\(label): \(ClaudeUsageReader.fmtMoney(cost))", action: nil, keyEquivalent: "")
+                for (label, cost) in [(L("Today", comment: "Spend submenu row: cost so far today"), u.today.costUSD),
+                                      (L("Last 5 hours", comment: "Spend submenu row: cost in the rolling five-hour window"), u.fiveHour.costUSD),
+                                      (L("This week", comment: "Spend submenu row: cost this week"), u.week.costUSD)] {
+                    let mi = NSMenuItem(title: String(format: L("%1$@: %2$@", comment: "Spend submenu row. %1$@ is a period, %2$@ is a money amount"),
+                                                      label, ClaudeUsageReader.fmtMoney(cost)),
+                                        action: nil, keyEquivalent: "")
                     mi.isEnabled = false
                     self.spendMenu.addItem(mi)
                 }
-                let note = NSMenuItem(title: "Estimated at API prices, not your subscription bill", action: nil, keyEquivalent: "")
+                let note = NSMenuItem(title: L("Estimated at API prices, not your subscription bill", comment: "Footnote under the spend breakdown"),
+                                      action: nil, keyEquivalent: "")
                 note.isEnabled = false
                 self.spendMenu.addItem(note)
                 self.spendMenu.addItem(.separator())
-                let more = NSMenuItem(title: "Full usage in Settings…", action: #selector(self.showSettings), keyEquivalent: "")
+                let more = NSMenuItem(title: L("Full usage in Settings…", comment: "Spend submenu row linking to the settings window"),
+                                      action: #selector(self.showSettings), keyEquivalent: "")
                 more.target = self
                 self.spendMenu.addItem(more)
-                self.spendItem.title = "Est. cost  ·  \(ClaudeUsageReader.fmtMoney(u.today.costUSD)) today"
+                self.spendItem.title = String(format: L("Est. cost  ·  %@ today", comment: "Spend menu title. %@ is today's estimated cost"),
+                                              ClaudeUsageReader.fmtMoney(u.today.costUSD))
             }
         }
     }
@@ -495,10 +515,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 guard let self else { return }
                 self.lastResumable = recent
                 if let recent {
-                    self.resumeLastItem.title = "Resume Last Session: \(recent.project)"
+                    self.resumeLastItem.title = String(format: L("Resume Last Session: %@", comment: "Menu item naming the session that would be resumed. %@ is the project"),
+                                                       recent.project)
                     self.resumeLastItem.isEnabled = true
                 } else {
-                    self.resumeLastItem.title = "Resume Last Session"
+                    self.resumeLastItem.title = L("Resume Last Session", comment: "Menu item: reopen the most recent session")
                     self.resumeLastItem.isEnabled = false
                 }
             }
@@ -528,8 +549,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             await MainActor.run {
                 NSPasteboard.copyString(text)
                 self?.state.enqueueCompleted(CompletedTask(
-                    title: "Standup copied",
-                    detail: "Today's \"what I shipped\" is on your clipboard.",
+                    title: L("Standup copied", comment: "Card title after copying the standup"),
+                    detail: L("Today's \"what I shipped\" is on your clipboard.", comment: "Card body after copying the standup"),
                     source: "ClaudeNotch",
                     cwd: ""
                 ))
@@ -545,11 +566,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         // Accessibility (for keystroke injection into terminal)
         if TerminalAutomator.isAccessibilityTrusted {
             accessibilityItem.state = .on
-            accessibilityItem.title = "Accessibility: Granted"
+            accessibilityItem.title = L("Accessibility: Granted", comment: "Permission row once accessibility access is granted")
             accessibilityItem.isEnabled = false
         } else {
             accessibilityItem.state = .off
-            accessibilityItem.title = "Grant Accessibility…"
+            accessibilityItem.title = L("Grant Accessibility…", comment: "Permission row prompting for accessibility access")
             accessibilityItem.isEnabled = true
         }
 
@@ -557,11 +578,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let im = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
         if im == kIOHIDAccessTypeGranted {
             inputMonitoringItem.state = .on
-            inputMonitoringItem.title = "Input Monitoring: Granted"
+            inputMonitoringItem.title = L("Input Monitoring: Granted", comment: "Permission row once input monitoring is granted")
             inputMonitoringItem.isEnabled = false
         } else {
             inputMonitoringItem.state = .off
-            inputMonitoringItem.title = "Grant Input Monitoring…"
+            inputMonitoringItem.title = L("Grant Input Monitoring…", comment: "Permission row prompting for input monitoring")
             inputMonitoringItem.isEnabled = true
         }
 
@@ -590,22 +611,22 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func refreshAllowlist(_ rules: Set<AllowRule>) {
         allowlistMenu.removeAllItems()
         if rules.isEmpty {
-            allowlistItem.title = "Always-Allow Rules: —"
+            allowlistItem.title = L("Always-Allow Rules: —", comment: "Submenu title when there are no allow rules")
             allowlistItem.isEnabled = false
             return
         }
         allowlistItem.isEnabled = true
-        allowlistItem.title = "Always-Allow Rules (\(rules.count))"
+        allowlistItem.title = String(format: L("Always-Allow Rules (%d)", comment: "Submenu title. %d is how many rules exist"), rules.count)
         let sorted = rules.sorted { $0.displayLabel < $1.displayLabel }
         for rule in sorted {
             let ruleItem = NSMenuItem(title: rule.displayLabel, action: #selector(removeOneAllowRule(_:)), keyEquivalent: "")
             ruleItem.target = self
-            ruleItem.toolTip = "Click to remove this rule, matching prompts will ask again."
+            ruleItem.toolTip = L("Click to remove this rule, matching prompts will ask again.", comment: "Tooltip on an allow-rule row")
             ruleItem.representedObject = rule
             allowlistMenu.addItem(ruleItem)
         }
         allowlistMenu.addItem(.separator())
-        let clearItem = NSMenuItem(title: "Clear All", action: #selector(clearAllowlist), keyEquivalent: "")
+        let clearItem = NSMenuItem(title: L("Clear All", comment: "Menu item: delete every allow rule"), action: #selector(clearAllowlist), keyEquivalent: "")
         clearItem.target = self
         allowlistMenu.addItem(clearItem)
     }
@@ -616,11 +637,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             loginItem.state = (status == .enabled) ? .on : .off
             loginItem.isEnabled = (Bundle.main.bundlePath.hasSuffix(".app"))
             if !loginItem.isEnabled {
-                loginItem.title = "Launch at Login (install to /Applications first)"
+                loginItem.title = L("Launch at Login (install to /Applications first)", comment: "Login toggle, disabled because the app is not installed")
             } else if status == .requiresApproval {
-                loginItem.title = "Launch at Login, Approve in System Settings…"
+                loginItem.title = L("Launch at Login, Approve in System Settings…", comment: "Login toggle, waiting on macOS approval")
             } else {
-                loginItem.title = "Launch at Login"
+                loginItem.title = L("Launch at Login", comment: "Toggle: start the app when the Mac logs in")
             }
         } else {
             loginItem.isEnabled = false
@@ -685,13 +706,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let project = state.currentProject
         let activity = state.lastActivity
         if project.isEmpty {
-            statusItem.title = "No active session"
+            statusItem.title = L("No active session", comment: "Menu item shown when no agent is running")
             statusItem.isEnabled = false
         } else if activity.isEmpty {
-            statusItem.title = "\(project) ,  click to clear"
+            statusItem.title = String(format: L("%@ ,  click to clear", comment: "Menu item naming the running project. %@ is the project"), project)
             statusItem.isEnabled = true
         } else {
-            statusItem.title = "\(project), \(activity)  (click to clear)"
+            statusItem.title = String(format: L("%1$@, %2$@  (click to clear)", comment: "Menu item naming the project and what it is doing. %1$@ is the project, %2$@ is the activity"), project, activity)
             statusItem.isEnabled = true
         }
     }
@@ -724,14 +745,16 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private func refreshRecentProjects() {
         recentProjectsMenu.removeAllItems()
         if state.recentProjects.isEmpty {
-            let empty = NSMenuItem(title: "(no projects yet, start Claude in any folder)", action: nil, keyEquivalent: "")
+            let empty = NSMenuItem(title: L("(no projects yet, start Claude in any folder)", comment: "Placeholder row in the recent-projects submenu"),
+                                   action: nil, keyEquivalent: "")
             empty.isEnabled = false
             recentProjectsMenu.addItem(empty)
             return
         }
         for cwd in state.recentProjects {
             let basename = (cwd as NSString).lastPathComponent
-            let item = NSMenuItem(title: "↻  \(basename) ,  \(cwd)", action: #selector(launchRecentProject(_:)), keyEquivalent: "")
+            let item = NSMenuItem(title: String(format: L("↻  %1$@ ,  %2$@", comment: "Recent-project row. %1$@ is the folder name, %2$@ is its full path"), basename, cwd),
+                                  action: #selector(launchRecentProject(_:)), keyEquivalent: "")
             item.target = self
             item.representedObject = cwd
             item.toolTip = cwd
@@ -744,8 +767,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.prompt = "Start Claude here"
-        panel.message = "Pick a folder. Terminal.app will open with `cd <folder> && claude`."
+        panel.prompt = L("Start Claude here", comment: "Confirm button in the folder picker")
+        panel.message = L("Pick a folder. Terminal.app will open with `cd <folder> && claude`.", comment: "Explanation in the folder picker")
         if panel.runModal() == .OK, let url = panel.url {
             TerminalAutomator.startClaude(in: url.path)
         }
@@ -787,9 +810,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private func handleUpdateAvailable(_ version: String, userInitiated: Bool) {
         state.availableUpdateVersion = version
-        updateItem.title = "↑ Update available: v\(version), Download"
+        updateItem.title = String(format: L("↑ Update available: v%@, Download", comment: "Menu item when a newer release exists. %@ is the version"), version)
         updateItem.isHidden = false
-        checkUpdateItem.title = "Check for Updates…"
+        checkUpdateItem.title = L("Check for Updates…", comment: "Menu item: look for a newer release now")
         checkUpdateItem.isEnabled = true
         guard userInitiated else {
             // Background poll: most users never open this menu, so also show a
@@ -801,11 +824,12 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         // or the alert ends up behind everything.
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
-        alert.messageText = "Update available"
-        alert.informativeText = "ClaudeNotch v\(version) is available. You're on v\(UpdateChecker.shared.currentVersion)."
+        alert.messageText = L("Update available", comment: "Dialog title when a newer release exists")
+        alert.informativeText = String(format: L("ClaudeNotch v%1$@ is available. You're on v%2$@.", comment: "Update dialog body. %1$@ is the new version, %2$@ is the installed one"),
+                                       version, UpdateChecker.shared.currentVersion)
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "Download")
-        alert.addButton(withTitle: "Later")
+        alert.addButton(withTitle: L("Download", comment: "Dialog button: open the release page"))
+        alert.addButton(withTitle: L("Later", comment: "Dialog button: dismiss the update prompt"))
         if alert.runModal() == .alertFirstButtonReturn {
             openUpdate()
         }
@@ -818,37 +842,38 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     }
 
     @objc private func checkForUpdatesNow() {
-        checkUpdateItem.title = "Checking for Updates…"
+        checkUpdateItem.title = L("Checking for Updates…", comment: "Menu item while the update check is running")
         checkUpdateItem.isEnabled = false
         UpdateChecker.shared.check(userInitiated: true)
         // Safety net: if no callback fires in 10s (network hang), re-enable.
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
-            self?.checkUpdateItem.title = "Check for Updates…"
+            self?.checkUpdateItem.title = L("Check for Updates…", comment: "Menu item: look for a newer release now")
             self?.checkUpdateItem.isEnabled = true
         }
     }
 
     private func presentUpToDate() {
-        checkUpdateItem.title = "Check for Updates…"
+        checkUpdateItem.title = L("Check for Updates…", comment: "Menu item: look for a newer release now")
         checkUpdateItem.isEnabled = true
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
-        alert.messageText = "You're up to date"
-        alert.informativeText = "ClaudeNotch v\(UpdateChecker.shared.currentVersion) is the latest version."
+        alert.messageText = L("You're up to date", comment: "Dialog title when no newer release exists")
+        alert.informativeText = String(format: L("ClaudeNotch v%@ is the latest version.", comment: "Dialog body when no newer release exists. %@ is the installed version"),
+                                       UpdateChecker.shared.currentVersion)
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: L("OK", comment: "Dialog button: acknowledge and close"))
         alert.runModal()
     }
 
     private func presentCheckFailed() {
-        checkUpdateItem.title = "Check for Updates…"
+        checkUpdateItem.title = L("Check for Updates…", comment: "Menu item: look for a newer release now")
         checkUpdateItem.isEnabled = true
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
-        alert.messageText = "Couldn't check for updates"
-        alert.informativeText = "Something went wrong reaching GitHub. Check your internet connection and try again."
+        alert.messageText = L("Couldn't check for updates", comment: "Dialog title when the update check failed")
+        alert.informativeText = L("Something went wrong reaching GitHub. Check your internet connection and try again.", comment: "Dialog body when the update check failed")
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: L("OK", comment: "Dialog button: acknowledge and close"))
         alert.runModal()
     }
 
@@ -974,7 +999,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let files = state.currentTouchedFiles
         touchedFilesItem.isHidden = files.isEmpty
         guard !files.isEmpty else { return }
-        touchedFilesItem.title = "Files Touched (\(files.count))"
+        touchedFilesItem.title = String(format: L("Files Touched (%d)", comment: "Submenu title. %d is how many files were edited"), files.count)
         touchedFilesMenu.removeAllItems()
         for path in files.reversed() {
             let item = NSMenuItem(title: (path as NSString).lastPathComponent,
@@ -985,7 +1010,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             touchedFilesMenu.addItem(item)
         }
         touchedFilesMenu.addItem(.separator())
-        let reveal = NSMenuItem(title: "Reveal All in Finder",
+        let reveal = NSMenuItem(title: L("Reveal All in Finder", comment: "Menu item: show every edited file in Finder"),
                                 action: #selector(revealTouchedFiles), keyEquivalent: "")
         reveal.target = self
         touchedFilesMenu.addItem(reveal)
@@ -1024,8 +1049,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         // abstraction: it is describing the stretch you are in right now.
         let stretch = Int(state.focusStretch / 60)
         breakRemindersItem.title = stretch >= 5
-            ? "Break Reminders  (\(stretch)m at it)"
-            : "Break Reminders"
+            ? String(format: L("Break Reminders  (%dm at it)", comment: "Toggle title with how long you have been working. %d is minutes"), stretch)
+            : L("Break Reminders", comment: "Toggle: remind me to take a break")
         refreshNotchTitleMenu()
         refreshAutoApproveMenu()
         refreshSnoozeMenu()
@@ -1048,13 +1073,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         // Accessory apps must activate first or the modal lands behind everything.
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
-        alert.messageText = "Custom notch title"
-        alert.informativeText = "Shown as the first part of the notch title (for example \"MyApp · ready\"). Leave blank to use \"Claude\"."
-        alert.addButton(withTitle: "Save")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = L("Custom notch title", comment: "Dialog title for setting the notch title")
+        alert.informativeText = L("Shown as the first part of the notch title (for example \"MyApp · ready\"). Leave blank to use \"Claude\".", comment: "Dialog body for setting the notch title")
+        alert.addButton(withTitle: L("Save", comment: "Dialog button: keep the entered value"))
+        alert.addButton(withTitle: L("Cancel", comment: "Dialog button: discard and close"))
         let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
         field.stringValue = state.customNotchTitle
-        field.placeholderString = "Claude"
+        field.placeholderString = L("Claude", comment: "Placeholder showing the default notch title")
         alert.accessoryView = field
         alert.window.initialFirstResponder = field
         if alert.runModal() == .alertFirstButtonReturn {
@@ -1117,10 +1142,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     private func presentLoginError(_ error: Error) {
         let alert = NSAlert()
-        alert.messageText = "Couldn't change Launch at Login"
-        alert.informativeText = "\(error.localizedDescription)\n\nMake sure ClaudeNotch is in /Applications, then try again."
+        alert.messageText = L("Couldn't change Launch at Login", comment: "Dialog title when the login item could not be toggled")
+        alert.informativeText = String(format: L("%@\n\nMake sure ClaudeNotch is in /Applications, then try again.", comment: "Dialog body when the login item could not be toggled. %@ is the system error"),
+                                       error.localizedDescription)
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: L("OK", comment: "Dialog button: acknowledge and close"))
         alert.runModal()
     }
 }

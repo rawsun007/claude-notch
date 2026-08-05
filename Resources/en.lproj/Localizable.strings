@@ -15,8 +15,17 @@
 /* Idle card title with more than one session. %1$@ is the agent name, %2$d is how many sessions */
 "%1$@ · %2$d sessions" = "%1$@ · %2$d sessions";
 
+/* Menu item naming the project and what it is doing. %1$@ is the project, %2$@ is the activity */
+"%1$@, %2$@  (click to clear)" = "%1$@, %2$@  (click to clear)";
+
+/* Spend submenu row. %1$@ is a period, %2$@ is a money amount */
+"%1$@: %2$@" = "%1$@: %2$@";
+
 /* Tooltip on the task meter. %1$d is finished tasks, %2$d is the total */
 "%1$d of %2$d tasks done" = "%1$d of %2$d tasks done";
+
+/* Menu item naming the running project. %@ is the project */
+"%@ ,  click to clear" = "%@ ,  click to clear";
 
 /* Reasoning effort label. %@ is a level such as high */
 "%@ effort" = "%@ effort";
@@ -26,6 +35,9 @@
 
 /* Cost tooltip fragment for a reported cost. %@ is a money amount */
 "%@ this session (Claude Code's own figure)" = "%@ this session (Claude Code's own figure)";
+
+/* Dialog body when the login item could not be toggled. %@ is the system error */
+"%@\n\nMake sure ClaudeNotch is in /Applications, then try again." = "%@\n\nMake sure ClaudeNotch is in /Applications, then try again.";
 
 /* Badge: how many background agents are running */
 "%d agents" = "%d agents";
@@ -41,6 +53,9 @@
 
 /* Limit tooltip fragment. %d is a percentage */
 "%d%% used" = "%d%% used";
+
+/* Placeholder row in the recent-projects submenu */
+"(no projects yet, start Claude in any folder)" = "(no projects yet, start Claude in any folder)";
 
 /* Badge: exactly one background agent is running */
 "1 agent" = "1 agent";
@@ -78,6 +93,12 @@
 /* Settings page title */
 "About" = "About";
 
+/* Permission row before the check finishes */
+"Accessibility: Checking…" = "Accessibility: Checking…";
+
+/* Permission row once accessibility access is granted */
+"Accessibility: Granted" = "Accessibility: Granted";
+
 /* History tab: the log of resolved cards */
 "Activity" = "Activity";
 
@@ -86,6 +107,9 @@
 
 /* Settings sidebar group */
 "Advanced" = "Advanced";
+
+/* Toggle: warn when a tool call takes a long time */
+"Alert on Long Tool Runs" = "Alert on Long Tool Runs";
 
 /* Settings section heading */
 "Alert sound" = "Alert sound";
@@ -117,6 +141,9 @@
 /* History filter: only approved requests */
 "Allowed" = "Allowed";
 
+/* Tooltip on the notification mirror toggle */
+"Also send blocking permission prompts to Notification Center so you can Allow or Deny from the lock screen or another Space. Respects Do Not Disturb." = "Also send blocking permission prompts to Notification Center so you can Allow or Deny from the lock screen or another Space. Respects Do Not Disturb.";
+
 /* Settings toggle explanation */
 "Also send notch notifications to macOS Notification Center." = "Also send notch notifications to macOS Notification Center.";
 
@@ -134,6 +161,12 @@
 
 /* Settings toggle explanation */
 "Always show the notch card instead of hiding it behind the hardware notch until something happens." = "Always show the notch card instead of hiding it behind the hardware notch until something happens.";
+
+/* Submenu title. %d is how many rules exist */
+"Always-Allow Rules (%d)" = "Always-Allow Rules (%d)";
+
+/* Submenu title when there are no allow rules */
+"Always-Allow Rules: —" = "Always-Allow Rules: —";
 
 /* Settings section heading */
 "Always-allow rules" = "Always-allow rules";
@@ -156,6 +189,9 @@
 /* Tooltip for the AUTO badge */
 "Auto mode, background safety checks approve safe actions" = "Auto mode, background safety checks approve safe actions";
 
+/* Submenu: approve requests without asking */
+"Auto-Approve" = "Auto-Approve";
+
 /* Heading: this action was approved automatically by a rule */
 "Auto-allowed" = "Auto-allowed";
 
@@ -177,6 +213,12 @@
 /* Settings toggle explanation */
 "Block new tool runs once a cap is crossed, instead of only warning." = "Block new tool runs once a cap is crossed, instead of only warning.";
 
+/* Toggle: remind me to take a break */
+"Break Reminders" = "Break Reminders";
+
+/* Toggle title with how long you have been working. %d is minutes */
+"Break Reminders  (%dm at it)" = "Break Reminders  (%dm at it)";
+
 /* Settings toggle */
 "Break reminders" = "Break reminders";
 
@@ -189,11 +231,14 @@
 /* Two-letter status bar label for paid usage credits */
 "CR" = "CR";
 
-/* Button: abandon answering the question */
+/* Dialog button: discard and close */
 "Cancel" = "Cancel";
 
 /* Settings section heading */
 "Caps (USD)" = "Caps (USD)";
+
+/* Menu item: look for a newer release now */
+"Check for Updates…" = "Check for Updates…";
 
 /* Settings button */
 "Check for updates…" = "Check for updates…";
@@ -204,7 +249,10 @@
 /* Tooltip on the branch chip. %@ is the branch name */
 "Checked-out git branch: %@" = "Checked-out git branch: %@";
 
-/* Settings explanation */
+/* Menu item while the update check is running */
+"Checking for Updates…" = "Checking for Updates…";
+
+/* Placeholder showing the default notch title */
 "Claude" = "Claude";
 
 /* Settings explanation, freshness of the plan numbers */
@@ -219,6 +267,9 @@
 /* Settings explanation */
 "Claude Code, living in your notch." = "Claude Code, living in your notch.";
 
+/* Submenu: token usage read from the transcripts */
+"Claude Usage" = "Claude Usage";
+
 /* Settings section heading */
 "Claude usage (from transcripts)" = "Claude usage (from transcripts)";
 
@@ -228,14 +279,29 @@
 /* Settings explanation */
 "ClaudeNotch" = "ClaudeNotch";
 
+/* Menu header. %@ is a build timestamp */
+"ClaudeNotch  ·  build %@" = "ClaudeNotch  ·  build %@";
+
+/* Update dialog body. %1$@ is the new version, %2$@ is the installed one */
+"ClaudeNotch v%1$@ is available. You're on v%2$@." = "ClaudeNotch v%1$@ is available. You're on v%2$@.";
+
+/* Dialog body when no newer release exists. %@ is the installed version */
+"ClaudeNotch v%@ is the latest version." = "ClaudeNotch v%@ is the latest version.";
+
 /* Button: delete the stored history */
 "Clear" = "Clear";
+
+/* Menu item: delete every allow rule */
+"Clear All" = "Clear All";
 
 /* VoiceOver label for the button that empties the search field */
 "Clear search" = "Clear search";
 
 /* Settings button */
 "Clear the active session" = "Clear the active session";
+
+/* Tooltip on an allow-rule row */
+"Click to remove this rule, matching prompts will ask again." = "Click to remove this rule, matching prompts will ask again.";
 
 /* Button: close the card */
 "Close" = "Close";
@@ -273,11 +339,23 @@
 /* Button: copy the reply to the clipboard */
 "Copy" = "Copy";
 
+/* Menu item: copy a summary of today's work */
+"Copy Today's Standup" = "Copy Today's Standup";
+
+/* Submenu: spending caps */
+"Cost Budget" = "Cost Budget";
+
 /* Settings button */
 "Cost budget alert" = "Cost budget alert";
 
 /* Settings explanation */
 "Costs are estimates at public API prices, not your subscription bill." = "Costs are estimates at public API prices, not your subscription bill.";
+
+/* Dialog title when the login item could not be toggled */
+"Couldn't change Launch at Login" = "Couldn't change Launch at Login";
+
+/* Dialog title when the update check failed */
+"Couldn't check for updates" = "Couldn't check for updates";
 
 /* Settings explanation */
 "Credits carry a session past the plan limits instead of stopping it, and are billed on top of the subscription." = "Credits carry a session past the plan limits instead of stopping it, and are billed on top of the subscription.";
@@ -288,11 +366,17 @@
 /* Settings explanation */
 "Custom" = "Custom";
 
+/* Dialog title for setting the notch title */
+"Custom notch title" = "Custom notch title";
+
 /* Settings explanation */
 "Custom title" = "Custom title";
 
 /* Badge: Claude will not prompt for most actions */
 "DON'T ASK" = "DON'T ASK";
+
+/* Toggle: a morning summary of yesterday's spend */
+"Daily Spend Digest" = "Daily Spend Digest";
 
 /* Settings toggle */
 "Daily and weekly digest" = "Daily and weekly digest";
@@ -324,6 +408,9 @@
 /* Button: dismiss the finished-task card */
 "Done" = "Done";
 
+/* Dialog button: open the release page */
+"Download" = "Download";
+
 /* Settings toggle */
 "Drop files to open Claude" = "Drop files to open Claude";
 
@@ -332,6 +419,12 @@
 
 /* Settings button */
 "Enable Codex integration (beta)" = "Enable Codex integration (beta)";
+
+/* Spend menu title. %@ is today's estimated cost */
+"Est. cost  ·  %@ today" = "Est. cost  ·  %@ today";
+
+/* Footnote under the spend breakdown */
+"Estimated at API prices, not your subscription bill" = "Estimated at API prices, not your subscription bill";
 
 /* Settings explanation */
 "Estimated at public API (pay-as-you-go) prices. On a Pro, Max, Team, or Enterprise subscription you pay a flat fee, so this is not your actual bill, it is what the usage would cost per token." = "Estimated at public API (pay-as-you-go) prices. On a Pro, Max, Team, or Enterprise subscription you pay a flat fee, so this is not your actual bill, it is what the usage would cost per token.";
@@ -369,6 +462,12 @@
 /* Tooltip on the edited-files badge */
 "Files Claude edited this session, full list in the menu bar" = "Files Claude edited this session, full list in the menu bar";
 
+/* Menu item listing the files edited this session */
+"Files Touched" = "Files Touched";
+
+/* Submenu title. %d is how many files were edited */
+"Files Touched (%d)" = "Files Touched (%d)";
+
 /* Settings section heading */
 "Files touched this session" = "Files touched this session";
 
@@ -381,6 +480,9 @@
 /* Settings explanation */
 "Follow macOS" = "Follow macOS";
 
+/* Spend submenu row linking to the settings window */
+"Full usage in Settings…" = "Full usage in Settings…";
+
 /* Settings sidebar section */
 "General" = "General";
 
@@ -390,11 +492,20 @@
 /* Tooltip on the worktree chip. %@ is the worktree name */
 "Git worktree: %@" = "Git worktree: %@";
 
+/* Permission row prompting for accessibility access */
+"Grant Accessibility…" = "Grant Accessibility…";
+
+/* Permission row prompting for input monitoring */
+"Grant Input Monitoring…" = "Grant Input Monitoring…";
+
 /* Settings section heading */
 "Guest appearances" = "Guest appearances";
 
 /* Settings toggle */
 "Hard-stop at the cap" = "Hard-stop at the cap";
+
+/* Toggle: keep the notch out of screen shares */
+"Hide from Screen Recordings" = "Hide from Screen Recordings";
 
 /* Settings toggle */
 "Hide from screen capture" = "Hide from screen capture";
@@ -414,6 +525,15 @@
 /* Settings sidebar group */
 "Info" = "Info";
 
+/* Permission row before the check finishes */
+"Input Monitoring: Checking…" = "Input Monitoring: Checking…";
+
+/* Permission row once input monitoring is granted */
+"Input Monitoring: Granted" = "Input Monitoring: Granted";
+
+/* Submenu: local usage statistics */
+"Insights" = "Insights";
+
 /* Settings section heading */
 "Integrations (beta)" = "Integrations (beta)";
 
@@ -423,11 +543,29 @@
 /* Settings toggle */
 "Keep the notch open" = "Keep the notch open";
 
+/* Tooltip on the hide-from-capture toggle */
+"Keep the notch out of screen shares, recordings, and other apps' screenshots. You still see it live; viewers don't. On by default." = "Keep the notch out of screen shares, recordings, and other apps' screenshots. You still see it live; viewers don't. On by default.";
+
 /* Settings section heading */
 "Language" = "Language";
 
+/* Spend submenu row: cost in the rolling five-hour window */
+"Last 5 hours" = "Last 5 hours";
+
 /* Sparkline caption. %@ is a money total */
 "Last 7 days: %@" = "Last 7 days: %@";
+
+/* Dialog button: dismiss the update prompt */
+"Later" = "Later";
+
+/* Toggle: start the app when the Mac logs in */
+"Launch at Login" = "Launch at Login";
+
+/* Login toggle, disabled because the app is not installed */
+"Launch at Login (install to /Applications first)" = "Launch at Login (install to /Applications first)";
+
+/* Login toggle, waiting on macOS approval */
+"Launch at Login, Approve in System Settings…" = "Launch at Login, Approve in System Settings…";
 
 /* Settings toggle */
 "Launch at login" = "Launch at login";
@@ -453,6 +591,9 @@
 /* Button opening the Anthropic usage settings page */
 "Manage on claude.ai" = "Manage on claude.ai";
 
+/* Toggle: also post cards to Notification Center */
+"Mirror Alerts to Notifications" = "Mirror Alerts to Notifications";
+
 /* Settings toggle */
 "Mirror to Notification Center" = "Mirror to Notification Center";
 
@@ -464,6 +605,12 @@
 
 /* Settings toggle */
 "Mute all sounds" = "Mute all sounds";
+
+/* Menu item shown when no agent is running */
+"No Active Session" = "No Active Session";
+
+/* Menu item shown when no agent is running */
+"No active session" = "No active session";
 
 /* Empty state for the activity tab when a search matches nothing */
 "No events match your search." = "No events match your search.";
@@ -483,6 +630,9 @@
 /* Settings sidebar section */
 "Notch" = "Notch";
 
+/* Submenu: what the notch title shows */
+"Notch Title" = "Notch Title";
+
 /* Settings picker label */
 "Notch language" = "Notch language";
 
@@ -492,8 +642,14 @@
 /* Settings button */
 "Notification" = "Notification";
 
+/* Toggle: notify on task completion */
+"Notify When Claude Finishes" = "Notify When Claude Finishes";
+
 /* Settings toggle explanation */
 "Nudge you when a single run has been going for a long time." = "Nudge you when a single run has been going for a long time.";
+
+/* Dialog button: acknowledge and close */
+"OK" = "OK";
 
 /* Settings toggle explanation */
 "Occasional reminder to step away after a long stretch at the keyboard." = "Occasional reminder to step away after a long stretch at the keyboard.";
@@ -537,14 +693,20 @@
 /* Tooltip for the BYPASS badge */
 "Permissions are bypassed, every action runs without asking" = "Permissions are bypassed, every action runs without asking";
 
+/* Toggle: keep the notch card open */
+"Persistent Notch Display" = "Persistent Notch Display";
+
 /* Settings sidebar section */
 "Pet" = "Pet";
 
-/* Settings toggle */
+/* Toggle: show the pet in the notch */
 "Pet Mode" = "Pet Mode";
 
 /* Settings explanation */
 "Pet animations" = "Pet animations";
+
+/* Explanation in the folder picker */
+"Pick a folder. Terminal.app will open with `cd <folder> && claude`." = "Pick a folder. Terminal.app will open with `cd <folder> && claude`.";
 
 /* Settings page title */
 "Plan" = "Plan";
@@ -588,6 +750,9 @@
 /* Settings section heading */
 "Quick actions" = "Quick actions";
 
+/* Menu item: quit the app */
+"Quit ClaudeNotch" = "Quit ClaudeNotch";
+
 /* Button: raise the spending cap. %@ is a money amount */
 "Raise to %@" = "Raise to %@";
 
@@ -606,17 +771,35 @@
 /* Status: the agent is idle and waiting */
 "Ready" = "Ready";
 
+/* Menu item opening the recent-project launcher */
+"Recent Projects" = "Recent Projects";
+
 /* Button that re-reads the plan details */
 "Refresh" = "Refresh";
 
 /* Button: open a composer to send a follow-up message */
 "Reply" = "Reply";
 
+/* Toggle. %@ is Touch ID or Face ID */
+"Require %@ for dangerous commands" = "Require %@ for dangerous commands";
+
 /* Settings toggle */
 "Require Touch ID for permissions" = "Require Touch ID for permissions";
 
 /* Button: start the agent again in this project */
 "Resume" = "Resume";
+
+/* Menu item: reopen the most recent session */
+"Resume Last Session" = "Resume Last Session";
+
+/* Menu item naming the session that would be resumed. %@ is the project */
+"Resume Last Session: %@" = "Resume Last Session: %@";
+
+/* Menu item: show every edited file in Finder */
+"Reveal All in Finder" = "Reveal All in Finder";
+
+/* Menu item: show the crash report files in Finder */
+"Reveal Crash Logs…" = "Reveal Crash Logs…";
 
 /* History filter: only requests flagged as dangerous */
 "Risky" = "Risky";
@@ -629,6 +812,9 @@
 
 /* Settings explanation */
 "Sample cards" = "Sample cards";
+
+/* Dialog button: keep the entered value */
+"Save" = "Save";
 
 /* VoiceOver label for the activity search field */
 "Search history" = "Search history";
@@ -645,8 +831,17 @@
 /* Button: submit the answer to Claude's question */
 "Send" = "Send";
 
+/* Menu item: report a bug or ask for a feature */
+"Send Feedback…" = "Send Feedback…";
+
 /* Settings button */
 "Send a message to Claude…" = "Send a message to Claude…";
+
+/* Tooltip on the daily digest toggle */
+"Send a morning notification with yesterday's cost, session count, and top project. Off by default." = "Send a morning notification with yesterday's cost, session count, and top project. Off by default.";
+
+/* Tooltip on the completion notification toggle */
+"Send a native notification when a Claude task completes and you are in another app. Off by default." = "Send a native notification when a Claude task completes and you are in another app. Off by default.";
 
 /* Settings button */
 "Send feedback" = "Send feedback";
@@ -660,8 +855,14 @@
 /* History tab: past sessions */
 "Sessions" = "Sessions";
 
+/* Menu item: open the settings window */
+"Settings…" = "Settings…";
+
 /* Settings section heading */
 "Setup" = "Setup";
+
+/* Toggle: put the day's cost in the menu bar */
+"Show Today's Spend in Menu Bar" = "Show Today's Spend in Menu Bar";
 
 /* Tooltip: open the activity history panel */
 "Show history" = "Show history";
@@ -672,14 +873,26 @@
 /* Settings toggle */
 "Show your plan in the menu bar" = "Show your plan in the menu bar";
 
+/* Dialog body for setting the notch title */
+"Shown as the first part of the notch title (for example \"MyApp · ready\"). Leave blank to use \"Claude\"." = "Shown as the first part of the notch title (for example \"MyApp · ready\"). Leave blank to use \"Claude\".";
+
 /* Settings toggle explanation */
 "Silence every notch sound." = "Silence every notch sound.";
+
+/* Submenu: pause non-blocking cards */
+"Snooze" = "Snooze";
 
 /* Settings button. %@ is a duration such as 30 min */
 "Snooze for %@" = "Snooze for %@";
 
 /* Settings section heading */
 "Snooze passive cards" = "Snooze passive cards";
+
+/* Dialog body when the update check failed */
+"Something went wrong reaching GitHub. Check your internet connection and try again." = "Something went wrong reaching GitHub. Check your internet connection and try again.";
+
+/* Submenu: alert sound settings */
+"Sound" = "Sound";
 
 /* Settings section heading */
 "Sound per event" = "Sound per event";
@@ -690,11 +903,23 @@
 /* Settings sidebar section */
 "Sounds" = "Sounds";
 
+/* Menu item opening the cost breakdown */
+"Spend" = "Spend";
+
 /* VoiceOver label for the spend sparkline */
 "Spend, last 7 days" = "Spend, last 7 days";
 
+/* Card title after copying the standup */
+"Standup copied" = "Standup copied";
+
+/* Confirm button in the folder picker */
+"Start Claude here" = "Start Claude here";
+
 /* Tooltip on Resume. %@ is a directory */
 "Start Claude in %@" = "Start Claude in %@";
+
+/* Menu item: pick a folder and launch Claude there */
+"Start Claude in Folder…" = "Start Claude in Folder…";
 
 /* Settings button */
 "Start Claude in a folder…" = "Start Claude in a folder…";
@@ -704,6 +929,9 @@
 
 /* Settings button */
 "Start Codex in a folder…" = "Start Codex in a folder…";
+
+/* Submenu: what the notch status bar shows */
+"Status Bar" = "Status Bar";
 
 /* Settings section heading */
 "Status bar" = "Status bar";
@@ -747,11 +975,17 @@
 /* Heading of the danger banner */
 "This command is destructive" = "This command is destructive";
 
+/* Spend submenu row: cost this week */
+"This week" = "This week";
+
 /* Settings section heading */
 "Title" = "Title";
 
-/* Settings explanation */
+/* Spend submenu row: cost so far today */
 "Today" = "Today";
+
+/* Card body after copying the standup */
+"Today's \"what I shipped\" is on your clipboard." = "Today's \"what I shipped\" is on your clipboard.";
 
 /* Settings explanation */
 "Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess." = "Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess.";
@@ -774,6 +1008,9 @@
 /* VoiceOver hint for the free-text answer field */
 "Type an answer if none of the options fit" = "Type an answer if none of the options fit";
 
+/* Menu item: a newer release exists */
+"Update available" = "Update available";
+
 /* Settings badge: a newer version is available. %@ is the version number */
 "Update to v%@" = "Update to v%@";
 
@@ -791,6 +1028,9 @@
 
 /* Tooltip on the hourglass shown while a card is unanswered */
 "Waiting for your answer" = "Waiting for your answer";
+
+/* Toggle: warn as a usage limit approaches */
+"Warn Near Rate Limits" = "Warn Near Rate Limits";
 
 /* Settings toggle explanation */
 "Warn as your 5-hour or weekly usage fills, once at 80% and once at 95%." = "Warn as your 5-hour or weekly usage fills, once at 80% and once at 95%.";
@@ -834,6 +1074,9 @@
 /* VoiceOver form of the repeat-approval hint */
 "You have allowed this command %d times before" = "You have allowed this command %d times before";
 
+/* Dialog title when no newer release exists */
+"You're up to date" = "You're up to date";
+
 /* Settings explanation */
 "Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps." = "Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps.";
 
@@ -875,3 +1118,9 @@
 
 /* Staleness marker beside a usage reading. %@ is an age such as 12 min */
 "· %@ old" = "· %@ old";
+
+/* Menu item when a newer release exists. %@ is the version */
+"↑ Update available: v%@, Download" = "↑ Update available: v%@, Download";
+
+/* Recent-project row. %1$@ is the folder name, %2$@ is its full path */
+"↻  %1$@ ,  %2$@" = "↻  %1$@ ,  %2$@";
