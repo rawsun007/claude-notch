@@ -34,6 +34,57 @@ struct AllowRule: Hashable, Codable, Identifiable {
         }
         return "\(tool) matching /\(pattern)/"
     }
+
+    /// The literal command this rule was learned from, when it was learned from
+    /// one. Nil for a tool-wide rule and for a hand-written pattern.
+    ///
+    /// The app only ever writes two shapes (see `alwaysAllow` in
+    /// AppState+Queues): no pattern at all, or an anchored escape of one exact
+    /// command. This unwraps the second back into what the user actually
+    /// approved, which is what an editor and an export both need to show.
+    /// Recovered by undoing the escaping and then checking the result
+    /// re-escapes to exactly what we hold. That round-trip is what makes this
+    /// safe: a hand-written pattern that merely looks literal will fail it and
+    /// be reported as the regex it is, rather than being shown as a command
+    /// that would behave differently.
+    var literalCommand: String? {
+        guard let pattern = commandRegex,
+              pattern.hasPrefix("^"), pattern.hasSuffix("$"), pattern.count > 2 else { return nil }
+        let inner = String(pattern.dropFirst().dropLast())
+        var unescaped = ""
+        var escaping = false
+        for ch in inner {
+            if escaping { unescaped.append(ch); escaping = false }
+            else if ch == "\\" { escaping = true }
+            else { unescaped.append(ch) }
+        }
+        guard !escaping else { return nil }
+        guard NSRegularExpression.escapedPattern(for: unescaped) == inner else { return nil }
+        return unescaped
+    }
+
+    /// Build the anchored-literal form the app uses for "always allow exactly
+    /// this command", so the editor and the permission card agree on the shape.
+    static func exactCommand(tool: String, command: String) -> AllowRule {
+        AllowRule(tool: tool,
+                  commandRegex: "^\(NSRegularExpression.escapedPattern(for: command))$")
+    }
+
+    /// This rule as a Claude Code permission string, or nil when it cannot be
+    /// expressed as one.
+    ///
+    /// Claude Code's `permissions.allow` takes `Tool` or `Tool(argument)`. A
+    /// tool-wide rule and an exact command both map cleanly; an arbitrary regex
+    /// does not, and guessing would hand Claude Code a rule that means
+    /// something different from the one in the notch.
+    var claudePermission: String? {
+        guard commandRegex?.isEmpty == false else { return tool }
+        guard let literal = literalCommand else { return nil }
+        // A permission argument is terminated by the closing paren, so a
+        // command containing one cannot be round-tripped.
+        guard !literal.contains(")") else { return nil }
+        return "\(tool)(\(literal))"
+    }
 }
 
 struct AskOption: Identifiable, Equatable {

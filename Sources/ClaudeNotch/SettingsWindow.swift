@@ -57,6 +57,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case sounds = "Sounds"
     case budget = "Budget"
     case plan = "Plan"
+    case rules = "Rules"
     case privacy = "Privacy"
     case usage = "Usage"
     case history = "History"
@@ -74,6 +75,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .sounds: return "speaker.wave.2"
         case .budget: return "dollarsign.circle"
         case .plan: return "creditcard"
+        case .rules: return "checkmark.shield"
         case .privacy: return "lock.shield"
         case .usage: return "chart.bar"
         case .history: return "clock.arrow.circlepath"
@@ -87,6 +89,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         ("Workspace", [.general, .notch, .pet]),
         ("Session", [.session]),
         ("Alerts & Cost", [.alerts, .sounds, .budget, .plan]),
+        ("Permissions", [.rules]),
         ("Info", [.usage, .history, .privacy, .about]),
         ("Advanced", [.developer]),
     ]
@@ -120,6 +123,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         L("Sounds", comment: "Settings sidebar section"),
         L("Budget", comment: "Settings sidebar section"),
         L("Plan", comment: "Settings sidebar section"),
+        L("Rules", comment: "Settings sidebar section"),
         L("Privacy", comment: "Settings sidebar section"),
         L("Usage", comment: "Settings sidebar section"),
         L("History", comment: "Settings sidebar section"),
@@ -128,6 +132,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         L("Workspace", comment: "Settings sidebar group"),
         L("Alerts & Cost", comment: "Settings sidebar group"),
         L("Info", comment: "Settings sidebar group"),
+        L("Permissions", comment: "Settings sidebar group"),
         L("Advanced", comment: "Settings sidebar group"),
     ]
 }
@@ -276,6 +281,10 @@ struct SettingsSearchItem: Identifiable {
         .init(title: "Plan limits", keywords: "5 hour weekly opus session rate limit resets percent", section: .plan),
         .init(title: "Usage credits", keywords: "extra usage credits overage balance auto reload spend limit monthly", section: .plan),
 
+        .init(title: "Always-allow rules", keywords: "allowlist permissions approved automatically whitelist rule audit", section: .rules),
+        .init(title: "Add an allow rule", keywords: "rule tool command bash exact new", section: .rules),
+        .init(title: "Export rules to Claude Code", keywords: "settings json permissions allow merge copy export", section: .rules),
+
         .init(title: "Hide from screen capture", keywords: "recording screenshot privacy", section: .privacy),
         .init(title: "Require Touch ID", keywords: "biometric fingerprint", section: .privacy),
         .init(title: "Accessibility permission", keywords: "system", section: .privacy),
@@ -323,6 +332,13 @@ struct SettingsView: View {
     @State private var editingNoteText = ""
     @State private var updateCmdCopied = false
     @State private var terminalCmdCopied = false
+    // Always-allow rule editor: the row being typed, and what came of the
+    // last action taken on the list.
+    @State var newRuleTool = ""
+    @State var newRuleCommand = ""
+    @State var newRuleNote: String?
+    @State var rulesCopied = false
+    @State var mergeResult: String?
     @State var codexTotals: CodexReader.CodexTotals?
     @State var devSampleCardsOpen = false
     @State var devPetDemosOpen = false
@@ -472,6 +488,7 @@ struct SettingsView: View {
         case .sounds:    sounds
         case .budget:    budget
         case .plan:      plan
+        case .rules:     rules
         case .privacy:   privacy
         case .usage:     usage
         case .history:   history

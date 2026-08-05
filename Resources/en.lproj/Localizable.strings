@@ -48,6 +48,9 @@
 /* Header count. %d is how many questions the card asks */
 "%d questions" = "%d questions";
 
+/* Warning about rules that cannot be exported. %d is how many */
+"%d rule(s) use a pattern Claude Code cannot express, and are left out rather than approximated." = "%d rule(s) use a pattern Claude Code cannot express, and are left out rather than approximated.";
+
 /* Count of sessions being summarised */
 "%d sessions" = "%d sessions";
 
@@ -107,6 +110,18 @@
 
 /* Settings section heading */
 "Activity, last 7 weeks" = "Activity, last 7 weeks";
+
+/* Settings button: create the rule */
+"Add" = "Add";
+
+/* Settings section heading */
+"Add a rule" = "Add a rule";
+
+/* Settings button: merge the rules into Claude Code's settings */
+"Add to settings.json" = "Add to settings.json";
+
+/* Result after merging rules. %d is how many were added */
+"Added %d to ~/.claude/settings.json. The previous file was backed up beside it." = "Added %d to ~/.claude/settings.json. The previous file was backed up beside it.";
 
 /* Settings sidebar group */
 "Advanced" = "Advanced";
@@ -264,8 +279,14 @@
 /* Placeholder showing the default notch title */
 "Claude" = "Claude";
 
+/* Result when the merge added nothing */
+"Claude Code already had all of them. A backup was saved anyway." = "Claude Code already had all of them. A backup was saved anyway.";
+
 /* Onboarding step name for installing the hooks */
 "Claude Code hooks" = "Claude Code hooks";
+
+/* Explanation of the rule export */
+"Claude Code keeps its own allowlist in ~/.claude/settings.json. Copy these rules across so a terminal session the notch is not watching stops asking too." = "Claude Code keeps its own allowlist in ~/.claude/settings.json. Copy these rules across so a terminal session the notch is not watching stops asking too.";
 
 /* Settings explanation, freshness of the plan numbers */
 "Claude Code last checked this %@." = "Claude Code last checked this %@.";
@@ -363,6 +384,9 @@
 /* Onboarding button: copy the jq install command */
 "Copy `brew install jq`" = "Copy `brew install jq`";
 
+/* Settings button: put the export on the clipboard */
+"Copy as JSON" = "Copy as JSON";
+
 /* Submenu: spending caps */
 "Cost Budget" = "Cost Budget";
 
@@ -371,6 +395,9 @@
 
 /* Settings explanation */
 "Costs are estimates at public API prices, not your subscription bill." = "Costs are estimates at public API prices, not your subscription bill.";
+
+/* Error after a failed rule merge */
+"Could not write ~/.claude/settings.json. It exists but is not valid JSON, so nothing was changed." = "Could not write ~/.claude/settings.json. It exists but is not valid JSON, so nothing was changed.";
 
 /* Dialog title when the login item could not be toggled */
 "Couldn't change Launch at Login" = "Couldn't change Launch at Login";
@@ -474,8 +501,14 @@
 /* Settings explanation */
 "Every session you finish is archived here with a one-line summary, its cost, and what it changed. Search to recall what you did in a project last week." = "Every session you finish is archived here with a one-line summary, its cost, and what it changed. Search to recall what you did in a project last week.";
 
+/* Settings explanation */
+"Every time you click Always Allow, a rule lands here. Matching requests are approved without asking, so this is worth reading now and then." = "Every time you click Always Allow, a rule lands here. Matching requests are approved without asking, so this is worth reading now and then.";
+
 /* Settings section heading */
 "Everyday" = "Everyday";
+
+/* Placeholder in the new-rule command field */
+"Exact command, leave blank for the whole tool" = "Exact command, leave blank for the whole tool";
 
 /* Settings toggle explanation */
 "Exclude the notch from screen shares, recordings, and other apps' screenshots. It renders commands, paths, and code, so this is on by default." = "Exclude the notch from screen shares, recordings, and other apps' screenshots. It renders commands, paths, and code, so this is on by default.";
@@ -521,6 +554,9 @@
 
 /* Tooltip on the worktree chip. %@ is the worktree name */
 "Git worktree: %@" = "Git worktree: %@";
+
+/* Settings section heading */
+"Give these to Claude Code" = "Give these to Claude Code";
 
 /* Permission row prompting for accessibility access */
 "Grant Accessibility…" = "Grant Accessibility…";
@@ -687,6 +723,9 @@
 /* Settings explanation shown when the plan cache is missing */
 "No plan details yet. Claude Code writes them to its own config when it next talks to the API, so run a session and come back." = "No plan details yet. Claude Code writes them to its own config when it next talks to the API, so run a session and come back.";
 
+/* Settings empty state for the rules list */
+"No rules yet. Click Always Allow on a permission card to add one." = "No rules yet. Click Always Allow on a permission card to add one.";
+
 /* Settings sidebar section */
 "Notch" = "Notch";
 
@@ -758,6 +797,9 @@
 
 /* Settings toggle */
 "Per-tool sounds" = "Per-tool sounds";
+
+/* Settings sidebar group */
+"Permissions" = "Permissions";
 
 /* Tooltip for the BYPASS badge */
 "Permissions are bypassed, every action runs without asking" = "Permissions are bypassed, every action runs without asking";
@@ -849,6 +891,12 @@
 /* Button that re-reads the plan details */
 "Refresh" = "Refresh";
 
+/* Settings button: delete every allow rule */
+"Remove all rules" = "Remove all rules";
+
+/* Tooltip on the delete button in the rules list */
+"Remove this rule, matching prompts will ask again" = "Remove this rule, matching prompts will ask again";
+
 /* Button: open a composer to send a follow-up message */
 "Reply" = "Reply";
 
@@ -875,6 +923,9 @@
 
 /* History filter: only requests flagged as dangerous */
 "Risky" = "Risky";
+
+/* Settings page title */
+"Rules" = "Rules";
 
 /* Settings button */
 "Run setup again…" = "Run setup again…";
@@ -1032,6 +1083,12 @@
 /* Settings explanation */
 "Terminal:" = "Terminal:";
 
+/* Note shown when a typed rule is a duplicate */
+"That rule is already in the list." = "That rule is already in the list.";
+
+/* Explanation under the new-rule fields */
+"The command must match exactly, the way it appeared on the card. A blank command approves every call of the tool." = "The command must match exactly, the way it appeared on the card. A blank command approves every call of the tool.";
+
 /* Settings explanation */
 "The pet dressed as something else, each one a nod to whatever was in the air when it was built." = "The pet dressed as something else, each one a nod to whatever was in the air when it was built.";
 
@@ -1064,6 +1121,9 @@
 
 /* Settings button */
 "Tool permission" = "Tool permission";
+
+/* Placeholder in the new-rule tool field */
+"Tool, e.g. Bash" = "Tool, e.g. Bash";
 
 /* Settings section heading */
 "Top projects by estimated cost (7 days)" = "Top projects by estimated cost (7 days)";
@@ -1197,8 +1257,14 @@
 /* Cost tooltip fragment for an estimated cost. %@ is a money amount */
 "est. %@ this session (estimated from the transcript)" = "est. %@ this session (estimated from the transcript)";
 
+/* Rules list subtitle for a tool-wide rule */
+"every call of this tool" = "every call of this tool";
+
 /* Limit tooltip fragment. %@ is how long ago the reading arrived */
 "last reported %@ ago" = "last reported %@ ago";
+
+/* Rules list subtitle for a pattern rule. %@ is a regular expression */
+"matching /%@/" = "matching /%@/";
 
 /* Placeholder when a session has reported no token usage */
 "no usage yet" = "no usage yet";
