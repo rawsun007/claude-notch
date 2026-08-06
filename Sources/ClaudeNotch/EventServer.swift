@@ -1459,6 +1459,7 @@ func humanTitle(for tool: String) -> String {
     case "apply_patch":  return "Edit file"
     case "read_file":    return "Read file"
     case "web_search":   return "Search the web"
+    case "webrun", "web.run", "web": return "Search the web"
     case "view_image":   return "View image"
     case "update_plan":  return "Update plan"
     default:             return "Run \(tool)"
@@ -1492,6 +1493,10 @@ func humanDetail(for tool: String, input: [String: Any]) -> String {
         return CodexToolInput.string(input, keys: ["path", "file_path", "filename", "url"])
     case "web_search":
         return CodexToolInput.string(input, keys: ["query", "q", "search_query", "prompt"])
+    case "webrun", "web.run", "web":
+        // Codex's web tool batches actions: {"search_query":[{"q":"..."}]},
+        // {"open":[{"ref_id":...,"url":...}]}, {"find":[{"pattern":...}]}.
+        return CodexToolInput.webRunDetail(input)
     case "update_plan":
         let plan = (input["plan"] as? [[String: Any]]) ?? []
         let done = plan.filter { ($0["status"] as? String) == "completed" }.count
@@ -1594,8 +1599,47 @@ enum CodexToolInput {
     }
 
     /// The raw patch text of an `apply_patch` call, whichever key carries it.
+    /// Codex 0.145 puts the whole `*** Begin Patch` envelope under `command`.
     static func patchText(_ input: [String: Any]) -> String {
-        string(input, keys: ["input", "patch", "diff", "content", "changes"])
+        string(input, keys: ["command", "input", "patch", "diff", "content", "changes"])
+    }
+
+    /// One line for a `webrun` call. Its arguments are arrays of action
+    /// objects, one array per action kind, e.g.
+    /// `{"search_query":[{"q":"swift 6"}],"response_length":"short"}`.
+    static func webRunDetail(_ input: [String: Any]) -> String {
+        // Search is by far the common case; name the query, not the action.
+        for key in ["search_query", "image_query", "query"] {
+            let qs = actionValues(input[key], fields: ["q", "query", "pattern"])
+            if !qs.isEmpty { return qs.joined(separator: "  ·  ") }
+        }
+        for (key, verb) in [("open", "open"), ("click", "click"), ("find", "find in")] {
+            let vals = actionValues(input[key], fields: ["url", "pattern", "ref_id", "id"])
+            guard !vals.isEmpty else { continue }
+            return "\(verb) \(vals.joined(separator: ", "))"
+        }
+        return string(input, keys: ["q", "prompt", "url"])
+    }
+
+    /// Pull the first meaningful field out of each action object in an array
+    /// (`[{"q":"..."}]`), tolerating a bare string or a single dict instead.
+    private static func actionValues(_ raw: Any?, fields: [String]) -> [String] {
+        guard let raw else { return [] }
+        if let s = raw as? String { return s.isEmpty ? [] : [s] }
+        if let dict = raw as? [String: Any] {
+            let v = string(dict, keys: fields)
+            return v.isEmpty ? [] : [v]
+        }
+        guard let items = raw as? [Any] else { return [] }
+        var out: [String] = []
+        for item in items.prefix(3) {
+            if let s = item as? String, !s.isEmpty { out.append(s) }
+            else if let dict = item as? [String: Any] {
+                let v = string(dict, keys: fields)
+                if !v.isEmpty { out.append(v) }
+            }
+        }
+        return out
     }
 
     /// File paths named by an apply_patch envelope

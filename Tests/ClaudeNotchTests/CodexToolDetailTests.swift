@@ -33,6 +33,33 @@ final class CodexToolDetailTests: XCTestCase {
         XCTAssertEqual(humanTitle(for: "web_search"), "Search the web")
     }
 
+    /// The exact payload Codex 0.145 sends for its web tool, captured from a
+    /// live hook: the query is nested in an array of action objects.
+    func testWebRunSearchQueryArray() {
+        let input: [String: Any] = [
+            "search_query": [["q": "swift concurrency news"]],
+            "response_length": "short",
+        ]
+        XCTAssertEqual(humanDetail(for: "webrun", input: input), "swift concurrency news")
+        XCTAssertEqual(humanTitle(for: "webrun"), "Search the web")
+    }
+
+    func testWebRunOpenAction() {
+        let input: [String: Any] = ["open": [["url": "https://swift.org"]]]
+        XCTAssertEqual(humanDetail(for: "webrun", input: input), "open https://swift.org")
+    }
+
+    func testWebRunMultipleQueriesAreJoined() {
+        let input: [String: Any] = ["search_query": [["q": "one"], ["q": "two"]]]
+        XCTAssertEqual(humanDetail(for: "webrun", input: input), "one  ·  two")
+    }
+
+    /// Codex carries the whole patch envelope under `command`, not `input`.
+    func testApplyPatchUnderCommandKey() {
+        let patch = "*** Begin Patch\n*** Update File: /tmp/a.txt\n@@\n-hello\n+goodbye\n*** End Patch"
+        XCTAssertEqual(humanDetail(for: "apply_patch", input: ["command": patch]), "/tmp/a.txt")
+    }
+
     func testApplyPatchNamesTheFile() {
         let patch = """
         *** Begin Patch

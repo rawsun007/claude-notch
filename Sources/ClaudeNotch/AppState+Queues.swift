@@ -252,8 +252,11 @@ extension AppState {
     /// activity.
     func noteExternalActivity(tool: String, detail: String, needsApproval: Bool = false,
                               dangerReasons: [String] = [], sessionId: String = "") {
-        noteActivity(detail.isEmpty ? tool : "\(tool): \(String(detail.prefix(80)))", sessionId: sessionId)
-        let title = needsApproval ? "Codex needs your approval" : tool
+        // Codex's raw tool names ("webrun", "apply_patch") mean nothing to the
+        // user, so the card is headed by the human title instead.
+        let human = humanTitle(for: tool)
+        noteActivity(detail.isEmpty ? human : "\(human): \(String(detail.prefix(80)))", sessionId: sessionId)
+        let title = needsApproval ? "Codex needs your approval" : human
         let body: String
         if needsApproval {
             body = detail.isEmpty ? "Approve it in Codex" : "\(detail)\n\nApprove or deny it in Codex."
