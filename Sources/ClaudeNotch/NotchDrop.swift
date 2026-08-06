@@ -36,8 +36,7 @@ struct NotchDropDelegate: DropDelegate {
     }
     func dropEntered(info: DropInfo) {
         guard Date() >= state.suppressHoverUntil else { return }
-        state.isDropTarget = true
-        state.isDropHot = hotRect.contains(info.location)
+        setFlags(target: true, hot: hotRect.contains(info.location))
     }
     func dropUpdated(info: DropInfo) -> DropProposal? {
         // After a drop the OS can send a few more enter/update events (the drag
@@ -45,17 +44,23 @@ struct NotchDropDelegate: DropDelegate {
         // frame — the "notch flickers open a second time" bug. Ignore them during
         // the brief post-drop cooldown.
         guard Date() >= state.suppressHoverUntil else {
-            state.isDropTarget = false
-            state.isDropHot = false
+            setFlags(target: false, hot: false)
             return DropProposal(operation: .copy)
         }
-        state.isDropTarget = true
-        state.isDropHot = hotRect.contains(info.location)
+        setFlags(target: true, hot: hotRect.contains(info.location))
         return DropProposal(operation: .copy)
     }
     func dropExited(info: DropInfo) {
-        state.isDropTarget = false
-        state.isDropHot = false
+        setFlags(target: false, hot: false)
+    }
+
+    /// dropUpdated fires on every mouse move of the drag — dozens a second.
+    /// Writing the same value back into an @Published still publishes, so the
+    /// whole notch re-rendered on each event and the drag went sticky. Only
+    /// assign on an actual change.
+    private func setFlags(target: Bool, hot: Bool) {
+        if state.isDropTarget != target { state.isDropTarget = target }
+        if state.isDropHot != hot { state.isDropHot = hot }
     }
     func performDrop(info: DropInfo) -> Bool {
         // Clear the cue immediately so the panel collapses now, not after the

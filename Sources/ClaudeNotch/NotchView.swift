@@ -376,10 +376,19 @@ struct NotchView: View {
             // is budgeted for roughly two lines of description rather than one.
             // Underestimating only means the scroll kicks in sooner; it never
             // hides text.
-            let perOption: CGFloat = 66
-            // +44 for the "Something else…" free-text row each question carries.
-            let perQuestion: CGFloat = 26 + 6 + CGFloat(q.questions.first?.options.count ?? 1) * perOption + 44
-            let want = 104 + CGFloat(q.questions.count) * perQuestion
+            // An option with no description is a single 38pt row; only a
+            // described one needs the extra two wrapped lines. Budgeting every
+            // row for a description left a band of dead space above the
+            // buttons on a plain "which agent?" card.
+            let questionsHeight: CGFloat = q.questions.reduce(0) { total, question in
+                let options = question.options.reduce(CGFloat(0)) { sum, opt in
+                    sum + (opt.description.isEmpty ? 38 : 66)
+                }
+                // The free-text row is only drawn when the question allows one.
+                let custom: CGFloat = question.allowsCustomAnswer ? 44 : 0
+                return total + 26 + 6 + options + custom
+            }
+            let want = 104 + questionsHeight
             // Don't blow past the screen — leave at least 15% headroom so the
             // card stays usable on small displays. Only at that cap will the
             // inner scroll kick in.

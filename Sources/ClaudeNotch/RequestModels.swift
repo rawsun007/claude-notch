@@ -99,6 +99,11 @@ struct AskQuestion: Identifiable, Equatable {
     let text: String            // full question
     let multiSelect: Bool
     let options: [AskOption]
+    /// Whether the card offers a free-text row. True for an agent's question,
+    /// where any answer is worth passing back; false for the app's own
+    /// questions, whose options are the only answers it can act on (typing a
+    /// third agent name into "Claude Code or Codex?" just cancels the drop).
+    var allowsCustomAnswer: Bool = true
 }
 
 final class QuestionRequest: Identifiable, Equatable {

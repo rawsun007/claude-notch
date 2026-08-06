@@ -392,7 +392,7 @@ struct QuestionCard: View {
                             ForEach(q.options) { opt in
                                 optionRow(qIdx: idx, q: q, opt: opt)
                             }
-                            otherRow(qIdx: idx, q: q)
+                            if q.allowsCustomAnswer { otherRow(qIdx: idx, q: q) }
                         }
                     }
                 }

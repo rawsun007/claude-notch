@@ -311,7 +311,8 @@ final class AppState: ObservableObject {
             text: "Open “\(folder)” in which agent?",
             multiSelect: false,
             options: [AskOption(label: "Claude Code", description: ""),
-                      AskOption(label: "Codex", description: "")])
+                      AskOption(label: "Codex", description: "")],
+            allowsCustomAnswer: false)
         enqueueQuestion(QuestionRequest(questions: [q], source: "ClaudeNotch", cwd: dir, resolver: { [weak self] answers in
             let pick = answers?.first?.first ?? ""
             Task { @MainActor in
