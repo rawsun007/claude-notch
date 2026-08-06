@@ -1839,15 +1839,14 @@ struct SettingsView: View {
     /// kind, the same way the website changelog groups them. Keep this in sync
     /// with the top changelog entry when cutting a release.
     static let whatsNew: [ChangeGroup] = [
-        ChangeGroup(kind: .added, items: [
-        "The always-allow rules have a page. They decide what runs without asking you, which makes them the app's security policy, and until now they could only be made by clicking a button on a card and only be seen through a submenu nothing pointed at. Settings > Rules shows the whole list, flags tool-wide rules in amber because they approve every future call, and hands the list to Claude Code, which keeps its own allowlist and had no idea about ours.",
-        "The Budget page says where the spending is heading, not just where it has been. Today's finishing spend and the clock time it would cross your cap, plus what the month comes to if the rest of it looks like the days so far. Both stay quiet when they would be wrong: today is left out of the monthly average, and the day's projection waits two hours in, because two pounds by 00:20 extrapolates to a fortune.",
-        "The notch is drivable by anything on your Mac. A claudenotch:// URL covers open, settings, history, standup, compose and resume, so a Shortcut, a Raycast script or a Stream Deck button can reach it. An AppleScript dictionary adds the same six verbs plus the state worth reading back: today's spend, session counts, current project and activity. A project always arrives as a name, never a path, so nothing can aim the agent at a directory of its choosing.",
-        "The rest of the app speaks your chosen language. The permission card was the only part wired to the string table, so picking Japanese used to get you a mix of the two. The idle pill, badges, session rows, history drawer, every menu-bar row and alert, and the whole first-run setup window now follow the setting.",
-        ]),
         ChangeGroup(kind: .fixed, items: [
-        "Installing over an existing copy no longer deletes the Codex forwarder. The installer cleared every script in ~/.claudenotch/bin before copying the shipped ones back, which left every Codex event dying with exit code 127. It now deletes only the files it is about to replace, by name.",
-        "A finished Codex turn no longer claims Claude did it. The completed card read the name from a hardcoded fallback; it reads it from the session's own model now, and honours a custom notch title.",
+        "Codex cards say what Codex is actually doing. A web search read \"webrun / Running\" with no sign of the query, because Codex nests it in an array of action objects, and a patch named no file because the whole envelope arrives under a key Claude uses for a plain command. Searches now name the query, patches name the file, shell calls print the command rather than the bash -lc wrapper around it, and the card is headed \"Search the web\" instead of \"webrun\".",
+        "Dragging a folder onto the notch is smooth again. Every mouse move of the drag rewrote the two drop flags whether or not they had changed, and writing an unchanged value still redraws, so the whole notch re-rendered dozens of times a second and the drag felt like it was sticking. The flags are only written when they change now.",
+        "The drop's \"which agent?\" card no longer offers a free-text answer it cannot use, and no longer opens with a band of empty space above Cancel and Send: every option used to be budgeted for a description whether it had one or not.",
+        ]),
+        ChangeGroup(kind: .changed, items: [
+        "What's new is grouped by kind, here and on the site. One flat list of sparkles made a new feature and a bug fix look identical; each group now carries its own heading, icon and colour.",
+        "The website changelog is readable at a glance. Each entry is its own card, numbered within its group, with the kind's colour down its edge, and every release states how many entries it added and fixed. A version rail down the side makes forty releases navigable.",
         ]),
     ]
 }

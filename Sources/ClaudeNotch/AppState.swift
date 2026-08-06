@@ -477,7 +477,7 @@ final class AppState: ObservableObject {
     // an update. Maintained per release alongside the changelog.
     var lastSeenVersion: String? = nil
     static let whatsNewHighlights =
-        "A Rules page for what runs without asking, and a forecast of where your spend is heading"
+        "Codex cards name the query, the file and the command, and folder drops stopped stuttering"
 
     /// Transient "live activity" card shown after an auto-approved action —
     /// shows WHAT changed, no buttons, auto-dismisses.
