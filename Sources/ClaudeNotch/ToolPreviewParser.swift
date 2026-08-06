@@ -74,6 +74,31 @@ enum ToolPreviewParser {
             }.joined(separator: "\n")
             return .write(head: rendered, totalLines: todos.count)
 
+        case "apply_patch":
+            // Codex's patch envelope is already diff-shaped text; show its head
+            // so the card says which file and roughly what changes.
+            let patch = CodexToolInput.patchText(input)
+            guard !patch.isEmpty else { return nil }
+            let lines = patch.split(separator: "\n", omittingEmptySubsequences: false)
+            let head = lines.prefix(maxWriteLines).joined(separator: "\n")
+            return .write(head: head, totalLines: lines.count)
+
+        case "update_plan":
+            let plan = (input["plan"] as? [[String: Any]]) ?? []
+            guard !plan.isEmpty else { return nil }
+            let rendered = plan.prefix(maxWriteLines).map { item -> String in
+                let status = (item["status"] as? String) ?? "pending"
+                let text   = (item["step"] as? String) ?? (item["content"] as? String) ?? ""
+                let icon: String
+                switch status {
+                case "in_progress": icon = "▣"
+                case "completed":   icon = "✓"
+                default:            icon = "□"
+                }
+                return "\(icon) \(text)"
+            }.joined(separator: "\n")
+            return .write(head: rendered, totalLines: plan.count)
+
         default:
             return nil
         }
@@ -102,6 +127,16 @@ enum ToolPreviewParser {
         case "Bash":
             let cmd = (input["command"] as? String) ?? ""
             return bashDanger(cmd)
+        case "shell", "local_shell", "exec", "exec_command", "unified_exec":
+            // Codex passes argv arrays; scan the same patterns as Bash.
+            return bashDanger(CodexToolInput.command(input))
+        case "apply_patch":
+            let files = CodexToolInput.patchFiles(CodexToolInput.patchText(input))
+            for path in files {
+                let reasons = pathDanger(path)
+                if !reasons.isEmpty { return reasons }
+            }
+            return []
         case "Write":
             // Writing to system paths is suspicious; everything else is fine.
             let path = (input["file_path"] as? String) ?? ""

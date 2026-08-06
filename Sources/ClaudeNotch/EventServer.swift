@@ -1452,6 +1452,15 @@ func humanTitle(for tool: String) -> String {
     case "TodoWrite":    return "Update todos"
     case "SlashCommand": return "Run slash command"
     case "Skill":        return "Load skill"
+    // Codex tool names (snake_case, different vocabulary from Claude's).
+    case "shell", "local_shell", "exec", "exec_command", "unified_exec":
+        return "Run shell command"
+    case "write_stdin":  return "Send input to a running command"
+    case "apply_patch":  return "Edit file"
+    case "read_file":    return "Read file"
+    case "web_search":   return "Search the web"
+    case "view_image":   return "View image"
+    case "update_plan":  return "Update plan"
     default:             return "Run \(tool)"
     }
 }
@@ -1460,6 +1469,37 @@ func humanDetail(for tool: String, input: [String: Any]) -> String {
     switch tool {
     case "Bash":
         return (input["command"] as? String) ?? (input["description"] as? String) ?? ""
+
+    // MARK: Codex tools
+    //
+    // Codex sends `shell` with `command` as an argv ARRAY (usually
+    // ["bash","-lc","<script>"]), not a string, so the plain `as? String`
+    // casts above silently produce an empty detail and the card renders as a
+    // bare tool name. Everything below normalizes Codex's shapes.
+    case "shell", "local_shell", "exec", "exec_command", "unified_exec":
+        let cmd = CodexToolInput.command(input)
+        if !cmd.isEmpty { return cmd }
+        return (input["justification"] as? String) ?? ""
+    case "write_stdin":
+        return CodexToolInput.string(input, keys: ["input", "chars", "text"])
+    case "apply_patch":
+        let patch = CodexToolInput.patchText(input)
+        let files = CodexToolInput.patchFiles(patch)
+        if files.count == 1 { return files[0] }
+        if files.count > 1  { return "\(files.count) files  ·  \(files.joined(separator: ", "))" }
+        return String(patch.prefix(120))
+    case "read_file", "view_image":
+        return CodexToolInput.string(input, keys: ["path", "file_path", "filename", "url"])
+    case "web_search":
+        return CodexToolInput.string(input, keys: ["query", "q", "search_query", "prompt"])
+    case "update_plan":
+        let plan = (input["plan"] as? [[String: Any]]) ?? []
+        let done = plan.filter { ($0["status"] as? String) == "completed" }.count
+        let current = plan.first { ($0["status"] as? String) == "in_progress" }
+        let step = (current?["step"] as? String) ?? (current?["content"] as? String)
+        if let step, !step.isEmpty { return "\(step)  (\(done)/\(plan.count))" }
+        if !plan.isEmpty { return "\(done)/\(plan.count) steps done" }
+        return (input["explanation"] as? String) ?? ""
     case "Write", "Edit", "MultiEdit", "Read", "NotebookEdit":
         return (input["file_path"] as? String) ?? ""
     case "TaskUpdate":
@@ -1499,12 +1539,81 @@ func humanDetail(for tool: String, input: [String: Any]) -> String {
         if !name.isEmpty && !args.isEmpty { return "\(name) · \(args)" }
         return name
     default:
-        if let s = input["command"] as? String  { return s }
-        if let s = input["file_path"] as? String { return s }
-        if let s = input["query"] as? String     { return s }
-        if let s = input["url"] as? String       { return s }
-        if let s = input["subject"] as? String   { return s }
+        // Unknown tool (MCP tools, future Codex tools). Try the usual payload
+        // keys, argv arrays included, before giving up on a detail line.
+        let cmd = CodexToolInput.command(input)
+        if !cmd.isEmpty { return cmd }
+        let known = CodexToolInput.string(
+            input,
+            keys: ["file_path", "path", "query", "q", "url", "subject", "prompt", "description"]
+        )
+        return known
+    }
+}
+
+/// Normalizers for Codex's tool payloads. Codex's argument shapes differ from
+/// Claude's (argv arrays, patch blobs, alternate key names) and are untrusted
+/// input, so everything here is defensive and returns "" rather than throwing.
+enum CodexToolInput {
+
+    /// First non-empty string value among `keys`.
+    static func string(_ input: [String: Any], keys: [String]) -> String {
+        for key in keys {
+            if let s = input[key] as? String, !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return s
+            }
+        }
         return ""
+    }
+
+    /// The shell command as one readable line. Handles `command` as a string,
+    /// as an argv array, and the `["bash","-lc","<script>"]` wrapper Codex uses
+    /// for nearly every call (the wrapper is noise; the script is the content).
+    static func command(_ input: [String: Any]) -> String {
+        for key in ["command", "cmd", "argv", "command_line"] {
+            if let s = input[key] as? String, !s.isEmpty { return s }
+            if let parts = input[key] as? [String] {
+                return join(argv: parts)
+            }
+            if let anys = input[key] as? [Any] {
+                let parts = anys.compactMap { $0 as? String }
+                if !parts.isEmpty { return join(argv: parts) }
+            }
+        }
+        return ""
+    }
+
+    /// `["bash","-lc","git status"]` → `git status`; anything else → the argv
+    /// joined by spaces.
+    static func join(argv: [String]) -> String {
+        if argv.count >= 3, ["bash", "sh", "zsh", "/bin/bash", "/bin/sh", "/bin/zsh"].contains(argv[0]),
+           argv[1].hasPrefix("-"), argv[1].contains("c") {
+            return argv.dropFirst(2).joined(separator: " ")
+        }
+        return argv.joined(separator: " ")
+    }
+
+    /// The raw patch text of an `apply_patch` call, whichever key carries it.
+    static func patchText(_ input: [String: Any]) -> String {
+        string(input, keys: ["input", "patch", "diff", "content", "changes"])
+    }
+
+    /// File paths named by an apply_patch envelope
+    /// (`*** Add File: a.swift`, `*** Update File: b.swift`, ...).
+    static func patchFiles(_ patch: String) -> [String] {
+        guard !patch.isEmpty else { return [] }
+        var files: [String] = []
+        for line in patch.split(separator: "\n", omittingEmptySubsequences: true) {
+            let l = line.trimmingCharacters(in: .whitespaces)
+            guard l.hasPrefix("*** ") else { continue }
+            for verb in ["Add File:", "Update File:", "Delete File:", "Move to:"] where l.contains(verb) {
+                guard let range = l.range(of: verb) else { continue }
+                let path = l[range.upperBound...].trimmingCharacters(in: .whitespaces)
+                if !path.isEmpty, !files.contains(path) { files.append(path) }
+            }
+            if files.count >= 8 { break }
+        }
+        return files
     }
 }
 
