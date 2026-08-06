@@ -120,6 +120,9 @@
 /* Settings button: merge the rules into Claude Code's settings */
 "Add to settings.json" = "Add to settings.json";
 
+/* Changelog group heading */
+"Added" = "Added";
+
 /* Result after merging rules. %d is how many were added */
 "Added %d to ~/.claude/settings.json. The previous file was backed up beside it." = "Added %d to ~/.claude/settings.json. The previous file was backed up beside it.";
 
@@ -263,6 +266,9 @@
 
 /* Settings section heading */
 "Caps (USD)" = "Caps (USD)";
+
+/* Changelog group heading */
+"Changed" = "Changed";
 
 /* Menu item: look for a newer release now */
 "Check for Updates…" = "Check for Updates…";
@@ -545,6 +551,9 @@
 
 /* Settings explanation */
 "Fire a sample card to see what the notch looks like." = "Fire a sample card to see what the notch looks like.";
+
+/* Changelog group heading */
+"Fixed" = "Fixed";
 
 /* Settings explanation */
 "Follow macOS" = "Follow macOS";
@@ -914,6 +923,9 @@
 
 /* Tooltip on the delete button in the rules list */
 "Remove this rule, matching prompts will ask again" = "Remove this rule, matching prompts will ask again";
+
+/* Changelog group heading */
+"Removed" = "Removed";
 
 /* Button: open a composer to send a follow-up message */
 "Reply" = "Reply";

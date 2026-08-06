@@ -1724,6 +1724,19 @@ struct SettingsView: View {
             .padding(.top, 10).padding(.bottom, 4).padding(.horizontal, 14)
     }
 
+    /// Heading above a changelog group: the kind's word in its own colour, so
+    /// Added and Fixed are told apart before a word is read.
+    func changeGroupHeading(_ kind: ChangeGroup.Kind) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: kind.symbol).font(.caption2.weight(.bold))
+            Text(kind.label.uppercased()).font(.caption.weight(.semibold))
+        }
+        .foregroundStyle(kind.tint)
+        .padding(.top, 6)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(kind.label)
+    }
+
     func sectionLabel(_ text: String) -> some View {
         Text(text.uppercased())
             .font(.caption.weight(.semibold))
@@ -1822,13 +1835,59 @@ struct SettingsView: View {
         NSWorkspace.shared.open(URL(string: "https://www.linkedin.com/in/roshan-ramani-0510102b2")!)
     }
 
-    /// Highlights for the current release, shown on the About page. Keep this in
-    /// sync with the top changelog entry when cutting a release.
-    static let whatsNew: [String] = [
+    /// Highlights for the current release, shown on the About page grouped by
+    /// kind, the same way the website changelog groups them. Keep this in sync
+    /// with the top changelog entry when cutting a release.
+    static let whatsNew: [ChangeGroup] = [
+        ChangeGroup(kind: .added, items: [
         "The always-allow rules have a page. They decide what runs without asking you, which makes them the app's security policy, and until now they could only be made by clicking a button on a card and only be seen through a submenu nothing pointed at. Settings > Rules shows the whole list, flags tool-wide rules in amber because they approve every future call, and hands the list to Claude Code, which keeps its own allowlist and had no idea about ours.",
         "The Budget page says where the spending is heading, not just where it has been. Today's finishing spend and the clock time it would cross your cap, plus what the month comes to if the rest of it looks like the days so far. Both stay quiet when they would be wrong: today is left out of the monthly average, and the day's projection waits two hours in, because two pounds by 00:20 extrapolates to a fortune.",
         "The notch is drivable by anything on your Mac. A claudenotch:// URL covers open, settings, history, standup, compose and resume, so a Shortcut, a Raycast script or a Stream Deck button can reach it. An AppleScript dictionary adds the same six verbs plus the state worth reading back: today's spend, session counts, current project and activity. A project always arrives as a name, never a path, so nothing can aim the agent at a directory of its choosing.",
         "The rest of the app speaks your chosen language. The permission card was the only part wired to the string table, so picking Japanese used to get you a mix of the two. The idle pill, badges, session rows, history drawer, every menu-bar row and alert, and the whole first-run setup window now follow the setting.",
-        "Two fixes: installing over an existing copy no longer deletes the Codex forwarder, which left every Codex event dying with exit code 127, and a finished Codex turn no longer claims Claude did it.",
+        ]),
+        ChangeGroup(kind: .fixed, items: [
+        "Installing over an existing copy no longer deletes the Codex forwarder. The installer cleared every script in ~/.claudenotch/bin before copying the shipped ones back, which left every Codex event dying with exit code 127. It now deletes only the files it is about to replace, by name.",
+        "A finished Codex turn no longer claims Claude did it. The completed card read the name from a hardcoded fallback; it reads it from the session's own model now, and honours a custom notch title.",
+        ]),
     ]
+}
+
+/// One group of release notes, matching the website changelog's shape so the
+/// About page and the site say the same thing in the same order.
+struct ChangeGroup {
+    enum Kind {
+        case added, changed, fixed, removed
+
+        var label: String {
+            switch self {
+            case .added:   return L("Added", comment: "Changelog group heading")
+            case .changed: return L("Changed", comment: "Changelog group heading")
+            case .fixed:   return L("Fixed", comment: "Changelog group heading")
+            case .removed: return L("Removed", comment: "Changelog group heading")
+            }
+        }
+
+        var symbol: String {
+            switch self {
+            case .added:   return "plus"
+            case .changed: return "arrow.triangle.2.circlepath"
+            case .fixed:   return "wrench.adjustable"
+            case .removed: return "minus"
+            }
+        }
+
+        /// Distinct hue per kind so a glance separates a new feature from a
+        /// bug fix without reading the heading.
+        var tint: Color {
+            switch self {
+            case .added:   return .green
+            case .changed: return .blue
+            case .fixed:   return .orange
+            case .removed: return .red
+            }
+        }
+    }
+
+    let kind: Kind
+    let items: [String]
 }

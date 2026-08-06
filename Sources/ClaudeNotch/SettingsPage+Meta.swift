@@ -90,16 +90,24 @@ extension SettingsView {
             .padding(.vertical, 4)
             if !Self.whatsNew.isEmpty {
                 sectionLabel(String(format: L("What's new in v%@", comment: "Settings section heading. %@ is the version number"), Self.appVersion))
-                group {
-                    ForEach(Array(Self.whatsNew.enumerated()), id: \.offset) { idx, line in
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: "sparkle").font(.caption).foregroundStyle(Color.accentColor)
-                                .padding(.top, 2)
-                            Text(line).font(.callout)
-                            Spacer(minLength: 0)
+                // Grouped by kind (Added / Fixed / …) like the website
+                // changelog: one wall of sparkles made a new feature and a bug
+                // fix look identical.
+                ForEach(Array(Self.whatsNew.enumerated()), id: \.offset) { _, changeGroup in
+                    changeGroupHeading(changeGroup.kind)
+                    group {
+                        ForEach(Array(changeGroup.items.enumerated()), id: \.offset) { idx, line in
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: changeGroup.kind.symbol)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(changeGroup.kind.tint)
+                                    .padding(.top, 2)
+                                Text(line).font(.callout)
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.vertical, 8).padding(.horizontal, 14)
+                            if idx < changeGroup.items.count - 1 { divider }
                         }
-                        .padding(.vertical, 8).padding(.horizontal, 14)
-                        if idx < Self.whatsNew.count - 1 { divider }
                     }
                 }
             }
