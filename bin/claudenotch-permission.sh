@@ -3,11 +3,14 @@
 # Always exits 0 with valid JSON. On any error (notch not running, jq missing,
 # server timeout) we fall through to "ask" so Claude Code's normal prompt runs.
 #
-# Every invocation is logged to /tmp/claudenotch-hook.log so you can verify
-# the hook is firing:  tail -f /tmp/claudenotch-hook.log
+# Every invocation is logged to ~/.claudenotch/logs/hook.log so you can verify
+# the hook is firing:  tail -f ~/.claudenotch/logs/hook.log
 
 set -u
-LOG=/tmp/claudenotch-hook.log
+DIR="$(cd "$(dirname "$0")" && pwd)"
+# notch_log writes to the user's own 0700 directory. It used to be a fixed
+# name in /tmp, which any other local user could pre-create as a symlink.
+. "$DIR/claudenotch-common.sh"
 # Overridable so tools/test-blocking-hooks.sh can point this at a server it
 # controls, with a timeout short enough to test. Nothing else sets them.
 HOST="${CLAUDENOTCH_HOST:-127.0.0.1}"
@@ -16,11 +19,11 @@ WAIT="${CLAUDENOTCH_TIMEOUT:-290}"
 
 input=$(cat)
 tool=$(printf '%s' "$input" | jq -r '.tool_name // "?"' 2>/dev/null)
-echo "[$(date '+%H:%M:%S')] permission hook fired: tool=$tool" >> "$LOG"
+notch_log "permission hook fired: tool=$tool"
 
 emit_ask() {
     local why="${1:-fallback}"
-    echo "[$(date '+%H:%M:%S')]   → emit ask ($why)" >> "$LOG"
+    notch_log "  → emit ask ($why)"
     printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask"}}\n'
     exit 0
 }
@@ -42,14 +45,14 @@ if [ "$tool" = "AskUserQuestion" ]; then
         --data-binary @- \
         http://$HOST:$PORT/question || true)
     if [ -z "$response" ] || [ "$(printf '%s' "$response" | jq -r '.cancelled // false' 2>/dev/null)" = "true" ]; then
-        echo "[$(date '+%H:%M:%S')]   → AskUserQuestion: cancelled, falling back to terminal" >> "$LOG"
+        notch_log "  → AskUserQuestion: cancelled, falling back to terminal"
         emit_ask "question cancelled"
     fi
 
     mode=$(printf '%s' "$response" | jq -r '.mode // "deny"' 2>/dev/null)
     if [ "$mode" = "allow" ]; then
         # Clean path: notch is going to type the answer into the terminal.
-        echo "[$(date '+%H:%M:%S')]   → AskUserQuestion: notch will inject keystrokes (allow)" >> "$LOG"
+        notch_log "  → AskUserQuestion: notch will inject keystrokes (allow)"
         printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}\n'
         exit 0
     fi
@@ -77,11 +80,11 @@ if [ "$tool" = "AskUserQuestion" ]; then
     ' 2>/dev/null)
 
     if [ -z "$body" ]; then
-        echo "[$(date '+%H:%M:%S')]   → AskUserQuestion: encode failed, asking" >> "$LOG"
+        notch_log "  → AskUserQuestion: encode failed, asking"
         emit_ask "AskUserQuestion encode failed"
     fi
 
-    echo "[$(date '+%H:%M:%S')]   → AskUserQuestion answered (deny+reason fallback)" >> "$LOG"
+    notch_log "  → AskUserQuestion answered (deny+reason fallback)"
     printf '%s\n' "$body"
     exit 0
 fi
@@ -117,7 +120,7 @@ esac
 # fail and dropped the whole deny reason (reachable for CJK/non-ASCII reasons).
 reason_json=$(printf '%s' "$response" | jq -c '((.reason // "")[0:200])' 2>/dev/null || printf '""')
 
-echo "[$(date '+%H:%M:%S')]   → emit $decision" >> "$LOG"
+notch_log "  → emit $decision"
 
 # When allowed, immediately update the notch to show the tool is now running.
 # Fire-and-forget in the background so it never delays Claude's execution.

@@ -7,7 +7,10 @@
 # nothing and exit 0, so Claude Code's own prompt still runs. We never block
 # Claude from getting an answer.
 set -u
-LOG=/tmp/claudenotch-hook.log
+DIR="$(cd "$(dirname "$0")" && pwd)"
+# notch_log writes to the user's own 0700 directory. It used to be a fixed
+# name in /tmp, which any other local user could pre-create as a symlink.
+. "$DIR/claudenotch-common.sh"
 # Overridable so tools/test-blocking-hooks.sh can point this at a server it
 # controls, with a timeout short enough to test. Nothing else sets them.
 HOST="${CLAUDENOTCH_HOST:-127.0.0.1}"
@@ -16,11 +19,11 @@ WAIT="${CLAUDENOTCH_TIMEOUT:-290}"
 
 input=$(cat)
 tool=$(printf '%s' "$input" | jq -r '.tool_name // "?"' 2>/dev/null)
-echo "[$(date '+%H:%M:%S')] permreq hook fired: tool=$tool" >> "$LOG"
+notch_log "permreq hook fired: tool=$tool"
 
 # Pass through (Claude's own prompt) when we can't reach the notch or lack jq.
 pass_through() {
-    echo "[$(date '+%H:%M:%S')]   → pass through (${1:-native prompt})" >> "$LOG"
+    notch_log "  → pass through (${1:-native prompt})"
     exit 0
 }
 
@@ -44,7 +47,7 @@ response=$(printf '%s' "$input" | curl -s --max-time "$WAIT" -X POST \
 decision=$(printf '%s' "$response" | jq -r '.decision // "ask"' 2>/dev/null)
 case "$decision" in
     allow|deny)
-        echo "[$(date '+%H:%M:%S')]   → emit $decision (PermissionRequest)" >> "$LOG"
+        notch_log "  → emit $decision (PermissionRequest)"
         printf '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"%s"}}}\n' "$decision"
         exit 0 ;;
     *)

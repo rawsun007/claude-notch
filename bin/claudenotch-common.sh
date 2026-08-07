@@ -11,13 +11,45 @@
 # problem here must never become Claude's problem: no failure path exits
 # non-zero, and nothing blocks longer than its timeout.
 
-NOTCH_LOG=/tmp/claudenotch-hook.log
+# The log used to be /tmp/claudenotch-hook.log. /tmp is mode 1777 and the name
+# was fixed, so any other local user could pre-create it as a symlink and every
+# hook after that would append through it as you: ~/.zshrc, ~/.claude/settings.json,
+# anything you own. macOS has no equivalent of Linux's protected_symlinks, so
+# the append follows the link. On top of that the file listed your working
+# directories, tool names and session ids for everyone on the machine to read.
+#
+# It lives under the user's own 0700 directory now, 0600, and rotates at 512 KB
+# so it cannot fill the disk. Same home and same reasoning as Swift's DebugLog,
+# which was moved out of /tmp for exactly this.
+NOTCH_LOG_DIR="${CLAUDENOTCH_LOG_DIR:-${HOME:-}/.claudenotch/logs}"
+NOTCH_LOG="$NOTCH_LOG_DIR/hook.log"
+NOTCH_LOG_MAX=524288
 # Overridable so the test harness can point the forwarders at a server it
 # controls instead of posting real events into a running app.
 NOTCH_HOST="${CLAUDENOTCH_HOST:-127.0.0.1}"
 NOTCH_PORT="${CLAUDENOTCH_PORT:-53127}"
 
 notch_log() {
+    [ -n "${HOME:-}" ] || return 0
+    # A symlink at the log path is either an attack or a mistake. Either way,
+    # never append through it.
+    if [ -L "$NOTCH_LOG" ]; then return 0; fi
+    if [ ! -d "$NOTCH_LOG_DIR" ]; then
+        mkdir -p "$NOTCH_LOG_DIR" 2>/dev/null || return 0
+        chmod 700 "$NOTCH_LOG_DIR" 2>/dev/null || true
+    fi
+    if [ ! -e "$NOTCH_LOG" ]; then
+        # umask, not a chmod afterwards: the file must never exist readable,
+        # not even for the instant between the two calls.
+        (umask 177; : >> "$NOTCH_LOG") 2>/dev/null || return 0
+    else
+        local size
+        size=$(stat -f%z "$NOTCH_LOG" 2>/dev/null || printf '0')
+        if [ "$size" -gt "$NOTCH_LOG_MAX" ] 2>/dev/null; then
+            mv -f "$NOTCH_LOG" "$NOTCH_LOG.1" 2>/dev/null || true
+            (umask 177; : >> "$NOTCH_LOG") 2>/dev/null || return 0
+        fi
+    fi
     printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$1" >> "$NOTCH_LOG" 2>/dev/null || true
 }
 

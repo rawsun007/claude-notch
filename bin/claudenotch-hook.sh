@@ -8,21 +8,23 @@
 # This dispatcher just sniffs `hook_event_name` from stdin and hands the
 # payload to the right sub-script next to it.
 set -u
-LOG=/tmp/claudenotch-hook.log
+DIR="$(cd "$(dirname "$0")" && pwd)"
+# notch_log writes to the user's own 0700 directory. It used to be a fixed
+# name in /tmp, which any other local user could pre-create as a symlink.
+. "$DIR/claudenotch-common.sh"
 
 input=$(cat)
 
 # Without jq we can't determine the event. Fail-soft for PreToolUse so we
 # never break Claude.
 if ! command -v jq >/dev/null 2>&1; then
-    echo "[$(date '+%H:%M:%S')] dispatcher: jq missing, asking" >> "$LOG"
+    notch_log "dispatcher: jq missing, asking"
     printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask"}}\n'
     exit 0
 fi
 
 event=$(printf '%s' "$input" | jq -r '.hook_event_name // ""' 2>/dev/null)
-DIR="$(cd "$(dirname "$0")" && pwd)"
-echo "[$(date '+%H:%M:%S')] dispatcher: event=$event" >> "$LOG"
+notch_log "dispatcher: event=$event"
 
 case "$event" in
     PreToolUse)
@@ -81,7 +83,7 @@ case "$event" in
         printf '%s' "$input" | exec "$DIR/claudenotch-compact.sh"
         ;;
     *)
-        echo "[$(date '+%H:%M:%S')] dispatcher: unknown event=$event" >> "$LOG"
+        notch_log "dispatcher: unknown event=$event"
         exit 0
         ;;
 esac
