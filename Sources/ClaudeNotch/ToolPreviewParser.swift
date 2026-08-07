@@ -165,13 +165,51 @@ enum ToolPreviewParser {
         #"\bssh\b[^'"|;&]*"([^"]*)""#,
     ]
 
-    /// The scripts nested inside a command, unquoted. Internal so the extraction
-    /// is testable on its own: it decides what the danger scan can see.
-    static func nestedScripts(_ command: String) -> [String] {
+    /// Inline programs handed to a language interpreter: `python3 -c "..."`,
+    /// `node -e '...'`, `perl -e '...'`, `osascript -e '...'`. Same idea as
+    /// nestedScriptPatterns, but the text is a program in another language, so
+    /// it needs interpreterPatterns as well as the shell ones.
+    private static let inlineInterpreterPatterns = [
+        #"(?:^|[\s;|&(])(?:/[\w./-]+/)?(?:python3?|node|nodejs|deno|bun|perl|ruby|php|osascript)\s+(?:-[\w-]+\s+)*-[cerp]\s+'([^']*)'"#,
+        #"(?:^|[\s;|&(])(?:/[\w./-]+/)?(?:python3?|node|nodejs|deno|bun|perl|ruby|php|osascript)\s+(?:-[\w-]+\s+)*-[cerp]\s+"([^"]*)""#,
+    ]
+
+    /// Destructive things an inline program does *natively*, without ever
+    /// naming a shell command the Bash patterns would recognise. Applied only
+    /// to an extracted interpreter script, never to a whole command line, so
+    /// `grep -r os.system .` does not warn.
+    /// Matched on the shape of the call rather than on a module-qualified name.
+    /// `require('fs').rmSync(...)` contains no literal `fs.` for a
+    /// `\bfs\.rmSync\b` to find, and the module is as often aliased as not.
+    private static let interpreterPatterns: [(String, NSRegularExpression.Options, String)] = [
+        (#"\.(rmtree|rmSync|rmdirSync|unlinkSync|removedirs)\s*\("#, [],
+         "the script deletes a directory tree"),
+        (#"\bos\.(remove|unlink|rmdir)\b"#, [],
+         "the script deletes files"),
+        (#"\brimraf\b"#, [],
+         "rimraf, deletes a directory tree"),
+        // Shelling out from a one-liner is worth a card on its own: the command
+        // it runs is a string inside a program, so nothing above can read it,
+        // and the quote-stripping that keeps commit messages quiet erases it.
+        // Perl's system("rm -rf x") reached here as system("") without this.
+        (#"\b(system|popen|exec|execSync|spawn|spawnSync|execFile)\s*\("#, [],
+         "the script shells out, so what it runs is not visible here"),
+        (#"\bsubprocess\.(run|call|Popen|check_output|check_call)\b"#, [],
+         "the script shells out, so what it runs is not visible here"),
+        (#"\bchild_process\b"#, [],
+         "the script shells out, so what it runs is not visible here"),
+        (#"\bdo\s+shell\s+script\b"#, [.caseInsensitive],
+         "AppleScript do shell script, runs a shell command"),
+        (#"\bwith\s+administrator\s+privileges\b"#, [.caseInsensitive],
+         "asks for administrator privileges"),
+    ]
+
+    /// Capture group 1 of every pattern that matches, deduped.
+    private static func captures(_ patterns: [String], in command: String) -> [String] {
         var out: [String] = []
         let ns = command as NSString
         let full = NSRange(location: 0, length: ns.length)
-        for pattern in nestedScriptPatterns {
+        for pattern in patterns {
             guard let re = try? NSRegularExpression(pattern: pattern) else { continue }
             for m in re.matches(in: command, range: full) where m.numberOfRanges > 1 {
                 let inner = ns.substring(with: m.range(at: 1))
@@ -179,6 +217,18 @@ enum ToolPreviewParser {
             }
         }
         return out
+    }
+
+    /// The inline interpreter programs in a command. Internal so the extraction
+    /// is testable on its own.
+    static func inlineInterpreterScripts(_ command: String) -> [String] {
+        captures(inlineInterpreterPatterns, in: command)
+    }
+
+    /// The scripts nested inside a command, unquoted. Internal so the extraction
+    /// is testable on its own: it decides what the danger scan can see.
+    static func nestedScripts(_ command: String) -> [String] {
+        captures(nestedScriptPatterns, in: command)
     }
 
     /// `depth` bounds the recursion into nested scripts (a script can invoke a
@@ -268,6 +318,21 @@ enum ToolPreviewParser {
         if depth < 2 {
             for inner in nestedScripts(command) {
                 for reason in bashDanger(inner, depth: depth + 1) where !reasons.contains(reason) {
+                    reasons.append(reason)
+                }
+            }
+            // `python3 -c "..."` and `node -e "..."` run arbitrary code just as
+            // `bash -c` does, and neither the shell patterns above nor the
+            // nested-script scan saw a word of it. The inline program gets both
+            // scans: the shell one for anything it shells out to by name, and
+            // interpreterPatterns for what it destroys in its own language,
+            // where no shell command is ever named.
+            for inner in inlineInterpreterScripts(command) {
+                for reason in bashDanger(inner, depth: depth + 1) where !reasons.contains(reason) {
+                    reasons.append(reason)
+                }
+                for (pattern, opts, reason) in interpreterPatterns
+                where matches(pattern, in: inner, options: opts) && !reasons.contains(reason) {
                     reasons.append(reason)
                 }
             }

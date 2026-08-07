@@ -403,3 +403,54 @@ final class NestedScriptDangerTests: XCTestCase {
         XCTAssertEqual(ToolPreviewParser.nestedScripts("git commit -m 'nope'"), [])
     }
 }
+
+/// `python3 -c` and `node -e` run arbitrary code exactly as `bash -c` does.
+/// Neither the shell patterns nor the nested-script scan saw a word of them,
+/// so a one-liner that deleted a tree got no card at all under auto-approve.
+final class InlineInterpreterDangerTests: XCTestCase {
+
+    private func isFlagged(_ command: String) -> Bool {
+        !ToolPreviewParser.dangerReasons(for: "Bash", input: ["command": command]).isEmpty
+    }
+
+    func testPythonOneLiners() {
+        XCTAssertTrue(isFlagged("python3 -c \"import shutil; shutil.rmtree('/Users/me/work')\""))
+        XCTAssertTrue(isFlagged("python3 -c 'import os; os.system(\"rm -rf ~\")'"))
+        XCTAssertTrue(isFlagged("python -c \"import subprocess; subprocess.run(['curl','x'])\""))
+    }
+
+    /// require('fs').rmSync has no literal `fs.` in it, which is why the
+    /// patterns match the shape of the call rather than a module-qualified name.
+    func testNodeOneLiners() {
+        XCTAssertTrue(isFlagged("node -e \"require('fs').rmSync(p,{recursive:true,force:true})\""))
+        XCTAssertTrue(isFlagged("node -e 'require(\"child_process\").execSync(\"sudo x\")'"))
+    }
+
+    /// The command Perl runs is a string inside a program, so the quote
+    /// stripping that keeps commit messages quiet erased it: this arrived at
+    /// the pattern list as system(""). Shelling out from a one-liner is
+    /// therefore flagged on its own, without reading what it runs.
+    func testPerlSystemCall() {
+        XCTAssertTrue(isFlagged("perl -e 'system(\"rm -rf /tmp/x --force\")'"))
+    }
+
+    func testAppleScriptPrivilegeEscalation() {
+        XCTAssertTrue(isFlagged("osascript -e 'do shell script \"whoami\" with administrator privileges'"))
+    }
+
+    /// The false-positive side. An inline one-liner is common and mostly
+    /// harmless, so only the destructive shapes may fire.
+    func testHarmlessOneLinersStaySilent() {
+        XCTAssertFalse(isFlagged("python3 -c \"print(2+2)\""))
+        XCTAssertFalse(isFlagged("node -e \"console.log(process.version)\""))
+        XCTAssertFalse(isFlagged("python3 -m pytest"))
+        XCTAssertFalse(isFlagged("python3 script.py"))
+        XCTAssertFalse(isFlagged("grep -r os.system ."))
+        XCTAssertFalse(isFlagged("node -e 'console.log(1)' && git commit -m 'drop the rm -rf helper'"))
+    }
+
+    func testExtractionPicksTheProgramOnly() {
+        XCTAssertEqual(ToolPreviewParser.inlineInterpreterScripts("python3 -c 'print(1)'"), ["print(1)"])
+        XCTAssertEqual(ToolPreviewParser.inlineInterpreterScripts("python3 script.py"), [])
+    }
+}
