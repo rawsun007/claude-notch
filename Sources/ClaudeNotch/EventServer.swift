@@ -269,6 +269,7 @@ final class EventServer {
         let path = String(parts[1])
 
         var contentLength = 0
+        var sawContentLength = false
         var host: String?
         var origin: String?
         for line in lines.dropFirst() {
@@ -276,7 +277,15 @@ final class EventServer {
                 let name = line[..<colon].trimmingCharacters(in: .whitespaces).lowercased()
                 let value = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
                 switch name {
-                case "content-length": contentLength = Int(value) ?? 0
+                case "content-length":
+                    // Two of these is a malformed request, and picking one of
+                    // the two lengths is how a parser ends up disagreeing with
+                    // whatever else reads the same bytes. Refuse it instead:
+                    // no real hook sends a second one.
+                    if sawContentLength { return nil }
+                    sawContentLength = true
+                    guard let n = Int(value) else { return nil }
+                    contentLength = n
                 case "host": host = value
                 case "origin": origin = value
                 default: break
