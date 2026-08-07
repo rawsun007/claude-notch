@@ -74,6 +74,41 @@ enum HookInstaller {
         return Shell.succeeds("/usr/bin/env", ["sh", "-c", "command -v jq >/dev/null 2>&1"])
     }
 
+    /// Create (or tighten) ~/.claudenotch/bin and its parent to 0700.
+    ///
+    /// Everything in here is executed: Claude Code runs the hook scripts on
+    /// every event, and the status line `eval`s statusline-inner.cmd on every
+    /// redraw. Creating the directory without a mode left it at whatever the
+    /// umask happened to be, which on a permissive umask is a directory anyone
+    /// on the machine can drop a file into. Persistence already forces 0700 on
+    /// the same parent for the state file; this makes the half of ~/.claudenotch
+    /// that actually runs code agree with it.
+    @discardableResult
+    static func prepareInstallDir() -> Bool {
+        let fm = FileManager.default
+        let dir = URL(fileURLWithPath: installDir)
+        do {
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true,
+                                   attributes: [.posixPermissions: 0o700])
+        } catch {
+            guard fm.fileExists(atPath: installDir) else { return false }
+        }
+        // Also applied when the directory already existed, so an install that
+        // predates this hardening is tightened rather than left as it was.
+        try? fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: installDir)
+        try? fm.setAttributes([.posixPermissions: 0o700],
+                              ofItemAtPath: dir.deletingLastPathComponent().path)
+        return true
+    }
+
+    /// 0600 for a file we wrote, 0700 when it is meant to be executed. Applied
+    /// after every write: `.atomic` replaces the inode with a fresh temp file
+    /// that would otherwise land at the umask default.
+    private static func restrict(_ path: String, executable: Bool = false) {
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: executable ? 0o700 : 0o600], ofItemAtPath: path)
+    }
+
     enum InstallError: LocalizedError {
         case missingBundledHooks
         case scriptCopyFailed(String)
@@ -139,11 +174,12 @@ enum HookInstaller {
     /// one-time "trust hooks" review the next time they start Codex.
     static func installCodexHooks() throws {
         let fm = FileManager.default
-        try? fm.createDirectory(atPath: installDir, withIntermediateDirectories: true)
-        // Forwarder script.
+        prepareInstallDir()
+        // Forwarder script. 0700, not 0755: only this user runs it, and it is
+        // executed by Codex on every hook.
         do {
             try codexForwarderBody.write(toFile: codexForwardScript, atomically: true, encoding: .utf8)
-            try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: codexForwardScript)
+            try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: codexForwardScript)
         } catch {
             throw InstallError.scriptCopyFailed("codex forwarder: \(error.localizedDescription)")
         }
@@ -171,6 +207,7 @@ enum HookInstaller {
         let data = try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys])
         do { try data.write(to: codexURL, options: .atomic) }
         catch { throw InstallError.scriptCopyFailed("codex hooks.json: \(error.localizedDescription)") }
+        restrict(codexHooksPath)
     }
 
     /// Remove our Codex hooks.json (only when it is ours) and the forwarder.
@@ -190,10 +227,8 @@ enum HookInstaller {
             throw InstallError.missingBundledHooks
         }
 
-        do {
-            try fm.createDirectory(atPath: installDir, withIntermediateDirectories: true)
-        } catch {
-            throw InstallError.scriptCopyFailed(error.localizedDescription)
+        guard prepareInstallDir() else {
+            throw InstallError.scriptCopyFailed("could not create \(installDir)")
         }
 
         let dstBase = URL(fileURLWithPath: installDir)
@@ -206,7 +241,10 @@ enum HookInstaller {
                     try fm.removeItem(at: dst)
                 }
                 try fm.copyItem(at: src, to: dst)
-                try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dst.path)
+                // 0700, not 0755: these run as the user on every hook, and
+                // nobody else on the machine has business executing or
+                // replacing them.
+                try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dst.path)
             } catch {
                 throw InstallError.scriptCopyFailed("\(name): \(error.localizedDescription)")
             }
@@ -228,6 +266,9 @@ enum HookInstaller {
             let ts = Int(Date().timeIntervalSince1970)
             let backupURL = URL(fileURLWithPath: settingsPath + ".before-claudenotch.\(ts)")
             try? existing.write(to: backupURL)
+            // A copy of the user's settings, which can hold env values and
+            // tokens. It has no business being more readable than the original.
+            restrict(backupURL.path)
         }
 
         // Non-destructive merge: keep any hooks the user already had at each
@@ -287,6 +328,9 @@ enum HookInstaller {
         if !ours {
             let data = priorCmd.data(using: .utf8) ?? Data()
             try? data.write(to: URL(fileURLWithPath: statusLineInnerCmd), options: .atomic)
+            // claudenotch-statusline.sh `eval`s this on every status-line
+            // redraw, so anyone who can write it can run code as the user.
+            restrict(statusLineInnerCmd)
         }
 
         settings["statusLine"] = [

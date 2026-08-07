@@ -23,7 +23,10 @@ cp -R ClaudeNotch.app /Applications/
 # Remove first: on APFS, cp clones and refuses to overwrite a byte-identical file
 # ("are identical"), which under set -e would abort the install.
 HOOK_DIR="$HOME/.claudenotch/bin"
+# 0700: everything in here is executed, and the directory also holds the
+# statusline-inner.cmd sidecar the status line evals on every redraw.
 mkdir -p "$HOOK_DIR"
+chmod 700 "$HOOK_DIR" "$HOME/.claudenotch" 2>/dev/null || true
 # Only the scripts we ship, by name: a blanket `rm *.sh` also deleted files the
 # app itself writes there (the Codex forwarder), leaving ~/.codex/hooks.json
 # pointing at a missing command, i.e. "hook exited with code 127" on every
@@ -32,7 +35,7 @@ for f in bin/*.sh; do
     rm -f "$HOOK_DIR/$(basename "$f")"
 done
 cp bin/*.sh "$HOOK_DIR/"
-chmod +x "$HOOK_DIR"/*.sh
+chmod 700 "$HOOK_DIR"/*.sh
 echo "→ Installed hook scripts to $HOOK_DIR"
 
 # 3. Wire hooks into ~/.claude/settings.json (idempotent, with backup)

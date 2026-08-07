@@ -11,7 +11,12 @@ command -v jq >/dev/null 2>&1 || { echo "jq is required (brew install jq)"; exit
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTALL_DIR="$HOME/.claudenotch/bin"
 
+# 0700, and applied whether or not mkdir created it: everything in here is
+# executed (Claude Code runs the forwarders, the status line evals the inner
+# command sidecar), so nobody else on the machine gets to write into it. Matches
+# the mode the app itself installs with.
 mkdir -p "$INSTALL_DIR"
+chmod 700 "$INSTALL_DIR" "$HOME/.claudenotch" 2>/dev/null || true
 # claudenotch-common.sh first: every forwarder sources it, and one that
 # cannot find it exits 0 and silently stops reporting.
 for s in claudenotch-common.sh claudenotch-hook.sh \
@@ -29,7 +34,7 @@ for s in claudenotch-common.sh claudenotch-hook.sh \
         rm -f "$dst"
         cp "$src" "$dst"
     fi
-    chmod +x "$dst"
+    chmod 700 "$dst"
 done
 echo "→ Hook scripts copied to $INSTALL_DIR"
 
