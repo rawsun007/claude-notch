@@ -5,6 +5,14 @@ import Foundation
 /// each parsing .git/HEAD slightly differently (one handled worktrees and
 /// detached HEADs but not nested dirs; the other walked up but handled neither).
 enum Git {
+    /// Both files read here are pointers: a ref line, a short hash, or a
+    /// "gitdir:" line. Tens of bytes in every real repository. They were read
+    /// whole anyway, and a repository is only as trustworthy as wherever it was
+    /// cloned from, so a repo carrying a huge HEAD would be pulled entirely into
+    /// memory on the branch refresh that runs for every session in it. 8 KB is
+    /// far more than either file can legitimately need.
+    static let maxPointerBytes = 8 * 1024
+
     /// The checked-out branch for `cwd`, read straight from `.git/HEAD`. Walks
     /// up to the repo root, follows a worktree/submodule ".git" file to its real
     /// gitdir, and returns a short hash for a detached HEAD. Empty when `cwd`
@@ -32,7 +40,7 @@ enum Git {
         var gitDir = gitPath
         if !isDir.boolValue {
             // Worktree/submodule: ".git" is a file — "gitdir: /path/to/gitdir".
-            guard let content = try? String(contentsOfFile: gitPath, encoding: .utf8),
+            guard let content = FileSlice.head(URL(fileURLWithPath: gitPath), bytes: maxPointerBytes),
                   let path = content.split(separator: "\n").first?
                       .replacingOccurrences(of: "gitdir:", with: "")
                       .trimmingCharacters(in: .whitespaces), !path.isEmpty else { return "" }
@@ -40,7 +48,7 @@ enum Git {
         }
 
         let headPath = (gitDir as NSString).appendingPathComponent("HEAD")
-        guard let head = try? String(contentsOfFile: headPath, encoding: .utf8)
+        guard let head = FileSlice.head(URL(fileURLWithPath: headPath), bytes: maxPointerBytes)?
             .trimmingCharacters(in: .whitespacesAndNewlines) else { return "" }
         let prefix = "ref: refs/heads/"
         if head.hasPrefix(prefix) { return String(head.dropFirst(prefix.count)) }

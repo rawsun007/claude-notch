@@ -72,4 +72,22 @@ final class GitBranchTests: XCTestCase {
 
         XCTAssertEqual(Git.branch(forCwd: workDir.path), "wt-branch")
     }
+    /// A repository is only as trustworthy as wherever it was cloned from, and
+    /// this runs on the branch refresh for every session in one. Both files
+    /// read here are pointers of a few dozen bytes, so an enormous one is read
+    /// up to the cap and no further rather than pulled into memory whole.
+    func testAnEnormousHEADIsNotReadWhole() throws {
+        let repo = try makeRepo(head: String(repeating: "A", count: 4 * 1024 * 1024))
+        let branch = Git.branch(forCwd: repo.path)
+        XCTAssertLessThanOrEqual(branch.count, Git.maxPointerBytes)
+    }
+
+    /// Same for the worktree pointer, which is read before HEAD is even located.
+    func testAnEnormousWorktreePointerIsNotReadWhole() throws {
+        let pointer = root.appendingPathComponent(".git")
+        try String(repeating: "B", count: 4 * 1024 * 1024)
+            .write(to: pointer, atomically: true, encoding: .utf8)
+        XCTAssertEqual(Git.branch(forCwd: root.path), "")
+    }
+
 }

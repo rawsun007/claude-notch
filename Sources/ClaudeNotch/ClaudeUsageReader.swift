@@ -307,6 +307,22 @@ enum ClaudeUsageReader {
     }
 
     /// Finds the most recently used model id by checking the newest transcript files.
+    /// Read a transcript whole, refusing one that is absurdly large.
+    ///
+    /// sessionMeter has always had this guard; parseRecords and lastUsedModel
+    /// did not, and compute() runs parseRecords over every transcript touched
+    /// in the last four weeks, on a thirty-second timer. One oversized file
+    /// meant a full Data plus a full String plus an array of substrings for it,
+    /// repeatedly. The size is asked of the filesystem first so an oversized
+    /// file is never opened at all.
+    static func transcriptText(_ url: URL) -> String? {
+        if let size = (try? FileManager.default
+            .attributesOfItem(atPath: url.path)[.size]) as? Int,
+           size > maxTranscriptBytes { return nil }
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
     /// Reads disk — call off the main thread. Returns "" if nothing found.
     static func lastUsedModel() -> String {
         let fm = FileManager.default
@@ -323,8 +339,7 @@ enum ClaudeUsageReader {
         }
         files.sort { $0.mod > $1.mod }
         for (url, _) in files.prefix(3) {
-            guard let data = try? Data(contentsOf: url),
-                  let text = String(data: data, encoding: .utf8) else { continue }
+            guard let text = transcriptText(url) else { continue }
             for raw in text.split(separator: "\n").reversed() {
                 guard let ld = raw.data(using: .utf8),
                       let obj = try? JSONSerialization.jsonObject(with: ld) as? [String: Any],
@@ -365,8 +380,7 @@ enum ClaudeUsageReader {
     /// file (a turn is written as several lines that repeat the same usage), which
     /// is enough: message ids are unique to a session, and a session is one file.
     private static func parseRecords(_ url: URL) -> [UsageRecord] {
-        guard let data = try? Data(contentsOf: url),
-              let text = String(data: data, encoding: .utf8) else { return [] }
+        guard let text = transcriptText(url) else { return [] }
         var billed = Set<String>()
         var out: [UsageRecord] = []
         for line in text.split(separator: "\n") {
@@ -566,10 +580,7 @@ enum ClaudeUsageReader {
 
     static func sessionMeter(transcriptPath path: String) -> SessionMeter? {
         guard !path.isEmpty else { return nil }
-        if let size = (try? FileManager.default.attributesOfItem(atPath: path)[.size]) as? Int,
-           size > maxTranscriptBytes { return nil }
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
-              let text = String(data: data, encoding: .utf8) else { return nil }
+        guard let text = transcriptText(URL(fileURLWithPath: path)) else { return nil }
 
         var meter = SessionMeter()
         var sawUsage = false
