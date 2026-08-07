@@ -303,6 +303,15 @@ final class EventServer {
     /// non-loopback Host. Reject those so a page the user happens to have open
     /// can't inject spoofed sessions, activity, or notifications into the notch.
     static func isLocalHookRequest(_ req: HTTPRequest) -> Bool {
+        // Every hook is a POST. The Origin check below only covers requests a
+        // browser marks as cross-origin, and a browser marks NONE of its
+        // navigational GETs that way: `<img src="http://127.0.0.1:53127/permission">`
+        // on any page the user visits sends no Origin and a loopback Host, so it
+        // walked straight past the guard and queued a blocking permission card
+        // that held the notch for the full decision window. A browser cannot
+        // make a no-Origin POST, so requiring the method closes that door
+        // without touching the forwarders.
+        guard req.method.uppercased() == "POST" else { return false }
         if req.origin != nil { return false }           // browsers always set Origin on cross-origin POST
         guard let host = req.host else { return true }  // curl/1.0 without Host: allow
         // Strip the port; accept only loopback authorities.

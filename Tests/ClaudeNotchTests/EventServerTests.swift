@@ -247,6 +247,30 @@ final class EventServerOriginTests: XCTestCase {
         XCTAssertFalse(EventServer.isLocalHookRequest(
             req("POST /hook HTTP/1.1\r\nHost: attacker.example\r\n\r\n")))
     }
+
+    /// The drive-by the Origin check alone does not catch. A browser sends no
+    /// Origin on a sub-resource GET, and Host is genuinely loopback, so
+    /// `<img src="http://127.0.0.1:53127/permission">` on any page the user
+    /// visits used to reach the handler and queue a blocking card.
+    func testBrowserSubresourceGetRejected() {
+        XCTAssertFalse(EventServer.isLocalHookRequest(
+            req("GET /permission HTTP/1.1\r\nHost: 127.0.0.1:53127\r\n\r\n")))
+    }
+
+    func testNonPostMethodsRejected() {
+        for method in ["GET", "HEAD", "PUT", "OPTIONS"] {
+            XCTAssertFalse(EventServer.isLocalHookRequest(
+                req("\(method) /hook HTTP/1.1\r\nHost: 127.0.0.1:53127\r\n\r\n")),
+                "\(method) must not be accepted as a hook")
+        }
+    }
+
+    /// Case is not significant in an HTTP method token in practice, and a hook
+    /// forwarder that lowercased it should still work.
+    func testLowercasePostAllowed() {
+        XCTAssertTrue(EventServer.isLocalHookRequest(
+            req("post /hook HTTP/1.1\r\nHost: 127.0.0.1:53127\r\n\r\n")))
+    }
 }
 
 /// TaskCreate's INPUT carries no id: only subject, description and activeForm,
