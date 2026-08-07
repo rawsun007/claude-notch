@@ -149,7 +149,41 @@ enum ToolPreviewParser {
         }
     }
 
-    private static func bashDanger(_ command: String) -> [String] {
+    /// Where a quoted string is a script to run rather than free text: the
+    /// argument to `sh -c`, an `eval`, or the remote command of an `ssh`. Each
+    /// pattern has exactly one capture group, the script.
+    ///
+    /// Deliberately narrow. Scanning *every* quoted segment would put
+    /// `git commit -m "drop the rm -rf helper"` back on the warning path, which
+    /// is the whole reason stripQuotedAndHeredocs exists.
+    private static let nestedScriptPatterns = [
+        #"(?:^|[\s;|&(])(?:/[\w./-]+/)?(?:sh|bash|zsh|dash|ksh|fish)\s+(?:-[\w-]+\s+)*-[a-zA-Z]*c[a-zA-Z]*\s+'([^']*)'"#,
+        #"(?:^|[\s;|&(])(?:/[\w./-]+/)?(?:sh|bash|zsh|dash|ksh|fish)\s+(?:-[\w-]+\s+)*-[a-zA-Z]*c[a-zA-Z]*\s+"([^"]*)""#,
+        #"\beval\s+'([^']*)'"#,
+        #"\beval\s+"([^"]*)""#,
+        #"\bssh\b[^'"|;&]*'([^']*)'"#,
+        #"\bssh\b[^'"|;&]*"([^"]*)""#,
+    ]
+
+    /// The scripts nested inside a command, unquoted. Internal so the extraction
+    /// is testable on its own: it decides what the danger scan can see.
+    static func nestedScripts(_ command: String) -> [String] {
+        var out: [String] = []
+        let ns = command as NSString
+        let full = NSRange(location: 0, length: ns.length)
+        for pattern in nestedScriptPatterns {
+            guard let re = try? NSRegularExpression(pattern: pattern) else { continue }
+            for m in re.matches(in: command, range: full) where m.numberOfRanges > 1 {
+                let inner = ns.substring(with: m.range(at: 1))
+                if !inner.isEmpty, !out.contains(inner) { out.append(inner) }
+            }
+        }
+        return out
+    }
+
+    /// `depth` bounds the recursion into nested scripts (a script can invoke a
+    /// shell that invokes a shell). Two levels is past anything real.
+    private static func bashDanger(_ command: String, depth: Int = 0) -> [String] {
         guard !command.isEmpty else { return [] }
         // Strip quoted strings, heredoc bodies and trailing comments. Without
         // this, a commit message like `git commit -m "fix the rm -rf bug"`
@@ -222,6 +256,20 @@ enum ToolPreviewParser {
         for (pattern, opts, reason) in patterns {
             if matches(pattern, in: scrubbed, options: opts) {
                 reasons.append(reason)
+            }
+        }
+
+        // The strip above is what stops a commit message from firing every rule
+        // in the list. It also meant `bash -c 'sudo rm -rf ~'` scanned as
+        // `bash -c ''`, so anything an author bothered to quote was invisible
+        // here and, since dangerReasons is the gate, ran under auto-approve with
+        // no card. Where a quoted string is a script rather than free text,
+        // scan the script too.
+        if depth < 2 {
+            for inner in nestedScripts(command) {
+                for reason in bashDanger(inner, depth: depth + 1) where !reasons.contains(reason) {
+                    reasons.append(reason)
+                }
             }
         }
         return reasons
