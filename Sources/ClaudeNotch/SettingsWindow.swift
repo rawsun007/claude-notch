@@ -1840,13 +1840,13 @@ struct SettingsView: View {
     /// with the top changelog entry when cutting a release.
     static let whatsNew: [ChangeGroup] = [
         ChangeGroup(kind: .fixed, items: [
-        "Codex cards say what Codex is actually doing. A web search read \"webrun / Running\" with no sign of the query, because Codex nests it in an array of action objects, and a patch named no file because the whole envelope arrives under a key Claude uses for a plain command. Searches now name the query, patches name the file, shell calls print the command rather than the bash -lc wrapper around it, and the card is headed \"Search the web\" instead of \"webrun\".",
-        "Dragging a folder onto the notch is smooth again. Every mouse move of the drag rewrote the two drop flags whether or not they had changed, and writing an unchanged value still redraws, so the whole notch re-rendered dozens of times a second and the drag felt like it was sticking. The flags are only written when they change now.",
-        "The drop's \"which agent?\" card no longer offers a free-text answer it cannot use, and no longer opens with a band of empty space above Cancel and Send: every option used to be budgeted for a description whether it had one or not.",
+        "Quoting a command no longer hides it from the danger check. The scan blanks quoted text so a commit message mentioning rm -rf does not warn on every commit, which also meant bash -c 'sudo rm -rf ~' was read as an empty command and got no warning at all. Since that check is what holds a card back from auto-approve, quoting was enough to run something destructive without one. Scripts passed to sh -c, to eval, or to ssh are now scanned as scripts.",
+        "Writing to your credentials or your shell startup files is treated as dangerous. Only system directories were, so ~/.ssh/authorized_keys, a LaunchAgent that runs at every login, a repo's .git/hooks/pre-commit, ~/.zshrc, and the agent's own ~/.claude/settings.json could all be written with no card at all. Expect a hold-to-confirm on those now.",
+        "A web page you happen to have open can no longer put a card in your notch. The server rejected requests a browser marks as cross-origin, but a browser marks none of its image and script loads that way, so a single tag on any page could queue a permission card that held the notch for five minutes. Hooks always POST, and a browser cannot make one of those without the marking, so only POST is accepted now.",
+        "The hook log has moved out of /tmp, to ~/.claudenotch/logs/hook.log. Its old name was fixed and /tmp is writable by everyone on the machine, so another account could have pointed it at a file of yours and had every hook write through it, and could read your working directories and session ids either way. The new one is yours alone, and it rotates instead of growing forever.",
         ]),
         ChangeGroup(kind: .changed, items: [
-        "What's new is grouped by kind, here and on the site. One flat list of sparkles made a new feature and a bug fix look identical; each group now carries its own heading, icon and colour.",
-        "The website changelog is readable at a glance. Each entry is its own card, numbered within its group, with the kind's colour down its edge, and every release states how many entries it added and fixed. A version rail down the side makes forty releases navigable.",
+        "~/.claudenotch/bin is created private to you. Claude Code runs the scripts in there on every event and the status line evaluates one of the files on every redraw, so anyone able to write to it could run code as you. The folder and its contents are now owner-only, tightened on existing installs too.",
         ]),
     ]
 }
