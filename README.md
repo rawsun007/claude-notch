@@ -266,6 +266,12 @@ Everything stays on your machine. ClaudeNotch talks to Claude Code over a
 **localhost-only** connection (`127.0.0.1`) and never sends your prompts,
 commands, or code anywhere. No accounts, no telemetry, no servers.
 
+This app decides which commands an AI agent may run on your Mac, so it is a
+security tool whether or not it is described as one.
+[SECURITY.md](SECURITY.md) says what it defends against, what it does not, and
+how to report a vulnerability privately. Please do not open a public issue for
+a security bug.
+
 ---
 
 ## 🧠 How it works

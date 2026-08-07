@@ -110,7 +110,7 @@ back as the response.
   data, never instructions. Sanitize URLs to http(s) before `NSWorkspace.open`;
   don't launch payload-supplied file paths.
 - Collections fed by payloads are capped (sessions 12, queues 64, learned
-  windows 64, history 200, recent projects 8).
+  windows 64, history 500, archived sessions 200, recent projects 8).
 - Pure/testable helpers are `static`; mark `nonisolated` when tests call them
   synchronously.
 - One feature per commit; commits end with the Co-Authored-By trailer.
