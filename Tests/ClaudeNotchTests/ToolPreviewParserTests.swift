@@ -241,3 +241,120 @@ final class ToolPreviewParserPreviewTests: XCTestCase {
         XCTAssertTrue(ToolPreviewParser.dangerReasons(for: "Bash", input: ["command": 123]).isEmpty)
     }
 }
+
+/// `dangerReasons` is the single gate on auto-approve, on always-allow rules,
+/// on allow-all, and on the hold-to-confirm. A path it calls safe is a path the
+/// app may write with no card at all, so the files that actually take a machine
+/// over have to be in here.
+final class SensitivePathDangerTests: XCTestCase {
+
+    private let home = "/Users/tester"
+
+    private func reasons(_ path: String) -> [String] {
+        ToolPreviewParser.pathDanger(path, home: home)
+    }
+
+    private func isFlagged(_ path: String) -> Bool { !reasons(path).isEmpty }
+
+    func testSystemDirectoriesStillFlagged() {
+        XCTAssertTrue(isFlagged("/etc/hosts"))
+        XCTAssertTrue(isFlagged("/usr/local/bin/thing"))
+        XCTAssertTrue(isFlagged("/Library/LaunchDaemons/x.plist"))
+    }
+
+    func testSSHAndCredentialStores() {
+        XCTAssertTrue(isFlagged("\(home)/.ssh/authorized_keys"))
+        XCTAssertTrue(isFlagged("\(home)/.ssh/config"))
+        XCTAssertTrue(isFlagged("\(home)/.aws/credentials"))
+        XCTAssertTrue(isFlagged("\(home)/.gnupg/gpg.conf"))
+        XCTAssertTrue(isFlagged("\(home)/.kube/config"))
+    }
+
+    func testLaunchAgentRunsAtEveryLogin() {
+        XCTAssertTrue(isFlagged("\(home)/Library/LaunchAgents/com.evil.plist"))
+    }
+
+    /// The agent's own permission config, and ours. Writing either is how one
+    /// approved edit becomes blanket approval for everything after it.
+    func testAgentConfigDirectories() {
+        XCTAssertTrue(isFlagged("\(home)/.claude/settings.json"))
+        XCTAssertTrue(isFlagged("\(home)/.codex/hooks.json"))
+        XCTAssertTrue(isFlagged("\(home)/.claudenotch/state.json"))
+    }
+
+    func testShellStartupFiles() {
+        XCTAssertTrue(isFlagged("\(home)/.zshrc"))
+        XCTAssertTrue(isFlagged("\(home)/.bash_profile"))
+        XCTAssertTrue(isFlagged("\(home)/.gitconfig"))
+        XCTAssertTrue(isFlagged("\(home)/.netrc"))
+    }
+
+    /// Git runs these itself on the next ordinary command, so they need no
+    /// separate execution step. Matched relative too: that is how in-repo edits
+    /// usually arrive.
+    func testGitHooksAndConfig() {
+        XCTAssertTrue(isFlagged("/Users/tester/work/repo/.git/hooks/pre-commit"))
+        XCTAssertTrue(isFlagged(".git/hooks/post-checkout"))
+        XCTAssertTrue(isFlagged("/Users/tester/work/repo/.git/config"))
+    }
+
+    /// Traversal must not launder a sensitive path into a safe-looking one.
+    func testTraversalIsNormalizedFirst() {
+        XCTAssertTrue(isFlagged("\(home)/work/../.ssh/authorized_keys"))
+    }
+
+    func testTildeIsExpanded() {
+        // NSString.standardizingPath expands ~ against the real home, so this
+        // is checked against the process home rather than the fixture one.
+        XCTAssertFalse(ToolPreviewParser.pathDanger("~/.ssh/authorized_keys").isEmpty)
+    }
+
+    /// The false-positive side: ordinary project files must stay silent, or the
+    /// warning stops meaning anything.
+    func testOrdinaryProjectFilesAreNotFlagged() {
+        XCTAssertFalse(isFlagged("\(home)/work/repo/Sources/App.swift"))
+        XCTAssertFalse(isFlagged("\(home)/work/repo/README.md"))
+        XCTAssertFalse(isFlagged("\(home)/.claude-notes.txt"))
+        XCTAssertFalse(isFlagged("\(home)/work/repo/gitconfig.sample"))
+        XCTAssertFalse(isFlagged(""))
+    }
+
+    func testWriteToolRoutesThroughPathDanger() {
+        let r = ToolPreviewParser.dangerReasons(
+            for: "Write", input: ["file_path": "\(NSHomeDirectory())/.ssh/authorized_keys"])
+        XCTAssertFalse(r.isEmpty)
+    }
+}
+
+/// A redirect reaches the same files a Write does, and only the Bash pattern
+/// list sees it.
+final class SensitiveCommandDangerTests: XCTestCase {
+
+    private func isFlagged(_ command: String) -> Bool {
+        !ToolPreviewParser.dangerReasons(for: "Bash", input: ["command": command]).isEmpty
+    }
+
+    func testRedirectIntoCredentialFiles() {
+        XCTAssertTrue(isFlagged("echo \"$KEY\" >> ~/.ssh/authorized_keys"))
+        XCTAssertTrue(isFlagged("cat key.pub > /Users/tester/.ssh/authorized_keys"))
+        XCTAssertTrue(isFlagged("echo 'x' | tee -a ~/.zshrc"))
+        XCTAssertTrue(isFlagged("echo hi >> ~/.claude/settings.json"))
+    }
+
+    func testLaunchAgentInstall() {
+        XCTAssertTrue(isFlagged("cp evil.plist ~/Library/LaunchAgents/com.evil.plist"))
+        XCTAssertTrue(isFlagged("launchctl load ~/Library/LaunchAgents/com.evil.plist"))
+    }
+
+    func testCrontabInstall() {
+        XCTAssertTrue(isFlagged("crontab mycron"))
+        // `crontab -l` only lists; it must not nag.
+        XCTAssertFalse(isFlagged("crontab -l"))
+    }
+
+    func testOrdinaryRedirectsStaySilent() {
+        XCTAssertFalse(isFlagged("swift build 2>/dev/null"))
+        XCTAssertFalse(isFlagged("echo hello > out.txt"))
+        XCTAssertFalse(isFlagged("git log --oneline > /tmp/log.txt"))
+    }
+}

@@ -207,6 +207,16 @@ enum ToolPreviewParser {
              "drops a database table"),
             (#"\bdocker\s+system\s+prune\s+.*(-a|--all)"#, [],
              "docker system prune -a, removes all images and containers"),
+            // The same files pathDanger holds a Write for. A redirect reaches
+            // them just as well as an Edit does, and only this list sees it.
+            (#"(>>?|\btee\b)[^|;&\n]*(/\.ssh/|/\.gnupg/|/\.aws/|/\.kube/|/Library/LaunchAgents/|/\.claude/|/\.codex/|/\.claudenotch/|/\.git/hooks/|/\.(zshrc|zshenv|zprofile|zlogin|bashrc|bash_profile|profile|gitconfig|netrc)\b)"#, [],
+             "writes into a credential, shell-startup or agent-config file"),
+            (#"\b(cp|mv|ln)\b[^|;&\n]*/Library/LaunchAgents/"#, [],
+             "installs a LaunchAgent, which runs at every login"),
+            (#"\blaunchctl\s+(load|bootstrap|submit|enable)\b"#, [],
+             "launchctl, installs or starts a background job"),
+            (#"\bcrontab\s+[^-]"#, [],
+             "crontab, schedules a recurring command"),
         ]
 
         for (pattern, opts, reason) in patterns {
@@ -257,13 +267,73 @@ enum ToolPreviewParser {
         return re.stringByReplacingMatches(in: input, options: [], range: range, withTemplate: replacement)
     }
 
-    private static func pathDanger(_ path: String) -> [String] {
-        let systemDirs = ["/etc/", "/usr/", "/System/", "/var/", "/bin/", "/sbin/", "/opt/", "/Library/"]
-        for dir in systemDirs where path.hasPrefix(dir) {
-            return ["writes inside \(dir), a system directory"]
+    /// Whether writing to `path` is destructive or dangerous enough to hold the
+    /// card. `home` is a parameter so the classification is testable without
+    /// depending on whose machine the test runs on.
+    ///
+    /// A system directory was the whole of this check, which meant the writes
+    /// that actually take a machine over went through ungated: nothing in
+    /// `/etc` is as reachable as `~/.ssh/authorized_keys`, a LaunchAgent plist,
+    /// a repo's `.git/hooks/pre-commit`, or the agent's own settings file. And
+    /// because `dangerReasons` is the single gate on auto-approve, on
+    /// always-allow rules, on allow-all, and on the hold-to-confirm, "not
+    /// dangerous" here means "may be written silently, with no card at all".
+    static func pathDanger(_ path: String, home: String = NSHomeDirectory()) -> [String] {
+        guard !path.isEmpty else { return [] }
+        // Expands ~, collapses `..` and duplicate separators, so a path dressed
+        // up as `~/.ssh/../.ssh/authorized_keys` is classified as what it is.
+        let p = (path as NSString).standardizingPath
+        // Exactly one trailing slash, so a prefix check cannot match a sibling
+        // like "/Users/aliceXYZ". Built by hand: appendingPathComponent("")
+        // returns the path unchanged, which silently made every check below
+        // compare against "/Users/alice.ssh/" and match nothing.
+        let base = (home as NSString).standardizingPath
+        let h = (base.hasSuffix("/") ? String(base.dropLast()) : base) + "/"
+
+        func underHome(_ suffix: String) -> String { h + suffix }
+
+        // Checked before the system directories so the reason names the actual
+        // file rather than "somewhere in /Library".
+        let sensitiveDirs: [(String, String)] = [
+            (underHome(".ssh/"),            "writes inside ~/.ssh, where your SSH keys and authorized_keys live"),
+            (underHome(".gnupg/"),          "writes inside ~/.gnupg, your GPG keyring"),
+            (underHome(".aws/"),            "writes inside ~/.aws, your cloud credentials"),
+            (underHome(".kube/"),           "writes inside ~/.kube, your cluster credentials"),
+            (underHome(".config/gcloud/"),  "writes inside ~/.config/gcloud, your cloud credentials"),
+            // A plist here runs at every login, which is how a one-off write
+            // becomes a permanent process.
+            (underHome("Library/LaunchAgents/"), "installs a LaunchAgent, which runs at every login"),
+            // The agent's own permission config, and ours. Editing either is how
+            // a single approved write turns into blanket approval afterwards.
+            (underHome(".claude/"),         "writes inside ~/.claude, the agent's own settings and hooks"),
+            (underHome(".codex/"),          "writes inside ~/.codex, the agent's own settings and hooks"),
+            (underHome(".claudenotch/"),    "writes inside ~/.claudenotch, this app's allowlist and settings"),
+        ]
+        for (dir, reason) in sensitiveDirs where p.hasPrefix(dir) {
+            return [reason]
         }
-        if path == "/etc/hosts" || path == "/etc/sudoers" {
-            return ["modifies a sensitive system file"]
+
+        // Anything git will execute on the next ordinary git command. Matched by
+        // `contains` rather than a prefix so it fires for a relative path too,
+        // which is the shape most in-repo edits arrive as.
+        if p.contains("/.git/hooks/") || p.hasPrefix(".git/hooks/") {
+            return ["writes a git hook, which runs on the next commit or checkout"]
+        }
+        if p.hasSuffix("/.git/config") || p == ".git/config" {
+            return ["writes .git/config, where an alias or fsmonitor entry runs commands"]
+        }
+
+        // Shell startup files: a line here runs in every terminal you open.
+        let startupFiles = [".zshrc", ".zshenv", ".zprofile", ".zlogin", ".zlogout",
+                            ".bashrc", ".bash_profile", ".bash_login", ".profile",
+                            ".gitconfig", ".netrc"]
+        for name in startupFiles where p == underHome(name) {
+            return ["writes ~/\(name), which is read every time a shell starts"]
+        }
+
+        let systemDirs = ["/etc/", "/usr/", "/System/", "/var/", "/bin/", "/sbin/", "/opt/", "/Library/"]
+        for dir in systemDirs where p.hasPrefix(dir) {
+            return ["writes inside \(dir), a system directory"]
         }
         return []
     }
