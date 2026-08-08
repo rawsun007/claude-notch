@@ -1844,13 +1844,15 @@ struct SettingsView: View {
     /// kind, the same way the website changelog groups them. Keep this in sync
     /// with the top changelog entry when cutting a release.
     static let whatsNew: [ChangeGroup] = [
-        ChangeGroup(kind: .fixed, items: [
-        "A one-liner handed to Python or Node is checked for what it destroys. The last release taught the danger check to look inside bash -c; python3 -c \"import shutil; shutil.rmtree(...)\" and node -e \"require('fs').rmSync(...)\" run arbitrary code just the same, and neither named a shell command anything was looking for, so both came back clean and ran under auto-approve with no card. The inline program is now read for what it deletes in its own language and for anything it shells out to.",
-        "Two ways of writing a request to the notch that the parser handled too generously. A second Content-Length header took the last of the two values, and one that was not a number at all was read as zero, which silently drops a body the sender believed it had declared. Both are refused now. The parser also has ten thousand random and deliberately malformed buffers run through it on every build, checking that a request still arriving cannot change meaning once the rest of it lands.",
-        "Reading a very large session transcript, or a repository carrying a strange .git, no longer pulls the whole thing into memory. The cost meter already refused an oversized transcript; the two functions beside it did not, and one of them runs over every recent transcript twice a minute.",
-        ]),
         ChangeGroup(kind: .added, items: [
-        "A security policy, at SECURITY.md in the repository, with a private way to report a vulnerability rather than a public issue. It says what the app treats as trusted, where each boundary is actually enforced, and where the limits are, chiefly that the destructive-command check recognises patterns and so is a good catch rather than a guarantee.",
+        "Strict mode, in Settings > Privacy. The destructive-command check recognises patterns, and a pattern list is never finished, so something novel enough is not flagged and can be waved through. Strict mode asks the other question: not \u{201C}is this known to be bad\u{201D} but \u{201C}is this known to be harmless\u{201D}, and only a yes gets approved for you. A safe command reads things and changes nothing. Building, testing, running a script and anything reaching the network all wait for a click. Rules you made for one exact command still work, because that is a decision you made and not a blanket. Off by default: it trades clicks for certainty, and that is your call.",
+        "The app notices if a hook script has changed. Claude Code runs the scripts in ~/.claudenotch/bin on every event, so they run as you, and nothing checked that what is on disk is still what shipped. It now compares them at launch and tells you which one differs, offering to put the shipped copy back. If you edited them on purpose, keep yours.",
+        ]),
+        ChangeGroup(kind: .fixed, items: [
+        "Credentials in a command no longer follow it everywhere. Agents put secrets in commands: an export of an API key, a bearer token in a curl header, a password in a database URL. That text went onto the card, was read aloud by VoiceOver, went into a notification that Notification Center files and the lock screen may show, was written to disk where it sat for five hundred entries, and went into the CSV export people paste into tickets. It is stripped at all of those now. Where the secret is a value the name is kept, so a command still reads as \u{201C}--token [redacted]\u{201D} and you can still tell what you are approving.",
+        ]),
+        ChangeGroup(kind: .changed, items: [
+        "The whole interface follows the language you picked. What is left in English is punctuation and arithmetic, a separator dot, +12/-4, 3 of 7, 42%, which is what should stay that way. Counts pick between two translated forms instead of adding an s, since that is a rule about English rather than about counting.",
         ]),
     ]
 }
