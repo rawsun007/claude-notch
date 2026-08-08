@@ -81,7 +81,7 @@ struct PermissionCard: View {
                 // minute — a quiet cue that Claude has been blocked a while.
                 TimelineView(.periodic(from: .now, by: 15)) { _ in
                     if Date().timeIntervalSince(request.receivedAt) >= 60 {
-                        Text("⏳ waiting \(waitElapsed(request.receivedAt))")
+                        Text(String(format: L("⏳ waiting %@", comment: "Permission card. %@ is an elapsed duration such as \"2m 05s\""), waitElapsed(request.receivedAt)))
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
                             .foregroundColor(.orange.opacity(0.9))
                     }
@@ -326,10 +326,13 @@ struct BudgetBanner: View {
                 .foregroundColor(.orange)
                 .font(.system(size: 11, weight: .bold))
             VStack(alignment: .leading, spacing: 1) {
-                Text("Over your \(block.scope) budget")
+                Text(String(format: L("Over your %@ budget", comment: "Budget block. %@ is a scope such as daily or weekly"), block.scope))
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(.orange.opacity(0.95))
-                Text("\(ClaudeUsageReader.fmtMoney(block.cost)) of \(ClaudeUsageReader.fmtMoney(block.cap)) cap (\(block.pct)%)")
+                Text(String(format: L("%1$@ of %2$@ cap (%3$d%%)",
+                                      comment: "Budget block detail. %1$@ is spend, %2$@ is the cap, %3$d is a percentage"),
+                          ClaudeUsageReader.fmtMoney(block.cost),
+                          ClaudeUsageReader.fmtMoney(block.cap), block.pct))
                     .font(.system(size: 10))
                     .foregroundColor(.orange.opacity(0.85))
             }
@@ -371,7 +374,7 @@ struct PreviewBlock: View {
             DiffPreviewView(hunk: hunk)
         case .multiDiff(let count, let hunk):
             VStack(alignment: .leading, spacing: 4) {
-                Text("First of \(count) edits")
+                Text(String(format: L("First of %d edits", comment: "Multi-edit preview heading. %d is the number of edits"), count))
                     .font(.system(size: 10, weight: .semibold, design: .rounded))
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
@@ -474,7 +477,11 @@ struct WritePreviewView: View {
                 .padding(.vertical, 6)
                 .background(Color.green.opacity(0.12))
             if totalLines > ToolPreviewParser.maxWriteLines {
-                Text("…and \(totalLines - ToolPreviewParser.maxWriteLines) more line\(totalLines - ToolPreviewParser.maxWriteLines == 1 ? "" : "s")")
+                Text({
+                    let more = totalLines - ToolPreviewParser.maxWriteLines
+                    return more == 1 ? L("…and 1 more line", comment: "Truncated file preview, singular")
+                        : String(format: L("…and %d more lines", comment: "Truncated file preview. %d is 2 or more"), more)
+                }())
                     .font(.system(size: 10, design: .rounded))
                     .foregroundColor(.white.opacity(0.45))
                     .padding(.horizontal, 10)

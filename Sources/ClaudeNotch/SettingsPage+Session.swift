@@ -37,7 +37,7 @@ extension SettingsView {
                 }
             }
             if let until = state.autoApproveUntil {
-                Text("Auto-approve on until \(until.formatted(date: .omitted, time: .shortened)).")
+                Text(String(format: L("Auto-approve on until %@.", comment: "Session page. %@ is a clock time"), until.formatted(date: .omitted, time: .shortened)))
                     .font(.caption).foregroundStyle(.orange)
                 Button("Turn off now") { state.setAutoApprove(false) }
             } else if state.autoApprove {
@@ -55,7 +55,7 @@ extension SettingsView {
                 }
             }
             if let until = state.snoozedUntil {
-                Text("Snoozed until \(until.formatted(date: .omitted, time: .shortened)).")
+                Text(String(format: L("Snoozed until %@.", comment: "Session page. %@ is a clock time"), until.formatted(date: .omitted, time: .shortened)))
                     .font(.caption).foregroundStyle(.orange)
                 Button("Cancel snooze") { state.cancelSnooze() }
             }
@@ -79,7 +79,7 @@ extension SettingsView {
                 if matches.isEmpty {
                     group {
                         HStack {
-                            Text("No sessions match “\(sessionSearch)”.")
+                            Text(String(format: L("No sessions match “%@”.", comment: "Empty search result. %@ is what was typed"), sessionSearch))
                                 .foregroundStyle(.secondary)
                             Spacer()
                         }
@@ -149,7 +149,7 @@ extension SettingsView {
             Button("Move to Trash", role: .destructive) { deleteSession(s) }
             Button("Cancel", role: .cancel) { pendingDelete = nil }
         } message: { s in
-            Text("“\(s.title)” goes to the Trash. You can restore it from there; Claude Code won't be able to resume it while it's trashed.")
+            Text(String(format: L("“%@” goes to the Trash. You can restore it from there; Claude Code won't be able to resume it while it's trashed.", comment: "Delete-session confirmation. %@ is the session title"), s.title))
         }
     }
 }

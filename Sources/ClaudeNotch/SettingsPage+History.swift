@@ -28,7 +28,8 @@ extension SettingsView {
                     acc.rem += r.linesRemoved ?? 0
                 }
                 HStack(spacing: 14) {
-                    Text("\(state.sessionHistory.count) sessions")
+                    Text(state.sessionHistory.count == 1 ? L("1 session", comment: "Count of archived sessions, singular")
+                         : String(format: L("%d sessions", comment: "Count of sessions being summarised"), state.sessionHistory.count))
                     Text(ClaudeUsageReader.fmtMoney(total.cost)).foregroundStyle(.secondary)
                     Text("+\(total.add)").foregroundStyle(.green)
                     Text("-\(total.rem)").foregroundStyle(.red)
@@ -41,7 +42,7 @@ extension SettingsView {
                 if matches.isEmpty {
                     group {
                         HStack {
-                            Text("No sessions match “\(historySearch)”.")
+                            Text(String(format: L("No sessions match “%@”.", comment: "Empty search result. %@ is what was typed"), historySearch))
                                 .foregroundStyle(.secondary)
                             Spacer()
                         }

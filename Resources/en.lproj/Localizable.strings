@@ -12,6 +12,9 @@
 /* VoiceOver value for the spend sparkline. %1$@ is the week total, %2$d is the session count, %3$@ is today's spend */
 "%1$@ across %2$d sessions. Today %3$@." = "%1$@ across %2$d sessions. Today %3$@.";
 
+/* Budget block detail. %1$@ is spend, %2$@ is the cap, %3$d is a percentage */
+"%1$@ of %2$@ cap (%3$d%%)" = "%1$@ of %2$@ cap (%3$d%%)";
+
 /* Idle card title with more than one session. %1$@ is the agent name, %2$d is how many sessions */
 "%1$@ · %2$d sessions" = "%1$@ · %2$d sessions";
 
@@ -233,6 +236,9 @@
 
 /* Settings explanation */
 "Auto-approve is on until you turn it off." = "Auto-approve is on until you turn it off.";
+
+/* Session page. %@ is a clock time */
+"Auto-approve on until %@." = "Auto-approve on until %@.";
 
 /* Settings toggle */
 "Auto-approve permissions" = "Auto-approve permissions";
@@ -552,6 +558,9 @@
 /* Settings explanation */
 "Fire a sample card to see what the notch looks like." = "Fire a sample card to see what the notch looks like.";
 
+/* Multi-edit preview heading. %d is the number of edits */
+"First of %d edits" = "First of %d edits";
+
 /* Changelog group heading */
 "Fixed" = "Fixed";
 
@@ -723,6 +732,9 @@
 /* Menu item shown when no agent is running */
 "No active session" = "No active session";
 
+/* Rules page, empty state */
+"No always-allow rules. Approve a request with \u{201C}Always allow\u{201D} to add one." = "No always-allow rules. Approve a request with \u{201C}Always allow\u{201D} to add one.";
+
 /* Empty state for the activity tab when a search matches nothing */
 "No events match your search." = "No events match your search.";
 
@@ -740,6 +752,9 @@
 
 /* Settings empty state for the rules list */
 "No rules yet. Click Always Allow on a permission card to add one." = "No rules yet. Click Always Allow on a permission card to add one.";
+
+/* Empty search result. %@ is what was typed */
+"No sessions match “%@”." = "No sessions match “%@”.";
 
 /* Settings sidebar section */
 "Notch" = "Notch";
@@ -806,6 +821,9 @@
 
 /* Onboarding step description for the login item */
 "Optional. Start ClaudeNotch automatically when you log in so it's always ready." = "Optional. Start ClaudeNotch automatically when you log in so it's always ready.";
+
+/* Budget block. %@ is a scope such as daily or weekly */
+"Over your %@ budget" = "Over your %@ budget";
 
 /* Badge: Claude is in plan mode */
 "PLAN" = "PLAN";
@@ -939,6 +957,9 @@
 /* Settings toggle */
 "Require Touch ID for permissions" = "Require Touch ID for permissions";
 
+/* Plan limits. %@ is a relative time such as \"in 2 hours\" */
+"Resets %@." = "Resets %@.";
+
 /* Button: start the agent again in this project */
 "Resume" = "Resume";
 
@@ -1043,6 +1064,9 @@
 
 /* Settings section heading */
 "Snooze passive cards" = "Snooze passive cards";
+
+/* Session page. %@ is a clock time */
+"Snoozed until %@." = "Snoozed until %@.";
 
 /* Dialog body when the update check failed */
 "Something went wrong reaching GitHub. Check your internet connection and try again." = "Something went wrong reaching GitHub. Check your internet connection and try again.";
@@ -1194,8 +1218,14 @@
 /* Menu item: a newer release exists */
 "Update available" = "Update available";
 
+/* About page. %@ is the new version number */
+"Update available: v%@" = "Update available: v%@";
+
 /* Settings badge: a newer version is available. %@ is the version number */
 "Update to v%@" = "Update to v%@";
+
+/* Money page. %@ is a relative time such as \"2 minutes ago\" */
+"Updated %@." = "Updated %@.";
 
 /* Settings page title */
 "Usage" = "Usage";
@@ -1205,6 +1235,9 @@
 
 /* Menu item naming the paid-credit readout */
 "Usage credits (only while they are on)" = "Usage credits (only while they are on)";
+
+/* About page. %@ is a version and build number */
+"Version %@" = "Version %@";
 
 /* Two-letter status bar label for the weekly limit */
 "WK" = "WK";
@@ -1269,6 +1302,9 @@
 /* VoiceOver form of the repeat-approval hint */
 "You have allowed this command %d times before" = "You have allowed this command %d times before";
 
+/* About page. %@ is the installed version number */
+"You have v%@" = "You have v%@";
+
 /* Dialog title when no newer release exists */
 "You're up to date" = "You're up to date";
 
@@ -1326,8 +1362,20 @@
 /* Staleness marker beside a usage reading. %@ is an age such as 12 min */
 "· %@ old" = "· %@ old";
 
+/* Delete-session confirmation. %@ is the session title */
+"“%@” goes to the Trash. You can restore it from there; Claude Code won't be able to resume it while it's trashed." = "“%@” goes to the Trash. You can restore it from there; Claude Code won't be able to resume it while it's trashed.";
+
+/* Truncated file preview. %d is 2 or more */
+"…and %d more lines" = "…and %d more lines";
+
+/* Truncated file preview, singular */
+"…and 1 more line" = "…and 1 more line";
+
 /* Menu item when a newer release exists. %@ is the version */
 "↑ Update available: v%@, Download" = "↑ Update available: v%@, Download";
 
 /* Recent-project row. %1$@ is the folder name, %2$@ is its full path */
 "↻  %1$@ ,  %2$@" = "↻  %1$@ ,  %2$@";
+
+/* Permission card. %@ is an elapsed duration such as \"2m 05s\" */
+"⏳ waiting %@" = "⏳ waiting %@";

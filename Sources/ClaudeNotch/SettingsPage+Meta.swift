@@ -82,7 +82,7 @@ extension SettingsView {
                     Text(L("ClaudeNotch", comment: "Settings explanation")).font(.title2.weight(.semibold))
                     Text(L("Claude Code, living in your notch.", comment: "Settings explanation"))
                         .font(.callout).foregroundStyle(.secondary)
-                    Text("Version \(Self.appVersion)")
+                    Text(String(format: L("Version %@", comment: "About page. %@ is a version and build number"), Self.appVersion))
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()

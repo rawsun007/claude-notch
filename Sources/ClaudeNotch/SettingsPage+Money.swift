@@ -160,7 +160,7 @@ extension SettingsView {
                     }
                 }
                 if let updated = state.limitsUpdatedAt {
-                    Text("Updated \(updated.formatted(.relative(presentation: .named))).")
+                    Text(String(format: L("Updated %@.", comment: "Money page. %@ is a relative time such as \"2 minutes ago\""), updated.formatted(.relative(presentation: .named))))
                         .font(.caption2).foregroundStyle(.tertiary)
                 }
             }

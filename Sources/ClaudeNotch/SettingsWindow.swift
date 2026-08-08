@@ -603,10 +603,10 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Image(systemName: "arrow.down.circle.fill").foregroundStyle(.white)
-                Text("Update available: v\(version)")
+                Text(String(format: L("Update available: v%@", comment: "About page. %@ is the new version number"), version))
                     .font(.headline).foregroundStyle(.white)
                 Spacer()
-                Text("You have v\(UpdateChecker.shared.currentVersion)")
+                Text(String(format: L("You have v%@", comment: "About page. %@ is the installed version number"), UpdateChecker.shared.currentVersion))
                     .font(.caption).foregroundStyle(.white.opacity(0.8))
             }
             HStack(spacing: 8) {
@@ -1004,7 +1004,7 @@ struct SettingsView: View {
                     .foregroundStyle(clamped >= 0.75 ? tint : .secondary)
             }
             if let resetAt {
-                Text("Resets \(resetAt.formatted(.relative(presentation: .named))).")
+                Text(String(format: L("Resets %@.", comment: "Plan limits. %@ is a relative time such as \"in 2 hours\""), resetAt.formatted(.relative(presentation: .named))))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -1087,7 +1087,7 @@ struct SettingsView: View {
 
             sectionLabel(L("Always-allow rules", comment: "Settings section heading"))
             if state.allowRules.isEmpty {
-                Text("No always-allow rules. Approve a request with \u{201C}Always allow\u{201D} to add one.")
+                Text(L("No always-allow rules. Approve a request with \u{201C}Always allow\u{201D} to add one.", comment: "Rules page, empty state"))
                     .font(.callout).foregroundStyle(.secondary)
             } else {
                 group {
@@ -1642,7 +1642,8 @@ struct SettingsView: View {
                         Text("-\(d)").foregroundStyle(.red)
                     }
                     if let f = r.filesTouched, f > 0 {
-                        Text("\(f) file\(f == 1 ? "" : "s")")
+                        Text(f == 1 ? L("1 file", comment: "Count of files changed, singular")
+                             : String(format: L("%d files", comment: "Count of files changed. %d is 2 or more"), f))
                     }
                     if let dur = r.duration, dur >= 1 {
                         Text(AppState.runningDuration(seconds: dur))

@@ -25,8 +25,9 @@ detail in the file before relying on it.
   after adding one; CI runs `--check` and fails if the table is stale. Note that
   SwiftPM does NOT compile `.xcstrings`, it copies it verbatim, so String
   Catalogs silently resolve to nothing here. `.lproj/Localizable.strings` copied
-  into the bundle by `build.sh` is the format that works. Only the permission
-  card is wired up so far; the rest of the UI is still hardcoded English.
+  into the bundle by `build.sh` is the format that works. The UI is wired up:
+  the only `Text("…")` literals left are punctuation, symbols and pure number
+  formatting, which is what should stay unlocalized.
 
 ## Data flow (the spine)
 
