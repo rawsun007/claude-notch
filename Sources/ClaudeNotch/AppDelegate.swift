@@ -85,6 +85,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        // Claude Code executes the scripts in ~/.claudenotch/bin on every hook,
+        // so whatever is in that directory runs as you dozens of times an hour.
+        // The directory is 0700, which stops another account writing into it,
+        // but nothing noticed if something already had. Compare the installed
+        // copies against the ones in the bundle and say so when they differ.
+        //
+        // Drift detection, not authentication: an attacker who can write there
+        // can rewrite the app too. What it catches is the realistic case, an
+        // edit nobody remembers making or a half-finished update.
+        if HookInstaller.isInstalled {
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                let drifted = HookInstaller.driftedScripts()
+                guard !drifted.isEmpty else { return }
+                DispatchQueue.main.async { self?.reportDriftedHooks(drifted) }
+            }
+        }
+
         if OnboardingWindowController.shouldAutoShow {
             // Defer slightly so the menu bar icon appears first — feels less
             // abrupt than the window jumping up at the exact same moment.
@@ -248,5 +265,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openSettingsFromMenu() {
         settings.show()
+    }
+
+    /// Say that an installed hook script no longer matches the shipped one, and
+    /// offer to put the shipped copy back.
+    ///
+    /// A card rather than a silent repair: overwriting a file somebody may have
+    /// edited on purpose, without telling them, is its own kind of rude, and if
+    /// the edit was NOT on purpose then it is the thing they most need to know
+    /// about. Either way it is their call.
+    @MainActor
+    private func reportDriftedHooks(_ names: [String]) {
+        let list = names.joined(separator: ", ")
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = names.count == 1
+            ? "A hook script has changed"
+            : "\(names.count) hook scripts have changed"
+        alert.informativeText = """
+        \(list) in ~/.claudenotch/bin no longer matches the copy this version \
+        of ClaudeNotch ships. Claude Code runs these on every hook, so they run \
+        as you.
+
+        If you edited them yourself, keep them. If you did not, replacing them \
+        puts the shipped copies back.
+        """
+        alert.addButton(withTitle: "Keep Mine")
+        alert.addButton(withTitle: "Replace")
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
+        DispatchQueue.global(qos: .userInitiated).async {
+            try? HookInstaller.repairScripts()
+        }
     }
 }

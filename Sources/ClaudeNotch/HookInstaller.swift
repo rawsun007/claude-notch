@@ -131,6 +131,49 @@ enum HookInstaller {
         try mergeSettings()
     }
 
+    // MARK: - Integrity
+
+    /// A script that is installed but no longer matches the one this build
+    /// ships, reported by file name.
+    ///
+    /// Claude Code runs these on every hook, so whatever is in that directory
+    /// runs as you, dozens of times an hour. The directory is 0700 now, which
+    /// stops another account writing into it, but nothing noticed if something
+    /// already had, or if a well-meaning edit left a forwarder behind after an
+    /// update changed it. Comparing bytes against what is in the bundle answers
+    /// both, and it is the only claim that can be made without a signing story:
+    /// this is drift detection, not authentication.
+    ///
+    /// Only files the bundle actually ships are compared. The Codex forwarder
+    /// is written by the app rather than copied, and anything a user has put
+    /// there themselves is theirs.
+    /// Both directories are parameters so the comparison is testable without an
+    /// app bundle, the same way transcriptRoots and pathDanger take theirs.
+    static func driftedScripts(shippedDir: URL? = Bundle.main.resourceURL?.appendingPathComponent("hooks"),
+                               installedDir: String = installDir) -> [String] {
+        let fm = FileManager.default
+        guard let sourceDir = shippedDir,
+              let shipped = try? fm.contentsOfDirectory(atPath: sourceDir.path) else { return [] }
+
+        var drifted: [String] = []
+        for name in shipped.sorted() where name.hasSuffix(".sh") {
+            let installed = (installedDir as NSString).appendingPathComponent(name)
+            // Not installed at all is a different problem, and `isInstalled`
+            // already speaks to it. Silence here rather than a false alarm.
+            guard fm.fileExists(atPath: installed) else { continue }
+            let a = try? Data(contentsOf: sourceDir.appendingPathComponent(name))
+            let b = try? Data(contentsOf: URL(fileURLWithPath: installed))
+            if a != b { drifted.append(name) }
+        }
+        return drifted
+    }
+
+    /// Put the shipped copies back. The repair for `driftedScripts`, and the
+    /// same code path an install uses, so there is one way to write these.
+    static func repairScripts() throws {
+        try copyScripts()
+    }
+
     // MARK: - Codex (beta)
 
     /// Codex reads hooks from ~/.codex/hooks.json. Codex hook payloads are
