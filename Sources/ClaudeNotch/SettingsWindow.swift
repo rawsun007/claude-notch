@@ -596,9 +596,21 @@ struct SettingsView: View {
         }
     }
 
-    /// In-app update banner shown at the top of General when a newer release
-    /// is found: the version, a one-click Download, and a copyable Homebrew
-    /// upgrade command for cask users.
+    private var downloadButton: some View {
+        Button {
+            if let url = URL(string: ProjectLinks.latestDMG) {
+                NSWorkspace.shared.open(url)
+            }
+        } label: {
+            Label(L("Download", comment: "Button: download the DMG"),
+                  systemImage: "square.and.arrow.down")
+        }
+    }
+
+    /// In-app update banner shown at the top of General when a newer release is
+    /// found: the version, a one-click Update Now when the bundled updater is on
+    /// disk, a plain Download, and the copyable commands for anyone who would
+    /// rather drive it themselves.
     private func updateBanner(version: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
@@ -610,16 +622,29 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.white.opacity(0.8))
             }
             HStack(spacing: 8) {
-                Button {
-                    if let url = URL(string: ProjectLinks.latestDMG) {
-                        NSWorkspace.shared.open(url)
+                // One click, when the updater is on disk. It downloads, checks
+                // the DMG against the checksum published with the release,
+                // quits, replaces and relaunches. The copyable commands below
+                // stay for anyone who would rather drive it themselves, and
+                // are the only option when the script is missing.
+                if TerminalAutomator.canSelfUpdate {
+                    Button {
+                        TerminalAutomator.runUpdater()
+                    } label: {
+                        Label(L("Update Now", comment: "Button: install the new version"),
+                              systemImage: "arrow.down.circle")
                     }
-                } label: {
-                    Label("Download", systemImage: "square.and.arrow.down")
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                Button("Release notes") {
+                // Demoted to a plain button once Update Now is there to be the
+                // obvious thing to press, and the prominent one when it is not.
+                if TerminalAutomator.canSelfUpdate {
+                    downloadButton.buttonStyle(.bordered).controlSize(.small)
+                } else {
+                    downloadButton.buttonStyle(.borderedProminent).controlSize(.small)
+                }
+                Button(L("Release notes", comment: "Button: open the changelog")) {
                     if let url = URL(string: ProjectLinks.changelog) {
                         NSWorkspace.shared.open(url)
                     }

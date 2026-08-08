@@ -829,10 +829,23 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         alert.informativeText = String(format: L("ClaudeNotch v%1$@ is available. You're on v%2$@.", comment: "Update dialog body. %1$@ is the new version, %2$@ is the installed one"),
                                        version, UpdateChecker.shared.currentVersion)
         alert.alertStyle = .informational
+        // Update Now is the default button when the bundled updater is on disk:
+        // it downloads, checks the DMG against the checksum published with the
+        // release, quits, replaces and relaunches. Opening the releases page is
+        // the fallback, and the only option without the script.
+        let canSelfUpdate = TerminalAutomator.canSelfUpdate
+        if canSelfUpdate {
+            alert.addButton(withTitle: L("Update Now", comment: "Dialog button: install the new version"))
+        }
         alert.addButton(withTitle: L("Download", comment: "Dialog button: open the release page"))
         alert.addButton(withTitle: L("Later", comment: "Dialog button: dismiss the update prompt"))
-        if alert.runModal() == .alertFirstButtonReturn {
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            if canSelfUpdate { TerminalAutomator.runUpdater() } else { openUpdate() }
+        case .alertSecondButtonReturn where canSelfUpdate:
             openUpdate()
+        default:
+            break
         }
     }
 

@@ -252,5 +252,38 @@ enum TerminalAutomator {
     /// shell (honours ~/.local/bin etc.). Returns nil if not found.
     nonisolated static func resolveCodexPath() -> String? { resolveCLIPath("codex") }
 
+    // MARK: - Self-update
+
+    /// The bundled updater, installed next to the hook scripts.
+    nonisolated static var updateScriptPath: String {
+        (HookInstaller.installDir as NSString).appendingPathComponent("claudenotch-update.sh")
+    }
+
+    /// True when the updater is on disk, i.e. when Update Now can do anything.
+    nonisolated static var canSelfUpdate: Bool {
+        FileManager.default.isExecutableFile(atPath: updateScriptPath)
+    }
+
+    /// Run the updater in a terminal window.
+    ///
+    /// Until now the About page printed this command and offered to copy it,
+    /// which meant every update went: read the box, copy, find a terminal,
+    /// paste, return. Downloads per release say how well that worked. The
+    /// script was already on disk and already did the whole job.
+    ///
+    /// In a terminal rather than as a child process, for two reasons. The
+    /// script quits ClaudeNotch and replaces the bundle, so its parent would be
+    /// the app it is deleting. And it verifies the DMG against the checksum
+    /// published with the release, which is worth watching happen rather than
+    /// taking on trust from a progress bar.
+    @discardableResult
+    static func runUpdater() -> Bool {
+        guard canSelfUpdate else { return false }
+        runInTerminal(dir: NSHomeDirectory(),
+                      exec: shellQuote(updateScriptPath),
+                      label: "self-update")
+        return true
+    }
+
     nonisolated private static func shellQuote(_ s: String) -> String { Shell.quote(s) }
 }

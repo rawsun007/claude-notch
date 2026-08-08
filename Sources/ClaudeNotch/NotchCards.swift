@@ -60,7 +60,20 @@ struct NotificationCard: View {
 
                 HStack(spacing: 8) {
                     NotchButton(label: L("Dismiss", comment: "Button: close a notification card"), style: .secondary, action: onDismiss)
-                    NotchButton(label: L("Open IDE", comment: "Button: bring the editor or terminal that started this session to the front"), style: .primary, action: onOpen)
+                    // The update card is the surface most people actually see,
+                    // since most never open the menu bar menu. It used to say
+                    // "download it from the menu bar icon" beside a button
+                    // offering to focus their editor, which is not an update.
+                    // Now the primary button is the update.
+                    if request.toolName == "Update", TerminalAutomator.canSelfUpdate {
+                        NotchButton(label: L("Update", comment: "Button: install the new version"),
+                                    style: .primary) {
+                            TerminalAutomator.runUpdater()
+                            onDismiss()
+                        }
+                    } else {
+                        NotchButton(label: L("Open IDE", comment: "Button: bring the editor or terminal that started this session to the front"), style: .primary, action: onOpen)
+                    }
                 }
                 .fixedSize()
             }

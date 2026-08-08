@@ -214,8 +214,10 @@ extension AppState {
         schedulePersist()
         enqueuePermission(PermissionRequest(
             kind: .notification,
-            title: "Update available: v\(version)",
-            detail: "You're on v\(UpdateChecker.shared.currentVersion). Download via the menu bar icon → \"Update available\".",
+            title: String(format: L("Update available: v%@", comment: "Notch card title. %@ is the new version number"), version),
+            detail: TerminalAutomator.canSelfUpdate
+                ? String(format: L("You're on v%@. Update takes a few seconds.", comment: "Notch card body. %@ is the installed version"), UpdateChecker.shared.currentVersion)
+                : String(format: L("You're on v%@. Download it from the menu bar icon.", comment: "Notch card body when the bundled updater is missing. %@ is the installed version"), UpdateChecker.shared.currentVersion),
             toolName: "Update",
             source: "ClaudeNotch",
             cwd: "",

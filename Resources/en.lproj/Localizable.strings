@@ -939,6 +939,9 @@
 /* Button that re-reads the plan details */
 "Refresh" = "Refresh";
 
+/* Button: open the changelog */
+"Release notes" = "Release notes";
+
 /* Settings button: delete every allow rule */
 "Remove all rules" = "Remove all rules";
 
@@ -1215,10 +1218,16 @@
 /* VoiceOver hint for the free-text answer field */
 "Type an answer if none of the options fit" = "Type an answer if none of the options fit";
 
+/* Button: install the new version */
+"Update" = "Update";
+
+/* Dialog button: install the new version */
+"Update Now" = "Update Now";
+
 /* Menu item: a newer release exists */
 "Update available" = "Update available";
 
-/* About page. %@ is the new version number */
+/* Notch card title. %@ is the new version number */
 "Update available: v%@" = "Update available: v%@";
 
 /* Settings badge: a newer version is available. %@ is the version number */
@@ -1304,6 +1313,12 @@
 
 /* About page. %@ is the installed version number */
 "You have v%@" = "You have v%@";
+
+/* Notch card body when the bundled updater is missing. %@ is the installed version */
+"You're on v%@. Download it from the menu bar icon." = "You're on v%@. Download it from the menu bar icon.";
+
+/* Notch card body. %@ is the installed version */
+"You're on v%@. Update takes a few seconds." = "You're on v%@. Update takes a few seconds.";
 
 /* Dialog title when no newer release exists */
 "You're up to date" = "You're up to date";
