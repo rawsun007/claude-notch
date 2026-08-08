@@ -4,8 +4,13 @@ import AppKit
 // The activity log and the archived session records.
 
 extension AppState {
+    /// Every history sink is downstream of this one call: the drawer, the
+    /// settings page, `state.json` on disk, and the CSV and JSON exports people
+    /// paste into tickets. Redacting here covers all of them, and covers them
+    /// at the moment the entry is created rather than at four render sites that
+    /// can each be forgotten.
     func appendHistory(_ entry: HistoryEntry) {
-        history.insert(entry, at: 0)
+        history.insert(entry.redacted(), at: 0)
         if history.count > historyMax {
             history = Array(history.prefix(historyMax))
         }

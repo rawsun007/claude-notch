@@ -105,7 +105,10 @@ final class NotificationBridge: NSObject, PermissionMirroring {
             }
             body += "\nFlagged: " + tokens.joined(separator: ", ")
         }
-        content.body = body
+        // macOS files this in Notification Center and shows it on the lock
+        // screen depending on Show Previews, so it is the one sink that can
+        // display a credential on a Mac nobody is sitting at.
+        content.body = SecretRedactor.redact(body)
         content.categoryIdentifier = dangerous ? Self.catDanger : Self.catSafe
         content.threadIdentifier = project.isEmpty ? "claudenotch" : project
         // No sound: the notch handles audio at the desk. interruptionLevel
@@ -135,7 +138,9 @@ final class NotificationBridge: NSObject, PermissionMirroring {
         let done = "\(agentName) finished"
         content.title = project.isEmpty ? done : project
         content.subtitle = project.isEmpty ? "" : done
-        if !snippet.isEmpty { content.body = String(snippet.prefix(200)) }
+        if !snippet.isEmpty {
+            content.body = String(SecretRedactor.redact(snippet).prefix(200))
+        }
         content.sound = .default
         content.threadIdentifier = "claudenotch-done"
         // Replyable when we know where the reply should land.

@@ -145,6 +145,20 @@ struct HistoryEntry: Identifiable, Equatable, Codable {
     let project: String
     let outcome: Outcome
 
+    /// A copy with any credential in its text replaced.
+    ///
+    /// A history entry is the most persistent copy of a command the app keeps:
+    /// it goes into `state.json` and stays for five hundred entries, and it is
+    /// what the CSV and JSON exports are built from. Redacting it on the way in
+    /// covers the drawer, the settings page, the file and every export at once,
+    /// rather than at four render sites that can each be forgotten.
+    func redacted() -> HistoryEntry {
+        HistoryEntry(id: id, timestamp: timestamp, kind: kind, toolName: toolName,
+                     title: SecretRedactor.redact(title),
+                     detail: SecretRedactor.redact(detail),
+                     project: project, outcome: outcome)
+    }
+
     enum Kind: String, Equatable, Codable {
         case permission, question, notification, completed
     }

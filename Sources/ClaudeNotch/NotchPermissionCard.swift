@@ -16,7 +16,9 @@ struct PermissionCard: View {
         if r.isDangerous { parts.append("Dangerous.") }
         parts.append(r.title)
         if !r.toolName.isEmpty, r.toolName != "Notification" { parts.append("Tool: \(r.toolName).") }
-        if !r.detail.isEmpty { parts.append(r.detail) }
+        // Redacted: VoiceOver reads this out loud, and a spoken credential
+        // carries further than a displayed one.
+        if !r.detail.isEmpty { parts.append(SecretRedactor.redact(r.detail)) }
         return parts.joined(separator: " ")
     }
 
@@ -113,7 +115,10 @@ struct PermissionCard: View {
                 .accessibilityLabel(Self.spokenAsk(for: request))
 
             if !request.detail.isEmpty {
-                Text(request.detail)
+                // The notch sits on screen through every screen share and
+                // recording. The value of a credential is never what makes
+                // a command allowable, so it does not need to be here.
+                Text(SecretRedactor.redact(request.detail))
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundColor(.white.opacity(0.78))
                     .accessibilityHidden(true)
@@ -204,7 +209,7 @@ struct PermissionCard: View {
                         // Biometric confirm for destructive commands. The system
                         // sheet appears; only a successful auth allows it.
                         Button {
-                            BiometricAuth.confirm(reason: "allow this command: \(String(request.detail.prefix(80)))") { ok in
+                            BiometricAuth.confirm(reason: "allow this command: \(String(SecretRedactor.redact(request.detail).prefix(80)))") { ok in
                                 if ok { onResolve(.allow, .none) }
                             }
                         } label: {

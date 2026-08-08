@@ -65,7 +65,9 @@ extension SettingsView {
             VStack(alignment: .leading, spacing: 2) {
                 Text(rule.tool).font(.body.weight(.medium))
                 if let command = rule.literalCommand {
-                    Text(command)
+                    // The rule still MATCHES on the true command; only the
+                    // printing of it is redacted.
+                    Text(SecretRedactor.redact(command))
                         .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
