@@ -1065,6 +1065,10 @@ struct SettingsView: View {
                 row(L("Require Touch ID for permissions", comment: "Settings toggle"),
                     L("Ask for Touch ID before allowing a tool request from the notch.", comment: "Settings toggle explanation"),
                     bind(\.requireTouchID, state.setRequireTouchID))
+                divider
+                row(L("Strict mode", comment: "Settings toggle"),
+                    L("Only let commands that read and change nothing be approved for you. Auto-Approve and tool-wide rules stop applying to everything else, so a build, a script, or anything reaching the network waits for a click. Rules you made for one exact command still work. The destructive-command check recognises patterns, and a pattern list is never finished; this is the setting for when that is not good enough.", comment: "Settings toggle explanation"),
+                    bind(\.strictMode, state.setStrictMode))
             }
 
             sectionLabel(L("System permissions", comment: "Settings section heading"))

@@ -438,6 +438,10 @@ final class AppState: ObservableObject {
     // Require Touch ID / Face ID to confirm a dangerous command (instead of
     // press-and-hold). Defaults on when the Mac has biometrics. Persisted.
     @Published var requireTouchID: Bool = false
+    /// Strict Mode: only a command SafeCommand calls harmless may be approved
+    /// on your behalf by Auto-Approve or by a tool-wide rule. Off by default,
+    /// because it trades clicks for certainty and that is a choice.
+    @Published var strictMode: Bool = false
 
     // Mirror blocking permission cards to native macOS notifications so they're
     // actionable from the lock screen / another Space, and auto-respect Focus
@@ -803,6 +807,7 @@ final class AppState: ObservableObject {
             self.weeklyCostCap = snapshot.weeklyCostCap ?? 50.0
             self.enforceBudget = snapshot.enforceBudget ?? false
             self.requireTouchID = snapshot.requireTouchID ?? BiometricAuth.isAvailable
+            self.strictMode = snapshot.strictMode ?? false
             self.mirrorToNotificationCenter = snapshot.mirrorToNotificationCenter ?? true
             self.completionNotificationsEnabled = snapshot.completionNotificationsEnabled ?? false
             self.digestNotificationsEnabled = snapshot.digestNotificationsEnabled ?? false

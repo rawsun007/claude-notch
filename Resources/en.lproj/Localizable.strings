@@ -777,6 +777,9 @@
 /* Card title for the spend forecast warning */
 "On course to pass your daily budget" = "On course to pass your daily budget";
 
+/* Settings toggle explanation */
+"Only let commands that read and change nothing be approved for you. Auto-Approve and tool-wide rules stop applying to everything else, so a build, a script, or anything reaching the network waits for a click. Rules you made for one exact command still work. The destructive-command check recognises patterns, and a pattern list is never finished; this is the setting for when that is not good enough." = "Only let commands that read and change nothing be approved for you. Auto-Approve and tool-wide rules stop applying to everything else, so a build, a script, or anything reaching the network waits for a click. Rules you made for one exact command still work. The destructive-command check recognises patterns, and a pattern list is never finished; this is the setting for when that is not good enough.";
+
 /* Button: bring the editor or terminal that started this session to the front */
 "Open IDE" = "Open IDE";
 
@@ -1088,6 +1091,9 @@
 
 /* Settings section heading */
 "Status bar" = "Status bar";
+
+/* Settings toggle */
+"Strict mode" = "Strict mode";
 
 /* Settings explanation */
 "Surface other coding agents in the notch. Codex support is experimental: session status, prompts, activity and notifications appear, but permission cards and cost are not wired yet." = "Surface other coding agents in the notch. Codex support is experimental: session status, prompts, activity and notifications appear, but permission cards and cost are not wired yet.";

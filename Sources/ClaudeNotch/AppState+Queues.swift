@@ -95,7 +95,22 @@ extension AppState {
             return
         }
 
-        if !bypassRules, !req.isDangerous, let matched = allowRules.first(where: { $0.matches(req) }) {
+        // Strict Mode narrows the BLANKET approvals to commands SafeCommand
+        // calls harmless. A tool-wide rule ("always allow Bash") and
+        // Auto-Approve both say yes to things nobody has looked at, and the
+        // danger scan they lean on is a denylist that is never finished.
+        //
+        // An exact-command rule is deliberately exempt: "always allow
+        // `swift build`" is a specific decision someone made about a specific
+        // command, which is the opposite of a blanket. Taking that away would
+        // make Strict Mode mean "ignore what I told you", and nobody would
+        // leave it on.
+        let strictBlocksBlanketApproval = strictMode
+            && !SafeCommand.isSafe(tool: req.toolName, detail: req.detail)
+
+        if !bypassRules, !req.isDangerous,
+           let matched = allowRules.first(where: { $0.matches(req) }),
+           !(strictBlocksBlanketApproval && matched.commandRegex == nil) {
             // Auto-allowed by a rule the user installed earlier. Still
             // log it to history so they can see what we approved silently.
             // Dangerous commands are exempt — even a tool-wide always-allow
@@ -120,7 +135,8 @@ extension AppState {
         // Auto-approve mode: allow immediately and show a brief, button-less
         // "live activity" card of what's changing. Dangerous commands are
         // exempt — they still require an explicit hold-to-confirm.
-        if !bypassRules, autoApprove, req.kind == .toolUse, !req.isDangerous {
+        if !bypassRules, autoApprove, req.kind == .toolUse, !req.isDangerous,
+           !strictBlocksBlanketApproval {
             req.resolver(.allow, nil)
             appendHistory(HistoryEntry(
                 timestamp: Date(),

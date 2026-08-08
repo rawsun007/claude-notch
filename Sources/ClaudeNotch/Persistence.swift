@@ -29,6 +29,7 @@ enum Persistence {
         var fiveHourCostCap: Double? = nil
         var weeklyCostCap: Double? = nil
         var requireTouchID: Bool? = nil
+        var strictMode: Bool? = nil
         var mirrorToNotificationCenter: Bool? = nil
         var completionNotificationsEnabled: Bool? = nil
         var digestNotificationsEnabled: Bool? = nil
@@ -147,6 +148,7 @@ extension Persistence.Snapshot {
             fiveHourCostCap: try? c.decode(Double.self, forKey: .fiveHourCostCap),
             weeklyCostCap: try? c.decode(Double.self, forKey: .weeklyCostCap),
             requireTouchID: try? c.decode(Bool.self, forKey: .requireTouchID),
+            strictMode: try? c.decode(Bool.self, forKey: .strictMode),
             mirrorToNotificationCenter: try? c.decode(Bool.self, forKey: .mirrorToNotificationCenter),
             completionNotificationsEnabled: try? c.decode(Bool.self, forKey: .completionNotificationsEnabled),
             digestNotificationsEnabled: try? c.decode(Bool.self, forKey: .digestNotificationsEnabled),

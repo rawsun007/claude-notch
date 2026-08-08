@@ -400,6 +400,7 @@ extension AppState {
             fiveHourCostCap: fiveHourCostCap,
             weeklyCostCap: weeklyCostCap,
             requireTouchID: requireTouchID,
+            strictMode: strictMode,
             mirrorToNotificationCenter: mirrorToNotificationCenter,
             completionNotificationsEnabled: completionNotificationsEnabled,
             digestNotificationsEnabled: digestNotificationsEnabled,

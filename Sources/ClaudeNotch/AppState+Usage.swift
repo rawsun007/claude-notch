@@ -140,6 +140,7 @@ extension AppState {
     func setPersistentNotchDisplay(_ on: Bool) { persistentNotchDisplay = on; schedulePersist() }
 
     func setRequireTouchID(_ on: Bool) { requireTouchID = on; schedulePersist() }
+    func setStrictMode(_ on: Bool) { strictMode = on; schedulePersist() }
 
     func setMirrorToNotificationCenter(_ on: Bool) {
         mirrorToNotificationCenter = on
