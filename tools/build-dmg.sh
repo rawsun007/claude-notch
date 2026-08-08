@@ -23,6 +23,39 @@ mkdir -p "$STAGE"
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 
+# The instructions differ entirely depending on whether this build is
+# notarized, and shipping the Gatekeeper-bypass steps to someone who does not
+# need them teaches them to bypass Gatekeeper for anything calling itself
+# ClaudeNotch. So the README is written to match the build.
+if [ -n "${CLAUDENOTCH_SIGN_ID:-}" ] && [ -n "${CLAUDENOTCH_NOTARY_PROFILE:-}" ]; then
+cat > "$STAGE/README.txt" <<'TXT'
+ClaudeNotch — first launch
+==========================
+
+1. Drag  ClaudeNotch.app  onto the  Applications  folder (in this window).
+
+2. Open Applications and double-click ClaudeNotch. It opens straight away:
+   this build is signed with a Developer ID and notarized by Apple.
+
+3. The Setup window appears. Grant Accessibility + Input Monitoring,
+   click "Install" to wire up the Claude Code hooks, and you are done.
+
+Then start Claude Code in any terminal and your permission prompts,
+questions, and notifications show up in the notch instead of the terminal.
+
+Updating from an older version?
+   Use  Update Now  inside the app (menu-bar bell, or Settings > About).
+   It downloads, verifies the checksum, replaces and relaunches for you.
+   Your settings and history are kept: they live in ~/.claudenotch, not in
+   the app.
+
+Tip:  press  Opt-Cmd-N  anywhere to type a message straight to Claude.
+
+Prefer Homebrew?
+   brew tap rawsun007/claudenotch https://github.com/rawsun007/claude-notch
+   brew install --cask claudenotch
+TXT
+else
 cat > "$STAGE/README.txt" <<'TXT'
 ClaudeNotch — first launch (one time)
 =====================================
@@ -62,6 +95,7 @@ ClaudeNotch is ad-hoc signed (no Developer ID), a tier macOS treats more
 leniently than an unnotarized Developer ID app, so the Homebrew install
 launches with no Gatekeeper prompt.
 TXT
+fi
 
 # Brand the disk image with our icon (instead of the generic .dmg icon).
 if [ -f assets/AppIcon.icns ]; then
@@ -87,6 +121,48 @@ rmdir "$MNT" 2>/dev/null || true
 
 hdiutil convert "$RW" -format UDZO -o "$DMG" >/dev/null
 rm -f "$RW"; rmdir "$(dirname "$RW")" 2>/dev/null || true
+
+# Notarize and staple, when there is a Developer ID to do it with.
+#
+# Without this the DMG is signed but not notarized, so Gatekeeper refuses the
+# first launch and every new user has to right-click Open, or run xattr, on a
+# tool whose whole job is deciding what an AI may run on their Mac. That is an
+# expensive first impression and it is the single biggest install-time drop.
+#
+# Needs, all three, or this block is skipped in full:
+#   CLAUDENOTCH_SIGN_ID       the Developer ID Application identity, which
+#                             build.sh also reads so the .app inside is signed
+#                             with the hardened runtime
+#   CLAUDENOTCH_NOTARY_PROFILE  a notarytool keychain profile, stored once with
+#                             xcrun notarytool store-credentials
+#
+# Stapling matters: it puts the ticket inside the DMG so a first launch works
+# with no network. Without it, someone offline sees the refusal anyway.
+if [ -n "${CLAUDENOTCH_SIGN_ID:-}" ] && [ -n "${CLAUDENOTCH_NOTARY_PROFILE:-}" ]; then
+    echo "→ Signing the disk image"
+    codesign --force --timestamp --sign "$CLAUDENOTCH_SIGN_ID" "$DMG"
+
+    echo "→ Notarizing (this waits on Apple, usually a minute or two)"
+    if xcrun notarytool submit "$DMG" \
+           --keychain-profile "$CLAUDENOTCH_NOTARY_PROFILE" --wait; then
+        xcrun stapler staple "$DMG"
+        echo "→ Stapled"
+        # Say it worked rather than assuming: a stapled-but-rejected DMG is the
+        # one failure that would otherwise ship silently and greet every user.
+        if spctl -a -t open --context context:primary-signature -vv "$DMG" 2>&1 | grep -q accepted; then
+            echo "✓ Gatekeeper accepts the disk image"
+        else
+            echo "⚠ Gatekeeper still rejects it. Do not ship this build."
+            spctl -a -t open --context context:primary-signature -vv "$DMG" || true
+            exit 1
+        fi
+    else
+        echo "⚠ Notarization failed. Check: xcrun notarytool log <id> --keychain-profile $CLAUDENOTCH_NOTARY_PROFILE"
+        exit 1
+    fi
+else
+    echo "→ Not notarized (set CLAUDENOTCH_SIGN_ID and CLAUDENOTCH_NOTARY_PROFILE)"
+fi
 
 # Set the .dmg FILE's Finder icon (what you see in Downloads) to our logo.
 if [ -f assets/icon-1024.png ]; then

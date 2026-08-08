@@ -139,3 +139,26 @@ since both the DMG and the checksum come from there.
 
 Or build it yourself: `./build.sh`, no dependencies beyond a Swift toolchain.
 `Package.swift` pulls in nothing, so there is no package supply chain here.
+
+## Enabling notarization
+
+The build is wired for it; what is missing is a paid Apple Developer account.
+With one, two environment variables switch the whole path on:
+
+```sh
+export CLAUDENOTCH_SIGN_ID="Developer ID Application: Your Name (TEAMID)"
+xcrun notarytool store-credentials claudenotch \
+    --apple-id you@example.com --team-id TEAMID --password <app-specific-password>
+export CLAUDENOTCH_NOTARY_PROFILE=claudenotch
+
+./tools/release.sh <version>
+```
+
+`build.sh` then signs the app with the hardened runtime and a timestamp,
+`tools/build-dmg.sh` signs, notarizes and staples the disk image, and refuses
+to finish if Gatekeeper still rejects the result. The instructions inside the
+DMG change to match, because shipping Gatekeeper-bypass steps to someone who
+does not need them teaches them to bypass Gatekeeper for anything calling
+itself ClaudeNotch.
+
+Without those variables everything behaves exactly as it does today.

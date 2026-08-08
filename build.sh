@@ -119,16 +119,32 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
-# Prefer a stable self-signed identity (so TCC permission grants persist
-# across rebuilds — see tools/make-signing-cert.sh). Fall back to ad-hoc.
+# Signing, best available tier first.
+#
+#   1. Developer ID, when CLAUDENOTCH_SIGN_ID names one. This is the only tier
+#      Gatekeeper accepts without the user overriding it by hand, and the only
+#      one that can be notarized. Set it and the DMG build will notarize too.
+#   2. A stable self-signed identity, so TCC grants (Accessibility, Input
+#      Monitoring) survive a rebuild, because the designated requirement stays
+#      constant. See tools/make-signing-cert.sh.
+#   3. Ad-hoc, which works but re-prompts for permissions on every update.
+#
+# Only the first clears Gatekeeper. The other two mean every new user meets
+# "cannot be opened because Apple cannot check it for malicious software" and
+# has to right-click Open, which is a lot to ask of somebody installing a tool
+# that gates what an AI may run on their Mac.
+DEV_ID="${CLAUDENOTCH_SIGN_ID:-}"
 SIGN_ID="ClaudeNotch Code Signing"
-# Sign with the stable self-signed identity if present (created by
-# tools/make-signing-cert.sh, imported -A so codesign never prompts). This
-# keeps the app's designated requirement constant across rebuilds, so macOS
-# Accessibility / Input Monitoring grants persist. Falls back to ad-hoc.
-if security find-identity 2>/dev/null | grep -q "$SIGN_ID" \
+if [ -n "$DEV_ID" ]; then
+    # --options runtime is required for notarization; --timestamp is required
+    # for the ticket to remain valid after the certificate expires.
+    codesign --force --deep --options runtime --timestamp \
+             --sign "$DEV_ID" "$APP"
+    echo "→ Code signed with Developer ID ($DEV_ID), hardened runtime"
+elif security find-identity 2>/dev/null | grep -q "$SIGN_ID" \
    && codesign --force --deep --sign "$SIGN_ID" "$APP" 2>/dev/null; then
     echo "→ Code signed with stable identity ($SIGN_ID) — permissions persist across updates"
+    echo "  (not notarized: set CLAUDENOTCH_SIGN_ID to a Developer ID to clear Gatekeeper)"
 else
     echo "→ Ad-hoc code signing (run tools/make-signing-cert.sh once so permissions persist)"
     codesign --force --deep --sign - "$APP" 2>/dev/null || true
