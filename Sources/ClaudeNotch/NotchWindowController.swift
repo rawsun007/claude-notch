@@ -68,6 +68,7 @@ final class NotchWindowController {
     private let host: PassThroughHostingView
     private var cancellable: AnyCancellable?
     private var captureCancellable: AnyCancellable?
+    private var menuBarOnlyCancellable: AnyCancellable?
     private var screenObservers: [NSObjectProtocol] = []
     private var driftTimer: Timer?
 
@@ -167,6 +168,7 @@ final class NotchWindowController {
                 // Enter/Esc is handled by the global CGEventTap in
                 // KeyboardMonitor WITHOUT stealing focus, so we don't hijack
                 // the keyboard or interrupt their open animation.
+                guard !self.state.menuBarOnlyMode else { return }
                 switch mode {
                 case .compose, .question, .history:
                     self.window.makeKey()
@@ -183,6 +185,11 @@ final class NotchWindowController {
                 self.window.sharingType = type
                 for panel in self.mirrors.values { panel.sharingType = type }
             }
+
+        menuBarOnlyCancellable = state.$menuBarOnlyMode
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.show() }
 
         observeScreenChanges()
     }
@@ -262,7 +269,17 @@ final class NotchWindowController {
         return CGSize(width: 780, height: h)
     }
 
+    /// With `menuBarOnlyMode` on, no floating pill anywhere: everything stays
+    /// reachable via the menu bar item instead. For non-notch Macs and
+    /// external displays, where the pill has no notch to hide behind.
     func show() {
+        guard !state.menuBarOnlyMode else {
+            window.orderOut(nil)
+            for panel in mirrors.values { panel.orderOut(nil) }
+            mirrors.removeAll()
+            mirrorFrames.removeAll()
+            return
+        }
         logScreenGeometry()
         position(on: currentScreen())
         window.orderFrontRegardless()
@@ -333,6 +350,7 @@ final class NotchWindowController {
     /// is NOT currently on, and none linger on a removed display or on the
     /// primary's own screen. Cheap and idempotent — safe to call on every repin.
     private func syncMirrors() {
+        guard !state.menuBarOnlyMode else { return }
         // The primary screen is where the interactive panel ACTUALLY is, not
         // where the cursor is: the window only migrates on a top-edge hover or
         // the drift timer, so a cursor resting mid-external while the window is
