@@ -63,6 +63,9 @@ enum Persistence {
         var lastWeeklyDigestDate: String? = nil
         /// Whether dropping a folder on the notch starts Codex instead of Claude.
         var dropStartsCodex: Bool? = nil
+        /// Menu-bar-only mode: no floating notch pill on any screen, everything
+        /// via the menu bar item. For non-notch Macs and external displays.
+        var menuBarOnlyMode: Bool? = nil
     }
 
     static let storeURL: URL = {
@@ -172,7 +175,8 @@ extension Persistence.Snapshot {
             pinnedProjects: try? c.decode([String].self, forKey: .pinnedProjects),
             sessionNotes: try? c.decode([String: String].self, forKey: .sessionNotes),
             lastWeeklyDigestDate: try? c.decode(String.self, forKey: .lastWeeklyDigestDate),
-            dropStartsCodex: try? c.decode(Bool.self, forKey: .dropStartsCodex)
+            dropStartsCodex: try? c.decode(Bool.self, forKey: .dropStartsCodex),
+            menuBarOnlyMode: try? c.decode(Bool.self, forKey: .menuBarOnlyMode)
         )
     }
 }

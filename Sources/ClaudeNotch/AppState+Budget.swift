@@ -424,7 +424,8 @@ extension AppState {
             pinnedProjects: Array(pinnedProjects),
             sessionNotes: sessionNotes,
             lastWeeklyDigestDate: lastWeeklyDigestDate,
-            dropStartsCodex: dropStartsCodex
+            dropStartsCodex: dropStartsCodex,
+            menuBarOnlyMode: menuBarOnlyMode
         ))
     }
 
