@@ -1870,10 +1870,7 @@ struct SettingsView: View {
     /// with the top changelog entry when cutting a release.
     static let whatsNew: [ChangeGroup] = [
         ChangeGroup(kind: .added, items: [
-        "Update Now. Updating used to mean reading a command off the About page, copying it, finding a terminal and pasting it, which is why almost nobody did: the last two releases were security fixes and the download counts for them were zero and one. The button is in three places, all of them where the prompt already appeared: the card in the notch, the menu-bar alert, and Settings > About. It downloads, checks the file against the checksum published with the release, quits, replaces and relaunches. The notch card matters most, because most people never open the menu bar menu, and it used to say \u{201C}download it from the menu bar icon\u{201D} beside a button that offered to focus your editor.",
-        ]),
-        ChangeGroup(kind: .changed, items: [
-        "The build is ready to be notarized the day there is an Apple Developer account to do it with. Right now macOS blocks the first launch and you have to allow it by hand, which is a poor introduction to a tool whose job is deciding what an AI may run on your Mac. Everything around it is wired: hardened runtime, stapling, and a check that Gatekeeper genuinely accepts the result before a build can ship. Nothing changes until the account exists.",
+        "API-key billing on the Plan page. Signing in with ANTHROPIC_API_KEY instead of a Claude subscription used to leave the Plan page blank forever, since Claude Code never reports a rate-limit percentage for that kind of session, and the page just said \u{201C}come back later\u{201D} to nobody's benefit. It now says plainly that billing is per-token, shows a masked version of the key, and can check with Anthropic on demand whether the key is actually accepted. The menu bar's plan readout does the same, showing \u{201C}API key\u{201D} instead of nothing.",
         ]),
     ]
 }
