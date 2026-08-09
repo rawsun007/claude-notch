@@ -124,6 +124,8 @@ extension SettingsView {
                     }
                     .controlSize(.small)
                 }
+            } else if state.isApiKeyBilling || state.apiKeyEnvKey != nil {
+                apiKeyBillingSection
             } else {
                 Text(L("No plan details yet. Claude Code writes them to its own config when it next talks to the API, so run a session and come back.", comment: "Settings explanation shown when the plan cache is missing"))
                     .font(.callout).foregroundStyle(.secondary)
@@ -139,6 +141,46 @@ extension SettingsView {
             // moment where a stale reading would be noticed, so re-read then too.
             guard section == .plan else { return }
             state.refreshPlan()
+        }
+    }
+
+    /// Shown instead of a blank page when Claude Code is authenticated with a
+    /// raw API key: there is no subscription plan or rate-limit percentage to
+    /// read, ever, so saying that plainly beats a "come back later" that will
+    /// never resolve.
+    @ViewBuilder
+    private var apiKeyBillingSection: some View {
+        sectionLabel(L("Your plan", comment: "Settings section heading"))
+        group {
+            statRow("Billing", L("API key (pay-as-you-go)", comment: "Settings row value: authenticated via ANTHROPIC_API_KEY"))
+            if let key = state.apiKeyEnvKey {
+                divider
+                statRow("Key", APIKeyValidator.masked(key))
+            }
+            if let result = state.apiKeyCheckResult {
+                divider
+                switch result {
+                case .valid:
+                    statRow("Status", L("Working", comment: "The API key was accepted by Anthropic"))
+                case .invalid(let reason):
+                    statRow("Status", reason)
+                case .networkError(let reason):
+                    statRow("Status", reason)
+                }
+            }
+        }
+        Text(L("Claude Code is authenticated with ANTHROPIC_API_KEY instead of a subscription login, so there is no plan or rate-limit percentage to show here. Usage is billed per token instead; cost tracking on the Budget page works the same either way.", comment: "Settings explanation for API-key billing"))
+            .font(.callout).foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        if state.apiKeyEnvKey != nil {
+            HStack(spacing: 8) {
+                if state.apiKeyCheckInFlight { ProgressView().controlSize(.small) }
+                Button(L("Check key", comment: "Button that asks Anthropic whether the API key is accepted")) {
+                    state.checkApiKey()
+                }
+                .controlSize(.small)
+                .disabled(state.apiKeyCheckInFlight)
+            }
         }
     }
 

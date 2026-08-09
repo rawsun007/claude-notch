@@ -93,6 +93,9 @@
 /* Settings toggle explanation */
 "A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost." = "A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost.";
 
+/* Settings row value: authenticated via ANTHROPIC_API_KEY */
+"API key (pay-as-you-go)" = "API key (pay-as-you-go)";
+
 /* Badge: Claude is in auto mode */
 "AUTO" = "AUTO";
 
@@ -282,6 +285,9 @@
 /* Settings button */
 "Check for updates…" = "Check for updates…";
 
+/* Button that asks Anthropic whether the API key is accepted */
+"Check key" = "Check key";
+
 /* Settings toggle */
 "Check what Claude actually did" = "Check what Claude actually did";
 
@@ -299,6 +305,9 @@
 
 /* Onboarding step name for installing the hooks */
 "Claude Code hooks" = "Claude Code hooks";
+
+/* Settings explanation for API-key billing */
+"Claude Code is authenticated with ANTHROPIC_API_KEY instead of a subscription login, so there is no plan or rate-limit percentage to show here. Usage is billed per token instead; cost tracking on the Budget page works the same either way." = "Claude Code is authenticated with ANTHROPIC_API_KEY instead of a subscription login, so there is no plan or rate-limit percentage to show here. Usage is billed per token instead; cost tracking on the Budget page works the same either way.";
 
 /* Explanation of the rule export */
 "Claude Code keeps its own allowlist in ~/.claude/settings.json. Copy these rules across so a terminal session the notch is not watching stops asking too." = "Claude Code keeps its own allowlist in ~/.claude/settings.json. Copy these rules across so a terminal session the notch is not watching stops asking too.";
@@ -1304,6 +1313,9 @@
 
 /* Settings explanation */
 "With per-tool sounds on, each kind of pop-up plays its own sound. Change any of them; the default is shown when you have not." = "With per-tool sounds on, each kind of pop-up plays its own sound. Change any of them; the default is shown when you have not.";
+
+/* The API key was accepted by Anthropic */
+"Working" = "Working";
 
 /* Settings sidebar group */
 "Workspace" = "Workspace";
