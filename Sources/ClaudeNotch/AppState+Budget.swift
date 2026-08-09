@@ -166,6 +166,8 @@ extension AppState {
                         contextPct: Double?, contextWindow: Int? = nil, contextTokens: Int? = nil,
                         fiveHourPct: Double?, sevenDayPct: Double?,
                         fiveHourResetsAt: Date? = nil, sevenDayResetsAt: Date? = nil) {
+        statusLineUpdateCount += 1
+        if fiveHourPct != nil || sevenDayPct != nil { everSawPlanLimitData = true }
         if let p = fiveHourPct { fiveHourLimitPercent = min(1, max(0, p / 100)) }
         if let p = sevenDayPct { weeklyLimitPercent = min(1, max(0, p / 100)) }
         noteLiveEffort(effort)

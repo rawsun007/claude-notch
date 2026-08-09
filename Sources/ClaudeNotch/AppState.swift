@@ -462,6 +462,16 @@ final class AppState: ObservableObject {
     // What plan this Mac is signed into, read from Claude Code's own cache.
     // See AppState+Plan.
     @Published var plan: PlanReader.Snapshot?
+    // Status-line updates seen this launch, and whether one has ever carried a
+    // plan-limit percentage. Together with `plan.account` these tell an
+    // ANTHROPIC_API_KEY session (no rate_limits, ever) apart from a
+    // subscription that just has not reported yet. See isApiKeyBilling below
+    // and AppState+Plan.
+    @Published var statusLineUpdateCount: Int = 0
+    @Published var everSawPlanLimitData: Bool = false
+    /// The result of the last live API-key check, or nil before one has run.
+    @Published var apiKeyCheckResult: APIKeyValidator.Result?
+    @Published var apiKeyCheckInFlight: Bool = false
     weak var permissionMirror: PermissionMirroring?
 
     // Daily digest tracking — only shown once per day.

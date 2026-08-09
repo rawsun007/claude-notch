@@ -39,8 +39,46 @@ extension AppState {
         schedulePersist()
     }
 
-    /// "Pro · WK 13%", or nil when there is nothing worth the width.
-    var menuBarPlanLabel: String? { Self.planLabel(plan) }
+    /// "Pro · WK 13%", "API key", or nil when there is nothing worth the width.
+    var menuBarPlanLabel: String? {
+        Self.planLabel(plan) ?? (isApiKeyBilling ? "API key" : nil)
+    }
+
+    // MARK: - API-key billing
+
+    /// True once there is real evidence this session is billed by
+    /// ANTHROPIC_API_KEY rather than a Claude subscription: status-line
+    /// activity has arrived, none of it ever carried a rate-limit percentage,
+    /// and Claude Code's own account cache has nothing to show either. Any one
+    /// of those alone could just mean "too soon" rather than "no plan exists".
+    var isApiKeyBilling: Bool {
+        Self.isApiKeyBilling(statusLineUpdateCount: statusLineUpdateCount,
+                             everSawPlanLimitData: everSawPlanLimitData,
+                             hasAccount: plan?.account != nil)
+    }
+
+    nonisolated static func isApiKeyBilling(statusLineUpdateCount: Int,
+                                            everSawPlanLimitData: Bool,
+                                            hasAccount: Bool) -> Bool {
+        statusLineUpdateCount >= 2 && !everSawPlanLimitData && !hasAccount
+    }
+
+    /// The env key ClaudeNotch's own process can see, or nil. Read-only,
+    /// never persisted.
+    var apiKeyEnvKey: String? { APIKeyValidator.envKey }
+
+    /// Ask Anthropic whether the visible key is actually accepted. No-op when
+    /// there is no key to check.
+    func checkApiKey() {
+        guard let key = apiKeyEnvKey else { apiKeyCheckResult = nil; return }
+        apiKeyCheckInFlight = true
+        Task { @MainActor [weak self] in
+            let result = await APIKeyValidator.checkLive(key)
+            guard let self else { return }
+            self.apiKeyCheckResult = result
+            self.apiKeyCheckInFlight = false
+        }
+    }
 
     nonisolated static func planLabel(_ snapshot: PlanReader.Snapshot?) -> String? {
         guard let snapshot else { return nil }
