@@ -117,3 +117,44 @@ extension PlanLabelTests {
         XCTAssertEqual(AppState.visibleStatusItems([], creditsOn: true), [])
     }
 }
+
+/// Claude Code never reports a rate-limit percentage for an ANTHROPIC_API_KEY
+/// session, so silence plus a missing account is the only signal there is.
+/// Each condition alone just means "too soon" — all three have to hold.
+extension PlanLabelTests {
+
+    func testApiKeyBillingNeedsSeveralSilentUpdates() {
+        XCTAssertFalse(AppState.isApiKeyBilling(statusLineUpdateCount: 0, everSawPlanLimitData: false, hasAccount: false))
+        XCTAssertFalse(AppState.isApiKeyBilling(statusLineUpdateCount: 1, everSawPlanLimitData: false, hasAccount: false))
+        XCTAssertTrue(AppState.isApiKeyBilling(statusLineUpdateCount: 2, everSawPlanLimitData: false, hasAccount: false))
+    }
+
+    func testApiKeyBillingIsFalseOnceALimitHasEverArrived() {
+        XCTAssertFalse(AppState.isApiKeyBilling(statusLineUpdateCount: 10, everSawPlanLimitData: true, hasAccount: false))
+    }
+
+    func testApiKeyBillingIsFalseWhenAnAccountExists() {
+        // A subscription account with limits temporarily silent (e.g. the
+        // status line just restarted) must not be misread as API-key billing.
+        XCTAssertFalse(AppState.isApiKeyBilling(statusLineUpdateCount: 10, everSawPlanLimitData: false, hasAccount: true))
+    }
+
+    /// The menu bar falls back to naming the billing mode instead of showing
+    /// nothing once API-key billing is confirmed.
+    @MainActor
+    func testMenuBarLabelFallsBackToApiKeyWhenNoPlanExists() {
+        let s = AppState()
+        s.statusLineUpdateCount = 3
+        s.everSawPlanLimitData = false
+        s.plan = nil
+        XCTAssertEqual(s.menuBarPlanLabel, "API key")
+    }
+
+    @MainActor
+    func testMenuBarLabelStaysNilBeforeApiKeyBillingIsConfirmed() {
+        let s = AppState()
+        s.statusLineUpdateCount = 0
+        s.plan = nil
+        XCTAssertNil(s.menuBarPlanLabel)
+    }
+}
