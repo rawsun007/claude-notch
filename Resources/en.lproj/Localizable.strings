@@ -606,6 +606,9 @@
 /* Settings toggle */
 "Hide from screen capture" = "Hide from screen capture";
 
+/* Settings toggle explanation */
+"Hide the floating notch pill on every display and use the menu bar item instead. For Macs without a notch, or when working on an external display." = "Hide the floating notch pill on every display and use the menu bar item instead. For Macs without a notch, or when working on an external display.";
+
 /* Settings page title */
 "History" = "History";
 
@@ -707,6 +710,9 @@
 
 /* Button opening the Anthropic usage settings page */
 "Manage on claude.ai" = "Manage on claude.ai";
+
+/* Settings toggle */
+"Menu bar only" = "Menu bar only";
 
 /* Toggle: also post cards to Notification Center */
 "Mirror Alerts to Notifications" = "Mirror Alerts to Notifications";
