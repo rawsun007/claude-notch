@@ -473,12 +473,6 @@ final class AppState: ObservableObject {
     @Published private(set) var dropStartsCodex: Bool = false
     func setDropStartsCodex(_ on: Bool) { dropStartsCodex = on; schedulePersist() }
 
-    /// No floating notch pill on any screen; everything lives in the menu bar
-    /// item. For non-notch Macs and external displays where the pill has
-    /// nowhere natural to sit.
-    @Published private(set) var menuBarOnlyMode: Bool = false
-    func setMenuBarOnlyMode(_ on: Bool) { menuBarOnlyMode = on; schedulePersist() }
-
     // Update-available notch card: shown once per discovered version, so the
     // daily poll doesn't re-card users who chose to ignore an update.
     var lastUpdateCardVersion: String? = nil
@@ -805,7 +799,6 @@ final class AppState: ObservableObject {
             self.lastDigestDate = snapshot.lastDigestDate
             self.lastWeeklyDigestDate = snapshot.lastWeeklyDigestDate
             self.dropStartsCodex = snapshot.dropStartsCodex ?? false
-            self.menuBarOnlyMode = snapshot.menuBarOnlyMode ?? false
             self.lastUpdateCardVersion = snapshot.lastUpdateCardVersion
             self.lastSeenVersion = snapshot.lastSeenVersion
             self.sessionCostCap = snapshot.sessionCostCap ?? 0

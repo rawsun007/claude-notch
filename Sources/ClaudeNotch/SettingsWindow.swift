@@ -234,7 +234,6 @@ struct SettingsSearchItem: Identifiable {
     static let all: [SettingsSearchItem] = [
         .init(title: "Launch at login", keywords: "startup boot open", section: .general),
         .init(title: "Keep the notch open", keywords: "persistent always show display", section: .general),
-        .init(title: "Menu bar only", keywords: "no notch external display hide pill", section: .general),
         .init(title: "Auto-approve permissions", keywords: "allow automatic bypass", section: .general),
         .init(title: "Show spend in the menu bar", keywords: "cost money dollars", section: .general),
         .init(title: "Start Claude in a folder", keywords: "open launch project", section: .general),
@@ -535,10 +534,6 @@ struct SettingsView: View {
                 row(L("Keep the notch open", comment: "Settings toggle"),
                     L("Always show the notch card instead of hiding it behind the hardware notch until something happens.", comment: "Settings toggle explanation"),
                     bind(\.persistentNotchDisplay, state.setPersistentNotchDisplay))
-                divider
-                row(L("Menu bar only", comment: "Settings toggle"),
-                    L("Hide the floating notch pill on every display and use the menu bar item instead. For Macs without a notch, or when working on an external display.", comment: "Settings toggle explanation"),
-                    bind(\.menuBarOnlyMode, state.setMenuBarOnlyMode))
                 divider
                 row(L("Auto-approve permissions", comment: "Settings toggle"),
                     L("Allow every tool request automatically. Turns the notch into a passive monitor. Use with care.", comment: "Settings toggle explanation"),
