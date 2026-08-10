@@ -22,14 +22,32 @@ extension AppState {
         noteCreditsEngaged(from: previous, to: snapshot)
     }
 
+    /// Re-read Codex's usage windows. Off the main actor: it scans rollout
+    /// tails on disk. Skipped entirely when Codex isn't wired up, so a
+    /// Claude-only user never pays for the walk.
+    func refreshCodexLimits() {
+        guard HookInstaller.isCodexInstalled else {
+            if codexLimits != nil { codexLimits = nil }
+            return
+        }
+        Task.detached(priority: .utility) {
+            let limits = CodexReader.latestLimits()
+            await MainActor.run { [weak self] in self?.codexLimits = limits }
+        }
+    }
+
     /// Claude Code refreshes the cache when it talks to the API, so re-reading
     /// faster than this only re-reads the same numbers. Slow enough to be free,
     /// often enough that the menu bar is not stale by a session.
     func ensurePlanTimer() {
         guard planTimer == nil else { return }
         refreshPlan()
+        refreshCodexLimits()
         planTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.refreshPlan() }
+            Task { @MainActor [weak self] in
+                self?.refreshPlan()
+                self?.refreshCodexLimits()
+            }
         }
     }
 

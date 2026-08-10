@@ -17,6 +17,32 @@ enum CodexReader {
         var model: String
     }
 
+    /// One usage window off Codex's own `rate_limits` block, which rides along
+    /// on every `token_count` line. Codex plans do not all share a shape: a Go
+    /// plan reports a single 30-day window, others report a short window plus a
+    /// longer one, so the window length is data rather than something to
+    /// hardcode. `windowMinutes` is what names it.
+    struct CodexLimit: Equatable {
+        var usedPercent: Double     // 0...100
+        var windowMinutes: Int      // 300 = 5-hour, 10080 = weekly, 43200 = monthly
+        var resetsAt: Date?
+        var isPrimary: Bool
+
+        /// "Weekly limit", "5-hour limit", "Monthly limit" — derived from the
+        /// window itself so a plan shape we have never seen still reads as
+        /// something true rather than as whichever label was hardcoded.
+        var label: String { CodexReader.limitLabel(windowMinutes: windowMinutes) }
+    }
+
+    struct CodexLimits: Equatable {
+        var limits: [CodexLimit]
+        var planType: String?       // "go", "plus", "pro"…
+        var hasCredits: Bool
+        var unlimitedCredits: Bool
+        var creditBalance: Double?
+        var isEmpty: Bool { limits.isEmpty }
+    }
+
     private static var sessionsDir: URL {
         FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".codex/sessions", isDirectory: true)
@@ -93,6 +119,96 @@ enum CodexReader {
         guard contextTokens > 0 || totalTokens > 0 else { return nil }
         return CodexUsage(contextTokens: contextTokens, totalTokens: totalTokens,
                           contextWindow: window, model: model)
+    }
+
+    // MARK: - Rate limits
+
+    /// Name a usage window by its length. Matched with tolerance because the
+    /// numbers come from someone else's API: a window a few minutes either side
+    /// of a week is still the weekly one.
+    nonisolated static func limitLabel(windowMinutes: Int) -> String {
+        switch windowMinutes {
+        case 0:                 return "Usage limit"
+        case ..<120:            return "\(max(1, windowMinutes / 60))-hour limit"
+        case 120..<1_380:       return "\(windowMinutes / 60)-hour limit"
+        case 1_380..<1_500:     return "Daily limit"
+        case 1_500..<11_000:    return "Weekly limit"
+        case 11_000..<50_000:   return "Monthly limit"
+        default:                return "\(windowMinutes / 1_440)-day limit"
+        }
+    }
+
+    /// The newest rate-limit reading for a session, from the last `token_count`
+    /// line in its rollout. Codex sends this on every turn, so the tail is
+    /// current. Returns nil when the rollout carries no rate_limits block
+    /// (older Codex builds, or an API-key session with no plan attached).
+    nonisolated static func limits(from url: URL) -> CodexLimits? {
+        guard let tail = readTail(url, bytes: 96 * 1024) else { return nil }
+        for line in tail.split(separator: "\n").reversed() {
+            guard line.contains("rate_limits"),
+                  let d = line.data(using: .utf8),
+                  let obj = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
+                  let p = obj["payload"] as? [String: Any],
+                  let rl = p["rate_limits"] as? [String: Any]
+            else { continue }
+            return parseLimits(rl)
+        }
+        return nil
+    }
+
+    /// Split out so the shape can be tested without a rollout on disk. Every
+    /// field is optional: this is another program's payload, so a key that
+    /// changes name upstream has to read as a missing row, never a crash.
+    nonisolated static func parseLimits(_ rl: [String: Any]) -> CodexLimits? {
+        var out: [CodexLimit] = []
+        for (key, isPrimary) in [("primary", true), ("secondary", false)] {
+            guard let w = rl[key] as? [String: Any],
+                  let pct = numberValue(w["used_percent"]) else { continue }
+            let resets = numberValue(w["resets_at"]).map { Date(timeIntervalSince1970: $0) }
+            out.append(CodexLimit(usedPercent: min(100, max(0, pct)),
+                                  windowMinutes: Int(numberValue(w["window_minutes"]) ?? 0),
+                                  resetsAt: resets,
+                                  isPrimary: isPrimary))
+        }
+        let credits = rl["credits"] as? [String: Any]
+        let limits = CodexLimits(
+            limits: out,
+            planType: (rl["plan_type"] as? String).flatMap { $0.isEmpty ? nil : $0 },
+            hasCredits: (credits?["has_credits"] as? Bool) ?? false,
+            unlimitedCredits: (credits?["unlimited"] as? Bool) ?? false,
+            creditBalance: numberValue(credits?["balance"]))
+        // A reading with no windows and no plan says nothing worth a row.
+        return limits.isEmpty && limits.planType == nil ? nil : limits
+    }
+
+    /// Numbers arrive as Int, Double or String depending on the field.
+    nonisolated static func numberValue(_ v: Any?) -> Double? {
+        if let d = v as? Double { return d }
+        if let i = v as? Int { return Double(i) }
+        if let s = v as? String { return Double(s) }
+        return nil
+    }
+
+    /// The newest rate-limit reading across all Codex rollouts. The limits are
+    /// per account, not per session, so the most recently touched rollout that
+    /// carries a reading is the current one.
+    nonisolated static func latestLimits(searchLimit: Int = 12) -> CodexLimits? {
+        let fm = FileManager.default
+        guard let en = fm.enumerator(at: sessionsDir,
+                                     includingPropertiesForKeys: [.contentModificationDateKey],
+                                     options: [.skipsHiddenFiles]) else { return nil }
+        var files: [(URL, Date)] = []
+        for case let url as URL in en
+            where url.lastPathComponent.hasPrefix("rollout-") && url.pathExtension == "jsonl" {
+            let m = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate ?? .distantPast
+            files.append((url, m))
+        }
+        files.sort { $0.1 > $1.1 }
+        for (url, _) in files.prefix(searchLimit) {
+            if let l = limits(from: url) { return l }
+        }
+        return nil
     }
 
     struct CodexTotals {

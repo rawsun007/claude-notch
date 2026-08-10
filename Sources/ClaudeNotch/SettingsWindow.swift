@@ -240,6 +240,7 @@ struct SettingsSearchItem: Identifiable {
         .init(title: "Check for updates", keywords: "version upgrade", section: .general),
         .init(title: "Setup health", keywords: "hooks status line forwarder fix install", section: .general),
         .init(title: "Codex integration", keywords: "codex openai agent beta enable integration gpt", section: .general),
+        .init(title: "Codex usage limits", keywords: "codex weekly monthly limit quota rate plan gpt", section: .plan),
         .init(title: "Notch language", keywords: "language translate localization chinese spanish hindi japanese german french korean russian portuguese 语言 idioma भाषा 言語 sprache langue 언어 язык", section: .general),
 
         .init(title: "Notch title", keywords: "name label claude project custom", section: .notch),

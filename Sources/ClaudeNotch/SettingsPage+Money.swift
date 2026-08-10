@@ -132,6 +132,8 @@ extension SettingsView {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            codexLimitsSection
+
             Text(L("Read from the config Claude Code keeps on this Mac. Nothing is requested from Anthropic, and your account details never leave the machine.", comment: "Settings explanation"))
                 .font(.caption).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -141,6 +143,39 @@ extension SettingsView {
             // moment where a stale reading would be noticed, so re-read then too.
             guard section == .plan else { return }
             state.refreshPlan()
+            state.refreshCodexLimits()
+        }
+    }
+
+    /// Codex's usage windows, kept in their own section below the Claude plan.
+    /// Two accounts on two billing systems: listing them together would read as
+    /// one budget, and running a Codex window down does nothing to the Claude
+    /// one. Codex reports its own window lengths, so the rows are named from
+    /// the data (weekly, monthly, 5-hour) rather than from an assumption.
+    @ViewBuilder
+    private var codexLimitsSection: some View {
+        if let c = state.codexLimits, !c.isEmpty {
+            sectionLabel(L("Codex", comment: "Settings section heading for the Codex plan"))
+            if let plan = c.planType {
+                group { statRow("Plan", plan.capitalized) }
+            }
+            group {
+                ForEach(Array(c.limits.enumerated()), id: \.offset) { idx, limit in
+                    limitRow(limit.label,
+                             pct: limit.usedPercent / 100,
+                             resetAt: limit.resetsAt,
+                             window: TimeInterval(max(1, limit.windowMinutes) * 60))
+                    if idx < c.limits.count - 1 { divider }
+                }
+            }
+            if c.unlimitedCredits {
+                group { statRow("Credits", L("Unlimited", comment: "Codex credits are unlimited")) }
+            } else if c.hasCredits, let balance = c.creditBalance {
+                group { statRow("Credits", ClaudeUsageReader.fmtMoney(balance)) }
+            }
+            Text(L("Read from the session files Codex keeps on this Mac, so it is as fresh as your last Codex turn. Codex bills separately from Claude: these windows and the plan limits above do not share a budget.", comment: "Settings explanation for the Codex limits"))
+                .font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

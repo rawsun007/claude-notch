@@ -462,6 +462,10 @@ final class AppState: ObservableObject {
     // What plan this Mac is signed into, read from Claude Code's own cache.
     // See AppState+Plan.
     @Published var plan: PlanReader.Snapshot?
+    /// Codex's own usage windows, read from its rollouts. Separate from `plan`
+    /// because it is a different account on a different billing system, and
+    /// showing them in one list would imply they share a budget.
+    @Published var codexLimits: CodexReader.CodexLimits?
     // Status-line updates seen this launch, and whether one has ever carried a
     // plan-limit percentage. Together with `plan.account` these tell an
     // ANTHROPIC_API_KEY session (no rate_limits, ever) apart from a

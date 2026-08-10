@@ -372,6 +372,9 @@
 /* Settings section heading */
 "Code churn today" = "Code churn today";
 
+/* Settings section heading for the Codex plan */
+"Codex" = "Codex";
+
 /* Settings section heading */
 "Codex usage (tokens)" = "Codex usage (tokens)";
 
@@ -936,6 +939,9 @@
 /* Settings explanation */
 "Read from the config Claude Code keeps on this Mac. Nothing is requested from Anthropic, and your account details never leave the machine." = "Read from the config Claude Code keeps on this Mac. Nothing is requested from Anthropic, and your account details never leave the machine.";
 
+/* Settings explanation for the Codex limits */
+"Read from the session files Codex keeps on this Mac, so it is as fresh as your last Codex turn. Codex bills separately from Claude: these windows and the plan limits above do not share a budget." = "Read from the session files Codex keeps on this Mac, so it is as fresh as your last Codex turn. Codex bills separately from Claude: these windows and the plan limits above do not share a budget.";
+
 /* Settings explanation */
 "Reading transcripts…" = "Reading transcripts…";
 
@@ -1226,6 +1232,9 @@
 
 /* VoiceOver hint for the free-text answer field */
 "Type an answer if none of the options fit" = "Type an answer if none of the options fit";
+
+/* Codex credits are unlimited */
+"Unlimited" = "Unlimited";
 
 /* Button: install the new version */
 "Update" = "Update";
