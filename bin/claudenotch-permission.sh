@@ -42,6 +42,7 @@ if [ "$tool" = "AskUserQuestion" ]; then
     nc -z "$HOST" "$PORT" 2>/dev/null || emit_ask "notch not running (AskUserQuestion)"
     response=$(printf '%s' "$input" | curl -s --max-time "$WAIT" -X POST \
         -H 'Content-Type: application/json' \
+        -H "$NOTCH_AUTH" \
         --data-binary @- \
         http://$HOST:$PORT/question || true)
     if [ -z "$response" ] || [ "$(printf '%s' "$response" | jq -r '.cancelled // false' 2>/dev/null)" = "true" ]; then
@@ -103,6 +104,7 @@ nc -z "$HOST" "$PORT" 2>/dev/null || emit_ask "notch not running"
 
 response=$(printf '%s' "$input" | curl -s --max-time "$WAIT" -X POST \
     -H 'Content-Type: application/json' \
+        -H "$NOTCH_AUTH" \
     --data-binary @- \
     http://$HOST:$PORT/permission || true)
 
@@ -128,6 +130,7 @@ if [ "$decision" = "allow" ]; then
     printf '%s' "$input" | jq -c '{tool_name:(.tool_name//""),tool_input:(.tool_input//{}),cwd:(.cwd//""),session_id:(.session_id//"")}' 2>/dev/null \
         | curl -s --max-time 1 -X POST \
             -H 'Content-Type: application/json' \
+        -H "$NOTCH_AUTH" \
             --data-binary @- \
             http://$HOST:$PORT/pretool >/dev/null 2>&1 &
 fi

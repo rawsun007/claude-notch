@@ -127,8 +127,56 @@ enum HookInstaller {
     }
 
     static func install() throws {
+        _ = ensureHookToken()
         try copyScripts()
         try mergeSettings()
+    }
+
+    // MARK: - Hook token
+
+    /// Beside the bin directory, not inside it: the forwarders read
+    /// ~/.claudenotch/hook-token, and drift detection compares everything in
+    /// bin against the bundle, where a per-machine file has no counterpart.
+    static let hookTokenPath: String = {
+        (NSHomeDirectory() as NSString).appendingPathComponent(".claudenotch/hook-token")
+    }()
+
+    /// The shared secret the forwarders send back, proving a hook came from
+    /// something that can read the user's own files.
+    ///
+    /// The server is on loopback, which every process on the machine can
+    /// reach, and a forged permission card is not harmless: an "Always allow"
+    /// click on one installs a rule that then auto-approves that command in
+    /// real sessions. This raises the floor to "can read $HOME", which excludes
+    /// sandboxed apps and other accounts. It does NOT stop malware already
+    /// running as the user, which can read the token as easily as we can, and
+    /// nothing short of signing the caller would.
+    static var hookToken: String? {
+        guard let s = try? String(contentsOfFile: hookTokenPath, encoding: .utf8) else { return nil }
+        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
+    }
+
+    /// Read the token, creating one on first use. Returns nil only when it
+    /// cannot be written, in which case the server keeps accepting
+    /// unauthenticated hooks rather than bricking the app.
+    @discardableResult
+    static func ensureHookToken() -> String? {
+        if let existing = hookToken { return existing }
+        var bytes = [UInt8](repeating: 0, count: 32)
+        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
+            return nil
+        }
+        let token = bytes.map { String(format: "%02x", $0) }.joined()
+        guard prepareInstallDir() else { return nil }
+        let url = URL(fileURLWithPath: hookTokenPath)
+        // Written 0600 from the start, never readable for the instant between
+        // a create and a chmod.
+        guard FileManager.default.createFile(atPath: url.path,
+                                             contents: Data(token.utf8),
+                                             attributes: [.posixPermissions: 0o600])
+        else { return nil }
+        return token
     }
 
     // MARK: - Integrity
@@ -203,11 +251,16 @@ enum HookInstaller {
     # open if the notch is not running.
     set -u
     input=$(cat)
+    # Shared secret proving this came from an installed forwarder rather than
+    # from anything else that can reach the loopback port. Read at runtime, so
+    # the script stays byte-identical everywhere and drift detection still works.
+    notch_token="$(cat "${CLAUDENOTCH_TOKEN_FILE:-$HOME/.claudenotch/hook-token}" 2>/dev/null || true)"
     event=$(printf '%s' "$input" | sed -n 's/.*"hook_event_name"[[:space:]]*:[[:space:]]*"\\([^"]*\\)".*/\\1/p' | head -1)
     ep="/hook"; [ "$event" = "PreToolUse" ] && ep="/extpretool"
     if nc -z 127.0.0.1 53127 2>/dev/null; then
       printf '%s' "$input" | curl -s --max-time 10 -X POST \\
-        -H 'Content-Type: application/json' --data-binary @- \\
+        -H 'Content-Type: application/json' \\
+        -H "X-ClaudeNotch-Token: $notch_token" --data-binary @- \\
         "http://127.0.0.1:53127$ep" >/dev/null 2>&1 &
     fi
     exit 0

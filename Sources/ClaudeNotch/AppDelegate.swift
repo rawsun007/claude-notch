@@ -24,6 +24,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Before anything can change state: a settings change must survive the
         // kill the installer and updater use to swap the bundle.
         installTerminationFlush()
+        // Before the server starts listening. Not inside install(): the shell
+        // installer copies the scripts itself and the app only reinstalls when
+        // they are stale, so a machine set up that way would never get a token
+        // and would sit on the accept-everything path for good.
+        HookInstaller.ensureHookToken()
 
         // Prevent App Nap. Without this, when ANOTHER app is active macOS
         // throttles our background process and the notch's SwiftUI spring

@@ -55,6 +55,7 @@ case "$event" in
             transcript_path: (.transcript_path // "")
         }' | curl -s --max-time 2 -X POST \
                -H 'Content-Type: application/json' \
+        -H "$NOTCH_AUTH" \
                --data-binary @- \
                http://127.0.0.1:53127/subagentstart >/dev/null 2>&1 || true
         exit 0
@@ -69,6 +70,7 @@ case "$event" in
             session_id: (.session_id // "")
         }' | curl -s --max-time 2 -X POST \
                -H 'Content-Type: application/json' \
+        -H "$NOTCH_AUTH" \
                --data-binary @- \
                http://127.0.0.1:53127/thinking >/dev/null 2>&1 || true
         exit 0

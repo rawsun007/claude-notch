@@ -11,6 +11,10 @@
 # It must never fail the status line: everything is guarded and it always exits 0.
 set -u
 input=$(cat)
+# Same shared secret the other forwarders send; see claudenotch-common.sh.
+# This script does not source that file, so it reads the token itself.
+NOTCH_TOKEN="$(cat "${CLAUDENOTCH_TOKEN_FILE:-$HOME/.claudenotch/hook-token}" 2>/dev/null || true)"
+NOTCH_AUTH="X-ClaudeNotch-Token: $NOTCH_TOKEN"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # 1) Forward usage to the notch. Skip instantly if jq is missing or the app is
@@ -37,7 +41,7 @@ if command -v jq >/dev/null 2>&1 && nc -z 127.0.0.1 53127 2>/dev/null; then
         five_hour_resets_at: (.rate_limits.five_hour.resets_at // null),
         seven_day_resets_at: (.rate_limits.seven_day.resets_at // null)
     }' 2>/dev/null | curl -s --max-time 1 -X POST \
-        -H 'Content-Type: application/json' --data-binary @- \
+        -H 'Content-Type: application/json' -H "$NOTCH_AUTH" --data-binary @- \
         http://127.0.0.1:53127/statusline >/dev/null 2>&1 || true
 fi
 
