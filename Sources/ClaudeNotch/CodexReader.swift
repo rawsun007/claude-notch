@@ -196,12 +196,37 @@ enum CodexReader {
     }
 
     /// Count plan steps and completed steps in an update_plan JS argument
-    /// string. Keys are unquoted JS (`step:`, `status:"completed"`).
+    /// string. Keys are unquoted JS: `{step:"…",status:"completed"}`.
+    ///
+    /// Counted off the `status` key rather than raw substrings. Every step
+    /// carries exactly one status, so statuses count the steps, and a step
+    /// whose own text happens to contain "step:" no longer inflates the total
+    /// (`{step:"Problem 1: redo step: two"}` used to count as two steps).
+    /// Whitespace around the colon is allowed, which the old literal
+    /// `status:"completed"` match would have missed entirely.
     nonisolated static func planCounts(from js: String) -> (total: Int, done: Int)? {
-        let total = js.components(separatedBy: "step:").count - 1
-        guard total > 0 else { return nil }
-        let done = js.components(separatedBy: "status:\"completed\"").count - 1
-        return (total, min(done, total))
+        let statuses = matches(in: js, pattern: #"(?:^|[{,])\s*status\s*:\s*"([A-Za-z_]+)""#)
+        if !statuses.isEmpty {
+            return (statuses.count, statuses.filter { $0 == "completed" }.count)
+        }
+        // No status keys at all: fall back to counting `step` keys, anchored to
+        // a key position so free text still cannot inflate it.
+        let steps = matches(in: js, pattern: #"(?:^|[{,])\s*step\s*:"#)
+        guard !steps.isEmpty else { return nil }
+        return (steps.count, 0)
+    }
+
+    /// Capture group 1 of every match, or the whole match when the pattern has
+    /// no group. Empty when the pattern is unusable, so a caller degrades to
+    /// "no plan" rather than crashing.
+    private nonisolated static func matches(in s: String, pattern: String) -> [String] {
+        guard let re = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let range = NSRange(s.startIndex..<s.endIndex, in: s)
+        return re.matches(in: s, range: range).map { m in
+            let g = m.numberOfRanges > 1 ? m.range(at: 1) : m.range
+            guard let r = Range(g, in: s) else { return "" }
+            return String(s[r])
+        }
     }
 
     // MARK: - Parsing

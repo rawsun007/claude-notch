@@ -24,6 +24,40 @@ final class CodexReaderTests: XCTestCase {
         XCTAssertNil(CodexReader.planCounts(from: "tools.update_plan({plan:[]})"))
     }
 
+    /// A step is counted by its status key, so "step:" inside the step's own
+    /// text is text and not a fourth step. Counting raw substrings reported
+    /// four steps here and drew a task meter that never reached the end.
+    func testStepTextMentioningStepDoesNotInflateTheTotal() {
+        let js = #"tools.update_plan({plan:[{step:"Problem 1: redo step: two",status:"completed"},{step:"b",status:"pending"}]})"#
+        let c = CodexReader.planCounts(from: js)
+        XCTAssertEqual(c?.total, 2)
+        XCTAssertEqual(c?.done, 1)
+    }
+
+    /// Whitespace around the colon. The old literal `status:"completed"` match
+    /// found nothing here, so a finished plan read as zero done.
+    func testWhitespaceAroundTheColon() {
+        let js = #"tools.update_plan({plan:[{step:"a", status: "completed"}, {step:"b", status: "pending"}]})"#
+        let c = CodexReader.planCounts(from: js)
+        XCTAssertEqual(c?.total, 2)
+        XCTAssertEqual(c?.done, 1)
+    }
+
+    /// The word "completed" elsewhere in the call is not a completed step.
+    func testExplanationMentioningCompletedIsNotCounted() {
+        let js = #"tools.update_plan({explanation:"All tasks completed.",plan:[{step:"a",status:"pending"}]})"#
+        let c = CodexReader.planCounts(from: js)
+        XCTAssertEqual(c?.total, 1)
+        XCTAssertEqual(c?.done, 0)
+    }
+
+    /// A shape carrying steps but no status still counts its steps.
+    func testStepsWithoutStatusStillCount() {
+        let c = CodexReader.planCounts(from: #"tools.update_plan({plan:[{step:"a"},{step:"b"}]})"#)
+        XCTAssertEqual(c?.total, 2)
+        XCTAssertEqual(c?.done, 0)
+    }
+
     // MARK: - Fixture-based rollout parsing
 
     private func writeRollout() throws -> URL {
