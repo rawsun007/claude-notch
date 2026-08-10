@@ -135,6 +135,29 @@ final class CodexReaderTests: XCTestCase {
         XCTAssertEqual(l?.creditBalance, 12.5)
     }
 
+    // MARK: - Totals
+
+    /// A quiet week is not an empty history. Judging emptiness on the week
+    /// alone hid the whole section from anyone who had used Codex before but
+    /// not in the last seven days.
+    func testAQuietWeekWithHistoryIsNotEmpty() {
+        var t = CodexReader.CodexTotals()
+        t.allTimeTokens = 2_800_000
+        t.allTimeSessions = 30
+        XCTAssertFalse(t.isEmpty)
+    }
+
+    func testNothingAtAllIsEmpty() {
+        XCTAssertTrue(CodexReader.CodexTotals().isEmpty)
+    }
+
+    func testThisWeeksWorkIsNotEmpty() {
+        var t = CodexReader.CodexTotals()
+        t.weekTokens = 14_032
+        t.sessionsWeek = 1
+        XCTAssertFalse(t.isEmpty)
+    }
+
     // MARK: - Fixture-based rollout parsing
 
     private func writeRollout() throws -> URL {

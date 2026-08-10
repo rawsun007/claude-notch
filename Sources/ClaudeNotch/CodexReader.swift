@@ -214,12 +214,18 @@ enum CodexReader {
     struct CodexTotals {
         var todayTokens = 0, weekTokens = 0
         var sessionsToday = 0, sessionsWeek = 0
-        var isEmpty: Bool { weekTokens == 0 && sessionsWeek == 0 }
+        /// Every rollout still on disk, however old. Not "everything Codex has
+        /// ever done": Codex prunes its own session files, and anything it has
+        /// removed cannot be counted.
+        var allTimeTokens = 0, allTimeSessions = 0
+        /// Empty when there is nothing to show at all. A week with no Codex work
+        /// still has a history worth a row, so the all-time figure counts too.
+        var isEmpty: Bool { weekTokens == 0 && sessionsWeek == 0 && allTimeTokens == 0 }
     }
 
-    /// Token totals for today and the last 7 days across Codex rollouts. Tokens
-    /// only, no dollar cost (gpt pricing unknown). Approximate: a session's
-    /// cumulative token total is attributed to its last-modified day.
+    /// Token totals for today, the last 7 days, and every rollout on disk.
+    /// Tokens only, no dollar cost (gpt pricing unknown). Approximate: a
+    /// session's cumulative token total is attributed to its last-modified day.
     nonisolated static func tokenTotals() -> CodexTotals {
         let fm = FileManager.default
         var totals = CodexTotals()
@@ -233,9 +239,14 @@ enum CodexReader {
             where url.lastPathComponent.hasPrefix("rollout-") && url.pathExtension == "jsonl" {
             let mtime = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
                 .contentModificationDate ?? .distantPast
-            guard mtime >= weekAgo else { continue }
+            // Read every rollout, not only this week's: the all-time figure
+            // needs the old ones too. Each read is a bounded tail, and the
+            // walk itself already visited them.
             let tokens = finalTotalTokens(url)
             guard tokens > 0 else { continue }
+            totals.allTimeTokens += tokens
+            totals.allTimeSessions += 1
+            guard mtime >= weekAgo else { continue }
             totals.weekTokens += tokens
             totals.sessionsWeek += 1
             if cal.isDateInToday(mtime) {

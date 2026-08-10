@@ -146,7 +146,12 @@ extension SettingsView {
                         statRow("Today", "\(formatTokens(c.todayTokens)) tok · \(c.sessionsToday) session\(c.sessionsToday == 1 ? "" : "s")")
                         divider
                         statRow("This week", "\(formatTokens(c.weekTokens)) tok · \(c.sessionsWeek) session\(c.sessionsWeek == 1 ? "" : "s")")
+                        divider
+                        statRow("All time", "\(formatTokens(c.allTimeTokens)) tok · \(c.allTimeSessions) session\(c.allTimeSessions == 1 ? "" : "s")")
                     }
+                    Text(L("All time covers the session files Codex still keeps on this Mac. Codex prunes its own history, so anything it has already removed cannot be counted.", comment: "Settings explanation about the all-time Codex total"))
+                        .font(.caption2).foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
                 } else if codexTotals == nil {
                     Text(L("Reading Codex sessions…", comment: "Settings explanation while Codex usage is being read"))
                         .font(.callout).foregroundStyle(.secondary)

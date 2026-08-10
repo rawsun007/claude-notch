@@ -156,6 +156,9 @@
 /* Onboarding footer once every required step is done */
 "All set. Tip: drag any folder onto the notch to start Claude there." = "All set. Tip: drag any folder onto the notch to start Claude there.";
 
+/* Settings explanation about the all-time Codex total */
+"All time covers the session files Codex still keeps on this Mac. Codex prunes its own history, so anything it has already removed cannot be counted." = "All time covers the session files Codex still keeps on this Mac. Codex prunes its own history, so anything it has already removed cannot be counted.";
+
 /* Settings explanation */
 "All-time counters, kept locally on this Mac." = "All-time counters, kept locally on this Mac.";
 
