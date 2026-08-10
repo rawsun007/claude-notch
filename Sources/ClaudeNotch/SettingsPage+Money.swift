@@ -290,8 +290,12 @@ extension SettingsView {
             }
             codexTokenCaps
             group {
+                // Two sentences, two keys. Rewording the first would orphan it
+                // in all nine translation tables and drop that line back to
+                // English everywhere; a new sentence only has to be new.
                 row(L("Hard-stop at the cap", comment: "Settings toggle"),
-                    L("Block new tool runs once a cap is crossed, instead of only warning. Applies to every cap above, in dollars or tokens.", comment: "Settings toggle explanation"),
+                    L("Block new tool runs once a cap is crossed, instead of only warning.", comment: "Settings toggle explanation")
+                        + " " + L("Applies to every cap above, in dollars or in tokens.", comment: "Settings toggle explanation, that the hard stop covers the Codex token caps too"),
                     Binding(get: { state.enforceBudget }, set: { state.setEnforceBudget($0) }))
             }
         }

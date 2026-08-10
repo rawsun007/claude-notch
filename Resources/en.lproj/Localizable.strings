@@ -207,6 +207,9 @@
 /* Settings explanation */
 "Applies straight away, no restart. The notch and this window are translated; the menu bar is still English." = "Applies straight away, no restart. The notch and this window are translated; the menu bar is still English.";
 
+/* Settings toggle explanation, that the hard stop covers the Codex token caps too */
+"Applies to every cap above, in dollars or in tokens." = "Applies to every cap above, in dollars or in tokens.";
+
 /* Card title, Codex token budget nearly passed */
 "Approaching your daily Codex budget" = "Approaching your daily Codex budget";
 
@@ -256,7 +259,7 @@
 "BYPASS" = "BYPASS";
 
 /* Settings toggle explanation */
-"Block new tool runs once a cap is crossed, instead of only warning. Applies to every cap above, in dollars or tokens." = "Block new tool runs once a cap is crossed, instead of only warning. Applies to every cap above, in dollars or tokens.";
+"Block new tool runs once a cap is crossed, instead of only warning." = "Block new tool runs once a cap is crossed, instead of only warning.";
 
 /* Toggle: remind me to take a break */
 "Break Reminders" = "Break Reminders";
