@@ -21,9 +21,13 @@ final class OnboardingWindowController {
 
     /// Show automatically on launch when either:
     /// - the user has never dismissed onboarding (first run), or
-    /// - the hooks aren't wired up (so the app would be useless).
+    /// - no agent's hooks are wired up (so the app would be useless).
+    ///
+    /// Codex counts. `isInstalled` only reads ~/.claude/settings.json, so
+    /// someone running ClaudeNotch purely for Codex was told to set up every
+    /// single launch, with no way to make it stop.
     static var shouldAutoShow: Bool {
-        !hasBeenDismissed || !HookInstaller.isInstalled
+        !hasBeenDismissed || !(HookInstaller.isInstalled || HookInstaller.isCodexInstalled)
     }
 
     func show() {
@@ -71,7 +75,7 @@ final class OnboardingWindowController {
         // so they see what ClaudeNotch looks like right away.
         let isFirstCompletion = !Self.hasBeenDismissed
         Self.markDismissed()
-        if isFirstCompletion, HookInstaller.isInstalled {
+        if isFirstCompletion, HookInstaller.isInstalled || HookInstaller.isCodexInstalled {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
                 self?.appState?.triggerWelcomeDemo()
             }

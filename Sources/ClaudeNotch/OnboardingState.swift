@@ -158,17 +158,17 @@ final class OnboardingState: ObservableObject {
     func installHooks() {
         isInstallingHooks = true
         hookInstallError = nil
-        DispatchQueue.global(qos: .userInitiated).async {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             do {
                 try HookInstaller.install()
                 Task { @MainActor in
-                    self.isInstallingHooks = false
-                    self.refresh()
+                    self?.isInstallingHooks = false
+                    self?.refresh()
                 }
             } catch {
                 Task { @MainActor in
-                    self.isInstallingHooks = false
-                    self.hookInstallError = (error as? LocalizedError)?.errorDescription
+                    self?.isInstallingHooks = false
+                    self?.hookInstallError = (error as? LocalizedError)?.errorDescription
                         ?? error.localizedDescription
                 }
             }
