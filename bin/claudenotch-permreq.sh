@@ -39,7 +39,6 @@ nc -z "$HOST" "$PORT" 2>/dev/null || pass_through "notch not running"
 # same tool_name / tool_input the card needs, so /permission renders it as-is.
 response=$(printf '%s' "$input" | curl -s --max-time "$WAIT" -X POST \
     -H 'Content-Type: application/json' \
-        -H "$NOTCH_AUTH" \
     --data-binary @- \
     http://$HOST:$PORT/permission || true)
 

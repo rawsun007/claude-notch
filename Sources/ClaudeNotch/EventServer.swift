@@ -250,7 +250,6 @@ final class EventServer {
         let body: Data
         var host: String? = nil
         var origin: String? = nil
-        var token: String? = nil
     }
 
     /// Parse a raw HTTP/1.1 request off the socket buffer. Returns nil when the
@@ -273,7 +272,6 @@ final class EventServer {
         var sawContentLength = false
         var host: String?
         var origin: String?
-        var token: String?
         for line in lines.dropFirst() {
             if let colon = line.firstIndex(of: ":") {
                 let name = line[..<colon].trimmingCharacters(in: .whitespaces).lowercased()
@@ -290,7 +288,6 @@ final class EventServer {
                     contentLength = n
                 case "host": host = value
                 case "origin": origin = value
-                case "x-claudenotch-token": token = value
                 default: break
                 }
             }
@@ -305,8 +302,7 @@ final class EventServer {
         let body = contentLength > 0
             ? data.subdata(in: bodyStart..<(bodyStart + contentLength))
             : Data()
-        return HTTPRequest(method: method, path: path, body: body,
-                           host: host, origin: origin, token: token)
+        return HTTPRequest(method: method, path: path, body: body, host: host, origin: origin)
     }
 
     /// Whether a parsed request looks like it genuinely came from a local hook
@@ -315,28 +311,6 @@ final class EventServer {
     /// pointing its own domain at 127.0.0.1 — sends a browser Origin and a
     /// non-loopback Host. Reject those so a page the user happens to have open
     /// can't inject spoofed sessions, activity, or notifications into the notch.
-    /// Whether the request carries the shared secret the installed forwarders
-    /// send. Separate from `isLocalHookRequest`, which answers "is this a
-    /// browser": this one answers "did this come from our own hooks".
-    ///
-    /// `expected` nil means no token has been written yet - a fresh or
-    /// pre-upgrade install - and the request is allowed through. Refusing then
-    /// would break every hook on the machine until the app happened to
-    /// reinstall them, which is a worse failure than the one being prevented.
-    ///
-    /// Compared in constant time. A byte-at-a-time early return leaks the
-    /// position of the first wrong character, and the caller can retry as often
-    /// as it likes.
-    nonisolated static func isAuthorizedHook(_ req: HTTPRequest, expected: String?) -> Bool {
-        guard let expected, !expected.isEmpty else { return true }
-        guard let given = req.token, !given.isEmpty else { return false }
-        let a = Array(expected.utf8), b = Array(given.utf8)
-        guard a.count == b.count else { return false }
-        var diff: UInt8 = 0
-        for i in 0..<a.count { diff |= a[i] ^ b[i] }
-        return diff == 0
-    }
-
     static func isLocalHookRequest(_ req: HTTPRequest) -> Bool {
         // Every hook is a POST. The Origin check below only covers requests a
         // browser marks as cross-origin, and a browser marks NONE of its
@@ -402,13 +376,6 @@ final class EventServer {
         guard EventServer.isLocalHookRequest(req) else {
             NSLog("ClaudeNotch: rejected non-local request (host=%@ origin=%@)",
                   req.host ?? "-", req.origin ?? "-")
-            conn.cancel()
-            return
-        }
-        guard EventServer.isAuthorizedHook(req, expected: HookInstaller.hookToken) else {
-            NSLog("ClaudeNotch: rejected unauthenticated hook for %@ — not from an installed forwarder",
-                  req.path)
-            DebugLog.append("server", "rejected unauthenticated hook for \(req.path)")
             conn.cancel()
             return
         }

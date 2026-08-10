@@ -29,25 +29,6 @@ NOTCH_LOG_MAX=524288
 NOTCH_HOST="${CLAUDENOTCH_HOST:-127.0.0.1}"
 NOTCH_PORT="${CLAUDENOTCH_PORT:-53127}"
 
-# Shared secret proving a hook came from the forwarders the app installed.
-#
-# The server listens on loopback, which any process on the machine can reach,
-# so without this a permission card can be forged: put up a plausible-looking
-# ask, and an "Always allow" click installs a rule that then auto-approves that
-# command in your REAL sessions. The token is written 0600 inside the user's
-# own 0700 directory.
-#
-# What it does and does not buy: it keeps out anything that cannot read the
-# user's files - a sandboxed app, another local account - but not malware
-# already running with the user's own privileges, which can simply read the
-# token. It raises the floor; it is not a wall.
-#
-# Missing or unreadable is not an error: an older install has no token yet and
-# the app accepts an unauthenticated hook until it has written one.
-NOTCH_TOKEN_FILE="${CLAUDENOTCH_TOKEN_FILE:-${HOME:-}/.claudenotch/hook-token}"
-NOTCH_TOKEN="$(cat "$NOTCH_TOKEN_FILE" 2>/dev/null || true)"
-NOTCH_AUTH="X-ClaudeNotch-Token: $NOTCH_TOKEN"
-
 notch_log() {
     [ -n "${HOME:-}" ] || return 0
     # A symlink at the log path is either an attack or a mistake. Either way,
@@ -85,7 +66,6 @@ notch_post() {
     local endpoint="$1" filter="$2" timeout="${3:-2}"
     jq -c "$filter" 2>/dev/null | curl -s --max-time "$timeout" -X POST \
         -H 'Content-Type: application/json' \
-        -H "$NOTCH_AUTH" \
         --data-binary @- \
         "http://$NOTCH_HOST:$NOTCH_PORT/$endpoint" >/dev/null 2>&1 || true
 }
