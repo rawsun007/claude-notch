@@ -39,6 +39,12 @@ jobs:
       - name: Check the translations against English
         run: tools/l10n-check.py
 
+      # AGENTS.md is fetched and acted on by somebody else's coding agent,
+      # unattended. A stale command in it fails on a stranger's machine and
+      # reads as a broken app, so the few things that go stale are checked.
+      - name: Check the agent instructions still match the app
+        run: tools/agents-doc-check.py
+
       # The migration rewrites the user's real settings.json, which holds hooks
       # belonging to other tools. Losing one of those would be silent.
       - name: Test the Vibe Notch migration
