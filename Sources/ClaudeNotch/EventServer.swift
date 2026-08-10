@@ -508,7 +508,8 @@ final class EventServer {
                                           contextTokens: u.contextTokens,
                                           contextWindow: u.contextWindow,
                                           model: u.model.isEmpty ? model : u.model,
-                                          gitBranch: branch)
+                                          gitBranch: branch,
+                                          totalTokens: u.totalTokens)
                 }
             }
         }

@@ -152,12 +152,16 @@ extension AppState {
     /// meter. Uses the real window from the rollout; no dollar cost (unknown
     /// gpt pricing).
     func noteCodexUsage(sessionId: String, cwd: String, contextTokens: Int,
-                        contextWindow: Int, model: String, gitBranch: String = "") {
+                        contextWindow: Int, model: String, gitBranch: String = "",
+                        totalTokens: Int = 0) {
         let pct = contextWindow > 0 ? min(1.0, max(0, Double(contextTokens) / Double(contextWindow))) : 0
         upsertSession(id: sessionId, cwd: cwd.isEmpty ? currentCwd : cwd) { s in
             s.contextTokens = contextTokens
             s.contextWindow = contextWindow
             s.contextPercent = pct
+            // Cumulative and monotonic, so a stale smaller reading never walks
+            // a session's budget backwards.
+            if totalTokens > s.totalTokens { s.totalTokens = totalTokens }
             if !model.isEmpty { s.model = model }
             if !gitBranch.isEmpty { s.gitBranch = gitBranch }
             s.isCompacting = false

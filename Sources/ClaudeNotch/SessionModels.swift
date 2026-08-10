@@ -82,6 +82,10 @@ struct LiveSession: Identifiable, Equatable {
     // the app has to infer it). Only the status line carries this.
     var contextWindow: Int = 0
     var sessionCostUSD: Double = 0   // cumulative estimated cost so far
+    // Cumulative tokens this session has burned, as the agent reports them.
+    // Only Codex fills this in: it publishes no token pricing, so tokens are
+    // the only honest unit to budget a Codex session in. 0 = not reported.
+    var totalTokens: Int = 0
     var model: String = ""           // most recent model id (e.g. claude-opus-4-8)
     var isCompacting: Bool = false   // true between PreCompact and the next event
     // Claude Code permission mode from hook payloads (default / plan /
