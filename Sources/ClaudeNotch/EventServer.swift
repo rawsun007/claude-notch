@@ -485,13 +485,18 @@ final class EventServer {
         if AgentKind.infer(fromModel: model) == .codex, !sessionId.isEmpty {
             let cwd = (payload["cwd"] as? String) ?? ""
             DispatchQueue.global(qos: .utility).async { [weak state] in
+                // Resolve the rollout ONCE: finding it walks the whole
+                // ~/.codex/sessions tree, and this runs on every tool call, so
+                // the per-session-id variants would pay for that walk twice a
+                // call against a directory that only ever grows.
+                let rollout = CodexReader.rolloutURL(forSessionId: sessionId)
                 // Codex tracks tasks via update_plan (inside an exec tool), so
                 // parse the plan from the rollout to drive the notch task bar.
-                if let plan = CodexReader.latestPlan(forSessionId: sessionId) {
+                if let rollout, let plan = CodexReader.latestPlan(from: rollout) {
                     Task { @MainActor in state?.noteTodos(total: plan.total, done: plan.done, sessionId: sessionId) }
                 }
                 let branch = CodexReader.gitBranch(forCwd: cwd)
-                guard let u = CodexReader.usage(forSessionId: sessionId) else {
+                guard let rollout, let u = CodexReader.usage(from: rollout) else {
                     // Even with no usage yet, surface the branch.
                     if !branch.isEmpty {
                         Task { @MainActor in state?.noteCodexUsage(sessionId: sessionId, cwd: cwd, contextTokens: 0, contextWindow: 0, model: model, gitBranch: branch) }

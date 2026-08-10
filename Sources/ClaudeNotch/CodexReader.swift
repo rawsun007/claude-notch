@@ -256,8 +256,11 @@ enum CodexReader {
         return nil
     }
 
-    /// Find the rollout file whose name contains this session id.
-    private nonisolated static func rolloutURL(forSessionId id: String) -> URL? {
+    /// Find the rollout file whose name contains this session id. Walks the
+    /// whole `~/.codex/sessions` tree, so a caller that needs several readings
+    /// for one session should resolve the URL ONCE and use the `from:` variants
+    /// rather than paying for the walk per reading.
+    nonisolated static func rolloutURL(forSessionId id: String) -> URL? {
         let fm = FileManager.default
         guard let en = fm.enumerator(at: sessionsDir, includingPropertiesForKeys: nil,
                                      options: [.skipsHiddenFiles]) else { return nil }
