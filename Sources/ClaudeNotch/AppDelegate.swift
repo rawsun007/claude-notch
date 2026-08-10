@@ -14,12 +14,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let settings = SettingsWindowController()
     let settingsHotkey = GlobalHotkey()
     private var activityToken: NSObjectProtocol?
+    private var sigtermSource: DispatchSourceSignal?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Leave a local crash report behind on an uncaught exception or fatal
         // signal, so a bug report has something to attach. Installed first so it
         // is in place before anything else can fault.
         CrashReporter.install()
+        // Before anything can change state: a settings change must survive the
+        // kill the installer and updater use to swap the bundle.
+        installTerminationFlush()
 
         // Prevent App Nap. Without this, when ANOTHER app is active macOS
         // throttles our background process and the notch's SwiftUI spring
@@ -125,6 +129,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+
+    /// Last chance to get settings onto disk.
+    ///
+    /// Writes are debounced, so at any moment a recent change may still be in
+    /// memory only. Quitting is exactly when that matters and exactly when
+    /// nothing else will flush it: the updater quits the app to replace the
+    /// bundle, so a toggle flipped just before "Update Now" would come back off
+    /// on the other side, looking like the update had wiped it.
+    func applicationWillTerminate(_ notification: Notification) {
+        state.flushPersist()
+    }
+
+    /// Same last chance, for the other way this app gets stopped.
+    ///
+    /// `applicationWillTerminate` covers a Quit menu item or an Apple Event.
+    /// It does not cover a plain SIGTERM, which is what `pkill` sends and what
+    /// the installer and the updater's fallback path both use: the process
+    /// dies where it stands and the pending write dies with it. Handled on a
+    /// dispatch source rather than in a signal handler, because a signal
+    /// handler may not touch this much of the runtime.
+    private func installTerminationFlush() {
+        signal(SIGTERM, SIG_IGN)                    // the source replaces the default action
+        let source = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        source.setEventHandler {
+            MainActor.assumeIsolated {
+                self.state.flushPersist()
+                NSApp.terminate(nil)
+            }
+        }
+        source.resume()
+        sigtermSource = source
     }
 
     // MARK: - claudenotch:// URLs

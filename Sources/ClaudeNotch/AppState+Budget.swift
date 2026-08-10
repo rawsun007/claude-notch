@@ -478,14 +478,40 @@ extension AppState {
         enqueuePermission(req, bypassRules: true)
     }
 
+    /// Coalesce a burst of mutations into one disk write.
+    ///
+    /// The debounce is reset by every mutation, which on its own means a busy
+    /// session never writes at all: hooks land faster than the delay, the timer
+    /// is pushed back each time, and a settings change made during that stretch
+    /// sits in memory until the machine goes quiet. If the app is quit or
+    /// updated first, it is simply lost. `persistDeadline` is the backstop:
+    /// however long the burst runs, the write happens within `maxPersistDelay`
+    /// of the first pending change.
     func schedulePersist() {
+        let now = Date()
+        if persistDeadline == nil { persistDeadline = now.addingTimeInterval(Self.maxPersistDelay) }
         persistTimer?.invalidate()
-        persistTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
+        // Never schedule past the deadline, and never busy-wait either.
+        let target = min(now.addingTimeInterval(0.5), persistDeadline ?? now)
+        let delay = max(0.05, target.timeIntervalSince(now))
+        persistTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
             Task { @MainActor in self?.persistNow() }
         }
     }
 
-    private func persistNow() {
+    /// Longest a pending change may wait, however busy the session is.
+    static let maxPersistDelay: TimeInterval = 5
+
+    /// Write immediately, cancelling any pending debounce. Called when the app
+    /// is quitting, where "in a moment" never arrives.
+    func flushPersist() {
+        persistTimer?.invalidate()
+        persistTimer = nil
+        persistNow()
+    }
+
+    func persistNow() {
+        persistDeadline = nil
         Persistence.save(.init(
             history: history,
             sessionHistory: sessionHistory,

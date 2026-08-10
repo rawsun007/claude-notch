@@ -796,6 +796,9 @@ final class AppState: ObservableObject {
     // Debounced write to ~/.claudenotch/state.json — coalesces bursts of
     // mutations (e.g. many history appends in a row) into one disk write.
     var persistTimer: Timer?
+    /// When the oldest un-written change must reach disk by, however many more
+    /// mutations arrive before then. nil when nothing is pending.
+    var persistDeadline: Date?
 
     init() {
         if let snapshot = Persistence.load() {

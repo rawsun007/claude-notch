@@ -88,9 +88,27 @@ enum Persistence {
         return decode(data)
     }
 
+    /// Write the snapshot, or say why it could not be written.
+    ///
+    /// Both steps used to swallow their error. That is the worst possible
+    /// failure for this file: encoding throws on a non-finite Double, so one
+    /// stray NaN in a cost or a percentage would stop EVERY later save, for
+    /// good, with no symptom except settings quietly forgetting themselves.
+    /// Nothing on screen changes, so it reads as "the update wiped my
+    /// settings" rather than as a bug with a cause.
     static func save(_ snapshot: Snapshot) {
-        guard let data = encode(snapshot) else { return }
-        try? data.write(to: storeURL, options: .atomic)
+        guard let data = encode(snapshot) else {
+            DebugLog.append("persist", "snapshot could not be encoded")
+            NSLog("ClaudeNotch: could not encode state.json — settings will not persist")
+            return
+        }
+        do {
+            try data.write(to: storeURL, options: .atomic)
+        } catch {
+            DebugLog.append("persist", "write failed: \(error)")
+            NSLog("ClaudeNotch: could not write state.json — \(error.localizedDescription)")
+            return
+        }
         // 0600: the file holds sensitive session data. Enforced on every write
         // because .atomic replaces the inode (a fresh temp file that would
         // otherwise land at the umask default), and to tighten dirs/files that
@@ -107,6 +125,14 @@ enum Persistence {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
+        // JSON has no way to write a NaN or an infinity, so by default the
+        // encoder throws on one and the whole snapshot is lost — every setting,
+        // because one cost or percentage divided by zero somewhere. These are
+        // costs and percentages; a single unusable number is worth far less
+        // than the rest of the file, so it is written as text and read back
+        // below rather than taking everything with it.
+        encoder.nonConformingFloatEncodingStrategy =
+            .convertToString(positiveInfinity: "inf", negativeInfinity: "-inf", nan: "nan")
         return try? encoder.encode(snapshot)
     }
 
@@ -115,6 +141,8 @@ enum Persistence {
     static func decode(_ data: Data) -> Snapshot? {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
+        decoder.nonConformingFloatDecodingStrategy =
+            .convertFromString(positiveInfinity: "inf", negativeInfinity: "-inf", nan: "nan")
         return try? decoder.decode(Snapshot.self, from: data)
     }
 }
