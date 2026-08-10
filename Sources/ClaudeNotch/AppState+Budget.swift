@@ -401,7 +401,7 @@ extension AppState {
 
     /// Next sensible cap above both the current cap and the spend that tripped
     /// it, so the allow goes through and isn't re-blocked immediately.
-    static func nextCap(covering cost: Double, current cap: Double) -> Double {
+    nonisolated static func nextCap(covering cost: Double, current cap: Double) -> Double {
         let presets: [Double] = [1, 2, 5, 10, 25, 50, 100, 200, 500]
         if let n = presets.first(where: { $0 > cost && $0 > cap }) { return n }
         return (cost / 50).rounded(.down) * 50 + 50   // beyond presets: next $50
@@ -411,7 +411,7 @@ extension AppState {
     /// rather than single dollars: a Codex turn alone can run to tens of
     /// thousands, so the dollar presets would all be passed before the button
     /// finished being useful.
-    static func nextTokenCap(covering used: Double, current cap: Double) -> Double {
+    nonisolated static func nextTokenCap(covering used: Double, current cap: Double) -> Double {
         let presets: [Double] = [100_000, 250_000, 500_000, 1_000_000,
                                  2_000_000, 5_000_000, 10_000_000]
         if let n = presets.first(where: { $0 > used && $0 > cap }) { return n }
@@ -419,7 +419,7 @@ extension AppState {
     }
 
     /// The next cap for this block, in whichever unit it is counted.
-    static func raisedCap(for block: BudgetBlock) -> Double {
+    nonisolated static func raisedCap(for block: BudgetBlock) -> Double {
         block.unit == .tokens
             ? nextTokenCap(covering: block.cost, current: block.cap)
             : nextCap(covering: block.cost, current: block.cap)
