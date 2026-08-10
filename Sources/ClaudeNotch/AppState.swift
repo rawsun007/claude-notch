@@ -626,6 +626,14 @@ final class AppState: ObservableObject {
     // `.estimatedCost` mode. Non-zero enables the bar.
     @Published var fiveHourCostCap: Double = 5.0
     @Published var weeklyCostCap: Double = 50.0
+    // Codex budgets, in tokens. Codex publishes no token pricing, so a dollar
+    // cap could only ever be a guess, while the token count is reported exactly
+    // on every turn. 0 = off, like the dollar caps. Persisted.
+    @Published var codexSessionTokenCap: Int = 0
+    @Published var codexDailyTokenCap: Int = 0
+    /// Codex tokens burned today, across every session. Read from the rollouts
+    /// (see refreshCodexTokenSpend), not from a hook.
+    @Published var codexTodayTokens: Int = 0
     // Which items appear in the bottom status bar (ordered, max 2). Persisted.
     @Published var statusBarItems: [StatusBarItem] = [.fiveHourLimit, .weeklyLimit]
     // Context-window denominator selection (Auto / 200K / 1M). Persisted.
@@ -731,6 +739,10 @@ final class AppState: ObservableObject {
     var sessionWarnLevel: [String: Int] = [:]
     var dailyWarnLevel: Int = 0
     var dailyWarnDate: String = ""
+    // Same debounce for the Codex token budget, tracked separately so a Claude
+    // warning never silences a Codex one on the same day.
+    var codexDailyWarnLevel: Int = 0
+    var codexDailyWarnDate: String = ""
     /// Day the "you are on course to pass the cap" forecast last spoke. It says
     /// its piece once a day: it is a heads-up, and a heads-up repeated every
     /// time the total ticks up is just noise.
@@ -813,6 +825,8 @@ final class AppState: ObservableObject {
             self.lastDigestDate = snapshot.lastDigestDate
             self.lastWeeklyDigestDate = snapshot.lastWeeklyDigestDate
             self.dropStartsCodex = snapshot.dropStartsCodex ?? false
+            self.codexSessionTokenCap = snapshot.codexSessionTokenCap ?? 0
+            self.codexDailyTokenCap = snapshot.codexDailyTokenCap ?? 0
             self.lastUpdateCardVersion = snapshot.lastUpdateCardVersion
             self.lastSeenVersion = snapshot.lastSeenVersion
             self.sessionCostCap = snapshot.sessionCostCap ?? 0

@@ -241,6 +241,7 @@ struct SettingsSearchItem: Identifiable {
         .init(title: "Setup health", keywords: "hooks status line forwarder fix install", section: .general),
         .init(title: "Codex integration", keywords: "codex openai agent beta enable integration gpt", section: .general),
         .init(title: "Codex usage limits", keywords: "codex weekly monthly limit quota rate plan gpt", section: .plan),
+        .init(title: "Codex caps (tokens)", keywords: "codex token budget cap limit spend gpt", section: .budget),
         .init(title: "Notch language", keywords: "language translate localization chinese spanish hindi japanese german french korean russian portuguese 语言 idioma भाषा 言語 sprache langue 언어 язык", section: .general),
 
         .init(title: "Notch title", keywords: "name label claude project custom", section: .notch),
@@ -1095,6 +1096,23 @@ struct SettingsView: View {
                 .controlSize(.small)
                 .frame(width: 64)
                 .multilineTextAlignment(.trailing)
+        }
+        .padding(.vertical, 8).padding(.horizontal, 14)
+    }
+
+    /// A cap in tokens. Same shape as capRow, but counted in tokens rather than
+    /// dollars, so it carries no currency symbol and steps in thousands.
+    func tokenCapRow(_ title: String, get: @escaping () -> Int,
+                     set: @escaping (Int) -> Void) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            TextField("0", value: Binding(get: get, set: set), format: .number)
+                .textFieldStyle(.roundedBorder)
+                .controlSize(.small)
+                .frame(width: 96)
+                .multilineTextAlignment(.trailing)
+            Text(L("tokens", comment: "Unit label after a token cap field")).foregroundStyle(.secondary)
         }
         .padding(.vertical, 8).padding(.horizontal, 14)
     }

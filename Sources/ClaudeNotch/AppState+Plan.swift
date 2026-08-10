@@ -43,10 +43,12 @@ extension AppState {
         guard planTimer == nil else { return }
         refreshPlan()
         refreshCodexLimits()
+        refreshCodexTokenSpend()
         planTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.refreshPlan()
                 self?.refreshCodexLimits()
+                self?.refreshCodexTokenSpend()
             }
         }
     }

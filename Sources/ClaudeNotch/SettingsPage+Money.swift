@@ -147,21 +147,35 @@ extension SettingsView {
         }
     }
 
-    /// Says out loud that these caps are Claude's only.
+    /// Codex's own budgets, counted in tokens.
     ///
-    /// Every figure on this page comes from Claude transcripts priced against
-    /// published rates. Codex publishes no token pricing, so its spend is
-    /// unknown rather than zero, and a cap cannot stop what it cannot measure.
-    /// Someone running Codex with the hard-stop on is unprotected there, and a
-    /// guard you wrongly believe in is worse than one you know you lack. Shown
-    /// only when Codex is actually wired up, so it is a fact about this Mac
-    /// rather than a disclaimer everyone has to read.
+    /// The dollar caps above cannot touch Codex: pricing a Codex session would
+    /// mean inventing gpt rates nobody publishes, so its cost is unknown rather
+    /// than zero and every dollar comparison passes it straight through. Tokens
+    /// are the part Codex does report, exactly, on every turn, so that is what
+    /// gets capped. Same warn-then-stop behaviour as the dollar caps, same
+    /// hard-stop toggle below. Shown only when Codex is wired up.
     @ViewBuilder
-    private var codexNotCoveredNote: some View {
+    private var codexTokenCaps: some View {
         if HookInstaller.isCodexInstalled {
-            Text(L("These caps count Claude only. Codex publishes no token pricing, so ClaudeNotch cannot price a Codex session, and neither the warnings nor the hard-stop below apply to one. Codex usage is on the Plan and Usage pages as a percentage and a token count.", comment: "Settings explanation that cost caps do not cover Codex"))
-                .font(.caption).foregroundStyle(.secondary)
+            sectionLabel(L("Codex caps (tokens)", comment: "Settings section heading"))
+            Text(L("Codex publishes no token pricing, so it cannot be capped in dollars without inventing the rates. It does report tokens exactly, so its budgets are counted in those. Set a cap to 0 to disable it.", comment: "Settings explanation for the Codex token caps"))
+                .font(.callout).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            group {
+                tokenCapRow("Per session",
+                            get: { state.codexSessionTokenCap },
+                            set: { state.setCodexSessionTokenCap($0) })
+                divider
+                tokenCapRow("Per day",
+                            get: { state.codexDailyTokenCap },
+                            set: { state.setCodexDailyTokenCap($0) })
+            }
+            if state.codexTodayTokens > 0 {
+                Text(String(format: L("%@ tokens used today.", comment: "Settings row. %@ is a token count such as 1.2M"),
+                            BudgetBlock.tokens(Double(state.codexTodayTokens))))
+                    .font(.caption2).foregroundStyle(.tertiary)
+            }
         }
     }
 
@@ -274,10 +288,10 @@ extension SettingsView {
                 divider
                 capRow("Per week", get: { state.weeklyCostCap }, set: { state.setWeeklyCostCap($0) })
             }
-            codexNotCoveredNote
+            codexTokenCaps
             group {
                 row(L("Hard-stop at the cap", comment: "Settings toggle"),
-                    L("Block new tool runs once a cap is crossed, instead of only warning.", comment: "Settings toggle explanation"),
+                    L("Block new tool runs once a cap is crossed, instead of only warning. Applies to every cap above, in dollars or tokens.", comment: "Settings toggle explanation"),
                     Binding(get: { state.enforceBudget }, set: { state.setEnforceBudget($0) }))
             }
         }

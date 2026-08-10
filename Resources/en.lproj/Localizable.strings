@@ -39,6 +39,9 @@
 /* Cost tooltip fragment for a reported cost. %@ is a money amount */
 "%@ this session (Claude Code's own figure)" = "%@ this session (Claude Code's own figure)";
 
+/* Settings row. %@ is a token count such as 1.2M */
+"%@ tokens used today." = "%@ tokens used today.";
+
 /* Dialog body when the login item could not be toggled. %@ is the system error */
 "%@\n\nMake sure ClaudeNotch is in /Applications, then try again." = "%@\n\nMake sure ClaudeNotch is in /Applications, then try again.";
 
@@ -204,6 +207,9 @@
 /* Settings explanation */
 "Applies straight away, no restart. The notch and this window are translated; the menu bar is still English." = "Applies straight away, no restart. The notch and this window are translated; the menu bar is still English.";
 
+/* Card title, Codex token budget nearly passed */
+"Approaching your daily Codex budget" = "Approaching your daily Codex budget";
+
 /* Settings toggle explanation */
 "Ask for Touch ID before allowing a tool request from the notch." = "Ask for Touch ID before allowing a tool request from the notch.";
 
@@ -250,7 +256,7 @@
 "BYPASS" = "BYPASS";
 
 /* Settings toggle explanation */
-"Block new tool runs once a cap is crossed, instead of only warning." = "Block new tool runs once a cap is crossed, instead of only warning.";
+"Block new tool runs once a cap is crossed, instead of only warning. Applies to every cap above, in dollars or tokens." = "Block new tool runs once a cap is crossed, instead of only warning. Applies to every cap above, in dollars or tokens.";
 
 /* Toggle: remind me to take a break */
 "Break Reminders" = "Break Reminders";
@@ -374,6 +380,12 @@
 
 /* Settings section heading for the Codex plan */
 "Codex" = "Codex";
+
+/* Settings section heading */
+"Codex caps (tokens)" = "Codex caps (tokens)";
+
+/* Settings explanation for the Codex token caps */
+"Codex publishes no token pricing, so it cannot be capped in dollars without inventing the rates. It does report tokens exactly, so its budgets are counted in those. Set a cap to 0 to disable it." = "Codex publishes no token pricing, so it cannot be capped in dollars without inventing the rates. It does report tokens exactly, so its budgets are counted in those. Set a cap to 0 to disable it.";
 
 /* Settings section heading */
 "Codex usage (tokens)" = "Codex usage (tokens)";
@@ -840,6 +852,9 @@
 /* Budget block. %@ is a scope such as daily or weekly */
 "Over your %@ budget" = "Over your %@ budget";
 
+/* Card title, Codex token budget passed */
+"Over your daily Codex budget" = "Over your daily Codex budget";
+
 /* Badge: Claude is in plan mode */
 "PLAN" = "PLAN";
 
@@ -1179,9 +1194,6 @@
 /* Tooltip on the version badge */
 "The version you are running" = "The version you are running";
 
-/* Settings explanation that cost caps do not cover Codex */
-"These caps count Claude only. Codex publishes no token pricing, so ClaudeNotch cannot price a Codex session, and neither the warnings nor the hard-stop below apply to one. Codex usage is on the Plan and Usage pages as a percentage and a token count." = "These caps count Claude only. Codex publishes no token pricing, so ClaudeNotch cannot price a Codex session, and neither the warnings nor the hard-stop below apply to one. Codex usage is on the Plan and Usage pages as a percentage and a token count.";
-
 /* Status: the agent is reasoning, not running a tool */
 "Thinking" = "Thinking";
 
@@ -1403,6 +1415,9 @@
 
 /* Settings explanation */
 "running" = "running";
+
+/* Unit label after a token cap field */
+"tokens" = "tokens";
 
 /* Staleness marker beside a usage reading. %@ is an age such as 12 min */
 "· %@ old" = "· %@ old";

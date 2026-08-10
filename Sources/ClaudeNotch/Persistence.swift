@@ -63,6 +63,10 @@ enum Persistence {
         var lastWeeklyDigestDate: String? = nil
         /// Whether dropping a folder on the notch starts Codex instead of Claude.
         var dropStartsCodex: Bool? = nil
+        /// Codex budgets, in tokens rather than dollars: gpt pricing is not
+        /// published, so a dollar cap could only ever be invented.
+        var codexSessionTokenCap: Int? = nil
+        var codexDailyTokenCap: Int? = nil
     }
 
     static let storeURL: URL = {
@@ -172,7 +176,9 @@ extension Persistence.Snapshot {
             pinnedProjects: try? c.decode([String].self, forKey: .pinnedProjects),
             sessionNotes: try? c.decode([String: String].self, forKey: .sessionNotes),
             lastWeeklyDigestDate: try? c.decode(String.self, forKey: .lastWeeklyDigestDate),
-            dropStartsCodex: try? c.decode(Bool.self, forKey: .dropStartsCodex)
+            dropStartsCodex: try? c.decode(Bool.self, forKey: .dropStartsCodex),
+            codexSessionTokenCap: try? c.decode(Int.self, forKey: .codexSessionTokenCap),
+            codexDailyTokenCap: try? c.decode(Int.self, forKey: .codexDailyTokenCap)
         )
     }
 }

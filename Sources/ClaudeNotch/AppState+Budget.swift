@@ -270,6 +270,10 @@ extension AppState {
     /// Is this tool request over a cap that enforcement should hold back? Daily
     /// is checked first (broader); session uses the originating session's spend.
     func budgetBlock(for req: PermissionRequest) -> BudgetBlock? {
+        // Codex is budgeted in tokens, not dollars, and the dollar caps below
+        // would pass it through untouched: its sessions carry no cost at all,
+        // so every comparison against a dollar cap is 0 >= cap, always false.
+        if isCodexRequest(req) { return codexTokenBlock(forCwd: req.cwd) }
         if dailyCostCap > 0, todayCostUSD >= dailyCostCap {
             return BudgetBlock(scope: "daily", cost: todayCostUSD, cap: dailyCostCap)
         }
@@ -282,11 +286,95 @@ extension AppState {
         return nil
     }
 
+    /// Whether this request belongs to a Codex session. Decided by the live
+    /// sessions at that cwd rather than the request, which carries no model.
+    func isCodexRequest(_ req: PermissionRequest) -> Bool {
+        let c = Self.normalizedCwd(req.cwd)
+        return sessions.values.contains {
+            Self.normalizedCwd($0.cwd) == c && !$0.model.isEmpty
+                && AgentKind.infer(fromModel: $0.model) == .codex
+        }
+    }
+
+    /// The Codex token cap this request has already passed, if any.
+    func codexTokenBlock(forCwd cwd: String) -> BudgetBlock? {
+        if codexDailyTokenCap > 0, codexTodayTokens >= codexDailyTokenCap {
+            return BudgetBlock(scope: "daily", cost: Double(codexTodayTokens),
+                               cap: Double(codexDailyTokenCap), unit: .tokens)
+        }
+        if codexSessionTokenCap > 0 {
+            let used = codexSessionTokens(forCwd: cwd)
+            if used >= codexSessionTokenCap {
+                return BudgetBlock(scope: "session", cost: Double(used),
+                                   cap: Double(codexSessionTokenCap), unit: .tokens)
+            }
+        }
+        return nil
+    }
+
+    /// Tokens burned by the busiest Codex session at this cwd.
+    func codexSessionTokens(forCwd cwd: String) -> Int {
+        let c = Self.normalizedCwd(cwd)
+        return sessions.values
+            .filter { Self.normalizedCwd($0.cwd) == c }
+            .map(\.totalTokens)
+            .max() ?? 0
+    }
+
+    /// Trailing slashes make two spellings of one directory look like two
+    /// projects, which would hide a session's spend from its own cap.
+    nonisolated static func normalizedCwd(_ cwd: String) -> String {
+        var c = cwd
+        while c.count > 1, c.hasSuffix("/") { c.removeLast() }
+        return c
+    }
+
+    func setCodexSessionTokenCap(_ tokens: Int) {
+        codexSessionTokenCap = max(0, tokens); schedulePersist()
+    }
+
+    func setCodexDailyTokenCap(_ tokens: Int) {
+        codexDailyTokenCap = max(0, tokens)
+        schedulePersist()
+        guard codexDailyTokenCap > 0 else { return }
+        refreshCodexTokenSpend()
+    }
+
+    /// Re-read today's Codex token total from the rollouts. Off the main actor:
+    /// it reads the tail of every rollout touched this week.
+    func refreshCodexTokenSpend() {
+        guard HookInstaller.isCodexInstalled else { return }
+        Task.detached(priority: .utility) {
+            let totals = CodexReader.tokenTotals()
+            await MainActor.run { [weak self] in self?.noteCodexTodayTokens(totals.todayTokens) }
+        }
+    }
+
+    /// Push today's Codex token total and warn if it crosses the daily cap.
+    /// Mirrors noteTodayCost, including the once-per-day-per-level rule.
+    func noteCodexTodayTokens(_ tokens: Int) {
+        codexTodayTokens = tokens
+        guard codexDailyTokenCap > 0 else { return }
+        let today = Self.dayKey(Date())
+        if codexDailyWarnDate != today { codexDailyWarnDate = today; codexDailyWarnLevel = 0 }
+        let level = Self.budgetLevel(cost: Double(tokens), cap: Double(codexDailyTokenCap))
+        guard level > codexDailyWarnLevel else { return }
+        codexDailyWarnLevel = level
+        let pct = Int((Double(tokens) / Double(codexDailyTokenCap) * 100).rounded())
+        enqueuePermission(PermissionRequest(
+            kind: .notification,
+            title: level >= 100
+                ? L("Over your daily Codex budget", comment: "Card title, Codex token budget passed")
+                : L("Approaching your daily Codex budget", comment: "Card title, Codex token budget nearly passed"),
+            detail: "\(BudgetBlock.tokens(Double(tokens))) of \(BudgetBlock.tokens(Double(codexDailyTokenCap))) tokens (\(pct)%)",
+            toolName: "Budget", source: "Codex budget", cwd: currentCwd,
+            resolver: { _, _ in }))
+    }
+
     /// Best estimate of the spend for the session a request belongs to: the
     /// priciest live session at that cwd, falling back to the global mirror.
     private func sessionCost(forCwd cwd: String) -> Double {
-        var c = cwd
-        while c.count > 1, c.hasSuffix("/") { c.removeLast() }
+        let c = Self.normalizedCwd(cwd)
         let matching = sessions.values.filter { $0.cwd == c }.map { $0.sessionCostUSD }
         return matching.max() ?? currentCostUSD
     }
@@ -295,8 +383,13 @@ extension AppState {
     /// so the flow continues instead of re-blocking on the next call.
     func raiseBudgetAndAllow() {
         guard let req = permissionQueue.first, let block = req.budgetBlock else { return }
-        let newCap = Self.nextCap(covering: block.cost, current: block.cap)
-        if block.scope == "daily" { setDailyCostCap(newCap) } else { setSessionCostCap(newCap) }
+        let newCap = Self.raisedCap(for: block)
+        switch (block.unit, block.scope) {
+        case (.tokens, "daily"):  setCodexDailyTokenCap(Int(newCap))
+        case (.tokens, _):        setCodexSessionTokenCap(Int(newCap))
+        case (.usd, "daily"):     setDailyCostCap(newCap)
+        case (.usd, _):           setSessionCostCap(newCap)
+        }
         resolveCurrentPermission(.allow)
     }
 
@@ -314,9 +407,27 @@ extension AppState {
         return (cost / 50).rounded(.down) * 50 + 50   // beyond presets: next $50
     }
 
-    /// The dollar amount the Raise-cap button would set, for its label.
+    /// Same idea in tokens, where the sensible steps are hundreds of thousands
+    /// rather than single dollars: a Codex turn alone can run to tens of
+    /// thousands, so the dollar presets would all be passed before the button
+    /// finished being useful.
+    static func nextTokenCap(covering used: Double, current cap: Double) -> Double {
+        let presets: [Double] = [100_000, 250_000, 500_000, 1_000_000,
+                                 2_000_000, 5_000_000, 10_000_000]
+        if let n = presets.first(where: { $0 > used && $0 > cap }) { return n }
+        return (used / 5_000_000).rounded(.down) * 5_000_000 + 5_000_000
+    }
+
+    /// The next cap for this block, in whichever unit it is counted.
+    static func raisedCap(for block: BudgetBlock) -> Double {
+        block.unit == .tokens
+            ? nextTokenCap(covering: block.cost, current: block.cap)
+            : nextCap(covering: block.cost, current: block.cap)
+    }
+
+    /// The amount the Raise-cap button would set, for its label.
     func raisedCapTarget(for block: BudgetBlock) -> Double {
-        Self.nextCap(covering: block.cost, current: block.cap)
+        Self.raisedCap(for: block)
     }
 
     func warnBudget(scope: String, level: Int, cost: Double, cap: Double) {
@@ -426,7 +537,9 @@ extension AppState {
             pinnedProjects: Array(pinnedProjects),
             sessionNotes: sessionNotes,
             lastWeeklyDigestDate: lastWeeklyDigestDate,
-            dropStartsCodex: dropStartsCodex
+            dropStartsCodex: dropStartsCodex,
+            codexSessionTokenCap: codexSessionTokenCap,
+            codexDailyTokenCap: codexDailyTokenCap
         ))
     }
 

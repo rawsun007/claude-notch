@@ -151,10 +151,32 @@ enum ComposePurpose: Equatable {
 /// cap is already exceeded and enforcement is on, so the card forces a decision
 /// (Deny / Allow once / Raise cap) instead of letting it auto-allow.
 struct BudgetBlock: Equatable {
+    /// What the numbers are counted in. Claude work is priced in dollars from
+    /// published rates; Codex publishes no token pricing, so a Codex budget is
+    /// kept in the only unit that can be measured rather than guessed.
+    enum Unit: Equatable { case usd, tokens }
+
     let scope: String    // "session" or "daily"
     let cost: Double
     let cap: Double
+    var unit: Unit = .usd
     var pct: Int { cap > 0 ? Int((cost / cap * 100).rounded()) : 0 }
+
+    /// An amount in this block's unit, ready to show.
+    func amount(_ v: Double) -> String {
+        switch unit {
+        case .usd:    return ClaudeUsageReader.fmtMoney(v)
+        case .tokens: return "\(BudgetBlock.tokens(v)) tokens"
+        }
+    }
+
+    /// Compact token count: 1.2M, 350.0K, 900.
+    static func tokens(_ v: Double) -> String {
+        let n = Int(v.rounded())
+        if n >= 1_000_000 { return String(format: "%.1fM", v / 1_000_000) }
+        if n >= 1_000 { return String(format: "%.1fK", v / 1_000) }
+        return "\(n)"
+    }
 }
 
 final class PermissionRequest: Identifiable, Equatable {

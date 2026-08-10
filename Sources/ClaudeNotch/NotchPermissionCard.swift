@@ -240,7 +240,7 @@ struct PermissionCard: View {
                         onResolve(.allow, .none)
                     }
                     if let onRaiseCap, raiseCapTarget > 0 {
-                        NotchButton(label: String(format: L("Raise to %@", comment: "Button: raise the spending cap. %@ is a money amount"), ClaudeUsageReader.fmtMoney(raiseCapTarget)),
+                        NotchButton(label: String(format: L("Raise to %@", comment: "Button: raise the spending cap. %@ is a money amount"), (request.budgetBlock ?? BudgetBlock(scope: "", cost: 0, cap: 0)).amount(raiseCapTarget)),
                                     style: .primary, action: onRaiseCap)
                     }
                 } else if pendingCount > 1, let onResolveAll {
@@ -322,7 +322,7 @@ struct BudgetBanner: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 8) {
-            Image(systemName: "dollarsign.circle.fill")
+            Image(systemName: block.unit == .tokens ? "circle.hexagongrid.fill" : "dollarsign.circle.fill")
                 .foregroundColor(.orange)
                 .font(.system(size: 11, weight: .bold))
             VStack(alignment: .leading, spacing: 1) {
@@ -331,13 +331,13 @@ struct BudgetBanner: View {
                     .foregroundColor(.orange.opacity(0.95))
                 Text(String(format: L("%1$@ of %2$@ cap (%3$d%%)",
                                       comment: "Budget block detail. %1$@ is spend, %2$@ is the cap, %3$d is a percentage"),
-                          ClaudeUsageReader.fmtMoney(block.cost),
-                          ClaudeUsageReader.fmtMoney(block.cap), block.pct))
+                          block.amount(block.cost),
+                          block.amount(block.cap), block.pct))
                     .font(.system(size: 10))
                     .foregroundColor(.orange.opacity(0.85))
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Over your \(block.scope) budget. \(ClaudeUsageReader.fmtMoney(block.cost)) of a \(ClaudeUsageReader.fmtMoney(block.cap)) cap, \(block.pct) percent.")
+            .accessibilityLabel("Over your \(block.scope) budget. \(block.amount(block.cost)) of a \(block.amount(block.cap)) cap, \(block.pct) percent.")
             Spacer(minLength: 0)
             if let onDisableEnforce {
                 Button(L("Turn off", comment: "Button: stop enforcing the spending cap"), action: onDisableEnforce)
