@@ -1179,6 +1179,9 @@
 /* Tooltip on the version badge */
 "The version you are running" = "The version you are running";
 
+/* Settings explanation that cost caps do not cover Codex */
+"These caps count Claude only. Codex publishes no token pricing, so ClaudeNotch cannot price a Codex session, and neither the warnings nor the hard-stop below apply to one. Codex usage is on the Plan and Usage pages as a percentage and a token count." = "These caps count Claude only. Codex publishes no token pricing, so ClaudeNotch cannot price a Codex session, and neither the warnings nor the hard-stop below apply to one. Codex usage is on the Plan and Usage pages as a percentage and a token count.";
+
 /* Status: the agent is reasoning, not running a tool */
 "Thinking" = "Thinking";
 

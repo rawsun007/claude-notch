@@ -147,6 +147,24 @@ extension SettingsView {
         }
     }
 
+    /// Says out loud that these caps are Claude's only.
+    ///
+    /// Every figure on this page comes from Claude transcripts priced against
+    /// published rates. Codex publishes no token pricing, so its spend is
+    /// unknown rather than zero, and a cap cannot stop what it cannot measure.
+    /// Someone running Codex with the hard-stop on is unprotected there, and a
+    /// guard you wrongly believe in is worse than one you know you lack. Shown
+    /// only when Codex is actually wired up, so it is a fact about this Mac
+    /// rather than a disclaimer everyone has to read.
+    @ViewBuilder
+    private var codexNotCoveredNote: some View {
+        if HookInstaller.isCodexInstalled {
+            Text(L("These caps count Claude only. Codex publishes no token pricing, so ClaudeNotch cannot price a Codex session, and neither the warnings nor the hard-stop below apply to one. Codex usage is on the Plan and Usage pages as a percentage and a token count.", comment: "Settings explanation that cost caps do not cover Codex"))
+                .font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     /// Codex's usage windows, kept in their own section below the Claude plan.
     /// Two accounts on two billing systems: listing them together would read as
     /// one budget, and running a Codex window down does nothing to the Claude
@@ -256,6 +274,7 @@ extension SettingsView {
                 divider
                 capRow("Per week", get: { state.weeklyCostCap }, set: { state.setWeeklyCostCap($0) })
             }
+            codexNotCoveredNote
             group {
                 row(L("Hard-stop at the cap", comment: "Settings toggle"),
                     L("Block new tool runs once a cap is crossed, instead of only warning.", comment: "Settings toggle explanation"),
