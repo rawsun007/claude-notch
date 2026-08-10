@@ -583,10 +583,12 @@ struct SettingsView: View {
                     divider
                     actionRow(L("Disable Codex integration", comment: "Settings button"), "minus.circle") {
                         HookInstaller.uninstallCodexHooks(); healthTick += 1
+                        codexDidToggle()
                     }
                 } else {
                     actionRow(L("Enable Codex integration (beta)", comment: "Settings button"), "sparkles") {
                         try? HookInstaller.installCodexHooks(); healthTick += 1
+                        codexDidToggle()
                     }
                 }
             }
@@ -594,6 +596,22 @@ struct SettingsView: View {
                 Text(L("With Codex on, dropping a folder on the notch asks whether to open it in Claude Code or Codex.", comment: "Settings explanation"))
                     .font(.caption).foregroundStyle(.secondary)
             }
+        }
+    }
+
+    /// Turning Codex on or off changes what the Plan and Usage pages should be
+    /// showing, and both cache their reading. Without this the numbers only
+    /// appear once you happen to leave the page and come back, which reads as
+    /// "enabling Codex did nothing".
+    private func codexDidToggle() {
+        codexTotals = nil
+        state.refreshCodexLimits()
+        let codexOn = HookInstaller.isCodexInstalled
+        Task {
+            let totals = await Task.detached(priority: .utility) {
+                codexOn ? CodexReader.tokenTotals() : nil
+            }.value
+            codexTotals = totals
         }
     }
 

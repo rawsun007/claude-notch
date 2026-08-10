@@ -741,6 +741,9 @@
 /* Menu item shown when no agent is running */
 "No Active Session" = "No Active Session";
 
+/* Settings explanation when Codex is on but unused */
+"No Codex usage in the last 7 days. Run a Codex session and it will appear here." = "No Codex usage in the last 7 days. Run a Codex session and it will appear here.";
+
 /* Menu item shown when no agent is running */
 "No active session" = "No active session";
 
@@ -941,6 +944,9 @@
 
 /* Settings explanation for the Codex limits */
 "Read from the session files Codex keeps on this Mac, so it is as fresh as your last Codex turn. Codex bills separately from Claude: these windows and the plan limits above do not share a budget." = "Read from the session files Codex keeps on this Mac, so it is as fresh as your last Codex turn. Codex bills separately from Claude: these windows and the plan limits above do not share a budget.";
+
+/* Settings explanation while Codex usage is being read */
+"Reading Codex sessions…" = "Reading Codex sessions…";
 
 /* Settings explanation */
 "Reading transcripts…" = "Reading transcripts…";

@@ -134,14 +134,26 @@ extension SettingsView {
                 Text(L("Reading transcripts…", comment: "Settings explanation")).font(.callout).foregroundStyle(.secondary)
             }
 
-            if HookInstaller.isCodexInstalled, let c = codexTotals, !c.isEmpty {
+            // Shown whenever Codex is wired up, even at zero. Hiding the whole
+            // section until the first session made "Codex is on but I see
+            // nothing here" indistinguishable from a broken integration.
+            if HookInstaller.isCodexInstalled {
                 sectionLabel(L("Codex usage (tokens)", comment: "Settings section heading"))
                 Text(L("Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess.", comment: "Settings explanation"))
                     .font(.caption).foregroundStyle(.secondary)
-                group {
-                    statRow("Today", "\(formatTokens(c.todayTokens)) tok · \(c.sessionsToday) session\(c.sessionsToday == 1 ? "" : "s")")
-                    divider
-                    statRow("This week", "\(formatTokens(c.weekTokens)) tok · \(c.sessionsWeek) session\(c.sessionsWeek == 1 ? "" : "s")")
+                if let c = codexTotals, !c.isEmpty {
+                    group {
+                        statRow("Today", "\(formatTokens(c.todayTokens)) tok · \(c.sessionsToday) session\(c.sessionsToday == 1 ? "" : "s")")
+                        divider
+                        statRow("This week", "\(formatTokens(c.weekTokens)) tok · \(c.sessionsWeek) session\(c.sessionsWeek == 1 ? "" : "s")")
+                    }
+                } else if codexTotals == nil {
+                    Text(L("Reading Codex sessions…", comment: "Settings explanation while Codex usage is being read"))
+                        .font(.callout).foregroundStyle(.secondary)
+                } else {
+                    Text(L("No Codex usage in the last 7 days. Run a Codex session and it will appear here.", comment: "Settings explanation when Codex is on but unused"))
+                        .font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
