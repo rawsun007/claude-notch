@@ -58,6 +58,10 @@ enum PlanReader {
         var spendLimit: Double?
         var balance: Double?
         var autoReload: Bool?
+        /// Claude Code's own word for how close this is to the cap: "normal",
+        /// "warning", "critical". Shown rather than re-derived from the
+        /// percentage, so the notch and the CLI never disagree about severity.
+        var severity: String? = nil
     }
 
     struct Snapshot: Equatable {
@@ -163,13 +167,33 @@ enum PlanReader {
             disabledReason: ((extra?["disabled_reason"] as? String) ?? (spend?["disabled_reason"] as? String))?.nilIfEmpty,
             usedCredits: number(extra?["used_credits"]),
             monthlyLimit: number(extra?["monthly_limit"]),
-            utilization: number(extra?["utilization"]).map(clampPercent),
+            // `spend.percent` is the figure Claude Code itself renders, so it
+            // wins over one derived from extra_usage. The two disagree in the
+            // ordinary case (33 vs 32.55) because they round differently, and
+            // showing a number that does not match the CLI invites the
+            // reasonable conclusion that one of them is wrong.
+            utilization: (number(spend?["percent"]) ?? number(extra?["utilization"])).map(clampPercent),
             currency: (extra?["currency"] as? String) ?? (money(spend?["used"])?.currency),
             spent: money(spend?["used"])?.amount,
-            spendLimit: money(spend?["limit"])?.amount ?? money(spend?["cap"])?.amount,
+            spendLimit: money(spend?["limit"])?.amount ?? capAmount(spend?["cap"]),
             balance: money(spend?["balance"])?.amount,
-            autoReload: spend?["auto_reload"] as? Bool
+            autoReload: spend?["auto_reload"] as? Bool,
+            severity: (spend?["severity"] as? String)?.nilIfEmpty
         )
+    }
+
+    /// The cap, whichever currency it is expressed in.
+    ///
+    /// `cap` is not a money object. It is a container of them —
+    /// `{"money": null, "credits": {amount_minor, exponent}}` — so reading it
+    /// as one always came back nil and the fallback never fired. It only went
+    /// unnoticed because `spend.limit` is normally present too.
+    ///
+    /// A credits cap carries no `currency` of its own, so the surrounding
+    /// `spend.used.currency` names it.
+    static func capAmount(_ cap: Any?) -> Double? {
+        guard let cap = cap as? [String: Any] else { return nil }
+        return money(cap["money"])?.amount ?? money(cap["credits"])?.amount
     }
 
     // MARK: - Naming

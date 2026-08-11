@@ -128,6 +128,58 @@ final class PlanReaderTests: XCTestCase {
         XCTAssertEqual(c?.currency, "JPY")
     }
 
+    /// The shape Claude Code 2.1.225 actually writes, taken from a real
+    /// config. `cap` is a container of money objects, not one itself.
+    func testSpendCapIsAContainerNotAMoneyObject() {
+        let json = """
+        {"cachedUsageUtilization":{"utilization":{"spend":{
+          "used":{"amount_minor":2604,"currency":"USD","exponent":2},
+          "percent":33,"severity":"normal","enabled":true,
+          "cap":{"money":null,"credits":{"amount_minor":8000,"exponent":2}}}}}}
+        """.data(using: .utf8)!
+        let c = PlanReader.parse(json)?.credits
+        // Reading `cap` as a money object returned nil, so the fallback never
+        // fired: a plan with a cap but no `limit` showed no cap at all.
+        XCTAssertEqual(c?.spendLimit, 80)
+        XCTAssertEqual(c?.spent, 26.04)
+    }
+
+    /// A money cap wins over a credits cap when both are present.
+    func testMoneyCapPreferredOverCreditsCap() {
+        let cap: [String: Any] = [
+            "money": ["amount_minor": 5000, "currency": "USD", "exponent": 2],
+            "credits": ["amount_minor": 8000, "exponent": 2],
+        ]
+        XCTAssertEqual(PlanReader.capAmount(cap), 50)
+        XCTAssertNil(PlanReader.capAmount(["money": NSNull(), "credits": NSNull()]))
+        XCTAssertNil(PlanReader.capAmount("not an object"))
+    }
+
+    /// `spend.percent` is what the CLI renders. Deriving the figure from
+    /// extra_usage instead rounds differently (33 vs 32.55), and a number that
+    /// disagrees with the CLI reads as a bug in one of them.
+    func testSpendPercentWinsOverDerivedUtilization() {
+        let json = """
+        {"cachedUsageUtilization":{"utilization":{
+          "extra_usage":{"is_enabled":true,"utilization":32.55},
+          "spend":{"percent":33,"severity":"warning","enabled":true}}}}
+        """.data(using: .utf8)!
+        let c = PlanReader.parse(json)?.credits
+        XCTAssertEqual(c?.utilization, 33)
+        XCTAssertEqual(c?.severity, "warning")
+    }
+
+    /// Older configs carry no spend.percent; the derived figure still stands in.
+    func testFallsBackToExtraUsageUtilization() {
+        let json = """
+        {"cachedUsageUtilization":{"utilization":{
+          "extra_usage":{"is_enabled":true,"utilization":32.55}}}}
+        """.data(using: .utf8)!
+        let c = PlanReader.parse(json)?.credits
+        XCTAssertEqual(c?.utilization, 32.55)
+        XCTAssertNil(c?.severity)
+    }
+
     func testGarbageAndEmptyInputAreNil() {
         XCTAssertNil(PlanReader.parse(Data()))
         XCTAssertNil(PlanReader.parse("not json".data(using: .utf8)!))

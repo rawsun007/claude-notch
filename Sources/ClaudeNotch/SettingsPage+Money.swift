@@ -97,6 +97,13 @@ extension SettingsView {
                     }
                     if let u = c.utilization, c.isEnabled {
                         group { limitRow("Credit budget", pct: u / 100, resetAt: nil, window: 30 * 24 * 3600) }
+                        // Claude Code's own reading, not one re-derived from the
+                        // percentage, so the two never disagree about how close
+                        // this is to the cap.
+                        if let s = c.severity, s != "normal" {
+                            Text(s.capitalized).font(.caption)
+                                .foregroundStyle(s == "critical" ? .red : .orange)
+                        }
                     }
                 }
 
