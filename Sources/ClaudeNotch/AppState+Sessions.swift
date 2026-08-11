@@ -62,6 +62,19 @@ extension AppState {
         }
     }
 
+    /// Whether this session is between PreCompact and its next event, i.e.
+    /// Claude Code is summarising the conversation right now. Looked up by
+    /// session_id, falling back to cwd the same way `upsertSession` keys do.
+    func isCompacting(sessionId: String, cwd: String) -> Bool {
+        var normCwd = cwd
+        while normCwd.count > 1, normCwd.hasSuffix("/") { normCwd.removeLast() }
+        let key = !sessionId.isEmpty ? sessionId : normCwd
+        if let s = sessions[key] { return s.isCompacting }
+        // A session_id we have never seen can still be one we track under its
+        // cwd (no id was carried when it was created).
+        return sessions[normCwd]?.isCompacting ?? false
+    }
+
     static func statusSnippet(from text: String) -> String {
         let lines = text.components(separatedBy: .newlines)
         let currentLine = lines.reversed().first {

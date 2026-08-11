@@ -156,7 +156,31 @@ extension AppState {
     /// A turn died from an API-level failure (StopFailure hook: rate limit,
     /// overloaded, billing…). Shows a blocking alert card + native banner so a
     /// long task never dies silently while the user is away.
-    func noteStopFailure(title: String, detail: String, cwd: String, sessionId: String) {
+    func noteStopFailure(reason: String = "", title: String, detail: String,
+                         cwd: String, sessionId: String) {
+        // A turn that dies while the session is compacting is not a session
+        // dying. The context filled up, Claude Code is summarising it, and it
+        // will carry on by itself — the terminal says exactly that. Reporting
+        // the API's "invalid_request" over the top of it is alarming, wrong
+        // about what is happening, and something the user can do nothing with.
+        let compacting = isCompacting(sessionId: sessionId, cwd: cwd)
+        if compacting {
+            let req = PermissionRequest(
+                kind: .notification,
+                title: L("Compacting the conversation",
+                         comment: "Card title shown when a turn pauses because the context filled up and is being summarised"),
+                detail: L("The context filled up. Claude Code is summarising it and will pick up where it left off.",
+                          comment: "Card body explaining that compaction is under way and needs nothing from the user"),
+                toolName: "Compacting",
+                source: "Claude Code",
+                cwd: cwd,
+                originatorBundleID: nil,
+                resolver: { _, _ in }
+            )
+            enqueuePermission(req)
+            return
+        }
+
         markSessionDone(cwd: cwd, sessionId: sessionId)
         petStartle()
         upsertSession(id: sessionId, cwd: cwd) { s in

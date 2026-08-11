@@ -847,9 +847,13 @@ final class EventServer {
             ?? (payload["error_type"] as? String)
             ?? (payload["matcher"] as? String)
             ?? "unknown"
-        let detail = (payload["message"] as? String)
+        // Claude Code often sends the reason code back as the message, so the
+        // card would read "invalid_request" at the user twice over. A bare code
+        // is not a message; say what it means instead.
+        let rawDetail = (payload["message"] as? String)
             ?? (payload["error"] as? String)
             ?? ""
+        let detail = Self.failureDetail(reason: reasonKey, message: rawDetail)
         let title: String
         switch reasonKey {
         case "rate_limit":            title = "Rate limited, session stopped"
@@ -867,8 +871,46 @@ final class EventServer {
         let cwd = (payload["cwd"] as? String) ?? ""
         Task { @MainActor [weak state] in
             guard let state else { return }
-            state.noteStopFailure(title: title, detail: detail,
+            state.noteStopFailure(reason: reasonKey, title: title, detail: detail,
                                   cwd: cwd, sessionId: sessionId)
+        }
+    }
+
+    /// What to actually put in front of the user for a failed turn.
+    ///
+    /// The hook's `message` is preferred, because when it is a real sentence it
+    /// is more specific than anything guessable here. But it frequently is just
+    /// the reason code repeated, which tells the user nothing they can act on
+    /// and reads like the app leaking its own internals. A bare
+    /// `snake_case_token` is treated as no message at all.
+    nonisolated static func failureDetail(reason: String, message: String) -> String {
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        let isBareCode = trimmed.isEmpty
+            || trimmed.caseInsensitiveCompare(reason) == .orderedSame
+            || (!trimmed.contains(" ")
+                && trimmed.rangeOfCharacter(from: CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz_").inverted) == nil)
+        guard isBareCode else { return trimmed }
+        switch reason {
+        case "rate_limit":
+            return "You have hit the usage limit. It will lift on its own."
+        case "overloaded":
+            return "Anthropic's servers are busy. Try the turn again in a moment."
+        case "authentication_failed":
+            return "Your login is no longer valid. Run /login in the terminal."
+        case "oauth_org_not_allowed":
+            return "Your organisation does not allow this account here."
+        case "billing_error":
+            return "The account cannot be billed right now. Check your plan or credits."
+        case "invalid_request":
+            return "Claude Code sent a request the API refused. Usually the conversation outgrew the context window."
+        case "model_not_found":
+            return "That model is not available on your account."
+        case "server_error":
+            return "Something went wrong on Anthropic's side. The turn did not finish."
+        case "max_output_tokens":
+            return "The reply hit its length limit and was cut off."
+        default:
+            return "The turn stopped before it finished."
         }
     }
 

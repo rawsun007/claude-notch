@@ -396,6 +396,9 @@
 /* Settings section heading */
 "Codex usage (tokens)" = "Codex usage (tokens)";
 
+/* Card title shown when a turn pauses because the context filled up and is being summarised */
+"Compacting the conversation" = "Compacting the conversation";
+
 /* Settings toggle */
 "Completion notifications" = "Completion notifications";
 
@@ -1196,6 +1199,9 @@
 
 /* Explanation under the new-rule fields */
 "The command must match exactly, the way it appeared on the card. A blank command approves every call of the tool." = "The command must match exactly, the way it appeared on the card. A blank command approves every call of the tool.";
+
+/* Card body explaining that compaction is under way and needs nothing from the user */
+"The context filled up. Claude Code is summarising it and will pick up where it left off." = "The context filled up. Claude Code is summarising it and will pick up where it left off.";
 
 /* Settings explanation */
 "The pet dressed as something else, each one a nod to whatever was in the air when it was built." = "The pet dressed as something else, each one a nod to whatever was in the air when it was built.";
