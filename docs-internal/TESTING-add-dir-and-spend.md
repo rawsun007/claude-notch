@@ -76,20 +76,14 @@ Expect `1` or more. If it is `0`, quit ClaudeNotch fully and reopen it.
 
 **Pass:** the history row appears with the correct path.
 
-**Fail (no row at all):** the payload uses a field name I did not guess. This is
-the one genuine unknown here, because Claude Code's docs list the event but not
-its own fields. To find the real name:
+**Fail (no row at all):** turn on the debug log in Settings, run `/add-dir /tmp`
+again, and send me:
 
-1. Settings, turn on the debug log.
-2. Run `/add-dir /tmp` again.
-3. Send me the output of:
+```
+grep DirectoryAdded ~/Library/Application\ Support/ClaudeNotch/debug.log | tail -3
+```
 
-   ```
-   grep DirectoryAdded ~/Library/Application\ Support/ClaudeNotch/debug.log | tail -3
-   ```
-
-   It logs `keys=[...]` when it cannot find a path, which names the real field.
-   Wiring it in is a one-line change.
+It logs the payload's keys when it cannot find a path.
 
 **Note on the chip:** it only appears on rows in the multi-session list, so if
 this is your only running session the row is the header instead and you will not
@@ -100,9 +94,10 @@ see a chip. The History entry appears either way, so that is the reliable check.
 ## What is already verified
 
 - Both features build, and the full test suite runs on CI.
-- Task 2 was exercised against the running app: `DirectoryAdded` posts with the
-  path under `directory`, `path`, and `added_directory` were all recorded (three
-  test rows are sitting in your history now, pointing at `/tmp/added-via-*`;
-  harmless, they will scroll off).
+- Task 2 was exercised against the running app, using the example payload from
+  the hooks reference copied verbatim. The field is `directory_path`, and
+  `how_added` distinguishes `/add-dir` from the SDK's `register_repo_root`; both
+  are read. A few test rows are sitting in your history pointing at
+  `/tmp/added-via-*` and `/home/user/another-project`; harmless, they scroll off.
 - Task 1's parsing is covered by four new unit tests, including the exact
   container-shaped `cap` that your real config has.
