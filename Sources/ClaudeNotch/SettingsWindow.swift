@@ -739,6 +739,7 @@ struct SettingsView: View {
         panel.prompt = "Start Claude"
         if panel.runModal() == .OK, let url = panel.url {
             TerminalAutomator.startClaude(in: url.path, message: nil)
+            stepAsideForTerminal()
         }
     }
 
@@ -750,7 +751,23 @@ struct SettingsView: View {
         panel.prompt = "Start Codex"
         if panel.runModal() == .OK, let url = panel.url {
             TerminalAutomator.startCodex(in: url.path)
+            stepAsideForTerminal()
         }
+    }
+
+    /// Get this window out of the way of the session it just started.
+    ///
+    /// The terminal is opened deliberately WITHOUT activating it: activating
+    /// makes macOS jump to whatever Space the terminal's frontmost window is
+    /// on, often a fullscreen one, while the new window opens back here. So
+    /// the new window is on this Space but behind whatever was in front, and
+    /// what was in front is this window, because you just clicked a button in
+    /// it. Asking to start a session is the end of what Settings was for, so
+    /// it steps aside rather than sitting on top of the thing it opened.
+    private func stepAsideForTerminal() {
+        NSApp.windows
+            .first { $0.identifier?.rawValue == "ClaudeNotchSettings" }?
+            .orderOut(nil)
     }
 
     private var notch: some View {
