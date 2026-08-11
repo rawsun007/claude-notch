@@ -937,10 +937,8 @@ final class EventServer {
     /// decided what it could touch. The hook cannot block it — it fires after
     /// the fact — so this is a record, not a gate.
     ///
-    /// The key carrying the path is read defensively: the hook contract
-    /// documents the common fields but does not pin down this event's own, and
-    /// guessing one name would fail silently. Whatever arrives is logged, so a
-    /// name not in this list is a one-line fix rather than a mystery.
+    /// The payload carries `directory_path` and `how_added` (`slash_command`
+    /// or `register_repo_root`) on top of the common fields.
     private func handleDirectoryAdded(payload: [String: Any]) {
         let sessionId = (payload["session_id"] as? String) ?? ""
         let cwd = (payload["cwd"] as? String) ?? ""
@@ -948,19 +946,35 @@ final class EventServer {
         if dir.isEmpty {
             DebugLog.append("hook", "DirectoryAdded: no directory in payload, keys=\(payload.keys.sorted())")
         }
+        let how = Self.addedDirectoryHow(from: payload)
         Task { @MainActor [weak state] in
-            state?.noteDirectoryAdded(sessionId: sessionId, cwd: cwd, directory: dir)
+            state?.noteDirectoryAdded(sessionId: sessionId, cwd: cwd,
+                                      directory: dir, how: how)
         }
     }
 
-    /// The added path out of a DirectoryAdded payload. Pure, so the key list is
-    /// testable without a running hook.
+    /// The added path out of a DirectoryAdded payload. `directory_path` is the
+    /// documented field; the rest are fallbacks, kept because this arrives from
+    /// a CLI that ships faster than its reference, and a renamed key would
+    /// otherwise fail silently rather than loudly.
     nonisolated static func addedDirectory(from payload: [String: Any]) -> String {
-        for key in ["directory", "path", "added_directory", "dir",
-                    "directory_path", "addedDirectory", "directoryPath"] {
+        for key in ["directory_path", "directory", "path", "added_directory",
+                    "dir", "addedDirectory", "directoryPath"] {
             if let v = payload[key] as? String, !v.isEmpty { return v }
         }
         return ""
+    }
+
+    /// How the directory was granted. `/add-dir` is someone deciding to widen
+    /// the session; `register_repo_root` is the SDK doing it as a matter of
+    /// course, which is worth distinguishing in the record.
+    nonisolated static func addedDirectoryHow(from payload: [String: Any]) -> String {
+        switch (payload["how_added"] as? String) ?? "" {
+        case "slash_command":      return "/add-dir"
+        case "register_repo_root": return "SDK repo root"
+        case let other where !other.isEmpty: return other
+        default:                   return ""
+        }
     }
 
     /// SessionEnd hook (Ctrl+C / Ctrl+D / exit): the session is gone, so stop

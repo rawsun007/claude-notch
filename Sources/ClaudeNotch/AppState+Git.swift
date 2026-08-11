@@ -182,7 +182,8 @@ extension AppState {
     /// Recorded against the session rather than globally: two sessions in the
     /// same project can be granted different directories, and the question
     /// this answers is what THIS session may touch.
-    func noteDirectoryAdded(sessionId: String, cwd: String, directory: String) {
+    func noteDirectoryAdded(sessionId: String, cwd: String, directory: String,
+                            how: String = "") {
         let dir = directory.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !dir.isEmpty else { return }
         upsertSession(id: sessionId, cwd: cwd.isEmpty ? currentCwd : cwd, create: true) { s in
@@ -198,7 +199,8 @@ extension AppState {
             timestamp: Date(),
             kind: .notification,
             toolName: "AddDir",
-            title: "Directory added to the session",
+            title: how.isEmpty ? "Directory added to the session"
+                              : "Directory added to the session (\(how))",
             detail: dir,
             project: (cwd as NSString).lastPathComponent,
             outcome: .info))

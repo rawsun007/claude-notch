@@ -7,9 +7,33 @@ import XCTest
 /// would be worse than none.
 final class DirectoryAddedTests: XCTestCase {
 
-    /// The hook contract documents the common fields but does not pin down this
-    /// event's own, so the path is read from whichever key carries it.
-    func testReadsThePathFromAnyDocumentedKey() {
+    /// The documented payload, verbatim from the hooks reference.
+    func testReadsTheDocumentedPayload() {
+        let payload: [String: Any] = [
+            "session_id": "abc123",
+            "cwd": "/home/user/my-project",
+            "hook_event_name": "DirectoryAdded",
+            "directory_path": "/home/user/another-project",
+            "how_added": "slash_command",
+        ]
+        XCTAssertEqual(EventServer.addedDirectory(from: payload), "/home/user/another-project")
+        XCTAssertEqual(EventServer.addedDirectoryHow(from: payload), "/add-dir")
+    }
+
+    /// The SDK grants directories too, and that is a different thing from
+    /// someone typing /add-dir.
+    func testTheSDKRepoRootIsDistinguished() {
+        XCTAssertEqual(EventServer.addedDirectoryHow(from: ["how_added": "register_repo_root"]),
+                       "SDK repo root")
+        XCTAssertEqual(EventServer.addedDirectoryHow(from: [:]), "")
+        // A value the CLI adds later is passed through rather than dropped.
+        XCTAssertEqual(EventServer.addedDirectoryHow(from: ["how_added": "future_thing"]),
+                       "future_thing")
+    }
+
+    /// The fallback keys stay because this arrives from a CLI that ships faster
+    /// than its reference.
+    func testReadsThePathFromAnyPlausibleKey() {
         for key in ["directory", "path", "added_directory", "dir",
                     "directory_path", "addedDirectory", "directoryPath"] {
             XCTAssertEqual(EventServer.addedDirectory(from: [key: "/tmp/extra"]),
@@ -26,10 +50,10 @@ final class DirectoryAddedTests: XCTestCase {
         XCTAssertEqual(EventServer.addedDirectory(from: ["session_id": "abc"]), "")
     }
 
-    /// The first key present wins, so a payload carrying both never records twice.
-    func testFirstMatchingKeyWins() {
-        let payload: [String: Any] = ["directory": "/a", "path": "/b"]
-        XCTAssertEqual(EventServer.addedDirectory(from: payload), "/a")
+    /// The documented key wins over any fallback.
+    func testTheDocumentedKeyWins() {
+        let payload: [String: Any] = ["directory": "/a", "directory_path": "/b"]
+        XCTAssertEqual(EventServer.addedDirectory(from: payload), "/b")
     }
 
     @MainActor
