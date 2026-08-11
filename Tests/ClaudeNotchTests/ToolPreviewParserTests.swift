@@ -365,6 +365,25 @@ final class SensitiveCommandDangerTests: XCTestCase {
         !ToolPreviewParser.dangerReasons(for: "Bash", input: ["command": command]).isEmpty
     }
 
+    /// A redirect target is as often relative as absolute, and
+    /// `>> .ssh/authorized_keys` reaches exactly the same file as the tilde
+    /// form. The rule required a leading slash, so the relative half of every
+    /// shape it exists to catch went through clean.
+    func testRelativeRedirectTargets() {
+        XCTAssertTrue(isFlagged("echo x >> .ssh/authorized_keys"))
+        XCTAssertTrue(isFlagged("echo x >> .claude/settings.json"))
+        XCTAssertTrue(isFlagged("echo x > .git/hooks/pre-commit"))
+        XCTAssertTrue(isFlagged("echo x >> Library/LaunchAgents/a.plist"))
+    }
+
+    /// A separator is still required, so an ordinary file that merely ends in
+    /// one of these names stays silent.
+    func testRedirectNearMissesStaySilent() {
+        XCTAssertFalse(isFlagged("echo hello > notes.txt"))
+        XCTAssertFalse(isFlagged("echo hi > mynotes.ssh/file"))
+        XCTAssertFalse(isFlagged("git log > out.txt"))
+    }
+
     func testRedirectIntoCredentialFiles() {
         XCTAssertTrue(isFlagged("echo \"$KEY\" >> ~/.ssh/authorized_keys"))
         XCTAssertTrue(isFlagged("cat key.pub > /Users/tester/.ssh/authorized_keys"))

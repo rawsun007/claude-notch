@@ -293,7 +293,13 @@ enum ToolPreviewParser {
              "docker system prune -a, removes all images and containers"),
             // The same files pathDanger holds a Write for. A redirect reaches
             // them just as well as an Edit does, and only this list sees it.
-            (#"(>>?|\btee\b)[^|;&\n]*(/\.ssh/|/\.gnupg/|/\.aws/|/\.kube/|/Library/LaunchAgents/|/\.claude/|/\.codex/|/\.claudenotch/|/\.git/hooks/|/\.(zshrc|zshenv|zprofile|zlogin|bashrc|bash_profile|profile|gitconfig|netrc)\b)"#, [],
+            // `[/\s]` rather than `/`: a redirect target is as often relative
+            // as absolute, and `>> .ssh/authorized_keys` reaches exactly the
+            // same file as `>> ~/.ssh/authorized_keys`. Requiring the slash
+            // meant the relative half of the shapes this rule exists to catch
+            // went through clean. A separator is still required so that
+            // `notes.ssh/` and `mylibrary/LaunchAgents/` do not match.
+            (#"(>>?|\btee\b)[^|;&\n]*[/\s](\.ssh/|\.gnupg/|\.aws/|\.kube/|Library/LaunchAgents/|\.claude/|\.codex/|\.claudenotch/|\.git/hooks/|\.(zshrc|zshenv|zprofile|zlogin|bashrc|bash_profile|profile|gitconfig|netrc)\b)"#, [],
              "writes into a credential, shell-startup or agent-config file"),
             (#"\b(cp|mv|ln)\b[^|;&\n]*/Library/LaunchAgents/"#, [],
              "installs a LaunchAgent, which runs at every login"),
