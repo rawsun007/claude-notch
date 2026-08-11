@@ -1906,16 +1906,12 @@ struct SettingsView: View {
     /// kind, the same way the website changelog groups them. Keep this in sync
     /// with the top changelog entry when cutting a release.
     static let whatsNew: [ChangeGroup] = [
-        ChangeGroup(kind: .fixed, items: [
-        "Your settings survive an update. Writes to the settings file were debounced by half a second and the timer restarted on every change, so a busy session never wrote at all: hooks arrive faster than that, and anything you switched during the burst stayed in memory. Nothing flushed on the way out either, and the updater quits the app to replace it, so whatever was still pending died with the process and the new version came up with your old toggles. Both exits now write first, including the plain kill the installer uses. Separately, a failed save was silent and permanent: JSON cannot represent a NaN, so one non-finite cost or percentage would throw and take every setting with it, on that write and every later one, with no symptom except settings quietly forgetting themselves.",
-        ]),
         ChangeGroup(kind: .added, items: [
-        "Codex has budgets of its own, counted in tokens. The dollar caps could never touch it: pricing a Codex session would mean inventing gpt rates nobody publishes, so its cost reads as zero and every cap passed it straight through while looking like protection. Tokens are the part Codex does report, exactly, on every turn, so that is what gets capped, per session and per day, warning and then stopping exactly as the dollar caps do.",
-        "Codex usage limits on the Plan page, and an all-time token total on the Usage page. Codex sends its rate limits on every turn and nothing read them, so the first sign of running out was Codex refusing. The windows are named from the length Codex reports rather than a fixed label, since plans do not share a shape: a Go plan reports one 30-day window, others a 5-hour and a weekly.",
-        "API-key billing on the Plan page. Signing in with ANTHROPIC_API_KEY instead of a Claude subscription used to leave the Plan page blank forever, since Claude Code never reports a rate-limit percentage for that kind of session, and the page just said \u{201C}come back later\u{201D} to nobody's benefit. It now says plainly that billing is per-token, shows a masked version of the key, and can check with Anthropic on demand whether the key is actually accepted. The menu bar's plan readout does the same, showing \u{201C}API key\u{201D} instead of nothing.",
+        "Hand the install to the agent you already have open. There is a document written for a coding agent rather than for a reader, and a button on the site that copies a one-line pointer at it. The agent checks the machine, installs through Homebrew, wires the hooks and checks the port actually answers, and then stops: Accessibility and Input Monitoring are macOS permissions only a person can grant, so it says so and hands back rather than pretending otherwise.",
+        "Every clip has its own page on the site. On the landing page they are illustration, muted and looping and sized to sit beside text, which is the wrong thing for someone who wants to watch one. Each now opens full size with real controls and a note on what it is showing.",
         ]),
         ChangeGroup(kind: .changed, items: [
-        "Setup no longer reopens on every launch for people who only run Codex. It asked whether Claude Code's hooks were installed, which they are not on a Codex-only Mac, so the window came back every time with no way to make it stop.",
+        "The website stopped being a wall of identical cards. Eleven features shouting at one volume is the same as none of them being said, so the permission card keeps a panel and the rest are one line each in plain type. Nothing inside the app changed in this release: if you are already on 0.21.0, there is nothing here you are missing.",
         ]),
     ]
 }
