@@ -62,6 +62,12 @@ extension AppState {
         }
     }
 
+    /// Whether the app is frontmost. `NSApp` is an implicitly-unwrapped
+    /// optional that is nil when no NSApplication has been created, which is
+    /// the case under XCTest — so reading `.isActive` off it directly crashes
+    /// any test that reaches a notification-mirroring branch.
+    static var appIsActive: Bool { NSApp?.isActive == true }
+
     /// Whether this session is between PreCompact and its next event, i.e.
     /// Claude Code is summarising the conversation right now. Looked up by
     /// session_id, falling back to cwd the same way `upsertSession` keys do.

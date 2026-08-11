@@ -333,7 +333,7 @@ extension AppState {
         }
         recompute()
         // Fire a native banner if the user has switched away from the notch.
-        if completionNotificationsEnabled, !NSApp.isActive {
+        if completionNotificationsEnabled, !AppState.appIsActive {
             let project = (task.cwd as NSString).lastPathComponent
             permissionMirror?.sendCompletion(project: project, snippet: task.detail,
                                              agentName: task.entityName,

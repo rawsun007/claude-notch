@@ -197,7 +197,7 @@ extension AppState {
             resolver: { _, _ in }
         )
         enqueuePermission(req)
-        if mirrorToNotificationCenter, !NSApp.isActive {
+        if mirrorToNotificationCenter, !AppState.appIsActive {
             let project = (cwd as NSString).lastPathComponent
             permissionMirror?.sendCompletion(
                 project: project.isEmpty ? title : "\(project), \(title)",
