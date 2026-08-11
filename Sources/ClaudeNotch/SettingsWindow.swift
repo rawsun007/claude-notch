@@ -1923,12 +1923,18 @@ struct SettingsView: View {
     /// kind, the same way the website changelog groups them. Keep this in sync
     /// with the top changelog entry when cutting a release.
     static let whatsNew: [ChangeGroup] = [
+        ChangeGroup(kind: .fixed, items: [
+        "Compaction is no longer reported as a session failure. When the context fills up, Claude Code summarises the conversation and carries on, but the turn that overflowed dies with an API error first. The notch took that at face value: a red card saying the session had stopped, while the terminal two inches away said \"Compacting conversation, 21%\". It now says what is actually happening and asks nothing of you.",
+        "Failures explain themselves. Claude Code often sends the reason code back as the message, so a card that should have said something read \"invalid_request\" at you instead. Each reason now gets a sentence a person can act on, and a real message from the CLI still wins.",
+        "The credit budget knows what your cap is. Claude Code writes the cap as a container rather than a plain amount, so the bar was drawing against no ceiling at all. It also shows the severity Claude Code itself assigns instead of inferring one from the percentage.",
+        "Starting a session from Settings no longer opens the terminal behind the Settings window.",
+        ]),
         ChangeGroup(kind: .added, items: [
-        "Hand the install to the agent you already have open. There is a document written for a coding agent rather than for a reader, and a button on the site that copies a one-line pointer at it. The agent checks the machine, installs through Homebrew, wires the hooks and checks the port actually answers, and then stops: Accessibility and Input Monitoring are macOS permissions only a person can grant, so it says so and hands back rather than pretending otherwise.",
-        "Every clip has its own page on the site. On the landing page they are illustration, muted and looping and sized to sit beside text, which is the wrong thing for someone who wants to watch one. Each now opens full size with real controls and a note on what it is showing.",
+        "Directories granted with /add-dir are recorded. A session\'s folder is what you agreed it could touch, and /add-dir widens that afterwards, so the row was quietly understating the session\'s reach for the rest of its life. Sessions now carry a chip for the extra directories, and the history says whether it was you typing /add-dir or the SDK registering its own repo root.",
+        "Sessions follow Claude when it changes directory. A session without an id is filed under its folder, so a cd left the old entry going stale while a second row opened for the same session. It now moves, with its history intact.",
         ]),
         ChangeGroup(kind: .changed, items: [
-        "The website stopped being a wall of identical cards. Eleven features shouting at one volume is the same as none of them being said, so the permission card keeps a panel and the rest are one line each in plain type. Nothing inside the app changed in this release: if you are already on 0.21.0, there is nothing here you are missing.",
+        "A relative path into a sensitive directory is flagged like an absolute one. Writing to .ssh/config and to ~/.ssh/config are the same act, and only one of them was being caught.",
         ]),
     ]
 }
