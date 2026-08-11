@@ -57,7 +57,7 @@ enum HookInstaller {
         guard let data = try? Data(contentsOf: URL(fileURLWithPath: settingsPath)),
               let s = String(data: data, encoding: .utf8) else { return false }
         return s.contains("\"StopFailure\"") && s.contains("\"SessionStart\"")
-            && s.contains("\"DirectoryAdded\"")
+            && s.contains("\"DirectoryAdded\"") && s.contains("\"CwdChanged\"")
     }
 
     /// `jq` is required by posttool.sh to forward payload fields to the
@@ -346,6 +346,7 @@ enum HookInstaller {
         // /add-dir mid-session. The notch shows what a session may touch, and
         // a directory granted after it started is exactly that changing.
         appendHook(to: "DirectoryAdded", in: &hooks, matcher: nil)
+        appendHook(to: "CwdChanged", in: &hooks, matcher: nil)
         settings["hooks"] = hooks
 
         // StatusLine: the only local source of authoritative context-% and real

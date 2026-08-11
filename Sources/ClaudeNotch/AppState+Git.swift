@@ -206,6 +206,43 @@ extension AppState {
             outcome: .info))
     }
 
+    /// Claude ran `cd`, so this session is somewhere else now.
+    ///
+    /// Most of what the notch shows about a session self-heals, because every
+    /// hook payload carries the cwd it fired in. The exception is a session
+    /// with no session_id: it is FILED UNDER its cwd, so the key it lives at
+    /// has just become wrong, and the next hook creates a second row for the
+    /// same session rather than updating the first. That is the gap this
+    /// closes; the branch and project label are refreshed on the way.
+    func noteCwdChanged(sessionId: String, oldCwd: String, newCwd: String) {
+        let from = Self.normalizedCwd(oldCwd)
+        let to = Self.normalizedCwd(newCwd)
+        guard !to.isEmpty, from != to else { return }
+
+        if sessionId.isEmpty, !from.isEmpty,
+           sessions[to] == nil, var moved = sessions[from] {
+            sessions.removeValue(forKey: from)
+            moved.id = to
+            moved.cwd = to
+            moved.project = (to as NSString).lastPathComponent
+            // Read again below rather than carried over: the new directory can
+            // be a different repo, or no repo at all.
+            moved.gitBranch = ""
+            sessions[to] = moved
+        } else {
+            upsertSession(id: sessionId, cwd: to, authoritativeCwd: true) { s in
+                s.gitBranch = ""
+            }
+        }
+
+        // The global mirror follows the session it was already tracking.
+        if (!sessionId.isEmpty && sessionId == currentSessionId) || currentCwd == from {
+            currentCwd = to
+            currentProject = (to as NSString).lastPathComponent
+        }
+        refreshGitBranch(cwd: to, sessionId: sessionId)
+    }
+
     /// PreCompact: context is about to be compacted. Flag the session so the UI
     /// can show a "compacting" cue; cleared by the next meter/activity update.
     func noteSubagentStarted(sessionId: String = "") {

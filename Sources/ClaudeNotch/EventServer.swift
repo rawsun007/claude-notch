@@ -937,6 +937,18 @@ final class EventServer {
     /// decided what it could touch. The hook cannot block it — it fires after
     /// the fact — so this is a record, not a gate.
     ///
+    /// CwdChanged hook: Claude ran `cd`, so a session moved. Carries `old_cwd`
+    /// and `new_cwd`.
+    private func handleCwdChanged(payload: [String: Any]) {
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let oldCwd = (payload["old_cwd"] as? String) ?? ""
+        let newCwd = (payload["new_cwd"] as? String) ?? ""
+        guard !newCwd.isEmpty else { return }
+        Task { @MainActor [weak state] in
+            state?.noteCwdChanged(sessionId: sessionId, oldCwd: oldCwd, newCwd: newCwd)
+        }
+    }
+
     /// The payload carries `directory_path` and `how_added` (`slash_command`
     /// or `register_repo_root`) on top of the common fields.
     private func handleDirectoryAdded(payload: [String: Any]) {
@@ -1398,6 +1410,9 @@ final class EventServer {
             sendOK(on: conn)
         case "DirectoryAdded":
             handleDirectoryAdded(payload: payload)
+            sendOK(on: conn)
+        case "CwdChanged":
+            handleCwdChanged(payload: payload)
             sendOK(on: conn)
         case "SessionStart":
             handleSessionStart(payload: payload)

@@ -29,7 +29,10 @@ enum ToolPreview: Equatable {
 /// concurrent sessions at once instead of collapsing them onto one global
 /// "current" set of fields.
 struct LiveSession: Identifiable, Equatable {
-    let id: String                 // session_id, or normalized cwd when absent
+    // session_id, or normalized cwd when absent. Mutable only because a
+    // cwd-keyed session that changes directory has to be re-filed under its new
+    // key; a session with a real session_id never changes id.
+    var id: String
     var cwd: String
     var project: String            // basename of cwd
     var status: String             // same vocabulary as claudeActionStatus
