@@ -492,6 +492,9 @@
 /* Settings toggle explanation */
 "Different sound for different kinds of tool request." = "Different sound for different kinds of tool request.";
 
+/* Tooltip listing the extra directories a session was granted. %@ is a newline-separated list of paths */
+"Directories added with /add-dir:\n%@" = "Directories added with /add-dir:\n%@";
+
 /* Settings button */
 "Disable Codex integration" = "Disable Codex integration";
 

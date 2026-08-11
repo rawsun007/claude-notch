@@ -57,6 +57,7 @@ enum HookInstaller {
         guard let data = try? Data(contentsOf: URL(fileURLWithPath: settingsPath)),
               let s = String(data: data, encoding: .utf8) else { return false }
         return s.contains("\"StopFailure\"") && s.contains("\"SessionStart\"")
+            && s.contains("\"DirectoryAdded\"")
     }
 
     /// `jq` is required by posttool.sh to forward payload fields to the
@@ -342,6 +343,9 @@ enum HookInstaller {
         // Subagent lifecycle: show spawned agents in the activity strip.
         appendHook(to: "SubagentStart", in: &hooks, matcher: nil)
         appendHook(to: "SubagentStop", in: &hooks, matcher: nil)
+        // /add-dir mid-session. The notch shows what a session may touch, and
+        // a directory granted after it started is exactly that changing.
+        appendHook(to: "DirectoryAdded", in: &hooks, matcher: nil)
         settings["hooks"] = hooks
 
         // StatusLine: the only local source of authoritative context-% and real

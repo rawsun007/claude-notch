@@ -888,6 +888,39 @@ final class EventServer {
         }
     }
 
+    /// DirectoryAdded hook: a directory was granted to a running session via
+    /// `/add-dir` or the SDK's register_repo_root.
+    ///
+    /// Worth showing because it widens what the session may touch, after you
+    /// decided what it could touch. The hook cannot block it — it fires after
+    /// the fact — so this is a record, not a gate.
+    ///
+    /// The key carrying the path is read defensively: the hook contract
+    /// documents the common fields but does not pin down this event's own, and
+    /// guessing one name would fail silently. Whatever arrives is logged, so a
+    /// name not in this list is a one-line fix rather than a mystery.
+    private func handleDirectoryAdded(payload: [String: Any]) {
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let cwd = (payload["cwd"] as? String) ?? ""
+        let dir = Self.addedDirectory(from: payload)
+        if dir.isEmpty {
+            DebugLog.append("hook", "DirectoryAdded: no directory in payload, keys=\(payload.keys.sorted())")
+        }
+        Task { @MainActor [weak state] in
+            state?.noteDirectoryAdded(sessionId: sessionId, cwd: cwd, directory: dir)
+        }
+    }
+
+    /// The added path out of a DirectoryAdded payload. Pure, so the key list is
+    /// testable without a running hook.
+    nonisolated static func addedDirectory(from payload: [String: Any]) -> String {
+        for key in ["directory", "path", "added_directory", "dir",
+                    "directory_path", "addedDirectory", "directoryPath"] {
+            if let v = payload[key] as? String, !v.isEmpty { return v }
+        }
+        return ""
+    }
+
     /// SessionEnd hook (Ctrl+C / Ctrl+D / exit): the session is gone, so stop
     /// polling its transcript and drop it from the notch immediately.
     private func handleSessionEnd(payload: [String: Any]) {
@@ -1306,6 +1339,9 @@ final class EventServer {
             sendOK(on: conn)
         case "SubagentStop":
             handleSubagentStop(payload: payload)
+            sendOK(on: conn)
+        case "DirectoryAdded":
+            handleDirectoryAdded(payload: payload)
             sendOK(on: conn)
         case "SessionStart":
             handleSessionStart(payload: payload)

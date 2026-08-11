@@ -384,6 +384,9 @@ final class AppState: ObservableObject {
     /// away logic a number instead of waiting three minutes for one.
     var idleSecondsProvider: () -> TimeInterval = { AppState.systemIdleSeconds() }
     static let repeatApprovalsCap = 64
+    /// Directories a single session may accumulate from /add-dir. Capped like
+    /// every other payload-fed collection: the paths come from a hook.
+    static let addedDirectoriesMax = 32
 
     @Published private(set) var soundPrefs = SoundPreferences()
 

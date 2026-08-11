@@ -177,6 +177,33 @@ extension AppState {
         if !model.isEmpty { currentModel = model }
     }
 
+    /// A directory was granted to a running session via /add-dir.
+    ///
+    /// Recorded against the session rather than globally: two sessions in the
+    /// same project can be granted different directories, and the question
+    /// this answers is what THIS session may touch.
+    func noteDirectoryAdded(sessionId: String, cwd: String, directory: String) {
+        let dir = directory.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !dir.isEmpty else { return }
+        upsertSession(id: sessionId, cwd: cwd.isEmpty ? currentCwd : cwd, create: true) { s in
+            // Capped and de-duplicated: the path arrives on a hook payload, and
+            // /add-dir on a directory already added is an ordinary thing to do.
+            guard !s.addedDirectories.contains(dir) else { return }
+            s.addedDirectories.append(dir)
+            if s.addedDirectories.count > Self.addedDirectoriesMax {
+                s.addedDirectories.removeFirst()
+            }
+        }
+        appendHistory(HistoryEntry(
+            timestamp: Date(),
+            kind: .notification,
+            toolName: "AddDir",
+            title: "Directory added to the session",
+            detail: dir,
+            project: (cwd as NSString).lastPathComponent,
+            outcome: .info))
+    }
+
     /// PreCompact: context is about to be compacted. Flag the session so the UI
     /// can show a "compacting" cue; cleared by the next meter/activity update.
     func noteSubagentStarted(sessionId: String = "") {

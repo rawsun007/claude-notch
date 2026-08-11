@@ -86,6 +86,11 @@ struct LiveSession: Identifiable, Equatable {
     // Only Codex fills this in: it publishes no token pricing, so tokens are
     // the only honest unit to budget a Codex session in. 0 = not reported.
     var totalTokens: Int = 0
+    // Directories granted to this session after it started, via /add-dir. The
+    // session's own cwd is not in here — this is only what was added on top of
+    // it, because the point is what widened, not what it began with. Capped:
+    // the paths arrive on a hook payload.
+    var addedDirectories: [String] = []
     var model: String = ""           // most recent model id (e.g. claude-opus-4-8)
     var isCompacting: Bool = false   // true between PreCompact and the next event
     // Claude Code permission mode from hook payloads (default / plan /

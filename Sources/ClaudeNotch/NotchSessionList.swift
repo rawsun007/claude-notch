@@ -201,6 +201,10 @@ struct SessionsList: View {
                                                        comment: "Tooltip on the worktree chip. %@ is the worktree name"),
                                              session.worktree))
                             }
+                            // /add-dir widened what this session may touch after
+                            // it started. The row otherwise still shows only the
+                            // cwd, which is no longer the whole story.
+                            AddedDirsChip(paths: session.addedDirectories)
                             if let waitStart = state.pendingWaitStart(forCwd: session.cwd) {
                                 TimelineView(.periodic(from: .now, by: 15)) { _ in
                                     Text("⏳ \(waitElapsed(waitStart))")
@@ -439,5 +443,27 @@ struct ContextCostBar: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L("Context and cost", comment: "VoiceOver label for the context and cost meter"))
         .accessibilityValue(tooltipText.replacingOccurrences(of: " · ", with: ". "))
+    }
+}
+
+/// The `/add-dir` chip: how many extra directories this session was granted
+/// after it started, with the paths themselves on hover. Its own view because
+/// the row it sits in is already at the type-checker's limit.
+private struct AddedDirsChip: View {
+    let paths: [String]
+
+    var body: some View {
+        if !paths.isEmpty {
+            HStack(spacing: 2) {
+                Image(systemName: "folder.badge.plus")
+                    .font(.system(size: 7, weight: .semibold))
+                Text("\(paths.count)")
+            }
+            .font(.system(size: 9, design: .rounded))
+            .foregroundColor(.white.opacity(0.4))
+            .help(String(format: L("Directories added with /add-dir:\n%@",
+                                   comment: "Tooltip listing the extra directories a session was granted. %@ is a newline-separated list of paths"),
+                         paths.joined(separator: "\n")))
+        }
     }
 }
