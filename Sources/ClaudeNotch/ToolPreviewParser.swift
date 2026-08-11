@@ -422,8 +422,24 @@ enum ToolPreviewParser {
             (underHome(".codex/"),          "writes inside ~/.codex, the agent's own settings and hooks"),
             (underHome(".claudenotch/"),    "writes inside ~/.claudenotch, this app's allowlist and settings"),
         ]
-        for (dir, reason) in sensitiveDirs where p.hasPrefix(dir) {
-            return [reason]
+        // Absolute first, then the same directory named relatively.
+        //
+        // A patch says `.ssh/authorized_keys`, not `/Users/you/.ssh/...`:
+        // apply_patch paths are relative to the session's directory, and an
+        // in-repo edit arrives the same way. Matching only the home-anchored
+        // form meant the most dangerous shape of all went through unmarked.
+        // The git-hooks rule below already matched both, which is the pattern
+        // followed here.
+        //
+        // A `.claude/` or `.ssh/` inside a repo now warns too. That is not a
+        // false positive worth removing: project-level agent settings grant
+        // permissions, and a card costs a click while a miss costs whatever
+        // the write did.
+        for (dir, reason) in sensitiveDirs {
+            let name = dir.hasPrefix(h) ? String(dir.dropFirst(h.count)) : dir
+            if p.hasPrefix(dir) || p.hasPrefix(name) || p.contains("/" + name) {
+                return [reason]
+            }
         }
 
         // Anything git will execute on the next ordinary git command. Matched by

@@ -319,6 +319,37 @@ final class SensitivePathDangerTests: XCTestCase {
         XCTAssertFalse(isFlagged(""))
     }
 
+    /// The shape a patch actually uses.
+    ///
+    /// apply_patch paths are relative to the session's directory, so the most
+    /// dangerous write of all arrives as `.ssh/authorized_keys` rather than as
+    /// an absolute path. Matching only the home-anchored form let it through
+    /// with no card, while `.git/hooks/` beside it was matched both ways.
+    func testSensitiveDirectoriesNamedRelatively() {
+        XCTAssertTrue(isFlagged(".ssh/authorized_keys"))
+        XCTAssertTrue(isFlagged(".aws/credentials"))
+        XCTAssertTrue(isFlagged(".claude/settings.json"))
+        XCTAssertTrue(isFlagged(".codex/hooks.json"))
+        XCTAssertTrue(isFlagged(".claudenotch/state.json"))
+        XCTAssertTrue(isFlagged("Library/LaunchAgents/com.evil.plist"))
+    }
+
+    /// The same directory under a project, which is how a repo-local agent
+    /// config arrives. Those grant permissions too.
+    func testSensitiveDirectoriesNestedUnderAProject() {
+        XCTAssertTrue(isFlagged("/Users/tester/work/repo/.claude/settings.json"))
+        XCTAssertTrue(isFlagged("work/repo/.ssh/id_rsa"))
+    }
+
+    /// A name that merely starts the same must stay silent, or the warning
+    /// stops meaning anything.
+    func testNearMissesStaySilent() {
+        XCTAssertFalse(isFlagged(".claude-notes.txt"))
+        XCTAssertFalse(isFlagged("\(home)/work/.sshconfig"))
+        XCTAssertFalse(isFlagged("docs/.awsome/guide.md"))
+        XCTAssertFalse(isFlagged("src/LibraryView.swift"))
+    }
+
     func testWriteToolRoutesThroughPathDanger() {
         let r = ToolPreviewParser.dangerReasons(
             for: "Write", input: ["file_path": "\(NSHomeDirectory())/.ssh/authorized_keys"])
