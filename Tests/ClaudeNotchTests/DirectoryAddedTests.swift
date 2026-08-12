@@ -97,6 +97,19 @@ final class DirectoryAddedTests: XCTestCase {
         XCTAssertTrue(s.sessions["s1"]?.addedDirectories.isEmpty ?? false)
     }
 
+    /// The header draws the primary session, and for anyone running a single
+    /// session the header is the ONLY place that session is ever drawn. The
+    /// chip lived on the secondary-row list alone, so /add-dir showed nothing
+    /// at all in the common case. Guards the data the header reads.
+    @MainActor
+    func testTheDirectoriesReachThePrimarySession() {
+        let s = AppState()
+        s.upsertSession(id: "only", cwd: "/tmp/proj", create: true) { _ in }
+        s.noteDirectoryAdded(sessionId: "only", cwd: "/tmp/proj", directory: "/tmp/extra")
+        XCTAssertEqual(s.primarySession?.id, "only", "one session is the primary one")
+        XCTAssertEqual(s.primarySession?.addedDirectories, ["/tmp/extra"])
+    }
+
     /// Two sessions in the same project can be granted different directories.
     @MainActor
     func testRecordedPerSessionNotGlobally() {

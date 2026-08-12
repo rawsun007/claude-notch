@@ -248,6 +248,12 @@ struct IdlePill: View {
                         .help(String(format: L("Checked-out git branch: %@",
                                                comment: "Tooltip on the branch chip. %@ is the branch name"), topBranch))
                     }
+                    // What /add-dir granted this session on top of its folder.
+                    // The header is the ONLY place a single-session user ever
+                    // sees their session, so without this the chip existed
+                    // only for people running two at once.
+                    AddedDirsChip(paths: top?.addedDirectories ?? [],
+                                  iconSize: 8, textSize: 10)
                 }
                 Spacer(minLength: 0)
                 ContextCostBar(

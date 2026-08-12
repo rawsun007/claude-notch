@@ -447,19 +447,25 @@ struct ContextCostBar: View {
 }
 
 /// The `/add-dir` chip: how many extra directories this session was granted
-/// after it started, with the paths themselves on hover. Its own view because
-/// the row it sits in is already at the type-checker's limit.
-private struct AddedDirsChip: View {
+/// after it started, with the paths themselves on hover.
+///
+/// Shared by the session rows and the header, which draw at different sizes,
+/// so the two sizes are passed in rather than the view being written twice.
+/// Its own view because the row it sits in is already at the type-checker's
+/// limit.
+struct AddedDirsChip: View {
     let paths: [String]
+    var iconSize: CGFloat = 7
+    var textSize: CGFloat = 9
 
     var body: some View {
         if !paths.isEmpty {
             HStack(spacing: 2) {
                 Image(systemName: "folder.badge.plus")
-                    .font(.system(size: 7, weight: .semibold))
+                    .font(.system(size: iconSize, weight: .semibold))
                 Text("\(paths.count)")
             }
-            .font(.system(size: 9, design: .rounded))
+            .font(.system(size: textSize, design: .rounded))
             .foregroundColor(.white.opacity(0.4))
             .help(String(format: L("Directories added with /add-dir:\n%@",
                                    comment: "Tooltip listing the extra directories a session was granted. %@ is a newline-separated list of paths"),
