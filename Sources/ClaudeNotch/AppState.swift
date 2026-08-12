@@ -498,7 +498,7 @@ final class AppState: ObservableObject {
     // an update. Maintained per release alongside the changelog.
     var lastSeenVersion: String? = nil
     static let whatsNewHighlights =
-        "Codex cards name the query, the file and the command, and folder drops stopped stuttering"
+        "The /add-dir chip now shows on the session in the header, not only the ones listed below it"
 
     /// Transient "live activity" card shown after an auto-approved action —
     /// shows WHAT changed, no buttons, auto-dismisses.

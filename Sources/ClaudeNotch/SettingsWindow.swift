@@ -1924,6 +1924,7 @@ struct SettingsView: View {
     /// with the top changelog entry when cutting a release.
     static let whatsNew: [ChangeGroup] = [
         ChangeGroup(kind: .fixed, items: [
+        "The /add-dir chip appears on the session you are actually watching. It only ever drew in the list of secondary sessions, which leaves the primary one out because the header draws that instead, and the header carried no chip. For anyone running a single session, which is the ordinary case, /add-dir showed nothing in the notch at all.",
         "Compaction is no longer reported as a session failure. When the context fills up, Claude Code summarises the conversation and carries on, but the turn that overflowed dies with an API error first. The notch took that at face value: a red card saying the session had stopped, while the terminal two inches away said \"Compacting conversation, 21%\". It now says what is actually happening and asks nothing of you.",
         "Failures explain themselves. Claude Code often sends the reason code back as the message, so a card that should have said something read \"invalid_request\" at you instead. Each reason now gets a sentence a person can act on, and a real message from the CLI still wins.",
         "The credit budget knows what your cap is. Claude Code writes the cap as a container rather than a plain amount, so the bar was drawing against no ceiling at all. It also shows the severity Claude Code itself assigns instead of inferring one from the percentage.",
