@@ -83,7 +83,38 @@ struct AllowRule: Hashable, Codable, Identifiable {
         // A permission argument is terminated by the closing paren, so a
         // command containing one cannot be round-tripped.
         guard !literal.contains(")") else { return nil }
-        return "\(tool)(\(literal))"
+        return "\(Self.exportTool(for: tool))(\(literal))"
+    }
+
+    /// Tools whose `Tool(path)` permission form Claude Code deprecated in
+    /// 2.1.210, and what it says to write instead. Claude Code prints a startup
+    /// warning for every one of these it finds in settings.json — so an export
+    /// that emitted them would hand the user a file that nags them on every
+    /// launch, in the name of a rule the app told them to add.
+    ///
+    /// File-write permission is checked under `Edit` now, and pattern matching
+    /// under `Read`, so these are the same permission spelled the current way,
+    /// not an approximation.
+    static let deprecatedArgumentTools: [String: String] = [
+        "Write": "Edit",
+        "NotebookEdit": "Edit",
+        "Glob": "Read",
+    ]
+
+    /// The tool name to export an ARGUMENT rule under. Only the `Tool(path)`
+    /// form was deprecated: a bare `Write` rule is still current, and rewriting
+    /// it to `Edit` would widen a rule the user never widened.
+    static func exportTool(for tool: String) -> String {
+        deprecatedArgumentTools[tool] ?? tool
+    }
+
+    /// True when exporting this rule renames its tool. The UI says so rather
+    /// than quietly handing over a rule that reads differently from the one in
+    /// the list.
+    var exportRenamesTool: Bool {
+        commandRegex?.isEmpty == false
+            && Self.deprecatedArgumentTools[tool] != nil
+            && claudePermission != nil   // a rule that is left out is not renamed
     }
 }
 

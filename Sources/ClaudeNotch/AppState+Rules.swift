@@ -51,7 +51,11 @@ extension AppState {
     /// rather than approximated — a rule that means something subtly different
     /// from the one you read in the list is worse than a missing one.
     nonisolated static func claudePermissionsJSON(_ rules: [AllowRule]) -> String {
-        let allow = rules.compactMap(\.claudePermission).sorted()
+        // Uniqued: two rules can now export to one permission (a `Write(path)`
+        // and an `Edit(path)` for the same file both become `Edit(path)`), and
+        // a settings file listing the same permission twice is noise the user
+        // then has to clean up by hand.
+        let allow = Set(rules.compactMap(\.claudePermission)).sorted()
         let payload: [String: Any] = ["permissions": ["allow": allow]]
         guard let data = try? JSONSerialization.data(withJSONObject: payload,
                                                      options: [.prettyPrinted, .sortedKeys]),
@@ -63,6 +67,14 @@ extension AppState {
     /// so instead of quietly exporting a shorter list.
     nonisolated static func unexportableRules(_ rules: [AllowRule]) -> [AllowRule] {
         rules.filter { $0.claudePermission == nil }
+    }
+
+    /// Rules exported under a different tool name than the one in the list,
+    /// because Claude Code 2.1.210 deprecated their `Tool(path)` form. The UI
+    /// names them: the export is correct, but a rule that reads `Write` in the
+    /// notch and `Edit` in settings.json needs saying out loud once.
+    nonisolated static func renamedOnExport(_ rules: [AllowRule]) -> [AllowRule] {
+        rules.filter(\.exportRenamesTool)
     }
 
     /// Copy the settings fragment to the clipboard.

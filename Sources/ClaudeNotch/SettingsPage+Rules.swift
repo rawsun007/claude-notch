@@ -142,6 +142,7 @@ extension SettingsView {
 
     private var exportSection: some View {
         let skipped = AppState.unexportableRules(state.sortedAllowRules)
+        let renamed = AppState.renamedOnExport(state.sortedAllowRules)
         return VStack(alignment: .leading, spacing: 8) {
             sectionLabel(L("Give these to Claude Code", comment: "Settings section heading"))
             group {
@@ -151,6 +152,10 @@ extension SettingsView {
                     if !skipped.isEmpty {
                         Text(String(format: L("%d rule(s) use a pattern Claude Code cannot express, and are left out rather than approximated.", comment: "Warning about rules that cannot be exported. %d is how many"), skipped.count))
                             .font(.caption).foregroundStyle(.orange)
+                    }
+                    if !renamed.isEmpty {
+                        Text(String(format: L("%d rule(s) are exported as Edit or Read: Claude Code deprecated the Write, NotebookEdit and Glob forms and warns at startup about them.", comment: "Note about rules whose tool name changes on export. %d is how many"), renamed.count))
+                            .font(.caption).foregroundStyle(.secondary)
                     }
                     HStack(spacing: 8) {
                         Button(rulesCopied

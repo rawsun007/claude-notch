@@ -63,6 +63,9 @@
 /* Header count. %d is how many questions the card asks */
 "%d questions" = "%d questions";
 
+/* Note about rules whose tool name changes on export. %d is how many */
+"%d rule(s) are exported as Edit or Read: Claude Code deprecated the Write, NotebookEdit and Glob forms and warns at startup about them." = "%d rule(s) are exported as Edit or Read: Claude Code deprecated the Write, NotebookEdit and Glob forms and warns at startup about them.";
+
 /* Warning about rules that cannot be exported. %d is how many */
 "%d rule(s) use a pattern Claude Code cannot express, and are left out rather than approximated." = "%d rule(s) use a pattern Claude Code cannot express, and are left out rather than approximated.";
 
