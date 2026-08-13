@@ -203,6 +203,9 @@ struct NotchView: View {
         if let badge = permissionModeBadge(state.currentPermissionMode) {
             row1.append(textWidth(badge.label, size: 9, weight: .semibold) + 10)
         }
+        if state.showSandboxBadge, let badge = sandboxBadge(state.currentSandbox) {
+            row1.append(textWidth(badge.label, size: 9, weight: .semibold) + 10)
+        }
         if hovering {
             let agentCount = state.totalRunningAgentCount
             if agentCount > 0 {
@@ -689,7 +692,8 @@ struct NotchView: View {
                     onDisableEnforce: { state.disableEnforcementAndAllow() },
                     raiseCapTarget: req.budgetBlock.map { state.raisedCapTarget(for: $0) } ?? 0,
                     showPet: state.petEnabled,
-                    priorApprovals: state.suggestsRule(for: req) ? state.approvalCount(for: req) : 0
+                    priorApprovals: state.suggestsRule(for: req) ? state.approvalCount(for: req) : 0,
+                    sandbox: state.sandbox(forCwd: req.cwd)
                 )
                 // Fresh card per request id so the hold-to-confirm gesture
                 // state (pressing / progress) can't carry over to the next one.

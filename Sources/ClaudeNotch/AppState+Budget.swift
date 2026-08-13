@@ -546,6 +546,7 @@ extension AppState {
             hideFromScreenCapture: hideFromScreenCapture,
             showSpendInMenuBar: showSpendInMenuBar,
             showPlanInMenuBar: showPlanInMenuBar,
+            showSandboxBadge: showSandboxBadge,
             enforceBudget: enforceBudget,
             statusBarItems: statusBarItems.map(\.rawValue),
             contextWindowMode: contextWindowMode.rawValue,
@@ -612,6 +613,7 @@ extension AppState {
             if let bid { s.originatorBundleID = bid }
         }
         refreshGitBranch(cwd: c, sessionId: sessionId)
+        refreshSandbox(cwd: c, sessionId: sessionId)
         ensureStaleTimer()
     }
 }

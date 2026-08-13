@@ -459,6 +459,10 @@ final class AppState: ObservableObject {
     @Published var hideFromScreenCapture: Bool = true
     // Append today's estimated spend to the menu bar icon. Off by default.
     @Published var showSpendInMenuBar: Bool = false
+    // Show whether a session's tool calls run inside a sandbox. On by default:
+    // "what is this agent allowed to do" is the question the notch exists to
+    // answer, and the badge only appears for a session that IS sandboxed.
+    @Published var showSandboxBadge: Bool = true
     // Plan tier and the tightest limit, next to the menu-bar bell. Off by
     // default: it names the account's plan, which not everyone wants on screen.
     @Published var showPlanInMenuBar: Bool = false
@@ -848,6 +852,7 @@ final class AppState: ObservableObject {
             self.hideFromScreenCapture = snapshot.hideFromScreenCapture ?? true
             self.showSpendInMenuBar = snapshot.showSpendInMenuBar ?? false
             self.showPlanInMenuBar = snapshot.showPlanInMenuBar ?? false
+            self.showSandboxBadge = snapshot.showSandboxBadge ?? true
             self.statusBarItems = snapshot.statusBarItems?
                 .compactMap(StatusBarItem.init) ?? [.fiveHourLimit, .weeklyLimit]
             self.contextWindowMode = snapshot.contextWindowMode.flatMap(ContextWindowMode.init) ?? .auto
@@ -930,6 +935,13 @@ final class AppState: ObservableObject {
     // Branch per cwd, re-read at most every 15 s — the file is tiny but hooks
     // arrive every second for an active session.
     var branchCache: [String: (branch: String, readAt: Date)] = [:]
+
+    // MARK: - Sandbox state (logic lives in AppState+Sandbox.swift)
+
+    // Effective sandbox posture per "agent|cwd", re-read at most once a minute.
+    // nil status is a cached answer too: "no settings file mentions sandboxing
+    // here" is worth remembering, not worth re-deriving every hook.
+    var sandboxCache: [String: (status: SandboxReader.Status?, readAt: Date)] = [:]
 
     /// Open a file the agent edited, but never *launch* it. The path comes from
     /// a hook payload, so opening it with the default handler would run a crafted

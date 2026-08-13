@@ -231,6 +231,60 @@ func waitElapsed(_ since: Date) -> String {
     return rm > 0 ? "\(h)h \(rm)m" : "\(h)h"
 }
 
+/// Badge for a session's sandbox. Only shown when the agent IS sandboxed:
+/// almost nobody has sandboxing on, and a permanent "UNSANDBOXED" on every row
+/// would be a warning nobody can act on. What is worth a badge is the good
+/// case, and the case where the fence has a gate in it.
+///
+/// nil status means no settings file mentions sandboxing at all. That is not
+/// "off" — it is "unknown" — and unknown gets no badge either way.
+func sandboxBadge(_ status: SandboxReader.Status?) -> (label: String, color: Color, help: String)? {
+    let kind = SandboxReader.badge(status)
+    guard kind != .none, let status else { return nil }
+
+    var detail: [String] = []
+    if status.strictAllowlist {
+        detail.append(L("network is a strict allowlist", comment: "Part of the sandbox badge tooltip"))
+    }
+    if status.networkBlocked {
+        detail.append(L("no network access", comment: "Part of the sandbox badge tooltip"))
+    }
+    if status.allowedDomains > 0 {
+        detail.append(String(format: L("%d allowed domains", comment: "Part of the sandbox badge tooltip. %d is a count"),
+                             status.allowedDomains))
+    }
+    if status.maskedCredentials > 0 {
+        detail.append(String(format: L("%d masked credentials", comment: "Part of the sandbox badge tooltip. %d is a count"),
+                             status.maskedCredentials))
+    }
+
+    // A sandbox with an escape hatch is a weaker promise than one without, and
+    // the two must not look identical. Amber, and the tooltip says what leaks.
+    if kind == .sandboxedWithExceptions {
+        if status.excludedCommands > 0 {
+            detail.append(String(format: L("%d commands run outside it", comment: "Part of the sandbox badge tooltip. %d is a count"),
+                                 status.excludedCommands))
+        }
+        if status.allowUnsandboxedCommands {
+            detail.append(L("the agent may opt commands out of it", comment: "Part of the sandbox badge tooltip"))
+        }
+        return (L("SANDBOX*", comment: "Badge: the session is sandboxed, but something can run outside the sandbox"),
+                .orange,
+                sandboxTooltip(lead: L("Sandboxed, with exceptions", comment: "Lead of the tooltip for a sandbox that has exceptions"),
+                               detail: detail))
+    }
+
+    return (L("SANDBOX", comment: "Badge: the session's tool calls run inside a sandbox"),
+            .green,
+            sandboxTooltip(lead: L("Sandboxed, tool calls are fenced in", comment: "Lead of the tooltip for the SANDBOX badge"),
+                           detail: detail))
+}
+
+/// "Sandboxed, tool calls are fenced in. 4 allowed domains, 2 masked credentials."
+private func sandboxTooltip(lead: String, detail: [String]) -> String {
+    detail.isEmpty ? lead : "\(lead). \(detail.joined(separator: ", "))"
+}
+
 /// Badge for non-default Claude Code permission modes. `default` (and empty)
 /// return nil — no badge for the normal case. bypassPermissions is the loud
 /// one: every action runs unchecked, so it's red and impossible to miss.

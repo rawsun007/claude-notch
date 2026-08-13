@@ -548,6 +548,10 @@ struct SettingsView: View {
                 row(L("Show your plan in the menu bar", comment: "Settings toggle"),
                     L("Your plan and whichever limit is closest to full, next to the menu-bar bell, so how much you have left is answered without opening anything.", comment: "Settings toggle explanation"),
                     bind(\.showPlanInMenuBar, state.setShowPlanInMenuBar))
+                divider
+                row(L("Show the sandbox badge", comment: "Settings toggle"),
+                    L("Mark sessions whose tool calls run inside a sandbox, and say when something is allowed to run outside it. Only appears for sandboxed sessions.", comment: "Settings toggle explanation"),
+                    bind(\.showSandboxBadge, state.setShowSandboxBadge))
             }
 
             sectionLabel(L("Quick actions", comment: "Settings section heading"))

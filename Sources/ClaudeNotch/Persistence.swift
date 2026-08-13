@@ -36,6 +36,7 @@ enum Persistence {
         var hideFromScreenCapture: Bool? = nil
         var showSpendInMenuBar: Bool? = nil
         var showPlanInMenuBar: Bool? = nil
+        var showSandboxBadge: Bool? = nil
         var enforceBudget: Bool? = nil
         var statusBarItems: [String]? = nil
         var contextWindowMode: String? = nil
@@ -187,6 +188,7 @@ extension Persistence.Snapshot {
             hideFromScreenCapture: try? c.decode(Bool.self, forKey: .hideFromScreenCapture),
             showSpendInMenuBar: try? c.decode(Bool.self, forKey: .showSpendInMenuBar),
             showPlanInMenuBar: try? c.decode(Bool.self, forKey: .showPlanInMenuBar),
+            showSandboxBadge: try? c.decode(Bool.self, forKey: .showSandboxBadge),
             enforceBudget: try? c.decode(Bool.self, forKey: .enforceBudget),
             statusBarItems: try? c.decode([String].self, forKey: .statusBarItems),
             contextWindowMode: try? c.decode(String.self, forKey: .contextWindowMode),

@@ -35,6 +35,10 @@ struct PermissionCard: View {
     /// How many times this exact command has already been approved by hand.
     /// Zero means say nothing: the nudge is for a habit, not a second time.
     var priorApprovals: Int = 0
+    /// The sandbox the asking session runs in, when it runs in one. This is
+    /// the card where it matters most: whether a command is fenced in changes
+    /// the answer to "should I allow this".
+    var sandbox: SandboxReader.Status? = nil
 
     private var isBudgetBlocked: Bool { request.budgetBlock != nil }
     private var accentColor: Color {
@@ -56,6 +60,11 @@ struct PermissionCard: View {
         parts.append("\(request.source), \(request.toolName).")
         if !request.cwd.isEmpty {
             parts.append("Project \((request.cwd as NSString).lastPathComponent).")
+        }
+        // Spoken too, not just shown: whether the command is fenced in is part
+        // of what the listener is being asked to decide.
+        if let sandbox, sandbox.enabled {
+            parts.append(sandbox.hasEscapeHatch ? "Sandboxed, with exceptions." : "Sandboxed.")
         }
         if Date().timeIntervalSince(request.receivedAt) >= 60 {
             parts.append("Waiting \(waitElapsed(request.receivedAt)).")
@@ -87,6 +96,18 @@ struct PermissionCard: View {
                     }
                 }
                 Spacer()
+                if let badge = sandboxBadge(sandbox) {
+                    Text(badge.label)
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundColor(badge.color.opacity(0.95))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .fill(badge.color.opacity(0.18))
+                        )
+                        .help(badge.help)
+                }
                 if !request.cwd.isEmpty {
                     Text((request.cwd as NSString).lastPathComponent)
                         .font(.system(size: 10, design: .rounded))

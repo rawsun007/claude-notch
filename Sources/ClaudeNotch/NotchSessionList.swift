@@ -121,6 +121,22 @@ struct SessionsList: View {
                             // in another project running with permissions bypassed
                             // was invisible — which is the one it is most important
                             // to be able to see.
+                            // Whether this session's tool calls are fenced in.
+                            // Sits next to the permission mode because the two
+                            // answer one question together: what may this
+                            // agent do without asking, and how far can it get.
+                            if state.showSandboxBadge, let badge = sandboxBadge(session.sandbox) {
+                                Text(badge.label)
+                                    .font(.system(size: 8, weight: .bold, design: .rounded))
+                                    .foregroundColor(badge.color.opacity(0.95))
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                            .fill(badge.color.opacity(0.18))
+                                    )
+                                    .help(badge.help)
+                            }
                             if let badge = permissionModeBadge(session.permissionMode) {
                                 Text(badge.label)
                                     .font(.system(size: 8, weight: .bold, design: .rounded))

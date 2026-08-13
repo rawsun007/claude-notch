@@ -49,7 +49,8 @@ back as the response.
   **Sessions** (staleness, removal, background agents, focus handoff),
   **Compose**, **History** (activity log, archived records), **Export**
   (CSV/JSON, standup), **Queues** (permission/question/completed, capped via
-  didSet), **Alerts**, **Sound**. Add new behaviour to the matching extension,
+  didSet), **Alerts**, **Sound**, **Sandbox** (per-cwd sandbox posture, cached
+  60 s). Add new behaviour to the matching extension,
   not to AppState.swift. Because the extensions live in other files, members
   they touch are `internal` rather than `private`.
 - **SessionModels / UsageModels / RequestModels.swift**: the value types.
@@ -70,6 +71,9 @@ back as the response.
   counts (update_plan), last reply.
 - **ClaudeUsageReader.swift**: cost/context math from Claude transcripts.
 - **SessionResumer.swift**: lists resumable sessions per project (both agents).
+- **SandboxReader.swift**: whether a session's tool calls run sandboxed, read
+  from the settings chain (user / project / local / managed) for its cwd, plus
+  Codex `sandbox_mode`. Pure parsers + merge rules; no hook carries this.
 - **BackgroundAgents.swift**: `claude --bg` roster reader.
 - **HookInstaller.swift**: installs/uninstalls the hook forwarders + status line
   into `~/.claude` and `~/.codex`.

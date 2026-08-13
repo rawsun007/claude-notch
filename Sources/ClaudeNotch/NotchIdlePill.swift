@@ -128,6 +128,16 @@ struct IdlePill: View {
                         ? 0.4 + 0.6 * (0.5 + 0.5 * sin(pulsePhase))
                         : 1.0)
                 statusLabelView
+                if state.showSandboxBadge, let badge = sandboxBadge(state.currentSandbox) {
+                    Text(badge.label)
+                        .font(.system(size: 9, weight: .semibold, design: .rounded))
+                        .foregroundColor(badge.color.opacity(0.95))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(badge.color.opacity(0.18))
+                        .cornerRadius(4)
+                        .help(badge.help)
+                }
                 if let badge = permissionModeBadge(state.currentPermissionMode) {
                     Text(badge.label)
                         .font(.system(size: 9, weight: .semibold, design: .rounded))

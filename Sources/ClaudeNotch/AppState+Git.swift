@@ -241,6 +241,9 @@ extension AppState {
             currentProject = (to as NSString).lastPathComponent
         }
         refreshGitBranch(cwd: to, sessionId: sessionId)
+        // A different directory can be governed by different project settings,
+        // so the sandbox answer moves with the cwd.
+        refreshSandbox(cwd: to, sessionId: sessionId)
     }
 
     /// PreCompact: context is about to be compacted. Flag the session so the UI

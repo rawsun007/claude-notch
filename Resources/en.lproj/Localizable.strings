@@ -48,8 +48,17 @@
 /* Badge: how many background agents are running */
 "%d agents" = "%d agents";
 
+/* Part of the sandbox badge tooltip. %d is a count */
+"%d allowed domains" = "%d allowed domains";
+
+/* Part of the sandbox badge tooltip. %d is a count */
+"%d commands run outside it" = "%d commands run outside it";
+
 /* Badge: how many files were edited this session */
 "%d files" = "%d files";
+
+/* Part of the sandbox badge tooltip. %d is a count */
+"%d masked credentials" = "%d masked credentials";
 
 /* Header count. %d is how many questions the card asks */
 "%d questions" = "%d questions";
@@ -744,6 +753,9 @@
 /* Button opening the Anthropic usage settings page */
 "Manage on claude.ai" = "Manage on claude.ai";
 
+/* Settings toggle explanation */
+"Mark sessions whose tool calls run inside a sandbox, and say when something is allowed to run outside it. Only appears for sandboxed sessions." = "Mark sessions whose tool calls run inside a sandbox, and say when something is allowed to run outside it. Only appears for sandboxed sessions.";
+
 /* Toggle: also post cards to Notification Center */
 "Mirror Alerts to Notifications" = "Mirror Alerts to Notifications";
 
@@ -1038,8 +1050,20 @@
 /* Status: the agent is running a tool call */
 "Running command" = "Running command";
 
+/* Badge: the session's tool calls run inside a sandbox */
+"SANDBOX" = "SANDBOX";
+
+/* Badge: the session is sandboxed, but something can run outside the sandbox */
+"SANDBOX*" = "SANDBOX*";
+
 /* Settings explanation */
 "Sample cards" = "Sample cards";
+
+/* Lead of the tooltip for the SANDBOX badge */
+"Sandboxed, tool calls are fenced in" = "Sandboxed, tool calls are fenced in";
+
+/* Lead of the tooltip for a sandbox that has exceptions */
+"Sandboxed, with exceptions" = "Sandboxed, with exceptions";
 
 /* Dialog button: keep the entered value */
 "Save" = "Save";
@@ -1097,6 +1121,9 @@
 
 /* Settings toggle */
 "Show spend in the menu bar" = "Show spend in the menu bar";
+
+/* Settings toggle */
+"Show the sandbox badge" = "Show the sandbox badge";
 
 /* Settings toggle */
 "Show your plan in the menu bar" = "Show your plan in the menu bar";
@@ -1419,6 +1446,12 @@
 /* Rules list subtitle for a pattern rule. %@ is a regular expression */
 "matching /%@/" = "matching /%@/";
 
+/* Part of the sandbox badge tooltip */
+"network is a strict allowlist" = "network is a strict allowlist";
+
+/* Part of the sandbox badge tooltip */
+"no network access" = "no network access";
+
 /* Placeholder when a session has reported no token usage */
 "no usage yet" = "no usage yet";
 
@@ -1430,6 +1463,9 @@
 
 /* Settings explanation */
 "running" = "running";
+
+/* Part of the sandbox badge tooltip */
+"the agent may opt commands out of it" = "the agent may opt commands out of it";
 
 /* Unit label after a token cap field */
 "tokens" = "tokens";

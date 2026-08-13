@@ -126,6 +126,12 @@ struct LiveSession: Identifiable, Equatable {
     // Checked-out git branch of cwd (read from .git/HEAD, cached). Empty when
     // not a repo.
     var gitBranch: String = ""
+    // Whether this session's tool calls run inside a sandbox, and how tight it
+    // is. Read from the agent's settings files for this cwd (see
+    // SandboxReader), not from a hook payload — no hook carries it. nil means
+    // nothing in the settings mentions sandboxing, which is not the same as
+    // "off", so the notch shows no badge rather than guessing.
+    var sandbox: SandboxReader.Status? = nil
 
     // What THIS turn did, for CompletionAudit. Separate from touchedFiles,
     // which accumulates across the whole session: the audit asks whether the
