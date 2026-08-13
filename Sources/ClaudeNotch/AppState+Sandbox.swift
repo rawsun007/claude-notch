@@ -35,7 +35,13 @@ extension AppState {
         }
 
         upsertSession(id: sessionId, cwd: cwd) { s in
-            if s.sandbox != status { s.sandbox = status }
+            guard s.sandbox != status else { return }
+            s.sandbox = status
+            // Only on a change, and only under the debug flag: this is the one
+            // fact in the notch the user cannot check by looking anywhere else,
+            // so when the badge looks wrong the log has to be able to say what
+            // was read and for which directory.
+            DebugLog.append("sandbox", "\(key) -> \(SandboxReader.badge(status)) \(status.map(String.init(describing:)) ?? "none")")
         }
     }
 
