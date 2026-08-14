@@ -26,7 +26,11 @@ extension AppState {
     /// `create` must be true ONLY for the per-request metadata call. The
     /// activity/prompt/response helpers pass false so a stale transcript poll
     /// can't resurrect a session that already ended (SessionEnd removed it).
-    func upsertSession(id rawId: String, cwd: String, authoritativeCwd: Bool = false, create: Bool = false, _ mutate: (inout LiveSession) -> Void) {
+    /// `stampHook` is false only for the registry reconciler, which learns
+    /// that a session EXISTS without learning that anything happened in it.
+    /// Stamping there would make an idle session look freshly active and let
+    /// it steal the header from the session you are actually working in.
+    func upsertSession(id rawId: String, cwd: String, authoritativeCwd: Bool = false, create: Bool = false, stampHook: Bool = true, _ mutate: (inout LiveSession) -> Void) {
         var normCwd = cwd
         while normCwd.count > 1, normCwd.hasSuffix("/") { normCwd.removeLast() }
         let key = !rawId.isEmpty ? rawId : normCwd
@@ -50,7 +54,7 @@ extension AppState {
             session.project = (normCwd as NSString).lastPathComponent
         }
         mutate(&session)
-        session.lastHookAt = Date()
+        if stampHook { session.lastHookAt = Date() }
         sessions[key] = session
 
         if sessions.count > sessionsMax {
@@ -152,6 +156,89 @@ extension AppState {
         }
     }
 
+    // MARK: - Registry (sessions that never spoke to us)
+
+    /// Reconcile the notch's session list with Claude Code's own registry of
+    /// running sessions (see SessionRegistry).
+    ///
+    /// Two things come out of it. Sessions the app has never heard from — one
+    /// started before the app launched, or in a project whose settings never
+    /// got the hooks — appear instead of being invisible. And a session whose
+    /// process is gone is removed at once, rather than sitting in the list
+    /// until the staleness window decides it has been quiet long enough.
+    /// Poll the registry. Slow on purpose: it is a directory read of a handful
+    /// of small files, and sessions do not start and stop often enough to want
+    /// it faster. Also runs on the staleness heartbeat, so a busy machine
+    /// reconciles more often than an idle one.
+    func ensureRegistryTimer() {
+        guard registryTimer == nil else { return }
+        refreshSessionRegistry()
+        registryTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.refreshSessionRegistry() }
+        }
+    }
+
+    func refreshSessionRegistry() {
+        let entries = SessionRegistry.read()
+        let live = Set(entries.map(\.sessionId))
+
+        // Gone: it was in the registry when we last looked and is not there
+        // now, which means its process exited. A pid is a fact; silence is a
+        // guess, and the guess is what the staleness timer has to make.
+        let vanished = registrySessionIds.subtracting(live)
+        if !vanished.isEmpty {
+            for id in vanished {
+                guard let session = sessions[id] else { continue }
+                archiveSession(session)
+                sessions.removeValue(forKey: id)
+            }
+            resyncCurrentSession()
+        }
+        registrySessionIds = live
+
+        for entry in entries { adopt(entry) }
+    }
+
+    /// Fold one registry entry into the session list.
+    ///
+    /// Everything a hook can say is better than what the registry can, so this
+    /// only fills gaps: it never overwrites an activity, a status or a title a
+    /// hook (or the status line) already supplied, and it does not stamp
+    /// `lastHookAt` — the registry says a session EXISTS, not that it just did
+    /// something, and the newest hook is what decides which session the header
+    /// follows.
+    private func adopt(_ entry: SessionRegistry.Entry) {
+        // A session that reached us without a session_id is filed under its
+        // cwd. Adopting the registry entry under its real id would list the
+        // same session twice, once per key.
+        let cwdKeyed = sessions.values.first { $0.id == entry.cwd && !entry.cwd.isEmpty }
+        let key = cwdKeyed?.id ?? entry.sessionId
+        let known = sessions[key] != nil
+
+        upsertSession(id: key, cwd: entry.cwd, create: true, stampHook: false) { s in
+            s.cliVersion = entry.version
+            s.pid = entry.pid
+            // The registry has confirmed this process exists, so staleness
+            // stops guessing about it: a session can sit idle for an hour and
+            // still be a session you are in.
+            s.isRegistryLive = true
+            if s.title.isEmpty { s.title = entry.name }
+            // Status only for a session no hook has described. A hook knows
+            // which tool is running; "busy" would replace that with less.
+            if !known || s.activity.isEmpty {
+                s.status = SessionRegistry.statusLabel(entry.status)
+            }
+        }
+
+        if !known {
+            // Nothing else will fetch these for a session that has never fired
+            // a hook at us.
+            refreshGitBranch(cwd: entry.cwd, sessionId: key)
+            refreshSandbox(cwd: entry.cwd, sessionId: key)
+            ensureStaleTimer()
+        }
+    }
+
     /// A background agent said it needs input, or that it finished.
     func noteAgentNotice(_ notice: AgentNotice, sessionId: String) {
         guard !sessionId.isEmpty else { return }
@@ -187,8 +274,10 @@ extension AppState {
                 self?.checkStale()
                 self?.checkLongRun()
                 // Same heartbeat: an agent can start or die without any hook
-                // reaching us (it is a daemon, not a terminal).
+                // reaching us (it is a daemon, not a terminal), and a session
+                // can exit without one either.
                 self?.refreshBackgroundAgents()
+                self?.refreshSessionRegistry()
             }
         }
     }
@@ -197,6 +286,10 @@ extension AppState {
     /// never come — e.g. the user killed the terminal mid-run) or it has gone
     /// silent past the stale window.
     private func isSessionDead(_ s: LiveSession, cutoff: Date) -> Bool {
+        // The registry has seen this session's process alive. That beats every
+        // heuristic below it: a session you are sitting in, thinking about what
+        // to type, is quiet for exactly the same reason a dead one is.
+        if s.isRegistryLive { return false }
         if s.lastHookAt <= cutoff { return true }
         if let bid = s.originatorBundleID, !bid.isEmpty,
            NSRunningApplication.runningApplications(withBundleIdentifier: bid).isEmpty {

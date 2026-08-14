@@ -955,6 +955,14 @@ final class AppState: ObservableObject {
     var lastSandboxViolationKey: String = ""
     var lastSandboxViolationAt: Date = .distantPast
 
+    // MARK: - Session registry (logic lives in AppState+Sessions.swift)
+
+    // Session ids seen in Claude Code's registry on the last poll. A session
+    // that was in it and is not any more has exited — the one death signal the
+    // app does not have to infer from silence.
+    var registrySessionIds: Set<String> = []
+    var registryTimer: Timer?
+
     /// Open a file the agent edited, but never *launch* it. The path comes from
     /// a hook payload, so opening it with the default handler would run a crafted
     /// executable/script/app on a click. If the target is a bundle, has the

@@ -136,6 +136,16 @@ struct LiveSession: Identifiable, Equatable {
     // access denied). Only ever non-zero for a sandboxed session, and it is
     // what turns "there is a fence" into "the fence is being hit".
     var sandboxViolations: Int = 0
+    // From Claude Code's own registry of running sessions (SessionRegistry),
+    // not from any hook. The CLI version matters because the notch shows facts
+    // that need a minimum one, and the pid is what turns "this session has
+    // been quiet" into "this session is gone".
+    var cliVersion: String = ""
+    var pid: Int32 = 0
+    /// The registry has seen this session's process alive. While true, the
+    /// staleness timer leaves the row alone: a session you are sitting in,
+    /// thinking about what to type, is quiet for the same reason a dead one is.
+    var isRegistryLive: Bool = false
 
     // What THIS turn did, for CompletionAudit. Separate from touchedFiles,
     // which accumulates across the whole session: the audit asks whether the

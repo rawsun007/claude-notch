@@ -60,6 +60,15 @@ struct SessionsList: View {
         }
     }
 
+    /// Row tooltip: where the session is, and which CLI is running it. The
+    /// version comes from Claude Code's session registry, and it is the answer
+    /// to "why does that session not show what this one shows".
+    static func rowTooltip(for session: LiveSession) -> String {
+        var parts = [session.cwd]
+        if !session.cliVersion.isEmpty { parts.append("Claude Code \(session.cliVersion)") }
+        return parts.filter { !$0.isEmpty }.joined(separator: "  ·  ")
+    }
+
     var body: some View {
         // Exclude the top (primary) session: it is already shown as the header
         // meter above, so listing it here again is the duplication the user hit.
@@ -125,7 +134,7 @@ struct SessionsList: View {
                                 .foregroundColor(.white.opacity(0.9))
                                 .lineLimit(1)
                                 .truncationMode(.tail)
-                                .help(session.cwd)
+                                .help(Self.rowTooltip(for: session))
                             // Session title subtitle intentionally omitted from
                             // the row: it repeated the auto-derived name (e.g.
                             // "Caveman speech…") and cluttered the list. The

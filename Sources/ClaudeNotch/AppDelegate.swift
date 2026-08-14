@@ -72,6 +72,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // does anything.
         state.ensurePlanTimer()
 
+        // Claude Code keeps its own registry of running sessions. Reading it is
+        // how the notch sees a session that started before the app did, or one
+        // in a project whose settings never got the hooks — and how it learns a
+        // session died instead of inferring it from silence.
+        state.ensureRegistryTimer()
+
         server = EventServer(port: 53127, state: state)
         do {
             try server.start()

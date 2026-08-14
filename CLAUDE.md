@@ -46,7 +46,8 @@ back as the response.
   main-isolated unless marked `nonisolated`. The behaviour is split into
   `AppState+*.swift` extensions, one per concern: **Pet**, **Usage**,
   **Budget**, **Git** (branch read, diff stat, churn), **TaskMeter**,
-  **Sessions** (staleness, removal, background agents, focus handoff),
+  **Sessions** (staleness, removal, background agents, registry reconcile,
+  focus handoff),
   **Compose**, **History** (activity log, archived records), **Export**
   (CSV/JSON, standup), **Queues** (permission/question/completed, capped via
   didSet), **Alerts**, **Sound**, **Sandbox** (per-cwd sandbox posture, cached
@@ -76,6 +77,13 @@ back as the response.
   from the settings chain (user / project / local / managed) for its cwd, plus
   Codex `sandbox_mode`. Pure parsers + merge rules; no hook carries this.
 - **BackgroundAgents.swift**: `claude --bg` roster reader.
+- **SessionRegistry.swift**: reads `~/.claude/sessions/<pid>.json`, Claude Code's
+  own registry of running sessions (pid, session id, cwd, CLI version, name,
+  busy/idle). How the notch sees sessions that never fired a hook, and how it
+  knows one exited instead of inferring it from silence.
+- **SandboxViolationParser.swift**: pulls the `<sandbox_violations>` block out
+  of a tool result (network/file denials). Format is not a documented
+  contract, so it degrades to raw lines rather than guessing.
 - **HookInstaller.swift**: installs/uninstalls the hook forwarders + status line
   into `~/.claude` and `~/.codex`.
 
