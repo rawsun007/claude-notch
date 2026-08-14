@@ -132,6 +132,30 @@ enum TerminalAutomator {
         """, label: label)
     }
 
+    /// Run an update command in a terminal window the user can watch.
+    ///
+    /// The window is not closed when the command finishes: the output IS the
+    /// result — what version it moved to, or why it could not — and a window
+    /// that vanishes takes that with it. `exec` is deliberately not used for
+    /// the same reason.
+    nonisolated static func runUpdateCommand(_ command: String) {
+        openInTerminal("""
+        #!/bin/zsh
+        clear
+        echo "$ \(command)"
+        echo
+        \(command)
+        status=$?
+        echo
+        if [ $status -eq 0 ]; then
+          echo "Done. Open sessions keep the version they started with, so restart them to pick this up."
+        else
+          echo "The update command exited with status $status."
+        fi
+        echo "You can close this window."
+        """, label: "update claude code")
+    }
+
     /// Write a script and hand it to Terminal. Both entry points do the same
     /// thing, and doing it twice is how they drift apart.
     nonisolated private static func openInTerminal(_ body: String, label: String) {

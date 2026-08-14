@@ -963,6 +963,15 @@ final class AppState: ObservableObject {
     var registrySessionIds: Set<String> = []
     var registryTimer: Timer?
 
+    // MARK: - Claude Code CLI updates (logic lives in AppState+CLIUpdate.swift)
+
+    // Where the Claude Code install stands: which version is on disk, which is
+    // published, and how this one updates. Not persisted — both halves are
+    // cheap to re-read and stale on the next launch anyway.
+    @Published var claudeCLI = ClaudeCLIUpdate.Status()
+    @Published var cliUpdateChecking = false
+    var cliUpdateTimer: Timer?
+
     /// Open a file the agent edited, but never *launch* it. The path comes from
     /// a hook payload, so opening it with the default handler would run a crafted
     /// executable/script/app on a click. If the target is a bundle, has the

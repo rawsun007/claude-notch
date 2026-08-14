@@ -111,6 +111,15 @@ extension SettingsView {
                     }
                 }
             }
+            // The CLI this app exists to watch has its own release train and
+            // ships several times a week. The app already tells you when IT is
+            // out of date; being three versions behind on Claude Code is the
+            // more consequential half, and half the notch's newer features
+            // need a recent one to have anything to show.
+            sectionLabel(L("Claude Code", comment: "Settings section heading"))
+            group {
+                claudeCLIRow
+            }
             group {
                 aboutLink("Full changelog", ProjectLinks.changelog)
                 divider
@@ -126,5 +135,73 @@ extension SettingsView {
                 }
             }
         }
+    }
+
+    /// Installed Claude Code version, whether a newer one exists, and a button
+    /// that runs the right update command for how this copy was installed.
+    private var claudeCLIRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(ClaudeCLIUpdate.summary(state.claudeCLI))
+                        .fixedSize(horizontal: false, vertical: true)
+                    if state.claudeCLI.updateAvailable {
+                        // What will actually run, before it runs. The command
+                        // differs by install method, and a button that opens a
+                        // terminal should say what it is about to type.
+                        Text(state.claudeCLI.command)
+                            .font(.caption.monospaced()).foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+                    // A session keeps the binary it launched with, so updating
+                    // changes nothing in a window that is already open. Saying
+                    // so is what stops the update reading as having failed.
+                    if !state.sessionsOnOlderCLI.isEmpty {
+                        Text(Self.olderSessionsNote(state.sessionsOnOlderCLI))
+                            .font(.caption).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Spacer(minLength: 0)
+                if state.cliUpdateChecking {
+                    ProgressView().controlSize(.small)
+                } else if state.claudeCLI.updateAvailable {
+                    Button(L("Update", comment: "Settings button: update the Claude Code CLI")) {
+                        state.updateClaudeCLI()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                } else {
+                    Button(L("Check", comment: "Settings button: re-check the Claude Code version")) {
+                        state.refreshCLIUpdate(force: true)
+                    }
+                    .controlSize(.small)
+                }
+            }
+            if !state.claudeCLI.path.isEmpty {
+                Text(state.claudeCLI.path)
+                    .font(.caption2.monospaced()).foregroundStyle(.tertiary)
+                    .lineLimit(1).truncationMode(.middle)
+            }
+        }
+        .padding(.vertical, 10).padding(.horizontal, 14)
+        .onAppear { state.refreshCLIUpdate() }
+    }
+
+    /// "One session is still on 2.1.227." / "3 sessions are still on an older
+    /// version." Pure so the phrasing is testable.
+    static func olderSessionsNote(_ sessions: [LiveSession]) -> String {
+        let versions = Set(sessions.map(\.cliVersion))
+        if sessions.count == 1, let only = versions.first {
+            return String(format: L("One running session is still on %@. It picks up the new version when you restart it.",
+                                    comment: "Settings note. %@ is a version number"), only)
+        }
+        if versions.count == 1, let only = versions.first {
+            return String(format: L("%1$d running sessions are still on %2$@. They pick up the new version when you restart them.",
+                                    comment: "Settings note. %1$d is a count, %2$@ a version number"),
+                          sessions.count, only)
+        }
+        return String(format: L("%d running sessions are still on an older version. They pick it up when you restart them.",
+                                comment: "Settings note. %d is a count of sessions"), sessions.count)
     }
 }

@@ -78,6 +78,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // session died instead of inferring it from silence.
         state.ensureRegistryTimer()
 
+        // And whether the CLI those sessions run is itself out of date. Slow
+        // timer: Claude Code ships several times a week, not several times an
+        // hour, and this costs a subprocess plus a small HTTP GET.
+        state.ensureCLIUpdateTimer()
+
         server = EventServer(port: 53127, state: state)
         do {
             try server.start()

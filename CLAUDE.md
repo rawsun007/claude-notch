@@ -51,7 +51,8 @@ back as the response.
   **Compose**, **History** (activity log, archived records), **Export**
   (CSV/JSON, standup), **Queues** (permission/question/completed, capped via
   didSet), **Alerts**, **Sound**, **Sandbox** (per-cwd sandbox posture, cached
-  60 s), **Config** (ConfigChange: a settings file edited mid-session).
+  60 s), **Config** (ConfigChange: a settings file edited mid-session),
+  **CLIUpdate** (is the Claude Code CLI itself behind).
   Add new behaviour to the matching extension,
   not to AppState.swift. Because the extensions live in other files, members
   they touch are `internal` rather than `private`.
@@ -106,7 +107,12 @@ back as the response.
 - **MouseTracker / KeyboardMonitor / GlobalHotkey / FocusTracker**: hover, notch
   keys, settings hotkey, break timer. **BiometricAuth.swift**: Touch ID gate for
   dangerous actions. **NotificationBridge.swift**: mirror cards to Notification
-  Center. **UpdateChecker.swift**: GitHub Releases version check.
+  Center. **UpdateChecker.swift**: GitHub Releases version check (the app's own).
+- **ClaudeCLIUpdate.swift**: whether the Claude Code CLI itself is out of date.
+  Installed version from `claude --version`, latest from the npm registry tag
+  document, install method inferred from the binary path (native / npm /
+  homebrew) and the matching update command. Pure but for the shell-out and the
+  HTTP GET; state and the terminal launch live in `AppState+CLIUpdate.swift`.
 
 ### Shared helpers (use these; don't re-inline)
 - **Shell.swift**: `Shell.output/.succeeds` (Process+Pipe) and

@@ -30,6 +30,9 @@
 /* Tooltip on the task meter. %1$d is finished tasks, %2$d is the total */
 "%1$d of %2$d tasks done" = "%1$d of %2$d tasks done";
 
+/* Settings note. %1$d is a count, %2$@ a version number */
+"%1$d running sessions are still on %2$@. They pick up the new version when you restart them." = "%1$d running sessions are still on %2$@. They pick up the new version when you restart them.";
+
 /* Menu item naming the running project. %@ is the project */
 "%@ ,  click to clear" = "%@ ,  click to clear";
 
@@ -74,6 +77,9 @@
 
 /* Warning about rules that cannot be exported. %d is how many */
 "%d rule(s) use a pattern Claude Code cannot express, and are left out rather than approximated." = "%d rule(s) use a pattern Claude Code cannot express, and are left out rather than approximated.";
+
+/* Settings note. %d is a count of sessions */
+"%d running sessions are still on an older version. They pick it up when you restart them." = "%d running sessions are still on an older version. They pick it up when you restart them.";
 
 /* Count of sessions being summarised */
 "%d sessions" = "%d sessions";
@@ -318,6 +324,9 @@
 /* Changelog group heading */
 "Changed" = "Changed";
 
+/* Settings button: re-check the Claude Code version */
+"Check" = "Check";
+
 /* Menu item: look for a newer release now */
 "Check for Updates…" = "Check for Updates…";
 
@@ -339,6 +348,9 @@
 /* Placeholder showing the default notch title */
 "Claude" = "Claude";
 
+/* Settings section heading */
+"Claude Code" = "Claude Code";
+
 /* Result when the merge added nothing */
 "Claude Code already had all of them. A backup was saved anyway." = "Claude Code already had all of them. A backup was saved anyway.";
 
@@ -356,6 +368,9 @@
 
 /* Limit tooltip fragment explaining why a reading can be stale */
 "Claude Code only reports usage while a session is running" = "Claude Code only reports usage while a session is running";
+
+/* Settings: the Claude Code CLI could not be located */
+"Claude Code was not found on this Mac." = "Claude Code was not found on this Mac.";
 
 /* VoiceOver label for the status line. %@ is the status word */
 "Claude Code, %@" = "Claude Code, %@";
@@ -873,6 +888,9 @@
 /* Card title for the spend forecast warning */
 "On course to pass your daily budget" = "On course to pass your daily budget";
 
+/* Settings note. %@ is a version number */
+"One running session is still on %@. It picks up the new version when you restart it." = "One running session is still on %@. It picks up the new version when you restart it.";
+
 /* Settings toggle explanation */
 "Only let commands that read and change nothing be approved for you. Auto-Approve and tool-wide rules stop applying to everything else, so a build, a script, or anything reaching the network waits for a click. Rules you made for one exact command still work. The destructive-command check recognises patterns, and a pattern list is never finished; this is the setting for when that is not good enough." = "Only let commands that read and change nothing be approved for you. Auto-Approve and tool-wide rules stop applying to everything else, so a build, a script, or anything reaching the network waits for a click. Rules you made for one exact command still work. The destructive-command check recognises patterns, and a pattern list is never finished; this is the setting for when that is not good enough.";
 
@@ -1356,6 +1374,9 @@
 /* Money page. %@ is a relative time such as \"2 minutes ago\" */
 "Updated %@." = "Updated %@.";
 
+/* History entry when the user starts a CLI update */
+"Updating Claude Code" = "Updating Claude Code";
+
 /* Settings page title */
 "Usage" = "Usage";
 
@@ -1365,8 +1386,17 @@
 /* Menu item naming the paid-credit readout */
 "Usage credits (only while they are on)" = "Usage credits (only while they are on)";
 
+/* Settings. %1$@ is the installed CLI version, %2$@ the newer one */
+"Version %1$@ is installed. %2$@ is available." = "Version %1$@ is installed. %2$@ is available.";
+
 /* About page. %@ is a version and build number */
 "Version %@" = "Version %@";
+
+/* Settings. %@ is the installed CLI version */
+"Version %@ is installed, which is the newest." = "Version %@ is installed, which is the newest.";
+
+/* Settings. %@ is the installed CLI version */
+"Version %@ is installed." = "Version %@ is installed.";
 
 /* Two-letter status bar label for the weekly limit */
 "WK" = "WK";
