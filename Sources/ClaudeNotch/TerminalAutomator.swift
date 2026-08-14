@@ -139,21 +139,43 @@ enum TerminalAutomator {
     /// that vanishes takes that with it. `exec` is deliberately not used for
     /// the same reason.
     nonisolated static func runUpdateCommand(_ command: String) {
-        openInTerminal("""
+        openInTerminal(updateScript(command: command), label: "update claude code")
+    }
+
+    /// The script `runUpdateCommand` writes. Pure so what lands in a shell can
+    /// be read in a test rather than only in a terminal window.
+    ///
+    /// The command is echoed before it runs: this window replaces the binary
+    /// every session on the machine is about to launch, and the user should be
+    /// able to see what did it. The exit status is reported rather than
+    /// swallowed, because `npm install -g` failing on permissions is the
+    /// ordinary way this goes wrong.
+    ///
+    /// The echo goes through a quoted here-document rather than `echo "..."`.
+    /// The line being displayed contains a path, a path can contain `$(` or a
+    /// backtick, and inside double quotes the shell would run it — while
+    /// merely SHOWING the user what is about to happen. The command itself is
+    /// single-quoted at construction (see ClaudeCLIUpdate.shellQuoted), so the
+    /// execution line below is safe for the same reason.
+    nonisolated static func updateScript(command: String) -> String {
+        """
         #!/bin/zsh
         clear
-        echo "$ \(command)"
+        printf '$ '
+        cat <<'CLAUDENOTCH_CMD'
+        \(command)
+        CLAUDENOTCH_CMD
         echo
         \(command)
-        status=$?
+        rc=$?
         echo
-        if [ $status -eq 0 ]; then
+        if [ $rc -eq 0 ]; then
           echo "Done. Open sessions keep the version they started with, so restart them to pick this up."
         else
-          echo "The update command exited with status $status."
+          echo "The update command exited with status $rc."
         fi
         echo "You can close this window."
-        """, label: "update claude code")
+        """
     }
 
     /// Write a script and hand it to Terminal. Both entry points do the same

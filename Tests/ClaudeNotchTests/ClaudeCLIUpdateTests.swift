@@ -126,6 +126,42 @@ final class ClaudeCLIUpdateTests: XCTestCase {
         XCTAssertFalse(ClaudeCLIUpdate.Status(installed: "2.1.231", latest: "2.1.9").updateAvailable)
     }
 
+    // MARK: - The script that reaches the shell
+
+    /// `status` is read-only in zsh, and these scripts run under zsh. Assigning
+    /// to it made every update report "read-only variable: status" and skipped
+    /// the line saying whether the update worked.
+    func testTheScriptDoesNotAssignToAReadOnlyZshVariable() {
+        let script = TerminalAutomator.updateScript(command: "claude update")
+        XCTAssertFalse(script.contains("status=$?"), script)
+        XCTAssertTrue(script.contains("rc=$?"), script)
+    }
+
+    /// The line that SHOWS the user what is about to run must not run any of
+    /// it. A path can contain `$(` or a backtick, and inside double quotes the
+    /// shell would execute that while merely echoing.
+    func testTheCommandIsDisplayedWithoutBeingExpanded() {
+        let script = TerminalAutomator.updateScript(command: "'/tmp/$(touch /tmp/x)/claude' update")
+        // Displayed through a quoted here-document, which expands nothing.
+        XCTAssertTrue(script.contains("<<'CLAUDENOTCH_CMD'"), script)
+        XCTAssertFalse(script.contains("echo \"$ "), script)
+    }
+
+    func testTheScriptReportsBothOutcomes() {
+        let script = TerminalAutomator.updateScript(command: "claude update")
+        XCTAssertTrue(script.contains("if [ $rc -eq 0 ]"), script)
+        // Open sessions keep the binary they launched with, and not saying so
+        // makes a successful update look like it did nothing.
+        XCTAssertTrue(script.localizedCaseInsensitiveContains("restart"), script)
+        XCTAssertTrue(script.localizedCaseInsensitiveContains("exited with status"), script)
+    }
+
+    /// The window must not close on completion: the output is the only
+    /// evidence of what happened.
+    func testTheScriptDoesNotExecAwayTheShell() {
+        XCTAssertFalse(TerminalAutomator.updateScript(command: "claude update").contains("exec "))
+    }
+
     // MARK: - Wording
 
     func testGoldenSummaryTable() {
