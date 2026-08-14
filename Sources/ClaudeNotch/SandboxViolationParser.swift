@@ -79,19 +79,31 @@ enum SandboxViolationParser {
         return String(text[start.upperBound..<end.lowerBound])
     }
 
+    /// Network or filesystem, by the words the line uses.
+    ///
+    /// Matched on word boundaries rather than as substrings. `/etc/hosts` is a
+    /// file, and a substring test for "host" calls it a network denial — which
+    /// is the kind of wrong that reads as authoritative in a card.
     nonisolated static func classify(_ line: String) -> Kind {
         let lower = line.lowercased()
-        if lower.contains("network") || lower.contains("connect")
-            || lower.contains("dns") || lower.contains("egress")
-            || lower.contains("domain") || lower.contains("host") {
+        // "request to <host>" is the CLI's own phrasing for a blocked egress.
+        if lower.contains("request to ") { return .network }
+        if containsWord(lower, ["network", "egress", "dns", "domain", "hostname",
+                                "socket", "proxy", "connect", "connection",
+                                "tcp", "udp", "url"]) {
             return .network
         }
-        if lower.contains("read") || lower.contains("write") || lower.contains("file")
-            || lower.contains("path") || lower.contains("directory")
+        if containsWord(lower, ["read", "write", "open", "file", "filesystem",
+                                "path", "directory", "credential"])
             || line.contains("/") {
             return .file
         }
         return .other
+    }
+
+    nonisolated private static func containsWord(_ haystack: String, _ words: [String]) -> Bool {
+        let pattern = "\\b(" + words.joined(separator: "|") + ")\\b"
+        return haystack.range(of: pattern, options: .regularExpression) != nil
     }
 
     /// The host or path a line is about. Best effort by design: a line whose

@@ -75,6 +75,18 @@ final class SandboxViolationTests: XCTestCase {
         XCTAssertEqual(SandboxViolationParser.summary(v), "seccomp: syscall 41 refused")
     }
 
+    /// `/etc/hosts` is a file. Classifying on substrings called it a network
+    /// denial, because the path contains the letters "host" — a confident
+    /// wrong answer in a card that is meant to explain a block.
+    func testAPathThatLooksLikeANetworkWordIsStillAFile() throws {
+        for line in ["denied read of /etc/hosts",
+                     "write denied: /var/db/dnsmasq.conf",
+                     "denied read of /Users/me/urls.txt"] {
+            let v = try XCTUnwrap(parse(wrap(line)).first, line)
+            XCTAssertEqual(v.kind, .file, line)
+        }
+    }
+
     // MARK: - Shape of the list
 
     func testBulletsAndBlankLinesAreCleanedUp() {
