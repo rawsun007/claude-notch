@@ -48,10 +48,58 @@ extension AppState {
             // connection does not turn "update available" into "up to date".
             if !latest.isEmpty { status.latest = latest }
             status.checkedAt = Date()
+
+            // Only fetch the notes when there is something to update to. On an
+            // up-to-date machine this is a network call for text nobody will
+            // see, and an empty list is what the UI needs anyway.
+            if status.updateAvailable {
+                let changelog = await ClaudeCLIUpdate.fetchChangelog()
+                status.notes = ClaudeCLIUpdate.notes(ClaudeCLIUpdate.parseChangelog(changelog),
+                                                     installed: status.installed,
+                                                     latest: status.latest)
+            } else {
+                status.notes = []
+            }
+
             self.claudeCLI = status
             self.cliUpdateChecking = false
+
+            // The update we launched has landed: stop watching for it.
+            if !status.updateAvailable { self.cliUpdateLaunchedAt = nil }
         }
     }
+
+    /// Re-check shortly after an update is launched, until the installed
+    /// version moves.
+    ///
+    /// Without this the card kept saying an update was available after the
+    /// update had been installed: the automatic check runs every six hours,
+    /// opening the page re-checks at most hourly, and while an update was
+    /// pending the only button on the row was Update. The user had done what
+    /// the app asked and the app went on asking.
+    private func startPostUpdateWatch() {
+        cliUpdateLaunchedAt = Date()
+        cliRecheckTimer?.invalidate()
+        cliRecheckTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] timer in
+            Task { @MainActor [weak self] in
+                guard let self else { timer.invalidate(); return }
+                // Give up after a few minutes: the terminal window may be
+                // sitting at a password prompt, or the user may have closed it.
+                if let launched = self.cliUpdateLaunchedAt,
+                   Date().timeIntervalSince(launched) > Self.postUpdateWatchWindow {
+                    self.cliUpdateLaunchedAt = nil
+                }
+                guard self.cliUpdateLaunchedAt != nil else {
+                    timer.invalidate()
+                    self.cliRecheckTimer = nil
+                    return
+                }
+                self.refreshCLIUpdate(force: true)
+            }
+        }
+    }
+
+    nonisolated static let postUpdateWatchWindow: TimeInterval = 5 * 60
 
     /// Sessions running an older CLI than the one installed.
     ///
@@ -77,6 +125,7 @@ extension AppState {
     func updateClaudeCLI() {
         let command = claudeCLI.command
         TerminalAutomator.runUpdateCommand(command)
+        startPostUpdateWatch()
         appendHistory(HistoryEntry(
             timestamp: Date(),
             kind: .notification,

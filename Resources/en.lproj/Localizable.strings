@@ -1437,6 +1437,9 @@
 /* Settings picker label */
 "What the title shows" = "What the title shows";
 
+/* Settings heading above CLI release notes. %@ is a version number */
+"What's new in %@" = "What's new in %@";
+
 /* Settings section heading. %@ is the version number */
 "What's new in v%@" = "What's new in v%@";
 

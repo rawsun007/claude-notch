@@ -163,20 +163,43 @@ extension SettingsView {
                     }
                 }
                 Spacer(minLength: 0)
-                if state.cliUpdateChecking {
-                    ProgressView().controlSize(.small)
-                } else if state.claudeCLI.updateAvailable {
-                    Button(L("Update", comment: "Settings button: update the Claude Code CLI")) {
-                        state.updateClaudeCLI()
+                HStack(spacing: 6) {
+                    if state.cliUpdateChecking {
+                        ProgressView().controlSize(.small)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                } else {
+                    // Always offered, including while an update is pending. It
+                    // was not, and after installing an update there was no way
+                    // to make the card stop asking for one.
                     Button(L("Check", comment: "Settings button: re-check the Claude Code version")) {
                         state.refreshCLIUpdate(force: true)
                     }
                     .controlSize(.small)
+                    if state.claudeCLI.updateAvailable {
+                        Button(L("Update", comment: "Settings button: update the Claude Code CLI")) {
+                            state.updateClaudeCLI()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
                 }
+            }
+            // What you would get by updating. Shown only when there is an
+            // update AND notes for it were actually found: an empty "What's
+            // new" heading is worse than no heading.
+            ForEach(Array(state.claudeCLI.notes.enumerated()), id: \.offset) { _, release in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(String(format: L("What's new in %@", comment: "Settings heading above CLI release notes. %@ is a version number"),
+                                release.version))
+                        .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    ForEach(Array(release.items.enumerated()), id: \.offset) { _, item in
+                        HStack(alignment: .top, spacing: 6) {
+                            Text("\u{2022}").font(.caption).foregroundStyle(.tertiary)
+                            Text(item).font(.caption).foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                .padding(.top, 2)
             }
             if !state.claudeCLI.path.isEmpty {
                 Text(state.claudeCLI.path)

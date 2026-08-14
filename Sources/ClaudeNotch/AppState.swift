@@ -971,6 +971,11 @@ final class AppState: ObservableObject {
     @Published var claudeCLI = ClaudeCLIUpdate.Status()
     @Published var cliUpdateChecking = false
     var cliUpdateTimer: Timer?
+    // Set while an update the user launched is expected to land, so the app
+    // re-checks until the installed version moves instead of leaving the card
+    // asking for an update that already happened.
+    var cliUpdateLaunchedAt: Date?
+    var cliRecheckTimer: Timer?
 
     /// Open a file the agent edited, but never *launch* it. The path comes from
     /// a hook payload, so opening it with the default handler would run a crafted

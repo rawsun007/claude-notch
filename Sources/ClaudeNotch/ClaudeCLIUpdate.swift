@@ -27,6 +27,12 @@ enum ClaudeCLIUpdate {
         case unknown
     }
 
+    /// One version's changelog section.
+    struct ReleaseNotes: Equatable {
+        let version: String
+        let items: [String]
+    }
+
     struct Status: Equatable {
         /// What `claude --version` reports. Empty when the CLI was not found.
         var installed: String = ""
@@ -37,6 +43,11 @@ enum ClaudeCLIUpdate {
         /// The absolute path the version came from, for the tooltip.
         var path: String = ""
         var checkedAt: Date? = nil
+        /// What changed in the versions between the installed one and the
+        /// newest, newest first. Empty when the notes could not be fetched, or
+        /// when there is nothing to update to — in which case the UI shows no
+        /// notes section at all rather than an empty heading.
+        var notes: [ReleaseNotes] = []
 
         /// True only when both versions are known and latest is genuinely
         /// newer. A failed check leaves this false, so the UI says nothing
@@ -113,6 +124,16 @@ enum ClaudeCLIUpdate {
 
     static let registryURL = "https://registry.npmjs.org/@anthropic-ai/claude-code/latest"
 
+    /// Anthropic's published changelog. The CLI keeps its own copy at
+    /// ~/.claude/cache/changelog.md, but that copy is only as new as the last
+    /// time the CLI refreshed it, so it lags exactly when it matters: right
+    /// after a version you do not have yet is published.
+    static let changelogURL = "https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md"
+
+    static let localChangelogPath: String = {
+        (NSHomeDirectory() as NSString).appendingPathComponent(".claude/cache/changelog.md")
+    }()
+
     /// Ask the CLI what version it is. Runs a subprocess, so it belongs off the
     /// main thread.
     nonisolated static func readInstalled() -> (version: String, path: String) {
@@ -148,6 +169,83 @@ enum ClaudeCLIUpdate {
         await withCheckedContinuation { continuation in
             fetchLatest(timeout: timeout) { continuation.resume(returning: $0) }
         }
+    }
+
+    // MARK: - What changed
+
+    /// Split a changelog into `## <version>` sections, in file order.
+    ///
+    /// Only `- ` bullets are taken. Anything else in a section (blank lines,
+    /// prose, a nested list) is skipped rather than guessed at: this text is
+    /// rendered as a list of changes, and a stray paragraph rendered as a
+    /// bullet reads as a change that did not happen.
+    nonisolated static func parseChangelog(_ text: String) -> [ReleaseNotes] {
+        var out: [ReleaseNotes] = []
+        var version = ""
+        var items: [String] = []
+
+        func flush() {
+            if !version.isEmpty, !items.isEmpty {
+                out.append(ReleaseNotes(version: version, items: items))
+            }
+            version = ""
+            items = []
+        }
+
+        for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            if line.hasPrefix("## ") {
+                flush()
+                version = parseInstalledVersion(String(line.dropFirst(3)))
+                continue
+            }
+            guard !version.isEmpty, line.hasPrefix("- ") else { continue }
+            let item = String(line.dropFirst(2)).trimmingCharacters(in: .whitespaces)
+            if !item.isEmpty { items.append(item) }
+        }
+        flush()
+        return out
+    }
+
+    /// At most this many version sections, and bullets within one section, are
+    /// worth putting on a settings page. Someone ten versions behind wants to
+    /// know it is a lot, not to read all of it here.
+    static let maxNoteSections = 3
+    static let maxNoteItems = 6
+
+    /// The sections describing what you would GAIN by updating: versions newer
+    /// than the installed one, up to and including the newest, newest first.
+    ///
+    /// Returns [] when there is no update, when the versions are unknown, or
+    /// when the changelog has nothing for them — all three mean the UI shows
+    /// nothing rather than an empty heading.
+    nonisolated static func notes(_ all: [ReleaseNotes],
+                                  installed: String, latest: String) -> [ReleaseNotes] {
+        guard !installed.isEmpty, !latest.isEmpty,
+              UpdateChecker.isNewer(latest, than: installed) else { return [] }
+        return all
+            .filter { UpdateChecker.isNewer($0.version, than: installed)
+                      && !UpdateChecker.isNewer($0.version, than: latest) }
+            .prefix(maxNoteSections)
+            .map { ReleaseNotes(version: $0.version, items: Array($0.items.prefix(maxNoteItems))) }
+    }
+
+    /// The changelog text: published copy first, the CLI's cached copy as a
+    /// fallback for an offline machine. Empty when neither can be read, which
+    /// costs the notes section and nothing else.
+    nonisolated static func fetchChangelog(timeout: TimeInterval = 15) async -> String {
+        if let url = URL(string: changelogURL) {
+            var request = URLRequest(url: url)
+            request.timeoutInterval = timeout
+            if let (data, response) = try? await URLSession.shared.data(for: request),
+               let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+               let text = String(data: data, encoding: .utf8), !text.isEmpty {
+                return text
+            }
+        }
+        guard let data = FileManager.default.contents(atPath: localChangelogPath),
+              let text = String(data: data, encoding: .utf8) else { return "" }
+        return text
     }
 
     // MARK: - Presentation

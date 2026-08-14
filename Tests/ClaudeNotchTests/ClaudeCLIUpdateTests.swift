@@ -126,6 +126,84 @@ final class ClaudeCLIUpdateTests: XCTestCase {
         XCTAssertFalse(ClaudeCLIUpdate.Status(installed: "2.1.231", latest: "2.1.9").updateAvailable)
     }
 
+    // MARK: - Release notes
+
+    private let changelog = """
+    # Changelog
+
+    ## 2.1.232
+
+    - Subagent forking is now on by default
+    - Type `@` in the prompt to mention another Claude session
+
+    ## 2.1.231
+
+    - Fixed MCP OAuth sign-in failing with a redirect URI mismatch
+
+    ## 2.1.230
+
+    Some prose that is not a bullet.
+
+    - Fixed a crash on resume
+
+    ## 2.1.229
+
+    - Documented `claude remote-control --continue`
+    """
+
+    func testTheChangelogSplitsIntoVersionSections() {
+        let all = ClaudeCLIUpdate.parseChangelog(changelog)
+        XCTAssertEqual(all.map(\.version), ["2.1.232", "2.1.231", "2.1.230", "2.1.229"])
+        XCTAssertEqual(all.first?.items.count, 2)
+        // Prose inside a section is not a change; rendered as a bullet it would
+        // read as one.
+        XCTAssertEqual(all[2].items, ["Fixed a crash on resume"])
+    }
+
+    func testOnlyTheVersionsYouWouldGainAreShown() {
+        let all = ClaudeCLIUpdate.parseChangelog(changelog)
+        let notes = ClaudeCLIUpdate.notes(all, installed: "2.1.230", latest: "2.1.232")
+        // Newer than installed, no newer than latest, newest first. The version
+        // you are ON is not news, and one you cannot get yet is not either.
+        XCTAssertEqual(notes.map(\.version), ["2.1.232", "2.1.231"])
+    }
+
+    /// The user's rule: if we do not have the notes, show nothing.
+    func testNothingIsShownWhenThereIsNothingToSay() {
+        let all = ClaudeCLIUpdate.parseChangelog(changelog)
+        // Already current.
+        XCTAssertTrue(ClaudeCLIUpdate.notes(all, installed: "2.1.232", latest: "2.1.232").isEmpty)
+        // Check failed, so latest is unknown.
+        XCTAssertTrue(ClaudeCLIUpdate.notes(all, installed: "2.1.232", latest: "").isEmpty)
+        // CLI not found.
+        XCTAssertTrue(ClaudeCLIUpdate.notes(all, installed: "", latest: "2.1.232").isEmpty)
+        // An update exists but the changelog could not be fetched.
+        XCTAssertTrue(ClaudeCLIUpdate.notes([], installed: "2.1.231", latest: "2.1.232").isEmpty)
+        // An update exists but the changelog has no section for it.
+        XCTAssertTrue(ClaudeCLIUpdate.notes(all, installed: "2.1.232", latest: "2.1.240").isEmpty)
+    }
+
+    /// Someone ten versions behind wants to know it is a lot, not to read all
+    /// of it on a settings page.
+    func testTheNotesAreCapped() {
+        let manySections = (1...10).map { i in
+            "## 2.2.\(i)\n\n" + (1...12).map { "- item \($0)" }.joined(separator: "\n")
+        }.reversed().joined(separator: "\n\n")
+        let all = ClaudeCLIUpdate.parseChangelog(manySections)
+        let notes = ClaudeCLIUpdate.notes(all, installed: "2.1.0", latest: "2.2.10")
+        XCTAssertEqual(notes.count, ClaudeCLIUpdate.maxNoteSections)
+        XCTAssertTrue(notes.allSatisfy { $0.items.count <= ClaudeCLIUpdate.maxNoteItems })
+        // Newest first, so the cap keeps the versions you care about most.
+        XCTAssertEqual(notes.first?.version, "2.2.10")
+    }
+
+    func testAnEmptyOrJunkChangelogParsesToNothing() {
+        XCTAssertTrue(ClaudeCLIUpdate.parseChangelog("").isEmpty)
+        XCTAssertTrue(ClaudeCLIUpdate.parseChangelog("no headings here\n- a bullet").isEmpty)
+        // A heading with no bullets is not a section worth showing.
+        XCTAssertTrue(ClaudeCLIUpdate.parseChangelog("## 2.1.232\n\nnothing\n").isEmpty)
+    }
+
     // MARK: - The script that reaches the shell
 
     /// `status` is read-only in zsh, and these scripts run under zsh. Assigning
