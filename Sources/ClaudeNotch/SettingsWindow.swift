@@ -14,9 +14,28 @@ final class SettingsWindowController {
     /// Invoked by the About page's "Run setup again" button.
     var onOpenSetup: (() -> Void)?
 
+    /// How an app window should behave about Spaces.
+    ///
+    /// Without this, a window keeps the Space it was created on, so opening
+    /// Settings from a full-screen terminal threw the user out of that Space
+    /// and onto the desktop where the window happened to live. They asked for a
+    /// settings window and got their screen changed.
+    ///
+    /// `.moveToActiveSpace` brings the window to where the user IS instead of
+    /// dragging the user to the window. `.fullScreenAuxiliary` lets it appear
+    /// over a full-screen app rather than forcing macOS out of full screen to
+    /// show it. Deliberately NOT `.canJoinAllSpaces`: that pins a window to
+    /// every Space forever, which is right for the notch overlay and wrong for
+    /// an ordinary window you open, use, and close.
+    static let spacesBehavior: NSWindow.CollectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+
     func show() {
         guard let appState else { return }
         if let existing = window {
+            // Re-applied on every show: the window outlives a close, and this
+            // is the one property that decides whether reopening it yanks the
+            // user somewhere else.
+            existing.collectionBehavior = Self.spacesBehavior
             existing.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
@@ -34,6 +53,7 @@ final class SettingsWindowController {
         w.setContentSize(NSSize(width: 720, height: 560))
         w.minSize = NSSize(width: 640, height: 460)
         w.center()
+        w.collectionBehavior = Self.spacesBehavior
         w.delegate = SettingsWindowCloser.shared
 
         window = w

@@ -34,6 +34,9 @@ final class OnboardingWindowController {
         state.appState = appState
         if let existing = window {
             state.startPolling()
+            // Follow the user to their Space rather than pulling them to ours.
+            // See SettingsWindowController.spacesBehavior.
+            existing.collectionBehavior = SettingsWindowController.spacesBehavior
             existing.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
@@ -58,6 +61,7 @@ final class OnboardingWindowController {
         w.standardWindowButton(.zoomButton)?.isHidden = true
         w.isReleasedWhenClosed = false
         w.center()
+        w.collectionBehavior = SettingsWindowController.spacesBehavior
         w.delegate = WindowCloser.shared
         WindowCloser.shared.onClose = { [weak self] in self?.handleUserClose() }
 
