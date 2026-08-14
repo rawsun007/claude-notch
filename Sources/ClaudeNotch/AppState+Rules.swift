@@ -117,6 +117,9 @@ extension AppState {
         guard let out = try? JSONSerialization.data(withJSONObject: settings,
                                                     options: [.prettyPrinted, .sortedKeys]),
               (try? out.write(to: url, options: .atomic)) != nil else { return nil }
+        // Ours. Every live session will report this file changing; the notch
+        // should not tell the user about an edit they just asked it to make.
+        HookInstaller.noteSelfWrite()
         return added
     }
 }

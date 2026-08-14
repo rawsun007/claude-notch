@@ -50,6 +50,25 @@ enum HookInstaller {
         return s.contains("claudenotch-statusline.sh")
     }
 
+    /// When the app last wrote `~/.claude/settings.json` itself.
+    ///
+    /// Every running session fires a `ConfigChange` hook when that file
+    /// changes — including when WE change it, installing hooks or merging
+    /// allow rules. Without this the app announces its own edits, once per
+    /// live session. Not `@MainActor`: the writers are static and the reader
+    /// is on the hook path.
+    private nonisolated(unsafe) static var selfWriteAt = Date.distantPast
+    private static let selfWriteLock = NSLock()
+
+    static var lastSelfWriteAt: Date {
+        selfWriteLock.withLock { selfWriteAt }
+    }
+
+    /// Call right after writing settings.json from inside the app.
+    static func noteSelfWrite() {
+        selfWriteLock.withLock { selfWriteAt = Date() }
+    }
+
     /// True when settings.json already registers the hook events added in
     /// recent releases. Lets the app auto-migrate existing installs when an
     /// update starts listening to new events, without a manual reinstall.
@@ -58,7 +77,7 @@ enum HookInstaller {
               let s = String(data: data, encoding: .utf8) else { return false }
         return s.contains("\"StopFailure\"") && s.contains("\"SessionStart\"")
             && s.contains("\"DirectoryAdded\"") && s.contains("\"CwdChanged\"")
-            && s.contains("\"PermissionDenied\"")
+            && s.contains("\"PermissionDenied\"") && s.contains("\"ConfigChange\"")
     }
 
     /// `jq` is required by posttool.sh to forward payload fields to the
@@ -352,6 +371,10 @@ enum HookInstaller {
         // through; without this it never shows what it stops, and a session
         // being blocked over and over looks like a session thinking.
         appendHook(to: "PermissionDenied", in: &hooks, matcher: ".*")
+        // A settings file changed while sessions are running. Settings are
+        // where permissions and sandboxing live, so this both refreshes what
+        // the notch shows and is worth saying out loud.
+        appendHook(to: "ConfigChange", in: &hooks, matcher: nil)
         settings["hooks"] = hooks
 
         // StatusLine: the only local source of authoritative context-% and real
@@ -363,6 +386,9 @@ enum HookInstaller {
         do {
             let out = try JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .sortedKeys])
             try out.write(to: settingsURL, options: .atomic)
+            // Every live session is about to fire ConfigChange at us for this
+            // write. Mark it as ours so the notch does not announce its own edit.
+            noteSelfWrite()
         } catch {
             throw InstallError.settingsWriteFailed(error.localizedDescription)
         }

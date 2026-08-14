@@ -951,6 +951,17 @@ final class EventServer {
 
     /// The payload carries `directory_path` and `how_added` (`slash_command`
     /// or `register_repo_root`) on top of the common fields.
+    /// A settings file changed mid-session. `source` says which tier
+    /// (user / project / local / policy / skills), `file_path` is optional.
+    private func handleConfigChange(payload: [String: Any]) {
+        let source = (payload["source"] as? String) ?? ""
+        let filePath = (payload["file_path"] as? String)
+            ?? (payload["filePath"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.noteConfigChanged(source: source, filePath: filePath)
+        }
+    }
+
     /// Auto mode denied a tool call. The payload carries `tool_name`,
     /// `tool_input`, `tool_use_id` and `reason`.
     private func handlePermissionDenied(payload: [String: Any]) {
@@ -1480,6 +1491,13 @@ final class EventServer {
             sendOK(on: conn)
         case "PreCompact":
             handleCompact(payload: payload)
+            sendOK(on: conn)
+        case "ConfigChange":
+            handleConfigChange(payload: payload)
+            // Plain OK: this hook can BLOCK a settings change by answering
+            // `{blocked: true}`. The notch reports, it does not veto — and a
+            // crash or a timeout here must never be able to stop the user
+            // editing their own settings.
             sendOK(on: conn)
         case "CwdChanged":
             // recordSessionMetadata (called before routing in handle()) already

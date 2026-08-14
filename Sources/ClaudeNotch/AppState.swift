@@ -943,6 +943,13 @@ final class AppState: ObservableObject {
     // here" is worth remembering, not worth re-deriving every hook.
     var sandboxCache: [String: (status: SandboxReader.Status?, readAt: Date)] = [:]
 
+    // MARK: - Config change state (logic lives in AppState+Config.swift)
+
+    // Last time a ConfigChange card was shown, per source. Several sessions
+    // report the same edit, and an editor can save twice; the file changed
+    // once either way.
+    var lastConfigCardAt: [String: Date] = [:]
+
     /// Open a file the agent edited, but never *launch* it. The path comes from
     /// a hook payload, so opening it with the default handler would run a crafted
     /// executable/script/app on a click. If the target is a bundle, has the

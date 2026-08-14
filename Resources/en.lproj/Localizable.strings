@@ -417,6 +417,12 @@
 /* Settings toggle */
 "Completion notifications" = "Completion notifications";
 
+/* Card title: a settings file changed, source unknown */
+"Configuration changed" = "Configuration changed";
+
+/* Card title for an unrecognized config source. %@ is the source name */
+"Configuration changed (%@)" = "Configuration changed (%@)";
+
 /* Button: allow a destructive command after biometric confirmation */
 "Confirm to Allow" = "Confirm to Allow";
 
@@ -753,11 +759,17 @@
 /* Settings section heading */
 "Lines changed this session" = "Lines changed this session";
 
+/* Card title: .claude/settings.local.json was edited */
+"Local project settings changed" = "Local project settings changed";
+
 /* Settings toggle */
 "Long-run alerts" = "Long-run alerts";
 
 /* Button opening the Anthropic usage settings page */
 "Manage on claude.ai" = "Manage on claude.ai";
+
+/* Card title: the administrator's managed settings changed */
+"Managed policy changed" = "Managed policy changed";
 
 /* Settings toggle explanation */
 "Mark sessions whose tool calls run inside a sandbox, and say when something is allowed to run outside it. Only appears for sandboxed sessions." = "Mark sessions whose tool calls run inside a sandbox, and say when something is allowed to run outside it. Only appears for sandboxed sessions.";
@@ -944,6 +956,9 @@
 
 /* Settings explanation */
 "Project name" = "Project name";
+
+/* Card title: the project's .claude/settings.json was edited */
+"Project settings changed" = "Project settings changed";
 
 /* Caveat under the spend projection. %1$d is days measured, %2$d is days remaining */
 "Projected from %1$d day(s) of spend, with %2$d still to go. Estimated at public API prices, not your subscription bill." = "Projected from %1$d day(s) of spend, with %2$d still to go. Estimated at public API prices, not your subscription bill.";
@@ -1140,6 +1155,9 @@
 /* Settings toggle explanation */
 "Silence every notch sound." = "Silence every notch sound.";
 
+/* Card title: the installed skills changed */
+"Skills changed" = "Skills changed";
+
 /* Submenu: pause non-blocking cards */
 "Snooze" = "Snooze";
 
@@ -1166,6 +1184,9 @@
 
 /* Settings sidebar section */
 "Sounds" = "Sounds";
+
+/* Card detail when a config change carried no file path. %@ is the source name */
+"Source: %@" = "Source: %@";
 
 /* Menu item opening the cost breakdown */
 "Spend" = "Spend";
@@ -1424,6 +1445,9 @@
 
 /* Settings toggle explanation */
 "Your plan and whichever limit is closest to full, next to the menu-bar bell, so how much you have left is answered without opening anything." = "Your plan and whichever limit is closest to full, next to the menu-bar bell, so how much you have left is answered without opening anything.";
+
+/* Card title: ~/.claude/settings.json was edited */
+"Your settings changed" = "Your settings changed";
 
 /* Limit tooltip fragment. %@ is a duration such as 40 min */
 "about %@ left at this rate" = "about %@ left at this rate";
