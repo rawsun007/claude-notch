@@ -239,6 +239,12 @@ final class PermissionRequest: Identifiable, Equatable {
     // Non-nil when the budget hard-stop is holding this request (cap exceeded
     // + enforcement on). Drives the budget framing + Raise-cap button.
     var budgetBlock: BudgetBlock? = nil
+    // Set when this card reports an action auto mode DENIED, and why (the
+    // `reason` on the PermissionDenied hook). nil on every other card,
+    // including the auto-ALLOWED one, which is the other half of the same
+    // surface: both are actions decided without you, and only one of them was
+    // visible before.
+    var autoDenialReason: String? = nil
 
     init(kind: Kind, title: String, detail: String, toolName: String, source: String, cwd: String, originatorBundleID: String? = nil, preview: ToolPreview? = nil, dangerReasons: [String] = [], resolver: @escaping (PermissionDecision, String?) -> Void) {
         self.kind = kind

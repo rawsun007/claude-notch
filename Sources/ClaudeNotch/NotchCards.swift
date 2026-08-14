@@ -249,15 +249,34 @@ struct AutoInfoCard: View {
     let request: PermissionRequest
     var onDismiss: () -> Void = {}
 
+    /// Denials are the same card in the other direction: no buttons, nothing
+    /// to resolve, it already happened. Only the framing changes, because
+    /// mistaking one for the other is the whole risk.
+    private var denied: Bool { request.autoDenialReason != nil }
+    private var accent: Color { denied ? .orange : .green }
+
+    /// One phrase for VoiceOver. A card with no buttons is read once and gone,
+    /// so it has to carry the whole event: what happened, to what, and why.
+    private var spokenSummary: String {
+        var parts = [denied ? "Auto-denied." : "Auto-allowed.", request.title]
+        if !request.toolName.isEmpty { parts.append("Tool: \(request.toolName).") }
+        if let reason = request.autoDenialReason, !reason.isEmpty {
+            parts.append("Reason: \(SecretRedactor.redact(reason)).")
+        }
+        return parts.joined(separator: " ")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Image(systemName: "bolt.badge.checkmark.fill")
-                    .foregroundColor(.green)
+                Image(systemName: denied ? "bolt.badge.xmark.fill" : "bolt.badge.checkmark.fill")
+                    .foregroundColor(accent)
                     .font(.system(size: 13, weight: .semibold))
-                Text(L("Auto-allowed", comment: "Heading: this action was approved automatically by a rule"))
+                Text(denied
+                     ? L("Auto-denied", comment: "Heading: auto mode blocked this action without asking")
+                     : L("Auto-allowed", comment: "Heading: this action was approved automatically by a rule"))
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundColor(.green.opacity(0.9))
+                    .foregroundColor(accent.opacity(0.9))
                     .textCase(.uppercase)
                 Text("·").foregroundColor(.white.opacity(0.3))
                 Text(request.toolName)
@@ -279,9 +298,19 @@ struct AutoInfoCard: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
+            // Why it was blocked. Without this the card says an action did not
+            // happen and leaves you to guess which rule stopped it.
+            if let reason = request.autoDenialReason, !reason.isEmpty {
+                Text(reason)
+                    .font(.system(size: 11, design: .rounded))
+                    .foregroundColor(.orange.opacity(0.85))
+                    .lineLimit(2)
+            }
         }
         .contentShape(Rectangle())
         .onTapGesture { onDismiss() }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(spokenSummary)
     }
 }
 

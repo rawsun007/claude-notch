@@ -58,6 +58,7 @@ enum HookInstaller {
               let s = String(data: data, encoding: .utf8) else { return false }
         return s.contains("\"StopFailure\"") && s.contains("\"SessionStart\"")
             && s.contains("\"DirectoryAdded\"") && s.contains("\"CwdChanged\"")
+            && s.contains("\"PermissionDenied\"")
     }
 
     /// `jq` is required by posttool.sh to forward payload fields to the
@@ -347,6 +348,10 @@ enum HookInstaller {
         // a directory granted after it started is exactly that changing.
         appendHook(to: "DirectoryAdded", in: &hooks, matcher: nil)
         appendHook(to: "CwdChanged", in: &hooks, matcher: nil)
+        // Auto mode blocked a tool call. The notch shows what auto mode lets
+        // through; without this it never shows what it stops, and a session
+        // being blocked over and over looks like a session thinking.
+        appendHook(to: "PermissionDenied", in: &hooks, matcher: ".*")
         settings["hooks"] = hooks
 
         // StatusLine: the only local source of authoritative context-% and real

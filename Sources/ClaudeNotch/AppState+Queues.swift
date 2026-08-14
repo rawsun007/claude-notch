@@ -238,19 +238,66 @@ extension AppState {
     private func showAutoInfo(_ req: PermissionRequest) {
         // Soft, distinct "Pop" — and debounced, so a burst of auto-approved
         // edits doesn't machine-gun the sound (which read as an error).
+        //
+        // A denial gets the deny sound instead: the two events look alike in
+        // the corner of your eye, and hearing the wrong one teaches you to
+        // read "something was allowed" when something was blocked.
         if Date().timeIntervalSince(lastAutoSoundAt) > 0.8 {
-            play(.autoApproved)
+            play(req.autoDenialReason == nil ? .autoApproved : .dismissed)
             lastAutoSoundAt = Date()
         }
         autoInfo = req
         recompute()
         autoInfoTimer?.invalidate()
-        autoInfoTimer = Timer.scheduledTimer(withTimeInterval: 4.0, repeats: false) { [weak self] _ in
+        // A denial stays up longer than an approval. An approval is a receipt;
+        // a denial is something you may have to act on, and four seconds is
+        // not enough to read a reason.
+        let linger: TimeInterval = req.autoDenialReason == nil ? 4.0 : 8.0
+        autoInfoTimer = Timer.scheduledTimer(withTimeInterval: linger, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
                 self.autoInfo = nil
                 self.recompute()
             }
+        }
+    }
+
+    /// Auto mode denied a tool call (the `PermissionDenied` hook).
+    ///
+    /// The mirror of the auto-allowed card, and the more important half: an
+    /// auto-approved action at least happened, while a denied one leaves the
+    /// session working around a wall you never saw. A session in auto mode
+    /// being blocked repeatedly looked, from the notch, exactly like a session
+    /// thinking.
+    func noteAutoDenied(toolName: String, title: String, detail: String,
+                        cwd: String, reason: String, sessionId: String = "") {
+        var req = PermissionRequest(
+            kind: .notification,
+            title: title,
+            detail: detail,
+            toolName: toolName,
+            source: "Claude Code",
+            cwd: cwd,
+            originatorBundleID: nil,
+            preview: nil,
+            dangerReasons: [],
+            resolver: { _, _ in })
+        req.autoDenialReason = reason
+        showAutoInfo(req)
+        recordDecision(.deny, auto: true)
+        appendHistory(HistoryEntry(
+            timestamp: Date(),
+            kind: .permission,
+            toolName: toolName,
+            title: title,
+            detail: reason.isEmpty ? detail : "\(detail)  (denied: \(reason))",
+            project: (cwd as NSString).lastPathComponent,
+            outcome: .denied))
+        if mirrorToNotificationCenter {
+            // Not blocking, so nothing to act on remotely — but a denial that
+            // happens while the notch is behind another window is exactly the
+            // one worth mirroring.
+            permissionMirror?.mirror(req)
         }
     }
 

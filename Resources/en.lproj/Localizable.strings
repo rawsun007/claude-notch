@@ -270,6 +270,9 @@
 /* Settings toggle */
 "Auto-approve permissions" = "Auto-approve permissions";
 
+/* Heading: auto mode blocked this action without asking */
+"Auto-denied" = "Auto-denied";
+
 /* Badge: the permission prompts are turned off */
 "BYPASS" = "BYPASS";
 

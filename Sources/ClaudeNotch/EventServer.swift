@@ -951,6 +951,41 @@ final class EventServer {
 
     /// The payload carries `directory_path` and `how_added` (`slash_command`
     /// or `register_repo_root`) on top of the common fields.
+    /// Auto mode denied a tool call. The payload carries `tool_name`,
+    /// `tool_input`, `tool_use_id` and `reason`.
+    private func handlePermissionDenied(payload: [String: Any]) {
+        let toolName = (payload["tool_name"] as? String) ?? "tool"
+        let toolInput = payload["tool_input"] as? [String: Any] ?? [:]
+        let cwd = (payload["cwd"] as? String) ?? ""
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let reason = Self.denialReason(from: payload)
+        let title = humanTitle(for: toolName)
+        let detail = enrichedDetail(for: toolName, input: toolInput)
+        Task { @MainActor [weak state] in
+            state?.noteAutoDenied(toolName: toolName, title: title, detail: detail,
+                                  cwd: cwd, reason: reason, sessionId: sessionId)
+        }
+    }
+
+    /// Why the call was blocked. `reason` is the documented field; the rest are
+    /// fallbacks, kept for the same reason as DirectoryAdded's — this arrives
+    /// from a CLI that ships faster than its reference, and a renamed key
+    /// should degrade to a card with no reason, not to no card.
+    ///
+    /// Truncated: it is model-authored text of unbounded length, and it renders
+    /// in a card two lines tall.
+    nonisolated static func denialReason(from payload: [String: Any]) -> String {
+        for key in ["reason", "denial_reason", "message", "permissionDecisionReason",
+                    "decision_reason", "denialReason"] {
+            if let v = payload[key] as? String, !v.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let clean = v.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .replacingOccurrences(of: "\n", with: " ")
+                return String(SecretRedactor.redact(clean).prefix(240))
+            }
+        }
+        return ""
+    }
+
     private func handleDirectoryAdded(payload: [String: Any]) {
         let sessionId = (payload["session_id"] as? String) ?? ""
         let cwd = (payload["cwd"] as? String) ?? ""
@@ -1386,6 +1421,12 @@ final class EventServer {
             }
         case "PermissionRequest":
             handleBlockingPermReqHTTP(payload: payload, on: conn)
+        case "PermissionDenied":
+            handlePermissionDenied(payload: payload)
+            // Plain OK. The hook may answer `{retry: true}` to tell the model
+            // to try again — the notch reports what happened, it does not
+            // overrule the classifier that blocked it.
+            sendOK(on: conn)
         case "PostToolUse":
             handleActivity(payload: payload)
             handlePostToolThinking(payload: payload)

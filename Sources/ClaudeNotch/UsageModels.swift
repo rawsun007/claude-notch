@@ -6,6 +6,9 @@ struct UsageStats: Codable {
     var allowed: Int = 0
     var denied: Int = 0
     var autoApproved: Int = 0
+    /// Denied without asking you: auto mode's classifier said no. Counted
+    /// apart from `denied`, which is denials you made yourself.
+    var autoDenied: Int = 0
     var dangerousFlagged: Int = 0
     var questionsAnswered: Int = 0
     var toolCounts: [String: Int] = [:]
@@ -19,6 +22,7 @@ struct DayCounts: Codable {
     var allowed: Int = 0
     var denied: Int = 0
     var autoApproved: Int = 0
+    var autoDenied: Int = 0
     var dangerousFlagged: Int = 0
     var tools: Int = 0   // total tool requests that day
     var total: Int { allowed + denied }
@@ -37,6 +41,7 @@ extension UsageStats {
         allowed = try c.decodeIfPresent(Int.self, forKey: .allowed) ?? allowed
         denied = try c.decodeIfPresent(Int.self, forKey: .denied) ?? denied
         autoApproved = try c.decodeIfPresent(Int.self, forKey: .autoApproved) ?? autoApproved
+        autoDenied = try c.decodeIfPresent(Int.self, forKey: .autoDenied) ?? autoDenied
         dangerousFlagged = try c.decodeIfPresent(Int.self, forKey: .dangerousFlagged) ?? dangerousFlagged
         questionsAnswered = try c.decodeIfPresent(Int.self, forKey: .questionsAnswered) ?? questionsAnswered
         toolCounts = try c.decodeIfPresent([String: Int].self, forKey: .toolCounts) ?? toolCounts
@@ -53,6 +58,7 @@ extension DayCounts {
         allowed = try c.decodeIfPresent(Int.self, forKey: .allowed) ?? allowed
         denied = try c.decodeIfPresent(Int.self, forKey: .denied) ?? denied
         autoApproved = try c.decodeIfPresent(Int.self, forKey: .autoApproved) ?? autoApproved
+        autoDenied = try c.decodeIfPresent(Int.self, forKey: .autoDenied) ?? autoDenied
         dangerousFlagged = try c.decodeIfPresent(Int.self, forKey: .dangerousFlagged) ?? dangerousFlagged
         tools = try c.decodeIfPresent(Int.self, forKey: .tools) ?? tools
     }

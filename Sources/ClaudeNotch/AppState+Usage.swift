@@ -51,6 +51,7 @@ extension AppState {
         case .deny:
             stats.denied += 1; sessionDenied += 1
             day.denied += 1
+            if auto { stats.autoDenied += 1; day.autoDenied += 1 }
             petStartle()
         case .ask:
             break
