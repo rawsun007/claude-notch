@@ -132,6 +132,10 @@ struct LiveSession: Identifiable, Equatable {
     // nothing in the settings mentions sandboxing, which is not the same as
     // "off", so the notch shows no badge rather than guessing.
     var sandbox: SandboxReader.Status? = nil
+    // How many things the sandbox has refused this session (network or file
+    // access denied). Only ever non-zero for a sandboxed session, and it is
+    // what turns "there is a fence" into "the fence is being hit".
+    var sandboxViolations: Int = 0
 
     // What THIS turn did, for CompletionAudit. Separate from touchedFiles,
     // which accumulates across the whole session: the audit asks whether the

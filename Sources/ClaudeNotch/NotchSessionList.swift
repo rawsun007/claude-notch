@@ -34,6 +34,32 @@ struct SessionsList: View {
         }
     }
 
+    /// Sandbox chip for a session row, carrying the count of what the sandbox
+    /// has actually refused. Extracted like `agentTag` above: inline ternaries
+    /// in the row body push it past what the type-checker will do in one go.
+    @ViewBuilder
+    static func sandboxTag(for session: LiveSession) -> some View {
+        if let badge = sandboxBadge(session.sandbox) {
+            let blocked = session.sandboxViolations
+            let label: String = blocked > 0 ? "\(badge.label) \(blocked)" : badge.label
+            let help: String = blocked > 0
+                ? String(format: L("%1$@ %2$d blocked so far this session.",
+                                   comment: "Sandbox badge tooltip with a violation count. %1$@ is the base tooltip, %2$d is how many were blocked"),
+                         badge.help, blocked)
+                : badge.help
+            Text(label)
+                .font(.system(size: 8, weight: .bold, design: .rounded))
+                .foregroundColor(badge.color.opacity(0.95))
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1)
+                .background(
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(badge.color.opacity(0.18))
+                )
+                .help(help)
+        }
+    }
+
     var body: some View {
         // Exclude the top (primary) session: it is already shown as the header
         // meter above, so listing it here again is the duplication the user hit.
@@ -125,17 +151,8 @@ struct SessionsList: View {
                             // Sits next to the permission mode because the two
                             // answer one question together: what may this
                             // agent do without asking, and how far can it get.
-                            if state.showSandboxBadge, let badge = sandboxBadge(session.sandbox) {
-                                Text(badge.label)
-                                    .font(.system(size: 8, weight: .bold, design: .rounded))
-                                    .foregroundColor(badge.color.opacity(0.95))
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 1)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                            .fill(badge.color.opacity(0.18))
-                                    )
-                                    .help(badge.help)
+                            if state.showSandboxBadge {
+                                Self.sandboxTag(for: session)
                             }
                             if let badge = permissionModeBadge(session.permissionMode) {
                                 Text(badge.label)

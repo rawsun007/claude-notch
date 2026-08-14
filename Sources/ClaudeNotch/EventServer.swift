@@ -951,6 +951,20 @@ final class EventServer {
 
     /// The payload carries `directory_path` and `how_added` (`slash_command`
     /// or `register_repo_root`) on top of the common fields.
+    /// The sandbox refused something during a tool call. Claude Code puts the
+    /// details in the tool result, so this rides the PostToolUse payload the
+    /// app already receives rather than needing a hook of its own.
+    private func handleSandboxViolations(payload: [String: Any]) {
+        let items = SandboxViolationParser.violations(in: payload["tool_response"])
+        guard !items.isEmpty else { return }
+        let toolName = (payload["tool_name"] as? String) ?? ""
+        let cwd = (payload["cwd"] as? String) ?? ""
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.noteSandboxViolations(items, toolName: toolName, cwd: cwd, sessionId: sessionId)
+        }
+    }
+
     /// A settings file changed mid-session. `source` says which tier
     /// (user / project / local / policy / skills), `file_path` is optional.
     private func handleConfigChange(payload: [String: Any]) {
@@ -1441,6 +1455,7 @@ final class EventServer {
         case "PostToolUse":
             handleActivity(payload: payload)
             handlePostToolThinking(payload: payload)
+            handleSandboxViolations(payload: payload)
             sendOK(on: conn)
         case "UserPromptSubmit":
             handlePrompt(payload: payload)

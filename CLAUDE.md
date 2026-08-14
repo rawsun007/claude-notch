@@ -50,7 +50,8 @@ back as the response.
   **Compose**, **History** (activity log, archived records), **Export**
   (CSV/JSON, standup), **Queues** (permission/question/completed, capped via
   didSet), **Alerts**, **Sound**, **Sandbox** (per-cwd sandbox posture, cached
-  60 s). Add new behaviour to the matching extension,
+  60 s), **Config** (ConfigChange: a settings file edited mid-session).
+  Add new behaviour to the matching extension,
   not to AppState.swift. Because the extensions live in other files, members
   they touch are `internal` rather than `private`.
 - **SessionModels / UsageModels / RequestModels.swift**: the value types.

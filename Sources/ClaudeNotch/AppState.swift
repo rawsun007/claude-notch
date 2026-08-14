@@ -950,6 +950,11 @@ final class AppState: ObservableObject {
     // once either way.
     var lastConfigCardAt: [String: Date] = [:]
 
+    // Last sandbox violation shown, so a command retrying against the same
+    // blocked host doesn't raise a card per attempt.
+    var lastSandboxViolationKey: String = ""
+    var lastSandboxViolationAt: Date = .distantPast
+
     /// Open a file the agent edited, but never *launch* it. The path comes from
     /// a hook payload, so opening it with the default handler would run a crafted
     /// executable/script/app on a click. If the target is a bundle, has the

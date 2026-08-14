@@ -6,6 +6,9 @@
 /* Status bar label for the session cost, a currency symbol */
 "$" = "$";
 
+/* Sandbox badge tooltip with a violation count. %1$@ is the base tooltip, %2$d is how many were blocked */
+"%1$@ %2$d blocked so far this session." = "%1$@ %2$d blocked so far this session.";
+
 /* Context meter tooltip fragment. %1$@ is tokens used, %2$@ is the window size */
 "%1$@ / %2$@ tokens" = "%1$@ / %2$@ tokens";
 
@@ -59,6 +62,9 @@
 
 /* Part of the sandbox badge tooltip. %d is a count */
 "%d masked credentials" = "%d masked credentials";
+
+/* Sandbox violation card detail. %d is how many further violations there were */
+"%d more blocked in the same command" = "%d more blocked in the same command";
 
 /* Header count. %d is how many questions the card asks */
 "%d questions" = "%d questions";
@@ -278,6 +284,12 @@
 
 /* Settings toggle explanation */
 "Block new tool runs once a cap is crossed, instead of only warning." = "Block new tool runs once a cap is crossed, instead of only warning.";
+
+/* Sandbox violation card. %@ is a file path */
+"Blocked file access to %@" = "Blocked file access to %@";
+
+/* Sandbox violation card. %@ is a host name */
+"Blocked network access to %@" = "Blocked network access to %@";
 
 /* Toggle: remind me to take a break */
 "Break Reminders" = "Break Reminders";

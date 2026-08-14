@@ -55,6 +55,55 @@ extension AppState {
         }
     }
 
+    /// The sandbox refused something this session tried to do.
+    ///
+    /// The badge says a fence exists; this is the fence being hit. Worth a card
+    /// rather than a silent counter: a blocked command is why the session is
+    /// about to work around something, or give up, and the reason is invisible
+    /// in the terminal unless you are reading tool output.
+    func noteSandboxViolations(_ items: [SandboxViolationParser.Violation],
+                               toolName: String, cwd: String, sessionId: String) {
+        guard !items.isEmpty else { return }
+        let first = items[0]
+        let title = SandboxViolationParser.summary(first)
+        let detail = items.count > 1
+            ? String(format: L("%d more blocked in the same command", comment: "Sandbox violation card detail. %d is how many further violations there were"),
+                     items.count - 1)
+            : first.raw
+
+        upsertSession(id: sessionId, cwd: cwd) { s in
+            s.sandboxViolations += items.count
+        }
+
+        for item in items {
+            appendHistory(HistoryEntry(
+                timestamp: Date(),
+                kind: .notification,
+                toolName: toolName.isEmpty ? "Bash" : toolName,
+                title: SandboxViolationParser.summary(item),
+                detail: item.raw,
+                project: (cwd as NSString).lastPathComponent,
+                outcome: .denied))
+        }
+
+        // Deduped: a retry loop against the same blocked host would otherwise
+        // put a card up per attempt.
+        let key = "\(first.kind)|\(first.target)|\(first.raw)"
+        if key == lastSandboxViolationKey,
+           Date().timeIntervalSince(lastSandboxViolationAt) < 20 { return }
+        lastSandboxViolationKey = key
+        lastSandboxViolationAt = Date()
+
+        enqueuePermission(PermissionRequest(
+            kind: .notification,
+            title: title,
+            detail: detail,
+            toolName: "Sandbox",
+            source: "Claude Code",
+            cwd: cwd,
+            resolver: { _, _ in }))
+    }
+
     /// The sandbox governing a permission ask. A PermissionRequest carries no
     /// session id, only the directory it fired in, so match on that: every
     /// session in a directory is governed by the same settings files.
