@@ -587,8 +587,24 @@ enum ClaudeUsageReader {
         var billed = Set<String>()   // message.id — see `isFirstLine(of:seen:)`
         for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
             guard let ld = line.data(using: .utf8),
-                  let obj = try? JSONSerialization.jsonObject(with: ld) as? [String: Any],
-                  let msg = obj["message"] as? [String: Any],
+                  let obj = try? JSONSerialization.jsonObject(with: ld) as? [String: Any]
+            else { continue }
+
+            // The compaction boundary. Everything above it is no longer in the
+            // window: the session now holds a summary of it. The occupancy of
+            // the last turn before a compaction is the single most misleading
+            // number the meter can show — it is the reading that made the bar
+            // sit in the red immediately after the compaction that emptied it.
+            //
+            // How full the window is now cannot be known until the next turn
+            // reports its own usage, and 0 is the honest stand-in: it is what
+            // the session is closest to, and the next turn corrects it.
+            if (obj["isCompactSummary"] as? Bool) == true {
+                meter.contextTokens = 0
+                continue
+            }
+
+            guard let msg = obj["message"] as? [String: Any],
                   (msg["role"] as? String) == "assistant",
                   let u = msg["usage"] as? [String: Any]
             else { continue }

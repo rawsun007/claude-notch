@@ -70,6 +70,53 @@ final class PostCompactTests: XCTestCase {
         XCTAssertFalse(s.sessions["/tmp/proj"]?.isCompacting ?? true)
     }
 
+    // MARK: - The reading after the boundary
+
+    private func writeLines(_ lines: [String], name: String) throws -> String {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cn-postcompact-\(name).jsonl")
+        try lines.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+        return url.path
+    }
+
+    /// The turn before a compaction is the fullest the window ever gets, and it
+    /// is the reading that used to survive the compaction that emptied it.
+    func testTokensBeforeTheBoundaryAreNotTheLiveReading() throws {
+        let path = try writeLines([
+            #"{"message":{"role":"assistant","model":"claude-opus-4-7","usage":{"input_tokens":180000,"output_tokens":500,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}"#,
+            #"{"type":"user","isCompactSummary":true,"message":{"role":"user","content":"This session is being continued…"}}"#,
+        ], name: "boundary")
+        defer { try? FileManager.default.removeItem(atPath: path) }
+
+        let meter = try XCTUnwrap(ClaudeUsageReader.sessionMeter(transcriptPath: path))
+        XCTAssertEqual(meter.contextTokens, 0)
+        // Spend is spend: compaction does not refund the turns that led to it.
+        XCTAssertGreaterThan(meter.costUSD, 0)
+    }
+
+    /// The first turn after the boundary is the real post-compaction reading.
+    func testTheFirstTurnAfterTheBoundaryWins() throws {
+        let path = try writeLines([
+            #"{"message":{"role":"assistant","model":"claude-opus-4-7","usage":{"input_tokens":180000,"output_tokens":500,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}"#,
+            #"{"type":"user","isCompactSummary":true,"message":{"role":"user","content":"continued"}}"#,
+            #"{"message":{"role":"assistant","model":"claude-opus-4-7","usage":{"input_tokens":9000,"output_tokens":10,"cache_read_input_tokens":1000,"cache_creation_input_tokens":0}}}"#,
+        ], name: "after")
+        defer { try? FileManager.default.removeItem(atPath: path) }
+
+        let meter = try XCTUnwrap(ClaudeUsageReader.sessionMeter(transcriptPath: path))
+        XCTAssertEqual(meter.contextTokens, 10000)
+    }
+
+    /// A zero reading is "not known yet", not "compaction finished".
+    @MainActor
+    func testAZeroMeterDoesNotEndTheCue() {
+        let s = compactingSession()
+        s.noteSessionMeter(sessionId: "s1", contextTokens: 0, costUSD: 1.5, model: "claude-opus-4-7")
+        XCTAssertTrue(s.sessions["s1"]?.isCompacting ?? false)
+        s.noteSessionMeter(sessionId: "s1", contextTokens: 9000, costUSD: 1.6, model: "claude-opus-4-7")
+        XCTAssertFalse(s.sessions["s1"]?.isCompacting ?? true)
+    }
+
     /// The hook is registered, or none of the above ever runs.
     func testPostCompactIsInstalled() {
         var hooks: [String: Any] = [:]

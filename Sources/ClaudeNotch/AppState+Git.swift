@@ -119,7 +119,12 @@ extension AppState {
             s.contextTokens = contextTokens
             s.sessionCostUSD = costUSD
             if !model.isEmpty { s.model = model }
-            s.isCompacting = false
+            // Only a real reading ends the cue. A zero is what the transcript
+            // reports between the compaction boundary and the first turn after
+            // it, and treating that as "compaction over" is what used to lower
+            // the cue seconds after it went up. (PostCompact ends it properly;
+            // this is the fallback for a CLI too old to send one.)
+            if contextTokens > 0 { s.isCompacting = false }
         }
 
         // Per-session budget: alert when this session crosses 80% / 100% of cap.
@@ -164,7 +169,7 @@ extension AppState {
             if totalTokens > s.totalTokens { s.totalTokens = totalTokens }
             if !model.isEmpty { s.model = model }
             if !gitBranch.isEmpty { s.gitBranch = gitBranch }
-            s.isCompacting = false
+            if contextTokens > 0 { s.isCompacting = false }
         }
         let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
         guard isCurrent else { return }
