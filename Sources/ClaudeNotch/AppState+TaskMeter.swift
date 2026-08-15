@@ -64,6 +64,9 @@ extension AppState {
         upsertSession(id: sessionId, cwd: cwd) { s in
             if !model.isEmpty { s.model = model }
             if !title.isEmpty { s.title = title }
+            // How the session began. Only SessionStart carries this, and it
+            // fires once, so a later hook must never blank it.
+            if !source.isEmpty { s.startSource = source }
         }
         let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
         if isCurrent, !model.isEmpty { currentModel = model }

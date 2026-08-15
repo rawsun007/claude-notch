@@ -103,6 +103,12 @@ struct LiveSession: Identifiable, Equatable {
     // Session title: what `/rename` set. Comes from the SessionStart hook, and
     // from the status line thereafter (a session can be renamed at any point).
     var title: String = ""
+    // How this session began, as SessionStart reported it: "startup",
+    // "resume", "clear", "compact", or "fork". Empty when no SessionStart hook
+    // described it (a session the registry found, or one started before the
+    // app was). Claude Code only distinguishes a fork from a resume since
+    // 2.1.214, so read it through `supports(.forkSource)` rather than raw.
+    var startSource: String = ""
     // Git worktree this session is in, when it is in a linked one. Two sessions
     // in the same repo are otherwise identical in the list.
     var worktree: String = ""
