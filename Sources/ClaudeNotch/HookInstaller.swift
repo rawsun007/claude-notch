@@ -78,7 +78,7 @@ enum HookInstaller {
         return s.contains("\"StopFailure\"") && s.contains("\"SessionStart\"")
             && s.contains("\"DirectoryAdded\"") && s.contains("\"CwdChanged\"")
             && s.contains("\"PermissionDenied\"") && s.contains("\"ConfigChange\"")
-            && s.contains("\"PostCompact\"")
+            && s.contains("\"PostCompact\"") && s.contains("\"Elicitation\"")
     }
 
     /// `jq` is required by posttool.sh to forward payload fields to the
@@ -364,6 +364,9 @@ enum HookInstaller {
         // "manual" or "auto"; nil takes both).
         appendHook(to: "PreCompact", in: &hooks, matcher: nil)
         appendHook(to: "PostCompact", in: &hooks, matcher: nil)
+        // MCP elicitation: a server asking the user something mid-tool-call.
+        // Matched on the server name, so ".*" is every server.
+        appendHook(to: "Elicitation", in: &hooks, matcher: ".*")
         // Subagent lifecycle: show spawned agents in the activity strip.
         appendHook(to: "SubagentStart", in: &hooks, matcher: nil)
         appendHook(to: "SubagentStop", in: &hooks, matcher: nil)

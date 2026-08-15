@@ -1527,6 +1527,9 @@ final class EventServer {
         case "PostCompact":
             handlePostCompact(payload: payload)
             sendOK(on: conn)
+        case "Elicitation":
+            // Blocking: this one sends its own response.
+            handleElicitationHTTP(payload: payload, on: conn)
         case "ConfigChange":
             handleConfigChange(payload: payload)
             // Plain OK: this hook can BLOCK a settings change by answering
@@ -1592,6 +1595,50 @@ final class EventServer {
             self.sendHookOutput(["hookSpecificOutput": [
                 "hookEventName": "PermissionRequest",
                 "decision": ["behavior": behavior],
+            ]], on: conn)
+        }
+    }
+
+    /// Elicitation via HTTP hook: an MCP server is asking the user something
+    /// mid-tool-call. Answer it in the notch and hand the answer back.
+    ///
+    /// A bare OK means "no opinion", and Claude Code then asks in the terminal
+    /// exactly as it would have. That is the reply for everything this card
+    /// cannot answer faithfully: a URL flow, a free-text field, a dismissed
+    /// card, a timeout.
+    private func handleElicitationHTTP(payload: [String: Any], on conn: NWConnection) {
+        guard let form = ElicitationParser.form(from: payload) else { sendOK(on: conn); return }
+        let cwd = (payload["cwd"] as? String) ?? ""
+        let questions = form.questions
+        guard !questions.isEmpty else { sendOK(on: conn); return }
+
+        let sem  = DispatchSemaphore(value: 0)
+        let lock = NSLock()
+        var answers: [[String]]?
+
+        Task { @MainActor [weak state] in
+            guard let state else { sem.signal(); return }
+            let frontBID = Self.capturedOriginator(state: state)
+            // The server's name is the source: the user is being asked by a
+            // thing they installed, not by Claude, and the card should say so.
+            let source = form.serverName.isEmpty ? "MCP server" : form.serverName
+            state.enqueueQuestion(QuestionRequest(
+                questions: questions, source: source, cwd: cwd,
+                originatorBundleID: frontBID,
+                resolver: { ans in lock.withLock { answers = ans }; sem.signal() }
+            ))
+        }
+
+        workQueue.async { [weak self] in
+            guard let self else { return }
+            if sem.wait(timeout: .now() + .seconds(285)) == .timedOut { self.sendOK(on: conn); return }
+            guard let ans = lock.withLock({ answers }),
+                  let content = form.content(from: ans)
+            else { self.sendOK(on: conn); return }
+            self.sendHookOutput(["hookSpecificOutput": [
+                "hookEventName": "Elicitation",
+                "action": "accept",
+                "content": content,
             ]], on: conn)
         }
     }
