@@ -1561,12 +1561,6 @@ final class EventServer {
             // crash or a timeout here must never be able to stop the user
             // editing their own settings.
             sendOK(on: conn)
-        case "CwdChanged":
-            // recordSessionMetadata (called before routing in handle()) already
-            // invokes noteSession(cwd:sessionId:) with authoritativeCwd:true,
-            // which updates session.cwd, session.project, and currentCwd. No
-            // extra work needed here.
-            sendOK(on: conn)
         default:
             sendOK(on: conn)
         }
