@@ -703,6 +703,26 @@ final class EventServer {
         }
     }
 
+    /// A session's two spendable budgets, both read off PostToolUse: the
+    /// WebSearch calls it has made, and either budget coming back refused.
+    ///
+    /// Neither has a hook of its own. The refusal arrives as an ordinary tool
+    /// result, which is also the only place it is ever stated — Claude reads
+    /// it, adjusts, and says nothing about it in the reply.
+    private func handleAgentBudgets(payload: [String: Any]) {
+        let tool = (payload["tool_name"] as? String) ?? ""
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let cwd = (payload["cwd"] as? String) ?? ""
+        let cap = AgentBudgets.capReached(in: payload["tool_response"])
+        // A refused search never ran, so it costs nothing and is not counted.
+        let searched = tool == "WebSearch" && cap == nil
+        guard searched || cap != nil else { return }
+        Task { @MainActor [weak state] in
+            if searched { state?.noteWebSearch(sessionId: sessionId, cwd: cwd) }
+            if let cap { state?.noteBudgetCapReached(cap, sessionId: sessionId, cwd: cwd) }
+        }
+    }
+
     /// PostCompact: compaction finished. Carries `trigger` ("manual" for
     /// /compact, "auto" when the window filled up) and `compact_summary`, the
     /// text the session keeps in place of what it just dropped.
@@ -1473,6 +1493,7 @@ final class EventServer {
             handleActivity(payload: payload)
             handlePostToolThinking(payload: payload)
             handleSandboxViolations(payload: payload)
+            handleAgentBudgets(payload: payload)
             sendOK(on: conn)
         case "UserPromptSubmit":
             handlePrompt(payload: payload)

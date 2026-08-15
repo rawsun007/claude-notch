@@ -943,6 +943,14 @@ final class AppState: ObservableObject {
     // here" is worth remembering, not worth re-deriving every hook.
     var sandboxCache: [String: (status: SandboxReader.Status?, readAt: Date)] = [:]
 
+    // MARK: - Agent budgets (logic lives in AppState+Git.swift)
+
+    // How many subagents a session may run at once and how many WebSearch
+    // calls it gets, as the settings file has them. Read rarely: it changes
+    // when someone edits settings.json, not while a session runs.
+    @Published var agentLimits = AgentBudgets.Limits()
+    var agentLimitsReadAt: Date = .distantPast
+
     // MARK: - Config change state (logic lives in AppState+Config.swift)
 
     // Last time a ConfigChange card was shown, per source. Several sessions

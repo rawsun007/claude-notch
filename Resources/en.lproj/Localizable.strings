@@ -1269,6 +1269,9 @@
 /* Settings toggle */
 "Strict mode" = "Strict mode";
 
+/* History row: the session could not start another subagent */
+"Subagent limit reached" = "Subagent limit reached";
+
 /* Settings explanation */
 "Surface other coding agents in the notch. Codex support is experimental: session status, prompts, activity and notifications appear, but permission cards and cost are not wired yet." = "Surface other coding agents in the notch. Codex support is experimental: session status, prompts, activity and notifications appear, but permission cards and cost are not wired yet.";
 
@@ -1319,6 +1322,12 @@
 
 /* Settings row: spend since the first of the month */
 "This month so far" = "This month so far";
+
+/* History row detail for the web search cap */
+"This session has used every WebSearch call it is allowed. Raise CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION to allow more." = "This session has used every WebSearch call it is allowed. Raise CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION to allow more.";
+
+/* History row detail for the subagent cap */
+"This session is running as many agents at once as it is allowed to. Raise CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS to allow more." = "This session is running as many agents at once as it is allowed to. Raise CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS to allow more.";
 
 /* Spend submenu row: cost this week */
 "This week" = "This week";
@@ -1427,6 +1436,9 @@
 
 /* Settings explanation */
 "Warn when estimated cost crosses a cap. Set a cap to 0 to disable it." = "Warn when estimated cost crosses a cap. Set a cap to 0 to disable it.";
+
+/* History row: the session has used all its WebSearch calls */
+"Web search budget spent" = "Web search budget spent";
 
 /* Settings explanation */
 "Week" = "Week";

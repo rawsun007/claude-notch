@@ -254,13 +254,82 @@ extension AppState {
     func noteSubagentStarted(sessionId: String = "") {
         upsertSession(id: sessionId, cwd: currentCwd) { s in
             s.runningAgentCount += 1
+            s.peakAgentCount = max(s.peakAgentCount, s.runningAgentCount)
         }
+        refreshAgentLimits()
     }
 
     func noteSubagentStopped(sessionId: String = "") {
         upsertSession(id: sessionId, cwd: currentCwd) { s in
             s.runningAgentCount = max(0, s.runningAgentCount - 1)
         }
+    }
+
+    /// Re-read the budgets from settings.json, at most every five minutes.
+    /// Off the main thread: it is a file read on a path that fires on tool
+    /// calls.
+    func refreshAgentLimits() {
+        guard Date().timeIntervalSince(agentLimitsReadAt) > 300 else { return }
+        agentLimitsReadAt = Date()
+        let path = HookInstaller.settingsPath
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            var env = AgentBudgets.settingsEnv(at: path)
+            // The process environment only has anything to say when the app was
+            // launched from a shell that exported these, which is rare — so it
+            // fills gaps rather than overriding the settings file the CLI reads.
+            for (k, v) in ProcessInfo.processInfo.environment where env[k] == nil {
+                env[k] = v
+            }
+            let limits = AgentBudgets.limits(env: env)
+            Task { @MainActor in
+                guard let self, self.agentLimits != limits else { return }
+                self.agentLimits = limits
+            }
+        }
+    }
+
+    /// A WebSearch ran. The budget it spends is per session and does not come
+    /// back, so this is counted rather than sampled.
+    func noteWebSearch(sessionId: String = "", cwd: String = "") {
+        upsertSession(id: sessionId, cwd: cwd.isEmpty ? currentCwd : cwd) { s in
+            s.webSearchCount += 1
+        }
+        refreshAgentLimits()
+    }
+
+    /// Claude Code refused a tool call on one of its budgets. Nothing is wrong
+    /// and nothing is asked of the user, but the session is now doing less than
+    /// it was told to, and that is worth saying out loud once.
+    func noteBudgetCapReached(_ cap: AgentBudgets.Cap, sessionId: String = "", cwd: String = "") {
+        let dir = cwd.isEmpty ? currentCwd : cwd
+        var alreadyKnown = false
+        upsertSession(id: sessionId, cwd: dir) { s in
+            switch cap {
+            case .subagents:
+                alreadyKnown = s.agentCapHit
+                s.agentCapHit = true
+            case .webSearches:
+                alreadyKnown = s.webSearchCapHit
+                s.webSearchCapHit = true
+            }
+        }
+        // Once per session per budget: a session at its cap goes on hitting it
+        // with every call it makes.
+        guard !alreadyKnown else { return }
+        appendHistory(HistoryEntry(
+            timestamp: Date(),
+            kind: .notification,
+            toolName: cap == .subagents ? "Task" : "WebSearch",
+            title: cap == .subagents
+                ? L("Subagent limit reached", comment: "History row: the session could not start another subagent")
+                : L("Web search budget spent", comment: "History row: the session has used all its WebSearch calls"),
+            detail: cap == .subagents
+                ? L("This session is running as many agents at once as it is allowed to. Raise CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS to allow more.",
+                    comment: "History row detail for the subagent cap")
+                : L("This session has used every WebSearch call it is allowed. Raise CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION to allow more.",
+                    comment: "History row detail for the web search cap"),
+            project: (dir as NSString).lastPathComponent,
+            outcome: .info))
     }
 
     /// PreCompact: context is about to be compacted. Flag the session so the UI

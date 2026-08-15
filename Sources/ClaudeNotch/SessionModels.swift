@@ -60,6 +60,16 @@ struct LiveSession: Identifiable, Equatable {
     // Stays > 0 while any agent is still running, so the badge survives tool-activity
     // updates that would otherwise overwrite a plain activity-label approach.
     var runningAgentCount: Int = 0
+    // The most agents this session has had running at once, and whether it has
+    // been refused one. A session that hits the concurrency cap stops
+    // delegating and carries on alone, which from the outside looks like it
+    // decided not to bother.
+    var peakAgentCount: Int = 0
+    var agentCapHit: Bool = false
+    // WebSearch calls this session has made, and whether it has been refused
+    // one. The budget is per session and is spent for good.
+    var webSearchCount: Int = 0
+    var webSearchCapHit: Bool = false
     var toolCallCount: Int = 0
 
     var taskTotal: Int { todoTotal > 0 ? todoTotal : createdTaskIds.count }
