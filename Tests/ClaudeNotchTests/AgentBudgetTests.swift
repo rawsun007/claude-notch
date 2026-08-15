@@ -120,3 +120,68 @@ final class AgentBudgetTests: XCTestCase {
         XCTAssertFalse(s.sessions["s1"]?.agentCapHit ?? true)
     }
 }
+
+/// What the row actually says. The rule is quiet until it matters and loud
+/// once it does.
+final class AgentBudgetBadgeTests: XCTestCase {
+
+    func testNothingRunningShowsNothing() {
+        XCTAssertNil(SessionsList.agentBudgetLabel(running: 0, peak: 0, cap: 20, capHit: false))
+    }
+
+    func testBelowTheCapItIsJustACount() {
+        let label = SessionsList.agentBudgetLabel(running: 3, peak: 5, cap: 20, capHit: false)
+        XCTAssertEqual(label?.text, "3 agents")
+        XCTAssertEqual(label?.atLimit, false)
+    }
+
+    func testOneAgentReadsAsOne() {
+        XCTAssertEqual(SessionsList.agentBudgetLabel(running: 1, peak: 1, cap: 20, capHit: false)?.text,
+                       "1 agent")
+    }
+
+    func testAtTheCapItBecomesAFraction() {
+        let label = SessionsList.agentBudgetLabel(running: 20, peak: 20, cap: 20, capHit: false)
+        XCTAssertEqual(label?.text, "20/20 agents")
+        XCTAssertEqual(label?.atLimit, true)
+    }
+
+    /// A refused spawn is the strongest evidence there is, and it outlives the
+    /// agents that were running when it happened.
+    func testARefusalKeepsTheFractionAfterTheAgentsFinish() {
+        let label = SessionsList.agentBudgetLabel(running: 2, peak: 20, cap: 20, capHit: true)
+        XCTAssertEqual(label?.text, "20/20 agents")
+        XCTAssertEqual(label?.atLimit, true)
+    }
+
+    /// A raised cap is the cap.
+    func testTheFractionUsesTheConfiguredCap() {
+        XCTAssertEqual(SessionsList.agentBudgetLabel(running: 40, peak: 40, cap: 40, capHit: false)?.text,
+                       "40/40 agents")
+        XCTAssertNil(SessionsList.agentBudgetLabel(running: 0, peak: 0, cap: 40, capHit: false))
+    }
+
+    // MARK: - Searches
+
+    func testTheSearchBudgetIsQuietUntilItIsNearlyGone() {
+        XCTAssertNil(SessionsList.searchBudgetLabel(used: 4, cap: 200, capHit: false))
+        XCTAssertNil(SessionsList.searchBudgetLabel(used: 179, cap: 200, capHit: false))
+        XCTAssertEqual(SessionsList.searchBudgetLabel(used: 180, cap: 200, capHit: false)?.text,
+                       "180/200 searches")
+    }
+
+    func testSpentReadsAsAtLimit() {
+        XCTAssertEqual(SessionsList.searchBudgetLabel(used: 200, cap: 200, capHit: false)?.atLimit, true)
+        XCTAssertEqual(SessionsList.searchBudgetLabel(used: 0, cap: 200, capHit: true)?.atLimit, true)
+    }
+
+    /// The count never draws past its own budget.
+    func testTheCountIsClamped() {
+        XCTAssertEqual(SessionsList.searchBudgetLabel(used: 250, cap: 200, capHit: true)?.text,
+                       "200/200 searches")
+    }
+
+    func testNoCapMeansNoBadge() {
+        XCTAssertNil(SessionsList.searchBudgetLabel(used: 10, cap: 0, capHit: true))
+    }
+}

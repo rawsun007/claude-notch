@@ -33,6 +33,12 @@
 /* Settings note. %1$d is a count, %2$@ a version number */
 "%1$d running sessions are still on %2$@. They pick up the new version when you restart them." = "%1$d running sessions are still on %2$@. They pick up the new version when you restart them.";
 
+/* Badge: agents running out of the concurrency cap. %1$d is the count, %2$d the cap */
+"%1$d/%2$d agents" = "%1$d/%2$d agents";
+
+/* Badge: WebSearch calls used out of the per-session budget. %1$d is the count, %2$d the budget */
+"%1$d/%2$d searches" = "%1$d/%2$d searches";
+
 /* Menu item naming the running project. %@ is the project */
 "%@ ,  click to clear" = "%@ ,  click to clear";
 
@@ -164,6 +170,9 @@
 
 /* Settings sidebar group */
 "Advanced" = "Advanced";
+
+/* Tooltip on the agent badge */
+"Agents this session is running right now." = "Agents this session is running right now.";
 
 /* Toggle: warn when a tool call takes a long time */
 "Alert on Long Tool Runs" = "Alert on Long Tool Runs";
@@ -1439,6 +1448,9 @@
 
 /* History row: the session has used all its WebSearch calls */
 "Web search budget spent" = "Web search budget spent";
+
+/* Tooltip on the web search budget badge */
+"WebSearch calls this session has used of its budget. Raise CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION to allow more." = "WebSearch calls this session has used of its budget. Raise CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION to allow more.";
 
 /* Settings explanation */
 "Week" = "Week";

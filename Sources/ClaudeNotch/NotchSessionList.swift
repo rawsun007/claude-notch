@@ -44,6 +44,56 @@ struct SessionsList: View {
     /// Only shown when the session's CLI is new enough to tell a fork from a
     /// resume (2.1.214). Below that every fork says "resume", and the absence
     /// of the chip means nothing either way.
+    /// What the agent badge says, given the session and the cap in force.
+    ///
+    /// Below the cap it stays as it was: a count, in purple, saying work is
+    /// being delegated. At the cap it becomes a fraction in orange, because
+    /// from there on the session is not delegating any more work however much
+    /// it wants to — and a session that has quietly stopped spawning agents
+    /// looks exactly like one that is stuck.
+    ///
+    /// Nil when nothing is running and nothing has been refused.
+    static func agentBudgetLabel(running: Int, peak: Int, cap: Int,
+                                 capHit: Bool) -> (text: String, atLimit: Bool)? {
+        let atLimit = capHit || (cap > 0 && running >= cap)
+        if atLimit {
+            // The peak is what the fraction is about: the count can have
+            // dropped back by the time anyone looks at the row.
+            return (String(format: L("%1$d/%2$d agents", comment: "Badge: agents running out of the concurrency cap. %1$d is the count, %2$d the cap"),
+                           max(running, min(peak, cap)), cap), true)
+        }
+        guard running > 0 else { return nil }
+        return (running == 1
+                ? L("1 agent", comment: "Badge: exactly one background agent is running")
+                : String(format: L("%d agents", comment: "Badge: how many background agents are running"), running),
+                false)
+    }
+
+    /// The WebSearch budget, shown only once it is nearly gone. A session with
+    /// four searches behind it does not need a meter; one with eleven calls
+    /// left is about to lose the ability to look anything up, silently.
+    static func searchBudgetLabel(used: Int, cap: Int, capHit: Bool) -> (text: String, atLimit: Bool)? {
+        guard cap > 0 else { return nil }
+        guard capHit || Double(used) >= Double(cap) * 0.9 else { return nil }
+        return (String(format: L("%1$d/%2$d searches", comment: "Badge: WebSearch calls used out of the per-session budget. %1$d is the count, %2$d the budget"),
+                       min(used, cap), cap),
+                capHit || used >= cap)
+    }
+
+    /// One small chip, in the two states the budgets are read in.
+    @ViewBuilder
+    static func budgetChip(_ label: (text: String, atLimit: Bool), help: String) -> some View {
+        let color: Color = label.atLimit ? .orange : .purple
+        Text(label.text)
+            .font(.system(size: 9, weight: label.atLimit ? .semibold : .medium, design: .rounded))
+            .foregroundColor(color.opacity(0.95))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.18))
+            .cornerRadius(4)
+            .help(help)
+    }
+
     static func isFork(_ session: LiveSession) -> Bool {
         session.startSource == "fork" && session.supports(.forkSource)
     }
@@ -303,17 +353,23 @@ struct SessionsList: View {
                                 }
                                 .help(L("Waiting for your answer", comment: "Tooltip on the hourglass shown while a card is unanswered"))
                             }
-                            if session.runningAgentCount > 0 {
-                                Text(session.runningAgentCount == 1
-                                     ? L("1 agent", comment: "Badge: exactly one background agent is running")
-                                     : String(format: L("%d agents", comment: "Badge: how many background agents are running"),
-                                              session.runningAgentCount))
-                                    .font(.system(size: 9, weight: .medium, design: .rounded))
-                                    .foregroundColor(.purple.opacity(0.95))
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 2)
-                                    .background(Color.purple.opacity(0.18))
-                                    .cornerRadius(4)
+                            if let label = Self.agentBudgetLabel(
+                                running: session.runningAgentCount,
+                                peak: session.peakAgentCount,
+                                cap: state.agentLimits.concurrentSubagents,
+                                capHit: session.agentCapHit) {
+                                Self.budgetChip(label, help: label.atLimit
+                                    ? L("This session is running as many agents at once as it is allowed to. Raise CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS to allow more.",
+                                        comment: "Tooltip on the agent badge when the concurrency cap is reached")
+                                    : L("Agents this session is running right now.",
+                                        comment: "Tooltip on the agent badge"))
+                            }
+                            if let label = Self.searchBudgetLabel(
+                                used: session.webSearchCount,
+                                cap: state.agentLimits.webSearchesPerSession,
+                                capHit: session.webSearchCapHit) {
+                                Self.budgetChip(label, help: L("WebSearch calls this session has used of its budget. Raise CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION to allow more.",
+                                                               comment: "Tooltip on the web search budget badge"))
                             }
                             Spacer(minLength: 8)
                             if session.taskTotal > 0 {
