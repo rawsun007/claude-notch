@@ -39,7 +39,7 @@ struct SessionsList: View {
     /// in the row body push it past what the type-checker will do in one go.
     @ViewBuilder
     static func sandboxTag(for session: LiveSession) -> some View {
-        if let badge = sandboxBadge(session.sandbox) {
+        if session.supports(.sandboxPosture), let badge = sandboxBadge(session.sandbox) {
             let blocked = session.sandboxViolations
             let label: String = blocked > 0 ? "\(badge.label) \(blocked)" : badge.label
             let help: String = blocked > 0
@@ -66,6 +66,18 @@ struct SessionsList: View {
     static func rowTooltip(for session: LiveSession) -> String {
         var parts = [session.cwd]
         if !session.cliVersion.isEmpty { parts.append("Claude Code \(session.cliVersion)") }
+        // Say why this row is quieter than the one above it. Without this, a
+        // session on an older build just looks unsandboxed.
+        if !session.supports(.sandboxPosture) {
+            parts.append(String(format: L("sandbox posture needs %@",
+                                          comment: "Session row tooltip. %@ is a minimum Claude Code version such as 2.1.219"),
+                                CLIVersion.Feature.sandboxPosture.floor))
+        }
+        if !session.supports(.addedDirectories) {
+            parts.append(String(format: L("/add-dir needs %@",
+                                          comment: "Session row tooltip. %@ is a minimum Claude Code version"),
+                                CLIVersion.Feature.addedDirectories.floor))
+        }
         return parts.filter { !$0.isEmpty }.joined(separator: "  ·  ")
     }
 

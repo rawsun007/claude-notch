@@ -90,6 +90,9 @@
 /* Placeholder row in the recent-projects submenu */
 "(no projects yet, start Claude in any folder)" = "(no projects yet, start Claude in any folder)";
 
+/* Session row tooltip. %@ is a minimum Claude Code version */
+"/add-dir needs %@" = "/add-dir needs %@";
+
 /* Badge: exactly one background agent is running */
 "1 agent" = "1 agent";
 
@@ -1544,6 +1547,9 @@
 
 /* Settings explanation */
 "running" = "running";
+
+/* Session row tooltip. %@ is a minimum Claude Code version such as 2.1.219 */
+"sandbox posture needs %@" = "sandbox posture needs %@";
 
 /* Part of the sandbox badge tooltip */
 "the agent may opt commands out of it" = "the agent may opt commands out of it";

@@ -161,6 +161,13 @@ struct LiveSession: Identifiable, Equatable {
     var turnTestFailed: Bool? = nil
 
     var hasMeter: Bool { contextPercent > 0 || sessionCostUSD > 0 }
+
+    /// Whether this session's CLI is new enough to produce what `feature`
+    /// displays. The version comes from Claude Code's own session registry; a
+    /// session it has not described answers yes (see CLIVersion).
+    func supports(_ feature: CLIVersion.Feature) -> Bool {
+        CLIVersion.supports(feature, version: cliVersion)
+    }
 }
 
 // MARK: - History

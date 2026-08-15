@@ -111,7 +111,12 @@ extension AppState {
         guard showSandboxBadge else { return nil }
         let wanted = Self.normalizedCwd(cwd)
         guard !wanted.isEmpty else { return nil }
-        return sessions.values.first { $0.cwd == wanted && $0.sandbox != nil }?.sandbox
+        // Version-gated: the posture is read from settings files, and a build
+        // too old to honour those keys would be described by a badge for a
+        // fence it is not standing behind.
+        return sessions.values.first {
+            $0.cwd == wanted && $0.sandbox != nil && $0.supports(.sandboxPosture)
+        }?.sandbox
     }
 
     func setShowSandboxBadge(_ on: Bool) {
@@ -122,5 +127,8 @@ extension AppState {
     /// The sandbox status to show in the header, which describes the primary
     /// session — the same one the header's meter and permission-mode badge
     /// describe.
-    var currentSandbox: SandboxReader.Status? { primarySession?.sandbox }
+    var currentSandbox: SandboxReader.Status? {
+        guard let s = primarySession, s.supports(.sandboxPosture) else { return nil }
+        return s.sandbox
+    }
 }
