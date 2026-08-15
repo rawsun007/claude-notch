@@ -34,6 +34,37 @@ struct SessionsList: View {
         }
     }
 
+    /// FORK chip for a session row.
+    ///
+    /// A fork is a second copy of a conversation you are probably still in,
+    /// running in its own worktree, spending its own money. In the list it was
+    /// indistinguishable from a resume — same project, same branch, same
+    /// everything — so the two rows read as one session shown twice.
+    ///
+    /// Only shown when the session's CLI is new enough to tell a fork from a
+    /// resume (2.1.214). Below that every fork says "resume", and the absence
+    /// of the chip means nothing either way.
+    static func isFork(_ session: LiveSession) -> Bool {
+        session.startSource == "fork" && session.supports(.forkSource)
+    }
+
+    @ViewBuilder
+    static func forkTag(for session: LiveSession) -> some View {
+        if isFork(session) {
+            Text(L("FORK", comment: "Chip on a session row: the session began as a fork of another one"))
+                .font(.system(size: 8, weight: .bold, design: .rounded))
+                .foregroundColor(.indigo.opacity(0.95))
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1)
+                .background(
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(Color.indigo.opacity(0.18))
+                )
+                .help(L("Forked from another session: its own copy of that conversation, in its own worktree.",
+                        comment: "Tooltip on the FORK chip"))
+        }
+    }
+
     /// Sandbox chip for a session row, carrying the count of what the sandbox
     /// has actually refused. Extracted like `agentTag` above: inline ternaries
     /// in the row body push it past what the type-checker will do in one go.
@@ -172,6 +203,7 @@ struct SessionsList: View {
                             // Sits next to the permission mode because the two
                             // answer one question together: what may this
                             // agent do without asking, and how far can it get.
+                            Self.forkTag(for: session)
                             if state.showSandboxBadge {
                                 Self.sandboxTag(for: session)
                             }

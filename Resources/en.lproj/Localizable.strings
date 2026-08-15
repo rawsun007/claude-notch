@@ -630,6 +630,9 @@
 /* Button: write the history out to a file */
 "Export" = "Export";
 
+/* Chip on a session row: the session began as a fork of another one */
+"FORK" = "FORK";
+
 /* Tooltip on the edited-files badge */
 "Files Claude edited this session, full list in the menu bar" = "Files Claude edited this session, full list in the menu bar";
 
@@ -659,6 +662,9 @@
 
 /* Settings explanation */
 "Follow macOS" = "Follow macOS";
+
+/* Tooltip on the FORK chip */
+"Forked from another session: its own copy of that conversation, in its own worktree." = "Forked from another session: its own copy of that conversation, in its own worktree.";
 
 /* Spend submenu row linking to the settings window */
 "Full usage in Settings…" = "Full usage in Settings…";

@@ -41,4 +41,28 @@ final class ForkSourceTests: XCTestCase {
         XCTAssertFalse(started(source: "resume", version: "2.1.213").supports(.forkSource))
         XCTAssertTrue(started(source: "resume", version: "2.1.214").supports(.forkSource))
     }
+
+    // MARK: - The chip
+
+    @MainActor
+    func testOnlyAForkGetsTheChip() {
+        XCTAssertTrue(SessionsList.isFork(started(source: "fork")))
+        XCTAssertFalse(SessionsList.isFork(started(source: "resume")))
+        XCTAssertFalse(SessionsList.isFork(started(source: "startup")))
+    }
+
+    /// A session with no SessionStart behind it makes no claim.
+    @MainActor
+    func testNoSourceIsNotAFork() {
+        let s = AppState()
+        s.upsertSession(id: "s1", cwd: "/tmp/proj", create: true) { _ in }
+        XCTAssertFalse(SessionsList.isFork(s.sessions["s1"]!))
+    }
+
+    /// "fork" reported by a build that could not have reported it is a payload
+    /// the app did not expect, not a fork.
+    @MainActor
+    func testAForkClaimFromTooOldABuildIsNotShown() {
+        XCTAssertFalse(SessionsList.isFork(started(source: "fork", version: "2.1.100")))
+    }
 }
