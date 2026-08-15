@@ -459,6 +459,12 @@
 /* VoiceOver label for the context and cost meter */
 "Context and cost" = "Context and cost";
 
+/* History row: the context filled up and Claude Code compacted it */
+"Context compacted automatically" = "Context compacted automatically";
+
+/* History row: the user compacted the context by hand */
+"Context compacted with /compact" = "Context compacted with /compact";
+
 /* Settings section heading */
 "Context window" = "Context window";
 

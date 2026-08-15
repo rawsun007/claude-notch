@@ -426,6 +426,9 @@ final class EventServer {
         case "/compact":
             handleCompact(payload: payload)
             sendOK(on: conn)
+        case "/postcompact":
+            handlePostCompact(payload: payload)
+            sendOK(on: conn)
         case "/statusline":
             handleStatusLine(payload: payload)
             sendOK(on: conn)
@@ -697,6 +700,20 @@ final class EventServer {
         let sessionId = (payload["session_id"] as? String) ?? ""
         Task { @MainActor [weak state] in
             state?.noteCompacting(sessionId: sessionId)
+        }
+    }
+
+    /// PostCompact: compaction finished. Carries `trigger` ("manual" for
+    /// /compact, "auto" when the window filled up) and `compact_summary`, the
+    /// text the session keeps in place of what it just dropped.
+    private func handlePostCompact(payload: [String: Any]) {
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let cwd = (payload["cwd"] as? String) ?? ""
+        let trigger = (payload["trigger"] as? String) ?? ""
+        let summary = (payload["compact_summary"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.noteCompacted(sessionId: sessionId, cwd: cwd,
+                                 trigger: trigger, summary: summary)
         }
     }
 
@@ -1506,6 +1523,9 @@ final class EventServer {
             sendOK(on: conn)
         case "PreCompact":
             handleCompact(payload: payload)
+            sendOK(on: conn)
+        case "PostCompact":
+            handlePostCompact(payload: payload)
             sendOK(on: conn)
         case "ConfigChange":
             handleConfigChange(payload: payload)

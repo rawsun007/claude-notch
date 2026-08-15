@@ -78,6 +78,7 @@ enum HookInstaller {
         return s.contains("\"StopFailure\"") && s.contains("\"SessionStart\"")
             && s.contains("\"DirectoryAdded\"") && s.contains("\"CwdChanged\"")
             && s.contains("\"PermissionDenied\"") && s.contains("\"ConfigChange\"")
+            && s.contains("\"PostCompact\"")
     }
 
     /// `jq` is required by posttool.sh to forward payload fields to the
@@ -358,8 +359,11 @@ enum HookInstaller {
         // take no matcher (they always fire on every occurrence).
         appendHook(to: "TaskCreated", in: &hooks, matcher: nil)
         appendHook(to: "TaskCompleted", in: &hooks, matcher: nil)
-        // Context compaction cue for the context meter.
+        // Context compaction cue for the context meter. Both ends: PreCompact
+        // raises the cue, PostCompact is what ends it (matcher is the trigger,
+        // "manual" or "auto"; nil takes both).
         appendHook(to: "PreCompact", in: &hooks, matcher: nil)
+        appendHook(to: "PostCompact", in: &hooks, matcher: nil)
         // Subagent lifecycle: show spawned agents in the activity strip.
         appendHook(to: "SubagentStart", in: &hooks, matcher: nil)
         appendHook(to: "SubagentStop", in: &hooks, matcher: nil)

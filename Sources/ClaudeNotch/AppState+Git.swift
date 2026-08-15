@@ -246,8 +246,6 @@ extension AppState {
         refreshSandbox(cwd: to, sessionId: sessionId)
     }
 
-    /// PreCompact: context is about to be compacted. Flag the session so the UI
-    /// can show a "compacting" cue; cleared by the next meter/activity update.
     func noteSubagentStarted(sessionId: String = "") {
         upsertSession(id: sessionId, cwd: currentCwd) { s in
             s.runningAgentCount += 1
@@ -260,6 +258,8 @@ extension AppState {
         }
     }
 
+    /// PreCompact: context is about to be compacted. Flag the session so the UI
+    /// can show a "compacting" cue; cleared when PostCompact says it is over.
     func noteCompacting(sessionId: String = "") {
         upsertSession(id: sessionId, cwd: currentCwd) { s in
             s.isCompacting = true
@@ -270,6 +270,33 @@ extension AppState {
         }
         let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
         if isCurrent { currentContextPercent = 0; currentContextTokens = 0 }
+    }
+
+    /// PostCompact: compaction is over and the summary exists.
+    ///
+    /// Until this hook existed the "compacting" cue was cleared by whatever
+    /// event happened to arrive next — a status line, a tool call, a meter
+    /// poll — so it ended early on a busy session and hung around on a quiet
+    /// one. The end of compaction is now the thing that ends it.
+    func noteCompacted(sessionId: String = "", cwd: String = "",
+                       trigger: String = "", summary: String = "") {
+        let dir = cwd.isEmpty ? currentCwd : cwd
+        upsertSession(id: sessionId, cwd: dir) { s in
+            s.isCompacting = false
+        }
+        // The summary is the whole point of the event: it is what the session
+        // now remembers instead of the conversation it just lost.
+        let detail = String(summary.trimmingCharacters(in: .whitespacesAndNewlines).prefix(500))
+        appendHistory(HistoryEntry(
+            timestamp: Date(),
+            kind: .notification,
+            toolName: "Compact",
+            title: trigger == "manual"
+                ? L("Context compacted with /compact", comment: "History row: the user compacted the context by hand")
+                : L("Context compacted automatically", comment: "History row: the context filled up and Claude Code compacted it"),
+            detail: detail,
+            project: (dir as NSString).lastPathComponent,
+            outcome: .info))
     }
 
     func noteUserPrompt(_ prompt: String, sessionId: String = "") {
