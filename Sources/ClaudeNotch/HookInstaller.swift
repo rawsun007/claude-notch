@@ -367,6 +367,8 @@ enum HookInstaller {
         // MCP elicitation: a server asking the user something mid-tool-call.
         // Matched on the server name, so ".*" is every server.
         appendHook(to: "Elicitation", in: &hooks, matcher: ".*")
+        // And how it ended, whoever ended it: the card comes down on this.
+        appendHook(to: "ElicitationResult", in: &hooks, matcher: ".*")
         // Subagent lifecycle: show spawned agents in the activity strip.
         appendHook(to: "SubagentStart", in: &hooks, matcher: nil)
         appendHook(to: "SubagentStop", in: &hooks, matcher: nil)

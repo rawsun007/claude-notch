@@ -144,13 +144,21 @@ final class QuestionRequest: Identifiable, Equatable {
     let cwd: String
     let receivedAt = Date()
     let originatorBundleID: String?
+    /// The MCP elicitation this card is asking on behalf of, if it is one.
+    /// Empty for Claude's own AskUserQuestion. An elicitation can be resolved
+    /// somewhere other than this card — cancelled, or answered in the terminal
+    /// after our hook timed out — and ElicitationResult reports that by id.
+    let elicitationId: String
     let resolver: ([[String]]?) -> Void   // nil = cancel; otherwise one [labels] per question
 
-    init(questions: [AskQuestion], source: String, cwd: String, originatorBundleID: String? = nil, resolver: @escaping ([[String]]?) -> Void) {
+    init(questions: [AskQuestion], source: String, cwd: String,
+         originatorBundleID: String? = nil, elicitationId: String = "",
+         resolver: @escaping ([[String]]?) -> Void) {
         self.questions = questions
         self.source = source
         self.cwd = cwd
         self.originatorBundleID = originatorBundleID
+        self.elicitationId = elicitationId
         self.resolver = resolver
     }
 

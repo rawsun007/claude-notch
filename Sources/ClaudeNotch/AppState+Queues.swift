@@ -395,6 +395,22 @@ extension AppState {
         recompute()
     }
 
+    /// An MCP elicitation was resolved somewhere other than this card:
+    /// cancelled, answered in the terminal, or abandoned when the tool call
+    /// was interrupted. Take the card down instead of leaving it up for the
+    /// five minutes it would otherwise wait for an answer nobody can give.
+    ///
+    /// The resolver is called with nil (cancel), which is what the blocked
+    /// hook connection needs to hear to let go.
+    func dismissElicitation(id: String) {
+        guard !id.isEmpty else { return }
+        let stale = questionQueue.filter { $0.elicitationId == id }
+        guard !stale.isEmpty else { return }
+        questionQueue.removeAll { $0.elicitationId == id }
+        for req in stale { req.resolver(nil) }
+        recompute()
+    }
+
     func resolveCurrentQuestion(_ answers: [[String]]?) {
         guard !questionQueue.isEmpty else { return }
         let first = questionQueue.removeFirst()

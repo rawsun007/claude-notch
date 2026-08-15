@@ -1530,6 +1530,9 @@ final class EventServer {
         case "Elicitation":
             // Blocking: this one sends its own response.
             handleElicitationHTTP(payload: payload, on: conn)
+        case "ElicitationResult":
+            handleElicitationResult(payload: payload)
+            sendOK(on: conn)
         case "ConfigChange":
             handleConfigChange(payload: payload)
             // Plain OK: this hook can BLOCK a settings change by answering
@@ -1625,6 +1628,7 @@ final class EventServer {
             state.enqueueQuestion(QuestionRequest(
                 questions: questions, source: source, cwd: cwd,
                 originatorBundleID: frontBID,
+                elicitationId: (payload["elicitation_id"] as? String) ?? "",
                 resolver: { ans in lock.withLock { answers = ans }; sem.signal() }
             ))
         }
@@ -1640,6 +1644,20 @@ final class EventServer {
                 "action": "accept",
                 "content": content,
             ]], on: conn)
+        }
+    }
+
+    /// ElicitationResult: an elicitation is over, however it ended — answered
+    /// here, answered in the terminal after our hook timed out, cancelled, or
+    /// abandoned when the tool call was interrupted.
+    ///
+    /// It is what takes down a card nobody can answer any more. Without it the
+    /// card sits there for five minutes waiting on a question that no longer
+    /// exists.
+    private func handleElicitationResult(payload: [String: Any]) {
+        let id = (payload["elicitation_id"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.dismissElicitation(id: id)
         }
     }
 

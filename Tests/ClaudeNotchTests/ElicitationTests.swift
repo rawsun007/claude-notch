@@ -142,9 +142,67 @@ final class ElicitationTests: XCTestCase {
         XCTAssertFalse(form.questions[0].allowsCustomAnswer)
     }
 
-    func testTheHookIsInstalled() {
+    // MARK: - Ending somewhere else
+
+    @MainActor
+    private func queued(id: String, into state: AppState) -> Int {
+        var cancelled = 0
+        state.enqueueQuestion(QuestionRequest(
+            questions: [AskQuestion(header: "Environment", text: "Where?",
+                                    multiSelect: false,
+                                    options: [AskOption(label: "dev", description: "")],
+                                    allowsCustomAnswer: false)],
+            source: "deploy-tools", cwd: "/tmp/proj", elicitationId: id,
+            resolver: { if $0 == nil { cancelled += 1 } }))
+        return cancelled
+    }
+
+    /// Cancelled in the terminal, interrupted, answered elsewhere: the card
+    /// goes, and the blocked hook connection is released with a cancel.
+    @MainActor
+    func testTheResultTakesTheCardDown() {
+        let state = AppState()
+        var cancelled = 0
+        state.enqueueQuestion(QuestionRequest(
+            questions: [AskQuestion(header: "Environment", text: "Where?", multiSelect: false,
+                                    options: [AskOption(label: "dev", description: "")])],
+            source: "deploy-tools", cwd: "/tmp/proj", elicitationId: "e1",
+            resolver: { if $0 == nil { cancelled += 1 } }))
+        state.dismissElicitation(id: "e1")
+        XCTAssertTrue(state.questionQueue.isEmpty)
+        XCTAssertEqual(cancelled, 1)
+    }
+
+    /// Another server's elicitation, and Claude's own questions, stay up.
+    @MainActor
+    func testOnlyTheMatchingCardGoes() {
+        let state = AppState()
+        _ = queued(id: "e1", into: state)
+        _ = queued(id: "e2", into: state)
+        state.enqueueQuestion(QuestionRequest(
+            questions: [AskQuestion(header: "H", text: "Q", multiSelect: false,
+                                    options: [AskOption(label: "a", description: "")])],
+            source: "Claude Code", cwd: "/tmp/proj", resolver: { _ in }))
+        state.dismissElicitation(id: "e1")
+        XCTAssertEqual(state.questionQueue.count, 2)
+        XCTAssertEqual(state.questionQueue.map(\.elicitationId), ["e2", ""])
+    }
+
+    /// An empty id must never match the AskUserQuestion cards, which all have
+    /// one.
+    @MainActor
+    func testAnEmptyIdDismissesNothing() {
+        let state = AppState()
+        _ = queued(id: "", into: state)
+        state.dismissElicitation(id: "")
+        XCTAssertEqual(state.questionQueue.count, 1)
+    }
+
+    func testTheHooksAreInstalled() {
         var hooks: [String: Any] = [:]
         HookInstaller.appendHook(to: "Elicitation", in: &hooks, matcher: ".*")
+        HookInstaller.appendHook(to: "ElicitationResult", in: &hooks, matcher: ".*")
         XCTAssertNotNil(hooks["Elicitation"])
+        XCTAssertNotNil(hooks["ElicitationResult"])
     }
 }
