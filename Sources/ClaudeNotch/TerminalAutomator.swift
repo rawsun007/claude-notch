@@ -255,10 +255,18 @@ enum TerminalAutomator {
     }
 
     /// The shell command a user would type to resume this session themselves.
+    ///
+    /// Quoted, even though this one is copied to the clipboard rather than
+    /// executed here. A session id reaches this field from a hook payload or a
+    /// transcript filename, neither of which this app controls, and the user is
+    /// being handed a line to paste into their own shell: `id; curl x | sh`
+    /// would run as them, on our suggestion. Every path that executes a resume
+    /// already quotes; this one was the exception, which is the kind of
+    /// exception that is only ever found the hard way.
     nonisolated static func resumeCommand(model: String, sessionId: String) -> String {
         AgentKind.infer(fromModel: model) == .codex
-            ? "codex resume \(sessionId)"
-            : "claude --resume \(sessionId)"
+            ? "codex resume \(shellQuote(sessionId))"
+            : "claude --resume \(shellQuote(sessionId))"
     }
 
     /// Reopen a past Claude Code session in a fresh terminal
@@ -331,5 +339,5 @@ enum TerminalAutomator {
         return true
     }
 
-    nonisolated private static func shellQuote(_ s: String) -> String { Shell.quote(s) }
+    nonisolated static func shellQuote(_ s: String) -> String { Shell.quote(s) }
 }
