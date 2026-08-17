@@ -943,6 +943,12 @@ final class AppState: ObservableObject {
     // here" is worth remembering, not worth re-deriving every hook.
     var sandboxCache: [String: (status: SandboxReader.Status?, readAt: Date)] = [:]
 
+    // MARK: - Hook server health (logic lives in AppState+Server.swift)
+
+    // Whether the app is actually able to receive hooks. A failed bind used to
+    // be a log line, which looks exactly like nothing happening.
+    @Published var serverStatus: ServerStatus = .listening
+
     // MARK: - Agent budgets (logic lives in AppState+Git.swift)
 
     // How many subagents a session may run at once and how many WebSearch

@@ -86,8 +86,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         server = EventServer(port: 53127, state: state)
         do {
             try server.start()
+            state.noteServerListening()
         } catch {
+            // Not just a log line. Without the server this app receives nothing
+            // and shows nothing, which looks identical to a quiet afternoon —
+            // and the reason the port is taken may be that something else is
+            // answering the permission prompts it was meant to answer.
             NSLog("ClaudeNotch: failed to start event server: \(error)")
+            if case HookListener.ListenError.inUse(let port) = error {
+                state.noteServerFailed(.portTaken(port: Int(port)))
+            } else {
+                state.noteServerFailed(.failed(reason: "\(error)"))
+            }
         }
 
         // Auto-migrate already-installed users to the statusLine forwarder (the

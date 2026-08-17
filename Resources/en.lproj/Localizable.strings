@@ -243,6 +243,9 @@
 /* Settings section heading */
 "Always-allow rules" = "Always-allow rules";
 
+/* Card title when the hook port is already taken by another process */
+"Another program is receiving Claude Code's prompts" = "Another program is receiving Claude Code's prompts";
+
 /* Settings explanation */
 "Applies straight away, no restart. The notch and this window are translated; the menu bar is still English." = "Applies straight away, no restart. The notch and this window are translated; the menu bar is still English.";
 
@@ -404,6 +407,9 @@
 
 /* Menu header. %@ is a build timestamp */
 "ClaudeNotch  ·  build %@" = "ClaudeNotch  ·  build %@";
+
+/* Card title when the hook server could not start for any other reason */
+"ClaudeNotch cannot receive Claude Code's prompts" = "ClaudeNotch cannot receive Claude Code's prompts";
 
 /* Update dialog body. %1$@ is the new version, %2$@ is the installed one */
 "ClaudeNotch v%1$@ is available. You're on v%2$@." = "ClaudeNotch v%1$@ is available. You're on v%2$@.";
@@ -876,6 +882,12 @@
 /* Empty search result. %@ is what was typed */
 "No sessions match “%@”." = "No sessions match “%@”.";
 
+/* Menu bar row when another process holds the hook port */
+"Not receiving prompts: port taken" = "Not receiving prompts: port taken";
+
+/* Menu bar row when the hook server failed to start */
+"Not receiving prompts: server down" = "Not receiving prompts: server down";
+
 /* Settings sidebar section */
 "Notch" = "Notch";
 
@@ -1001,6 +1013,9 @@
 
 /* Settings button */
 "Play all" = "Play all";
+
+/* Card detail for a taken hook port. %d is the port number, twice */
+"Port %d is taken, so permission prompts are going to whatever is on it and this app will show nothing. That may be an old copy of ClaudeNotch, or it may not. Check with: lsof -nP -iTCP:%d -sTCP:LISTEN" = "Port %d is taken, so permission prompts are going to whatever is on it and this app will show nothing. That may be an old copy of ClaudeNotch, or it may not. Check with: lsof -nP -iTCP:%d -sTCP:LISTEN";
 
 /* Settings toggle explanation */
 "Post a Notification Center banner when a task finishes." = "Post a Notification Center banner when a task finishes.";
@@ -1313,6 +1328,9 @@
 
 /* Card body explaining that compaction is under way and needs nothing from the user */
 "The context filled up. Claude Code is summarising it and will pick up where it left off." = "The context filled up. Claude Code is summarising it and will pick up where it left off.";
+
+/* Card detail when the hook server failed for a non-conflict reason. %@ is the underlying error */
+"The hook server did not start (%@), so nothing will appear here until it does. Quitting and reopening ClaudeNotch is the first thing to try." = "The hook server did not start (%@), so nothing will appear here until it does. Quitting and reopening ClaudeNotch is the first thing to try.";
 
 /* Settings explanation */
 "The pet dressed as something else, each one a nod to whatever was in the air when it was built." = "The pet dressed as something else, each one a nod to whatever was in the air when it was built.";
