@@ -16,6 +16,27 @@ extension SettingsView {
                 actionRow(L("Clear the active session", comment: "Settings button"), "xmark.circle") { state.clearSession() }
             }
 
+            // Only when the app has evidence: a session that has worked a while
+            // and never once mentioned a task, on a CLI new enough to have
+            // withheld the tools. Otherwise this is advice nobody needs.
+            if state.shouldOfferTaskToolHint {
+                sectionLabel(L("Task progress", comment: "Settings section heading"))
+                group {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(TaskToolAvailability.hintTitle)
+                            .font(.callout).fontWeight(.semibold)
+                        Text(TaskToolAvailability.hintDetail)
+                            .font(.callout).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button(L("Copy the setting", comment: "Settings button: copy the env var line to the clipboard")) {
+                            NSPasteboard.copyString("\"env\": { \"\(TaskToolAvailability.envVar)\": \"1\" }")
+                        }
+                        .buttonStyle(.link)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
             sectionLabel(L("Finished tasks", comment: "Settings section heading"))
             group {
                 row(L("Check what Claude actually did", comment: "Settings toggle"),

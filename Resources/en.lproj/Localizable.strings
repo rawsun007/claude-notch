@@ -516,6 +516,9 @@
 /* Settings button: put the export on the clipboard */
 "Copy as JSON" = "Copy as JSON";
 
+/* Settings button: copy the env var line to the clipboard */
+"Copy the setting" = "Copy the setting";
+
 /* Submenu: spending caps */
 "Cost Budget" = "Cost Budget";
 
