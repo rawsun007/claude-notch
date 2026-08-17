@@ -26,6 +26,7 @@ final class HookConnection: @unchecked Sendable {
     private let fd: Int32
     private let queue: DispatchQueue
     private var source: DispatchSourceRead?
+    private var deadline: DispatchSourceTimer?
     private let lock = NSLock()
     private var closed = false
 
@@ -34,10 +35,34 @@ final class HookConnection: @unchecked Sendable {
         self.queue = queue
     }
 
+    /// How long a connection may take to produce a complete request.
+    ///
+    /// A peer that opens a socket, sends half a request and stops used to hold
+    /// that socket for as long as it liked: the parser keeps returning "not yet"
+    /// and the read source keeps waiting. Enough of those and the app runs out
+    /// of descriptors, which is a denial of service any local process can spend
+    /// nothing to cause. A hook is a local program writing a few KB down a
+    /// loopback socket it already has open; thirty seconds is generous.
+    ///
+    /// This covers the request only. Once a request is parsed the handler owns
+    /// the connection, and a blocking hook is meant to sit there for minutes
+    /// waiting for a human, so the deadline is cancelled at that point.
+    static let requestDeadline: TimeInterval = 30
+
     /// Read until `onRequest` accepts the bytes as a complete request, the peer
-    /// hangs up, or the ceiling is hit. `onRequest` returns true when it has
-    /// taken ownership of the connection (it will answer and close).
+    /// hangs up, the ceiling is hit, or the deadline passes. `onRequest` returns
+    /// true when it has taken ownership of the connection (it will answer and
+    /// close).
     func read(max: Int, onRequest: @escaping (Data) -> Bool) {
+        let deadline = DispatchSource.makeTimerSource(queue: queue)
+        deadline.schedule(deadline: .now() + Self.requestDeadline)
+        deadline.setEventHandler { [weak self] in
+            guard let self else { return }
+            NSLog("ClaudeNotch: closing a connection that never finished its request")
+            self.close()
+        }
+        deadline.resume()
+        self.deadline = deadline
         var buffer = Data()
         let src = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
         source = src
@@ -53,10 +78,13 @@ final class HookConnection: @unchecked Sendable {
                     return
                 }
                 if onRequest(buffer) {
-                    // Handled: stop reading, but leave the socket open so the
-                    // handler can answer it whenever it is ready.
+                    // Handled: stop reading, and stop the deadline — the
+                    // handler owns the connection now and a blocking hook is
+                    // supposed to hold it. Leave the socket open for the answer.
                     self.source?.cancel()
                     self.source = nil
+                    self.deadline?.cancel()
+                    self.deadline = nil
                 }
                 return
             }
@@ -114,6 +142,8 @@ final class HookConnection: @unchecked Sendable {
         guard !alreadyClosed else { return }
         source?.cancel()
         source = nil
+        deadline?.cancel()
+        deadline = nil
         Darwin.close(fd)
     }
 }
