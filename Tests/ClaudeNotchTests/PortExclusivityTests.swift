@@ -16,14 +16,22 @@ final class PortExclusivityTests: XCTestCase {
     /// app on 53127 does not collide with the test.
     private let testPort: UInt16 = 53929
 
+    /// The outcome of a bind attempt: the descriptor, or the errno that
+    /// refused it. Not Result, because an errno is an Int32 and Int32 is not an
+    /// Error.
+    private enum BindOutcome {
+        case bound(Int32)
+        case refused(Int32)
+    }
+
     /// Bind 127.0.0.1:port, optionally asking for the socket options an
-    /// attacker would use. Returns the fd, or the errno that refused it.
-    private func attemptBind(port: UInt16, reusePort: Bool, reuseAddr: Bool) -> Result<Int32, Int32> {
-        let fd = socket(AF_INET, SOCK_STREAM, 0)
-        guard fd >= 0 else { return .failure(errno) }
+    /// attacker would use.
+    private func attemptBind(port: UInt16, reusePort: Bool, reuseAddr: Bool) -> BindOutcome {
+        let fd = Darwin.socket(AF_INET, SOCK_STREAM, 0)
+        guard fd >= 0 else { return .refused(errno) }
         var on: Int32 = 1
-        if reusePort { setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &on, socklen_t(MemoryLayout<Int32>.size)) }
-        if reuseAddr { setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, socklen_t(MemoryLayout<Int32>.size)) }
+        if reusePort { Darwin.setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &on, socklen_t(MemoryLayout<Int32>.size)) }
+        if reuseAddr { Darwin.setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, socklen_t(MemoryLayout<Int32>.size)) }
 
         var addr = sockaddr_in()
         addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
@@ -32,19 +40,19 @@ final class PortExclusivityTests: XCTestCase {
         addr.sin_addr.s_addr = inet_addr("127.0.0.1")
 
         let rc = withUnsafePointer(to: &addr) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) }
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) }
         }
         if rc != 0 {
             let err = errno
-            close(fd)
-            return .failure(err)
+            Darwin.close(fd)
+            return .refused(err)
         }
-        if listen(fd, 4) != 0 {
+        if Darwin.listen(fd, 4) != 0 {
             let err = errno
-            close(fd)
-            return .failure(err)
+            Darwin.close(fd)
+            return .refused(err)
         }
-        return .success(fd)
+        return .bound(fd)
     }
 
     /// Start the real server, give the listener a moment to come up, and hand
@@ -53,10 +61,10 @@ final class PortExclusivityTests: XCTestCase {
     private func startServer() throws -> EventServer {
         let server = EventServer(port: testPort, state: AppState())
         try server.start()
-        // NWListener binds asynchronously; poll until the port is taken rather
+        // Poll until the port is taken rather
         // than sleeping a fixed amount and hoping.
         for _ in 0..<100 {
-            if case .failure = attemptBind(port: testPort, reusePort: false, reuseAddr: false) { return server }
+            if case .refused = attemptBind(port: testPort, reusePort: false, reuseAddr: false) { return server }
             usleep(20_000)
         }
         XCTFail("server never took the port")
@@ -71,10 +79,10 @@ final class PortExclusivityTests: XCTestCase {
         defer { server.stop() }
 
         switch attemptBind(port: testPort, reusePort: true, reuseAddr: true) {
-        case .success(let fd):
-            close(fd)
+        case .bound(let fd):
+            Darwin.close(fd)
             XCTFail("a second process shared the hook port: it can answer permission prompts")
-        case .failure(let err):
+        case .refused(let err):
             XCTAssertEqual(err, EADDRINUSE, "expected the bind to be refused as in-use")
         }
     }
@@ -87,10 +95,10 @@ final class PortExclusivityTests: XCTestCase {
 
         for (reusePort, reuseAddr) in [(true, false), (false, true), (false, false)] {
             switch attemptBind(port: testPort, reusePort: reusePort, reuseAddr: reuseAddr) {
-            case .success(let fd):
-                close(fd)
+            case .bound(let fd):
+                Darwin.close(fd)
                 XCTFail("bind succeeded with SO_REUSEPORT=\(reusePort) SO_REUSEADDR=\(reuseAddr)")
-            case .failure(let err):
+            case .refused(let err):
                 XCTAssertEqual(err, EADDRINUSE)
             }
         }
@@ -105,8 +113,8 @@ final class PortExclusivityTests: XCTestCase {
 
         var rebound = false
         for _ in 0..<100 {
-            if case .success(let fd) = attemptBind(port: testPort, reusePort: false, reuseAddr: false) {
-                close(fd)
+            if case .bound(let fd) = attemptBind(port: testPort, reusePort: false, reuseAddr: false) {
+                Darwin.close(fd)
                 rebound = true
                 break
             }
