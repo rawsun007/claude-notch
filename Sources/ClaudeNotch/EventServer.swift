@@ -177,7 +177,18 @@ final class EventServer {
 
     func start() throws {
         let params = NWParameters.tcp
-        params.allowLocalEndpointReuse = true
+        // NOT allowLocalEndpointReuse. That flag puts SO_REUSEPORT on the
+        // listening socket, and SO_REUSEPORT means a second process running as
+        // the same user can bind this port while we hold it and take a share of
+        // the connections. The share it takes includes PreToolUse and
+        // PermissionRequest, which are blocking hooks: whoever answers them
+        // decides whether a tool call runs. A local process could reply "allow"
+        // to everything and no card would ever appear here, which is this app's
+        // one promise, defeated by one line of setup.
+        //
+        // A listener does not need the flag anyway. TIME_WAIT applies to
+        // accepted connections, not to the listening socket, so restarting
+        // after a crash rebinds without it.
         params.requiredInterfaceType = .loopback
         let nwPort = NWEndpoint.Port(rawValue: port)!
         let l = try NWListener(using: params, on: nwPort)
@@ -206,6 +217,19 @@ final class EventServer {
         t.setEventHandler { [weak self] in self?.maybePushTodayCost(force: true) }
         t.resume()
         dailyCostTimer = t
+    }
+
+    /// Release the port and stop the timers.
+    ///
+    /// The app itself never stops the server (it lives as long as the process),
+    /// but a test that asserts nobody else can take the port has to be able to
+    /// give it back, and a listener that cannot be shut down is one that cannot
+    /// be tested for exclusivity.
+    func stop() {
+        dailyCostTimer?.cancel()
+        dailyCostTimer = nil
+        listener?.cancel()
+        listener = nil
     }
 
     private func accept(_ conn: NWConnection) {
