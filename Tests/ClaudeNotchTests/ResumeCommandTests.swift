@@ -12,7 +12,7 @@ final class ResumeCommandTests: XCTestCase {
         for model in ["gpt-5-codex", "gpt-4o", "codex-mini", "o1-preview", "o3"] {
             XCTAssertEqual(
                 TerminalAutomator.resumeCommand(model: model, sessionId: "abc123"),
-                "codex resume abc123",
+                "codex resume 'abc123'",
                 "expected codex resume for \(model)")
         }
     }
@@ -21,15 +21,19 @@ final class ResumeCommandTests: XCTestCase {
         for model in ["claude-opus-4-8", "claude-sonnet-5", "grok-2", "", "unknown-model"] {
             XCTAssertEqual(
                 TerminalAutomator.resumeCommand(model: model, sessionId: "sess-9"),
-                "claude --resume sess-9",
+                "claude --resume 'sess-9'",
                 "expected claude --resume for \(model)")
         }
     }
 
-    func testSessionIdIsCarriedVerbatim() {
+    /// Verbatim inside the quotes. The id is not ours — it arrives on a hook
+    /// payload or as a transcript filename — and this string is handed to the
+    /// user to paste into a shell, so it is quoted like every other command
+    /// this app builds. See ResumeCommandQuotingTests for the injection cases.
+    func testSessionIdIsCarriedVerbatimInsideQuotes() {
         XCTAssertEqual(
             TerminalAutomator.resumeCommand(model: "claude-opus-4-8",
                                             sessionId: "7f3e-AB_9.0"),
-            "claude --resume 7f3e-AB_9.0")
+            "claude --resume '7f3e-AB_9.0'")
     }
 }
