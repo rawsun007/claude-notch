@@ -1,11 +1,10 @@
 import Foundation
-import Network
 import AppKit
 
 final class EventServer {
     private let port: UInt16
     private weak var state: AppState?
-    private var listener: NWListener?
+    private var listener: HookListener?
     private let queue = DispatchQueue(label: "com.claudenotch.server")
     private let workQueue = DispatchQueue(label: "com.claudenotch.server.work", attributes: .concurrent)
     private let transcriptPollLock = NSLock()
@@ -176,26 +175,16 @@ final class EventServer {
     }
 
     func start() throws {
-        let params = NWParameters.tcp
-        // NOT allowLocalEndpointReuse. That flag puts SO_REUSEPORT on the
-        // listening socket, and SO_REUSEPORT means a second process running as
-        // the same user can bind this port while we hold it and take a share of
-        // the connections. The share it takes includes PreToolUse and
-        // PermissionRequest, which are blocking hooks: whoever answers them
-        // decides whether a tool call runs. A local process could reply "allow"
-        // to everything and no card would ever appear here, which is this app's
-        // one promise, defeated by one line of setup.
-        //
-        // A listener does not need the flag anyway. TIME_WAIT applies to
-        // accepted connections, not to the listening socket, so restarting
-        // after a crash rebinds without it.
-        params.requiredInterfaceType = .loopback
-        let nwPort = NWEndpoint.Port(rawValue: port)!
-        let l = try NWListener(using: params, on: nwPort)
-        l.newConnectionHandler = { [weak self] conn in self?.accept(conn) }
-        l.start(queue: queue)
+        // Bound by hand rather than through NWListener, which sets SO_REUSEPORT
+        // on its socket whatever `allowLocalEndpointReuse` says. That option
+        // lets a second process running as the same user bind this port and
+        // take a share of the connections, and the share includes PreToolUse
+        // and PermissionRequest: blocking hooks, where whoever answers decides
+        // whether a tool call runs. See HookSocket for the rest of it.
+        let l = HookListener(queue: queue)
+        try l.start(port: UInt16(port)) { [weak self] conn in self?.accept(conn) }
         listener = l
-        NSLog("ClaudeNotch listening on 127.0.0.1:\(port)")
+        NSLog("ClaudeNotch listening on 127.0.0.1:\(port) (exclusive)")
 
         // Seed model and effort immediately at launch so Row 2 is populated
         // before the first hook fires (no wait for the 12-second timer below).
@@ -232,9 +221,12 @@ final class EventServer {
         listener = nil
     }
 
-    private func accept(_ conn: NWConnection) {
-        conn.start(queue: queue)
-        receive(conn, buffer: Data())
+    private func accept(_ conn: HookConnection) {
+        conn.read(max: EventServer.maxRequestBytes) { [weak self] buffer in
+            guard let self, let req = EventServer.parseRequest(buffer) else { return false }
+            self.handle(req, on: conn)
+            return true
+        }
     }
 
     /// Hard ceiling on a single request. Real hook payloads are a few KB; the
@@ -245,28 +237,6 @@ final class EventServer {
     /// memory. Loopback-only, so this is a misbehaving-local-process guard, not a
     /// network one, but it is cheap and it closes the one unbounded path in here.
     static let maxRequestBytes = 1024 * 1024
-
-    private func receive(_ conn: NWConnection, buffer: Data) {
-        conn.receive(minimumIncompleteLength: 1, maximumLength: 256 * 1024) { [weak self] data, _, isComplete, error in
-            guard let self else { conn.cancel(); return }
-            var buf = buffer
-            if let data, !data.isEmpty { buf.append(data) }
-            if buf.count > EventServer.maxRequestBytes {
-                NSLog("ClaudeNotch: dropping oversized request (%d bytes)", buf.count)
-                conn.cancel()
-                return
-            }
-            if let req = EventServer.parseRequest(buf) {
-                self.handle(req, on: conn)
-                return
-            }
-            if isComplete || error != nil {
-                conn.cancel()
-                return
-            }
-            self.receive(conn, buffer: buf)
-        }
-    }
 
     struct HTTPRequest {
         let method: String
@@ -393,14 +363,14 @@ final class EventServer {
         }
     }
 
-    private func handle(_ req: HTTPRequest, on conn: NWConnection) {
+    private func handle(_ req: HTTPRequest, on conn: HookConnection) {
         // Drop anything that looks browser-originated: our hooks are curl/bash on
         // loopback and never carry an Origin. This closes the drive-by / DNS-
         // rebinding path where a page the user has open POSTs spoofed events.
         guard EventServer.isLocalHookRequest(req) else {
             NSLog("ClaudeNotch: rejected non-local request (host=%@ origin=%@)",
                   req.host ?? "-", req.origin ?? "-")
-            conn.cancel()
+            conn.close()
             return
         }
         let rawPayload = (try? JSONSerialization.jsonObject(with: req.body) as? [String: Any]) ?? [:]
@@ -1306,7 +1276,7 @@ final class EventServer {
     /// permission here: Codex runs its own approval prompt for risky commands,
     /// and a hook can only veto (never auto-approve), so mirroring it would just
     /// double-prompt. Codex owns permission; ClaudeNotch surfaces and observes.
-    private func handleExternalPreTool(payload: [String: Any], on conn: NWConnection) {
+    private func handleExternalPreTool(payload: [String: Any], on conn: HookConnection) {
         let tool = (payload["tool_name"] as? String) ?? ""
         let input = payload["tool_input"] as? [String: Any] ?? [:]
         let sessionId = (payload["session_id"] as? String) ?? ""
@@ -1356,7 +1326,7 @@ final class EventServer {
         )
     }
 
-    private func handleBlockingPermission(payload: [String: Any], on conn: NWConnection) {
+    private func handleBlockingPermission(payload: [String: Any], on conn: HookConnection) {
         let toolName = (payload["tool_name"] as? String) ?? "tool"
         let toolInput = payload["tool_input"] as? [String: Any] ?? [:]
         let cwd = (payload["cwd"] as? String) ?? ""
@@ -1420,7 +1390,7 @@ final class EventServer {
         }
     }
 
-    private func handleBlockingQuestion(payload: [String: Any], on conn: NWConnection) {
+    private func handleBlockingQuestion(payload: [String: Any], on conn: HookConnection) {
         let cwd = (payload["cwd"] as? String) ?? ""
         let parsed = EventServer.parseQuestions(from: payload)
 
@@ -1490,7 +1460,7 @@ final class EventServer {
     /// Single entry point for native HTTP hooks (`"type": "http"` in settings.json).
     /// Claude Code POSTs the full event JSON here; we return hookSpecificOutput directly
     /// instead of relying on the shell-script intermediaries to format it.
-    private func handleUnifiedHook(payload: [String: Any], on conn: NWConnection) {
+    private func handleUnifiedHook(payload: [String: Any], on conn: HookConnection) {
         let eventName = (payload["hook_event_name"] as? String) ?? ""
         let toolName  = (payload["tool_name"] as? String) ?? ""
 
@@ -1611,7 +1581,7 @@ final class EventServer {
     }
 
     /// PreToolUse via HTTP hook: returns hookSpecificOutput with permissionDecision.
-    private func handleBlockingPermissionHTTP(payload: [String: Any], on conn: NWConnection) {
+    private func handleBlockingPermissionHTTP(payload: [String: Any], on conn: HookConnection) {
         let toolName  = (payload["tool_name"]  as? String)        ?? "tool"
         let toolInput = (payload["tool_input"] as? [String: Any]) ?? [:]
         let cwd       = (payload["cwd"]        as? String)        ?? ""
@@ -1625,7 +1595,7 @@ final class EventServer {
     }
 
     /// PermissionRequest via HTTP hook: returns hookSpecificOutput with decision.behavior.
-    private func handleBlockingPermReqHTTP(payload: [String: Any], on conn: NWConnection) {
+    private func handleBlockingPermReqHTTP(payload: [String: Any], on conn: HookConnection) {
         let toolName  = (payload["tool_name"]  as? String)        ?? "tool"
         let toolInput = (payload["tool_input"] as? [String: Any]) ?? [:]
         let cwd       = (payload["cwd"]        as? String)        ?? ""
@@ -1648,7 +1618,7 @@ final class EventServer {
     /// exactly as it would have. That is the reply for everything this card
     /// cannot answer faithfully: a URL flow, a free-text field, a dismissed
     /// card, a timeout.
-    private func handleElicitationHTTP(payload: [String: Any], on conn: NWConnection) {
+    private func handleElicitationHTTP(payload: [String: Any], on conn: HookConnection) {
         guard let form = ElicitationParser.form(from: payload) else { sendOK(on: conn); return }
         let cwd = (payload["cwd"] as? String) ?? ""
         let questions = form.questions
@@ -1701,7 +1671,7 @@ final class EventServer {
     }
 
     /// AskUserQuestion via HTTP hook: returns hookSpecificOutput deny+reason with answers.
-    private func handleBlockingQuestionHTTP(payload: [String: Any], on conn: NWConnection) {
+    private func handleBlockingQuestionHTTP(payload: [String: Any], on conn: HookConnection) {
         let cwd = (payload["cwd"] as? String) ?? ""
         let parsed = EventServer.parseQuestions(from: payload)
         guard !parsed.isEmpty else { sendOK(on: conn); return }
@@ -1740,22 +1710,21 @@ final class EventServer {
 
     // MARK: - Response
 
-    private func sendOK(on conn: NWConnection) {
+    private func sendOK(on conn: HookConnection) {
         send(body: "{\"ok\":true}", on: conn)
     }
 
-    private func sendHookOutput(_ dict: [String: Any], on conn: NWConnection) {
+    private func sendHookOutput(_ dict: [String: Any], on conn: HookConnection) {
         let body = (try? JSONSerialization.data(withJSONObject: dict))
             .flatMap { String(data: $0, encoding: .utf8) }
             ?? "{\"ok\":true}"
         send(body: body, on: conn)
     }
 
-    private func send(body: String, on conn: NWConnection) {
-        let response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: \(body.utf8.count)\r\nConnection: close\r\n\r\n\(body)"
-        conn.send(content: response.data(using: .utf8), completion: .contentProcessed { _ in
-            conn.cancel()
-        })
+    /// One response, then the socket closes. The status line and headers live
+    /// in HookConnection, so there is exactly one place that writes HTTP.
+    private func send(body: String, on conn: HookConnection) {
+        conn.send(body: body)
     }
 }
 
