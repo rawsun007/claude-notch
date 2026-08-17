@@ -15,6 +15,9 @@
 /* VoiceOver value for the spend sparkline. %1$@ is the week total, %2$d is the session count, %3$@ is today's spend */
 "%1$@ across %2$d sessions. Today %3$@." = "%1$@ across %2$d sessions. Today %3$@.";
 
+/* Card title when a tool keeps failing. %1$@ is a tool name, %2$d a count */
+"%1$@ has failed %2$d times in a row" = "%1$@ has failed %2$d times in a row";
+
 /* Budget block detail. %1$@ is spend, %2$@ is the cap, %3$d is a percentage */
 "%1$@ of %2$@ cap (%3$d%%)" = "%1$@ of %2$@ cap (%3$d%%)";
 
@@ -44,6 +47,9 @@
 
 /* Reasoning effort label. %@ is a level such as high */
 "%@ effort" = "%@ effort";
+
+/* History row for a failed tool call. %@ is a tool name */
+"%@ failed" = "%@ failed";
 
 /* Tooltip on the agent chip. %@ is the agent's name */
 "%@ session" = "%@ session";
@@ -1352,6 +1358,9 @@
 
 /* Settings explanation */
 "The pet dressed as something else, each one a nod to whatever was in the air when it was built." = "The pet dressed as something else, each one a nod to whatever was in the air when it was built.";
+
+/* Card body when a tool keeps failing and no error text came with it */
+"The session is retrying something that is not working. Nothing is being asked of you." = "The session is retrying something that is not working. Nothing is being asked of you.";
 
 /* Tooltip on the version badge */
 "The version you are running" = "The version you are running";

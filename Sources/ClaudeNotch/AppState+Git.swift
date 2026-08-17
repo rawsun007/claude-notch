@@ -437,6 +437,54 @@ extension AppState {
         ensureStaleTimer()
     }
 
+    /// A tool call failed.
+    ///
+    /// Every failure is recorded. Only a run of them raises a card, because
+    /// tools fail all the time on purpose (a grep that finds nothing, a build
+    /// that is meant to fail) and a card per failure would be noise you learn
+    /// to dismiss. A run of the same failure is different: that is a session
+    /// stuck, and nothing else on screen says so.
+    func noteToolFailed(_ event: ToolFailure.Event, sessionId: String = "", cwd: String = "") {
+        guard event.isWorthRecording else { return }   // the user pressed Esc
+        let dir = cwd.isEmpty ? currentCwd : cwd
+        var runLength = 0
+        upsertSession(id: sessionId, cwd: dir) { s in
+            s.consecutiveFailures = (s.failingTool == event.toolName) ? s.consecutiveFailures + 1 : 1
+            s.failingTool = event.toolName
+            runLength = s.consecutiveFailures
+        }
+
+        appendHistory(HistoryEntry(
+            timestamp: Date(),
+            kind: .notification,
+            toolName: event.toolName,
+            title: ToolFailure.title(event),
+            detail: event.reason,
+            project: (dir as NSString).lastPathComponent,
+            outcome: .info))
+
+        // The card, once, at the threshold. Not again at four and five: the
+        // point has been made and the session is still yours to interrupt.
+        guard runLength == ToolFailure.failuresBeforeCard else { return }
+        enqueuePermission(PermissionRequest(
+            kind: .notification,
+            title: ToolFailure.stuckTitle(tool: event.toolName, count: runLength),
+            detail: ToolFailure.stuckDetail(reason: event.reason),
+            toolName: event.toolName,
+            source: "Claude Code",
+            cwd: dir,
+            resolver: { _, _ in }))
+    }
+
+    /// A tool call succeeded, so whatever run of failures was going ends here.
+    func noteToolSucceeded(sessionId: String = "", cwd: String = "") {
+        upsertSession(id: sessionId, cwd: cwd.isEmpty ? currentCwd : cwd) { s in
+            guard s.consecutiveFailures > 0 else { return }
+            s.consecutiveFailures = 0
+            s.failingTool = ""
+        }
+    }
+
     /// Sessions that have worked long enough without ever mentioning a task for
     /// the task meter's silence to be Claude Code withholding the tools rather
     /// than the work not needing them. See TaskToolAvailability.

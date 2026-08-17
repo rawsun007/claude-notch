@@ -717,6 +717,30 @@ final class EventServer {
         }
     }
 
+    /// PostToolUseFailure: a tool call did not work. Carries the tool, its
+    /// error, how long it ran, and whether the user interrupted it.
+    ///
+    /// Nothing showed any of this before: a session whose every command fails
+    /// looked exactly like a session working, because the only thing on screen
+    /// was the name of the tool it had just started.
+    private func handleToolFailure(payload: [String: Any]) {
+        guard let event = ToolFailure.parse(payload) else { return }
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let cwd = (payload["cwd"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.noteToolFailed(event, sessionId: sessionId, cwd: cwd)
+        }
+    }
+
+    /// A tool call that worked ends whatever run of failures was going.
+    private func handleToolSucceeded(payload: [String: Any]) {
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let cwd = (payload["cwd"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.noteToolSucceeded(sessionId: sessionId, cwd: cwd)
+        }
+    }
+
     /// PostCompact: compaction finished. Carries `trigger` ("manual" for
     /// /compact, "auto" when the window filled up) and `compact_summary`, the
     /// text the session keeps in place of what it just dropped.
@@ -1483,7 +1507,11 @@ final class EventServer {
             // to try again — the notch reports what happened, it does not
             // overrule the classifier that blocked it.
             sendOK(on: conn)
+        case "PostToolUseFailure":
+            handleToolFailure(payload: payload)
+            sendOK(on: conn)
         case "PostToolUse":
+            handleToolSucceeded(payload: payload)
             handleActivity(payload: payload)
             handlePostToolThinking(payload: payload)
             handleSandboxViolations(payload: payload)

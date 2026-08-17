@@ -72,6 +72,12 @@ struct LiveSession: Identifiable, Equatable {
     var webSearchCapHit: Bool = false
     var toolCallCount: Int = 0
 
+    // The tool that failed last and how many times in a row. A session going
+    // in circles is invisible otherwise: the status line says "Running
+    // command" whether the command works or not.
+    var failingTool: String = ""
+    var consecutiveFailures: Int = 0
+
     // Whether this session has ever reported a task or a checklist at all.
     // Distinguishes "no tasks in this piece of work" from "this model has no
     // task tools", which look identical from an empty meter.
