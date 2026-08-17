@@ -13,6 +13,7 @@ extension AppState {
             // never shows more done than total.
             s.createdTaskIds.insert(id)
             s.completedTaskIds.insert(id)
+            s.everReportedTask = true
         }
         lastHookAt = Date()
         ensureStaleTimer()
@@ -25,6 +26,7 @@ extension AppState {
         upsertSession(id: sessionId, cwd: currentCwd, create: true) { s in
             s.todoTotal = max(0, total)
             s.todoDone = min(max(0, done), max(0, total))
+            s.everReportedTask = true
         }
         lastHookAt = Date()
         ensureStaleTimer()

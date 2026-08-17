@@ -366,6 +366,9 @@
 /* Settings section heading */
 "Claude Code" = "Claude Code";
 
+/* Settings hint body. %1$@ is a Claude Code version, %2$@ is an environment variable name */
+"Claude Code %1$@ removed the to-do tools from its newer models, so sessions no longer report a checklist and the task meter stays empty. To bring it back, set %2$@=1 in the env block of ~/.claude/settings.json." = "Claude Code %1$@ removed the to-do tools from its newer models, so sessions no longer report a checklist and the task meter stays empty. To bring it back, set %2$@=1 in the env block of ~/.claude/settings.json.";
+
 /* Result when the merge added nothing */
 "Claude Code already had all of them. A backup was saved anyway." = "Claude Code already had all of them. A backup was saved anyway.";
 
@@ -1325,6 +1328,9 @@
 
 /* VoiceOver label for the task meter */
 "Task progress" = "Task progress";
+
+/* Settings hint title when the todo tools are unavailable on this model */
+"Task progress is off in Claude Code" = "Task progress is off in Claude Code";
 
 /* Settings explanation */
 "Terminal:" = "Terminal:";

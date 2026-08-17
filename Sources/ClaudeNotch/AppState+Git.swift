@@ -431,8 +431,27 @@ extension AppState {
                 s.completedTaskIds.removeAll()
             }
             s.createdTaskIds.insert(id)
+            s.everReportedTask = true
         }
         lastHookAt = Date()
         ensureStaleTimer()
+    }
+
+    /// Sessions that have worked long enough without ever mentioning a task for
+    /// the task meter's silence to be Claude Code withholding the tools rather
+    /// than the work not needing them. See TaskToolAvailability.
+    var sessionsWithoutTaskTools: [LiveSession] {
+        sessions.values.filter {
+            TaskToolAvailability.looksDisabled(toolCalls: $0.toolCallCount,
+                                               everReportedTask: $0.everReportedTask,
+                                               cliVersion: $0.cliVersion)
+        }
+    }
+
+    /// Whether to offer the hint at all: something is working without tasks,
+    /// and the flag that would restore them is not already set.
+    var shouldOfferTaskToolHint: Bool {
+        !sessionsWithoutTaskTools.isEmpty
+            && !TaskToolAvailability.isEnabled(env: AgentBudgets.settingsEnv(at: HookInstaller.settingsPath))
     }
 }
