@@ -41,7 +41,22 @@ enum SecretRedactor {
         #"\bsk-[A-Za-z0-9]{32,}"#,                                           // OpenAI classic
         #"\bgh[pousr]_[A-Za-z0-9]{20,}"#,                                    // GitHub
         #"\bgithub_pat_[A-Za-z0-9_]{20,}"#,                                  // GitHub fine-grained
-        #"\bglpat-[A-Za-z0-9_\-]{16,}"#,                                     // GitLab
+        // GitLab issues a family of prefixed tokens, not just personal access
+        // tokens. Claude Code learned the rest of them in 2.1.232; a history
+        // entry outlives the session it appeared in (it is persisted, and every
+        // export is built from it), so the ones it did not know were the ones
+        // that stayed on disk.
+        #"\bglpat-[A-Za-z0-9_\-]{16,}"#,                                     // personal access
+        #"\bgldt-[A-Za-z0-9_\-]{16,}"#,                                      // deploy
+        #"\bglrt-[A-Za-z0-9_\-]{16,}"#,                                      // runner
+        #"\bgloas-[A-Za-z0-9_\-]{16,}"#,                                     // OAuth application secret
+        #"\bglptt-[A-Za-z0-9_\-]{16,}"#,                                     // pipeline trigger
+        #"\bglagent-[A-Za-z0-9_\-]{16,}"#,                                   // agent
+        #"\bglimt-[A-Za-z0-9_\-]{16,}"#,                                     // incoming mail
+        #"\bglsoat-[A-Za-z0-9_\-]{16,}"#,                                    // scim oauth
+        #"\bglcbt-[A-Za-z0-9_\-]{16,}"#,                                     // cluster agent
+        #"\bglft-[A-Za-z0-9_\-]{16,}"#,                                      // feature flags client
+        #"\bglffct-[A-Za-z0-9_\-]{16,}"#,                                    // feature flags unleash
         #"\b[sr]k_(live|test)_[A-Za-z0-9]{16,}"#,                            // Stripe
         #"\b(AKIA|ASIA)[0-9A-Z]{16}\b"#,                                     // AWS access key id
         #"\bxox[baprs]-[A-Za-z0-9\-]{10,}"#,                                 // Slack

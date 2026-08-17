@@ -31,6 +31,27 @@ final class SecretRedactorTests: XCTestCase {
         XCTAssertEqual(redact("slack post xoxb-123456789012-abcdefghijkl"), "slack post [redacted]")
     }
 
+    /// GitLab issues a family of prefixed tokens. Claude Code redacts all of
+    /// them as of 2.1.232, and a history entry outlives its session, so the
+    /// families this app did not know were the ones that stayed on disk.
+    func testEveryGitLabTokenFamilyGoesWhole() {
+        let body = String(repeating: "A1b2", count: 6)   // 24 chars, past every floor
+        for prefix in ["glpat-", "gldt-", "glrt-", "gloas-", "glptt-", "glagent-",
+                       "glimt-", "glsoat-", "glcbt-", "glft-", "glffct-"] {
+            XCTAssertEqual(redact("git remote add origin https://oauth2:\(prefix)\(body)@gitlab.com/x.git"),
+                           "git remote add origin https://oauth2:[redacted]@gitlab.com/x.git",
+                           "\(prefix) survived")
+        }
+    }
+
+    /// The prefixes are close enough to ordinary words that a narrow pattern
+    /// matters: a branch or a variable named after one is not a credential.
+    func testGitLabNearMissesAreUntouched() {
+        assertUnchanged("git checkout glft-experiment")
+        assertUnchanged("echo glrt-")
+        assertUnchanged("cd gldt-notes")
+    }
+
     func testJWTGoesWhole() {
         XCTAssertEqual(
             redact("curl -H 'Authorization: Bearer eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0NTY.SflKxwRJSMeKKF2QT4'"),
