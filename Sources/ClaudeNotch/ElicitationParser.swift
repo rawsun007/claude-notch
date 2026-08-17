@@ -19,6 +19,27 @@ import Foundation
 // decided by tests.
 enum ElicitationParser {
 
+    // An MCP server is a third-party program the user installed, and everything
+    // below arrives from it. Every other payload-fed collection in this app is
+    // capped; this one was not.
+    //
+    // Past a cap the elicitation is declined rather than truncated. A truncated
+    // question is a question the user did not read, and the answer would go
+    // back to the server as if they had.
+
+    /// Enough for a sentence or two of context.
+    static let maxMessage = 300
+    /// A field label is a few words.
+    static let maxTitle = 80
+    /// And its explanation a line.
+    static let maxDescription = 200
+    /// A choice you can read on a card in a notch.
+    static let maxOptionLabel = 60
+    /// More than this is a list, not a set of buttons.
+    static let maxOptions = 12
+    /// A form is a card, not a page.
+    static let maxFields = 6
+
     /// One answerable field of a requested schema.
     struct Field: Equatable {
         let name: String            // the property key the answer goes back under
@@ -98,6 +119,8 @@ enum ElicitationParser {
             return a < b
         }
 
+        guard keys.count <= maxFields else { return nil }
+
         var fields: [Field] = []
         for key in keys {
             guard let spec = properties[key] as? [String: Any],
@@ -106,8 +129,11 @@ enum ElicitationParser {
             fields.append(field)
         }
 
-        return Form(serverName: (payload["mcp_server_name"] as? String) ?? "",
-                    message: (payload["message"] as? String) ?? "",
+        let message = (payload["message"] as? String) ?? ""
+        guard message.count <= maxMessage else { return nil }
+
+        return Form(serverName: String(((payload["mcp_server_name"] as? String) ?? "").prefix(maxTitle)),
+                    message: message,
                     fields: fields)
     }
 
@@ -118,6 +144,12 @@ enum ElicitationParser {
         let description = (spec["description"] as? String) ?? ""
         let type = (spec["type"] as? String) ?? ""
 
+        // A label longer than the card is a label nobody read, and the answer
+        // would go back as if they had. Refuse rather than cut.
+        guard title.count <= maxTitle, description.count <= maxDescription,
+              name.count <= maxTitle
+        else { return nil }
+
         if type == "boolean" {
             return Field(name: name, title: title, description: description,
                          options: [Form.yes, Form.no], isBoolean: true)
@@ -126,7 +158,10 @@ enum ElicitationParser {
         // which this card cannot ask for.
         if type == "string", let cases = spec["enum"] as? [Any] {
             let options = cases.compactMap { $0 as? String }.filter { !$0.isEmpty }
-            guard options.count == cases.count, !options.isEmpty else { return nil }
+            guard options.count == cases.count, !options.isEmpty,
+                  options.count <= maxOptions,
+                  options.allSatisfy({ $0.count <= maxOptionLabel })
+            else { return nil }
             return Field(name: name, title: title, description: description,
                          options: options, isBoolean: false)
         }

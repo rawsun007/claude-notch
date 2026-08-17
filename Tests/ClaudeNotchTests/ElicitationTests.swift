@@ -142,6 +142,75 @@ final class ElicitationTests: XCTestCase {
         XCTAssertFalse(form.questions[0].allowsCustomAnswer)
     }
 
+    // MARK: - Caps
+
+    /// An MCP server is a third-party program. Past a cap the elicitation is
+    /// declined rather than truncated: a question the user could not read is
+    /// not a question they answered.
+    func testAnOversizeMessageIsDeclined() {
+        var p = payload(properties: ["ok": ["type": "boolean"]])
+        p["message"] = String(repeating: "x", count: ElicitationParser.maxMessage + 1)
+        XCTAssertNil(ElicitationParser.form(from: p))
+
+        p["message"] = String(repeating: "x", count: ElicitationParser.maxMessage)
+        XCTAssertNotNil(ElicitationParser.form(from: p))
+    }
+
+    func testAnOversizeTitleOrDescriptionIsDeclined() {
+        XCTAssertNil(ElicitationParser.form(from: payload(properties: [
+            "ok": ["type": "boolean", "title": String(repeating: "t", count: ElicitationParser.maxTitle + 1)],
+        ])))
+        XCTAssertNil(ElicitationParser.form(from: payload(properties: [
+            "ok": ["type": "boolean", "description": String(repeating: "d", count: ElicitationParser.maxDescription + 1)],
+        ])))
+    }
+
+    /// A property name stands in as the label when there is no title, so it is
+    /// bounded by the same rule.
+    func testAnOversizePropertyNameIsDeclined() {
+        XCTAssertNil(ElicitationParser.form(from: payload(properties: [
+            String(repeating: "n", count: ElicitationParser.maxTitle + 1): ["type": "boolean"],
+        ])))
+    }
+
+    func testTooManyOptionsIsDeclined() {
+        let many = (0...ElicitationParser.maxOptions).map { "opt\($0)" }
+        XCTAssertNil(ElicitationParser.form(from: payload(properties: [
+            "env": ["type": "string", "enum": many],
+        ])))
+        XCTAssertNotNil(ElicitationParser.form(from: payload(properties: [
+            "env": ["type": "string", "enum": Array(many.prefix(ElicitationParser.maxOptions))],
+        ])))
+    }
+
+    func testAnOversizeOptionLabelIsDeclined() {
+        XCTAssertNil(ElicitationParser.form(from: payload(properties: [
+            "env": ["type": "string", "enum": ["dev", String(repeating: "p", count: ElicitationParser.maxOptionLabel + 1)]],
+        ])))
+    }
+
+    func testTooManyFieldsIsDeclined() {
+        var props: [String: Any] = [:]
+        for i in 0...ElicitationParser.maxFields { props["f\(i)"] = ["type": "boolean"] }
+        XCTAssertNil(ElicitationParser.form(from: payload(properties: props)))
+    }
+
+    /// A form at every limit exactly is still answered: the caps are a ceiling,
+    /// not a margin.
+    func testAFormAtTheLimitsIsAccepted() throws {
+        var props: [String: Any] = [:]
+        for i in 0..<ElicitationParser.maxFields {
+            props["f\(i)"] = [
+                "type": "string",
+                "title": String(repeating: "t", count: ElicitationParser.maxTitle),
+                "description": String(repeating: "d", count: ElicitationParser.maxDescription),
+                "enum": (0..<ElicitationParser.maxOptions).map { _ in UUID().uuidString.prefix(ElicitationParser.maxOptionLabel) }.map(String.init),
+            ]
+        }
+        let form = try XCTUnwrap(ElicitationParser.form(from: payload(properties: props)))
+        XCTAssertEqual(form.fields.count, ElicitationParser.maxFields)
+    }
+
     // MARK: - Ending somewhere else
 
     @MainActor
