@@ -411,6 +411,12 @@
 /* Card title when the hook server could not start for any other reason */
 "ClaudeNotch cannot receive Claude Code's prompts" = "ClaudeNotch cannot receive Claude Code's prompts";
 
+/* Why the hook-server card is marked dangerous */
+"ClaudeNotch is not receiving Claude Code's prompts" = "ClaudeNotch is not receiving Claude Code's prompts";
+
+/* Accessibility label for the menu bar icon when the hook server is down */
+"ClaudeNotch is not receiving prompts" = "ClaudeNotch is not receiving prompts";
+
 /* Update dialog body. %1$@ is the new version, %2$@ is the installed one */
 "ClaudeNotch v%1$@ is available. You're on v%2$@." = "ClaudeNotch v%1$@ is available. You're on v%2$@.";
 
@@ -881,6 +887,9 @@
 
 /* Empty search result. %@ is what was typed */
 "No sessions match “%@”." = "No sessions match “%@”.";
+
+/* Menu item shown when the hook server is not listening */
+"Not receiving prompts" = "Not receiving prompts";
 
 /* Menu bar row when another process holds the hook port */
 "Not receiving prompts: port taken" = "Not receiving prompts: port taken";

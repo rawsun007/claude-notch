@@ -20,7 +20,10 @@ final class ServerHealthTests: XCTestCase {
         XCTAssertEqual(s.permissionQueue.count, 1)
         XCTAssertEqual(s.permissionQueue.first?.kind, .notification)
         XCTAssertEqual(s.permissionQueue.first?.toolName, "EventServer")
+        XCTAssertTrue(s.permissionQueue.first?.isDangerous ?? false)
         XCTAssertEqual(s.history.first?.toolName, "EventServer")
+        // Exactly one row: the card logs itself, so this must not log a second.
+        XCTAssertEqual(s.history.filter { $0.toolName == "EventServer" }.count, 1)
     }
 
     /// The row is marked dangerous, not info: this is the app telling you it

@@ -52,6 +52,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     var muteRowView: KeepOpenRowView?
     var perToolRowView: KeepOpenRowView?
     private var updateItem: NSMenuItem!
+    private var serverItem: NSMenuItem!
     private var spendItem: NSMenuItem!
     private var spendMenu: NSMenu!
     private var checkUpdateItem: NSMenuItem!
@@ -91,6 +92,15 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                                 action: #selector(clearSession), keyEquivalent: "")
         statusItem.target = self
         menu.addItem(statusItem)
+
+        // Hidden while the hook server is listening, which is almost always.
+        // When it is not, this is the most important row in the menu: nothing
+        // else the app shows means anything if it is not receiving hooks.
+        serverItem = NSMenuItem(title: L("Not receiving prompts", comment: "Menu item shown when the hook server is not listening"),
+                                action: #selector(showServerProblem), keyEquivalent: "")
+        serverItem.target = self
+        serverItem.isHidden = true
+        menu.addItem(serverItem)
 
         // Hidden until the update checker finds a newer release.
         updateItem = NSMenuItem(title: L("Update available", comment: "Menu item: a newer release exists"),
@@ -419,6 +429,13 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         state.$plan
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.refreshBadge() }
+            .store(in: &cancellables)
+
+        // A dead hook server changes the meaning of every other row in this
+        // menu, so it drives the icon as well as its own item.
+        state.$serverStatus
+            .receive(on: RunLoop.main)
+            .sink { [weak self] status in self?.refreshServerHealth(status) }
             .store(in: &cancellables)
 
         refreshLoginItem()
@@ -801,6 +818,30 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func showOnboarding() {
         onboarding.show()
+    }
+
+    /// Show the server problem as a card, for anyone who reached the menu
+    /// before the card that was raised at launch, or dismissed it.
+    @objc private func showServerProblem() {
+        state.noteServerFailed(state.serverStatus)
+    }
+
+    /// The menu row and the menu bar icon both follow the server's health. The
+    /// icon matters more: most people never open the menu, and an app that
+    /// cannot receive hooks should not look identical to one that can.
+    private func refreshServerHealth(_ status: AppState.ServerStatus) {
+        let label = AppState.serverFailureMenuLabel(status)
+        serverItem.title = label ?? ""
+        serverItem.isHidden = (label == nil)
+        if let button = item.button {
+            button.image = status.isHealthy
+                ? MenuBarController.statusIcon()
+                : NSImage(systemSymbolName: "exclamationmark.triangle.fill",
+                          accessibilityDescription: L("ClaudeNotch is not receiving prompts",
+                                                      comment: "Accessibility label for the menu bar icon when the hook server is down"))
+            button.image?.isTemplate = true
+            button.toolTip = label
+        }
     }
 
     @objc private func showSettings() {

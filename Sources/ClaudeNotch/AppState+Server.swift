@@ -35,24 +35,21 @@ extension AppState {
         guard status != .listening, serverStatus != status else { return }
         serverStatus = status
 
-        let title = Self.serverFailureTitle(status)
-        let detail = Self.serverFailureDetail(status)
-        appendHistory(HistoryEntry(
-            timestamp: Date(),
-            kind: .notification,
-            toolName: "EventServer",
-            title: title,
-            detail: detail,
-            project: currentProject,
-            outcome: .dangerous))
-
+        // The card writes its own history row on the way in, so this does not
+        // add one: two rows for one event is noise in the drawer and in every
+        // export built from it. The danger reason is what marks the row (and
+        // the card) as something other than a routine ping.
         enqueuePermission(PermissionRequest(
             kind: .notification,
-            title: title,
-            detail: detail,
+            title: Self.serverFailureTitle(status),
+            detail: Self.serverFailureDetail(status),
             toolName: "EventServer",
             source: "ClaudeNotch",
             cwd: currentCwd,
+            originatorBundleID: nil,
+            preview: nil,
+            dangerReasons: [L("ClaudeNotch is not receiving Claude Code's prompts",
+                              comment: "Why the hook-server card is marked dangerous")],
             resolver: { _, _ in }))
     }
 

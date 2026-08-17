@@ -211,6 +211,9 @@ extension AppState {
 
         permissionQueue.append(req)
         // Record notifications immediately — they don't have an Allow/Deny.
+        // A notification can still be about something bad (the hook server not
+        // listening, say), and a history that files that under "info" alongside
+        // every routine ping is a history you cannot scan for trouble.
         if req.kind == .notification {
             appendHistory(HistoryEntry(
                 timestamp: Date(),
@@ -219,7 +222,7 @@ extension AppState {
                 title: req.title,
                 detail: req.detail,
                 project: (req.cwd as NSString).lastPathComponent,
-                outcome: .info
+                outcome: req.isDangerous ? .dangerous : .info
             ))
         }
         play(.permission, toolName: req.toolName)
