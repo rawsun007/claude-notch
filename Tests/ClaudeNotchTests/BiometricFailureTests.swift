@@ -60,7 +60,9 @@ final class BiometricFailureTests: XCTestCase {
         for code in [LAError.Code.biometryLockout, .biometryNotAvailable, .authenticationFailed] {
             let msg = BiometricAuth.failureMessage(for: error(code)) ?? ""
             XCTAssertFalse(msg.contains("LAError"), msg)
-            XCTAssertFalse(msg.contains("-"), msg)   // no bare negative error numbers
+            // No bare error numbers. A hyphen on its own is fine: the messages
+            // say things like "hold-to-confirm".
+            XCTAssertNil(msg.range(of: #"-?\d{3,}"#, options: .regularExpression), msg)
         }
     }
 }

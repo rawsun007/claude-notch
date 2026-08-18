@@ -229,21 +229,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             confirmScriptedResume(project: project)
             return
         }
+        // The windows and the menu are built during launch, and a URL can
+        // arrive before that finishes: macOS delivers one to an app it has just
+        // started for exactly that purpose. Reaching through them optionally
+        // means an early link does less rather than terminating the app.
         switch action {
         case .open:
             // Same effect as putting the cursor on the notch, so a link can
             // reveal the card without the user reaching for the trackpad.
             state.setHovering(true)
-            notch.window.makeKey()
+            notch?.window.makeKey()
         case .settings:
             settings.show()
         case .history:
             state.openHistory()
         case .standup:
-            menu.copyStandup()
+            menu?.copyStandup()
         case .compose(let project):
             state.beginCompose(project: project)
-            notch.window.makeKey()
+            notch?.window.makeKey()
         case .resume(let project):
             resumeForScripting(project: project)
         }

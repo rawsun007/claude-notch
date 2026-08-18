@@ -60,8 +60,19 @@ final class ScriptedResumeTests: XCTestCase {
     func testTheOtherVerbsAreNotGated() {
         let d = delegate()
         d.run(.history, from: .url)
-        d.run(.settings, from: .url)
+        d.run(.standup, from: .url)
+        d.run(.compose(project: "notch"), from: .url)
+        XCTAssertTrue(d.state.permissionQueue.isEmpty)
+    }
+
+    /// A URL can arrive before the windows exist: macOS delivers one to an app
+    /// it has just launched for that purpose. Doing less is fine; terminating
+    /// is not.
+    func testALinkThatArrivesBeforeLaunchFinishesDoesNotCrash() {
+        let d = AppDelegate()   // no applicationDidFinishLaunching, so no windows
         d.run(.open, from: .url)
+        d.run(.compose(project: nil), from: .url)
+        d.run(.standup, from: .url)
         XCTAssertTrue(d.state.permissionQueue.isEmpty)
     }
 
