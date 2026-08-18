@@ -72,11 +72,20 @@
 /* Part of the sandbox badge tooltip. %d is a count */
 "%d commands run outside it" = "%d commands run outside it";
 
+/* Duration in days */
+"%d days" = "%d days";
+
 /* Badge: how many files were edited this session */
 "%d files" = "%d files";
 
+/* Duration in hours */
+"%d hours" = "%d hours";
+
 /* Part of the sandbox badge tooltip. %d is a count */
 "%d masked credentials" = "%d masked credentials";
+
+/* Duration in minutes */
+"%d minutes" = "%d minutes";
 
 /* Sandbox violation card detail. %d is how many further violations there were */
 "%d more blocked in the same command" = "%d more blocked in the same command";
@@ -99,6 +108,9 @@
 /* Limit tooltip fragment. %d is a percentage */
 "%d%% used" = "%d%% used";
 
+/* Short duration in seconds */
+"%ds" = "%ds";
+
 /* Placeholder row in the recent-projects submenu */
 "(no projects yet, start Claude in any folder)" = "(no projects yet, start Claude in any folder)";
 
@@ -108,8 +120,17 @@
 /* Badge: exactly one background agent is running */
 "1 agent" = "1 agent";
 
+/* Duration: exactly one day */
+"1 day" = "1 day";
+
 /* Badge: exactly one file was edited this session */
 "1 file" = "1 file";
+
+/* Duration: exactly one hour */
+"1 hour" = "1 hour";
+
+/* Duration: exactly one minute */
+"1 minute" = "1 minute";
 
 /* Header count when the card asks exactly one question */
 "1 question" = "1 question";
@@ -756,6 +777,9 @@
 /* Settings explanation */
 "Homebrew:" = "Homebrew:";
 
+/* Settings row label for hook delivery health */
+"Hooks" = "Hooks";
+
 /* Button opening Anthropic's help page about usage credits */
 "How credits work" = "How credits work";
 
@@ -782,6 +806,9 @@
 
 /* Onboarding button state once the hooks are in place */
 "Installed" = "Installed";
+
+/* Settings row: hooks are installed but none have arrived yet */
+"Installed and listening. Nothing has come in since this app started." = "Installed and listening. Nothing has come in since this app started.";
 
 /* Onboarding button state while the hooks are being written */
 "Installing…" = "Installing…";
@@ -912,6 +939,9 @@
 /* Empty search result. %@ is what was typed */
 "No sessions match “%@”." = "No sessions match “%@”.";
 
+/* Settings row: the hook server is not running */
+"Not listening, so nothing can reach this app. See the menu bar." = "Not listening, so nothing can reach this app. See the menu bar.";
+
 /* Menu item shown when the hook server is not listening */
 "Not receiving prompts" = "Not receiving prompts";
 
@@ -929,6 +959,9 @@
 
 /* Settings picker label */
 "Notch language" = "Notch language";
+
+/* Settings row: hooks stopped arriving. %@ is a duration such as \"2 days\" */
+"Nothing has come in for %@. If a session has been running, the hooks may have been removed from your settings." = "Nothing has come in for %@. If a session has been running, the hooks may have been removed from your settings.";
 
 /* Empty state for the activity tab before anything has been resolved */
 "Nothing yet, permissions and questions you resolve will show up here." = "Nothing yet, permissions and questions you resolve will show up here.";
@@ -1115,6 +1148,9 @@
 
 /* Status: the agent is idle and waiting */
 "Ready" = "Ready";
+
+/* Settings row: hooks are arriving. %@ is a duration such as \"4s\" */
+"Receiving events. Last one %@ ago." = "Receiving events. Last one %@ ago.";
 
 /* Menu item opening the recent-project launcher */
 "Recent Projects" = "Recent Projects";
@@ -1379,6 +1415,9 @@
 
 /* Card detail when the hook server failed for a non-conflict reason. %@ is the underlying error */
 "The hook server did not start (%@), so nothing will appear here until it does. Quitting and reopening ClaudeNotch is the first thing to try." = "The hook server did not start (%@), so nothing will appear here until it does. Quitting and reopening ClaudeNotch is the first thing to try.";
+
+/* Settings row: the hooks are not installed */
+"The hooks are not in your Claude Code settings, so nothing will ever appear here. Run setup to put them back." = "The hooks are not in your Claude Code settings, so nothing will ever appear here. Run setup to put them back.";
 
 /* Settings explanation */
 "The pet dressed as something else, each one a nod to whatever was in the air when it was built." = "The pet dressed as something else, each one a nod to whatever was in the air when it was built.";

@@ -121,6 +121,9 @@ extension SettingsView {
                 claudeCLIRow
             }
             group {
+                hookHealthRow
+            }
+            group {
                 aboutLink("Full changelog", ProjectLinks.changelog)
                 divider
                 aboutLink("Source on GitHub", ProjectLinks.github)
@@ -134,6 +137,36 @@ extension SettingsView {
                     actionRow(L("Run setup again…", comment: "Settings button"), "wand.and.stars") { onOpenSetup?() }
                 }
             }
+        }
+    }
+
+    /// Whether hooks are actually reaching the app.
+    ///
+    /// Everything the notch shows arrives this way and none of it is visible,
+    /// so when nothing appears there has been no way to tell "nothing is
+    /// happening" from "nothing is getting through". This is that answer, in
+    /// one line, refreshed while the window is open.
+    @ViewBuilder
+    private var hookHealthRow: some View {
+        TimelineView(.periodic(from: .now, by: 5)) { _ in
+            let health = HookHealth.state(serverHealthy: state.serverStatus.isHealthy,
+                                          installed: HookInstaller.isInstalled,
+                                          lastHookAt: state.lastHookAt)
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: HookHealth.isProblem(health)
+                      ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                    .foregroundStyle(HookHealth.isProblem(health) ? .orange : .green)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L("Hooks", comment: "Settings row label for hook delivery health"))
+                        .font(.callout).fontWeight(.medium)
+                    Text(HookHealth.summary(health))
+                        .font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 4)
+            .accessibilityElement(children: .combine)
         }
     }
 
