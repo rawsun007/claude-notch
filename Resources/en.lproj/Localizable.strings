@@ -132,6 +132,9 @@
 /* Menu item naming the five-hour usage window */
 "5h plan limit" = "5h plan limit";
 
+/* Why a link-triggered resume is treated as dangerous */
+"A link can be opened by any page you visit" = "A link can be opened by any page you visit";
+
 /* Settings toggle explanation */
 "A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost." = "A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost.";
 
@@ -1143,6 +1146,9 @@
 /* Menu item naming the session that would be resumed. %@ is the project */
 "Resume Last Session: %@" = "Resume Last Session: %@";
 
+/* Card title when a claudenotch:// link asks to resume a session */
+"Resume a session from a link?" = "Resume a session from a link?";
+
 /* Menu item: show every edited file in Finder */
 "Reveal All in Finder" = "Reveal All in Finder";
 
@@ -1259,6 +1265,12 @@
 
 /* Session page. %@ is a clock time */
 "Snoozed until %@." = "Snoozed until %@.";
+
+/* Card body for a link-triggered resume. %@ is a project name */
+"Something asked ClaudeNotch to reopen the most recent session in %@ and let it carry on. If you did not just click a link, say no." = "Something asked ClaudeNotch to reopen the most recent session in %@ and let it carry on. If you did not just click a link, say no.";
+
+/* Card body for a link-triggered resume with no project named */
+"Something asked ClaudeNotch to reopen your most recent session and let it carry on. If you did not just click a link, say no." = "Something asked ClaudeNotch to reopen your most recent session and let it carry on. If you did not just click a link, say no.";
 
 /* Dialog body when the update check failed */
 "Something went wrong reaching GitHub. Check your internet connection and try again." = "Something went wrong reaching GitHub. Check your internet connection and try again.";

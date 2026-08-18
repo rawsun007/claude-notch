@@ -194,13 +194,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSLog("ClaudeNotch: ignoring unrecognised URL \(url.scheme ?? "?")://…")
                 continue
             }
-            run(action)
+            run(action, from: .url)
         }
+    }
+
+    /// Where a scripted action came from, which decides whether it happens or
+    /// gets asked about first.
+    ///
+    /// A `claudenotch://` URL can be opened by a web page the user merely
+    /// visited. The browser asks whether to open this app, and people click
+    /// through those prompts, so that is not a gate this app should rely on.
+    /// AppleScript is different: macOS makes the user grant one app permission
+    /// to drive another, explicitly and once, which is a real decision.
+    enum ActionSource {
+        /// A claudenotch:// link, from anywhere.
+        case url
+        /// AppleScript, the menu bar, a hotkey: something already trusted.
+        case trusted
     }
 
     /// Also the AppleScript entry point (see AppleScriptSupport.swift), hence
     /// not private.
-    func run(_ action: NotchURLAction) {
+    func run(_ action: NotchURLAction, from source: ActionSource = .trusted) {
+        // Resuming starts an agent: a terminal opens, a conversation continues,
+        // and whatever that project's permission settings allow, it may now do
+        // unattended. That is not something a link should be able to do behind
+        // the user's back, so from a URL it becomes a card to confirm. Every
+        // other verb only opens a window this app already owns.
+        if case .resume(let project) = action, source == .url {
+            confirmScriptedResume(project: project)
+            return
+        }
         switch action {
         case .open:
             // Same effect as putting the cursor on the notch, so a link can
@@ -232,6 +256,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// The scan reads hundreds of transcripts, so it runs off the main thread
     /// and reports back through `found`. AppleScript suspends its command
     /// around that rather than freezing the notch while it waits.
+    /// Ask before resuming on a URL's say-so.
+    ///
+    /// Marked dangerous, which is not a comment on the session but on where the
+    /// request came from: it means the card cannot be auto-approved by a rule
+    /// or by auto-approve mode, and that starting an agent takes a deliberate
+    /// hold rather than a reflex click.
+    func confirmScriptedResume(project: String?) {
+        let name = project ?? state.currentProject
+        state.enqueuePermission(PermissionRequest(
+            kind: .toolUse,
+            title: L("Resume a session from a link?",
+                     comment: "Card title when a claudenotch:// link asks to resume a session"),
+            detail: name.isEmpty
+                ? L("Something asked ClaudeNotch to reopen your most recent session and let it carry on. If you did not just click a link, say no.",
+                    comment: "Card body for a link-triggered resume with no project named")
+                : String(format: L("Something asked ClaudeNotch to reopen the most recent session in %@ and let it carry on. If you did not just click a link, say no.",
+                                   comment: "Card body for a link-triggered resume. %@ is a project name"), name),
+            toolName: "Resume",
+            source: "claudenotch:// link",
+            cwd: "",
+            originatorBundleID: nil,
+            preview: nil,
+            dangerReasons: [L("A link can be opened by any page you visit",
+                              comment: "Why a link-triggered resume is treated as dangerous")],
+            resolver: { [weak self] decision, _ in
+                guard decision == .allow else { return }
+                self?.resumeForScripting(project: project)
+            }))
+    }
+
     func resumeForScripting(project: String?, found: (@Sendable @MainActor (Bool) -> Void)? = nil) {
         let includeCodex = HookInstaller.isCodexInstalled
         Task.detached(priority: .userInitiated) {
