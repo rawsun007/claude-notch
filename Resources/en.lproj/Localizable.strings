@@ -213,6 +213,9 @@
 /* Button: approve every queued request. %d is how many */
 "Allow All (%d)" = "Allow All (%d)";
 
+/* Settings toggle */
+"Allow claudenotch:// links" = "Allow claudenotch:// links";
+
 /* Settings toggle explanation */
 "Allow every tool request automatically. Turns the notch into a passive monitor. Use with care." = "Allow every tool request automatically. Turns the notch into a passive monitor. Use with care.";
 
@@ -818,6 +821,9 @@
 
 /* Settings explanation */
 "Less" = "Less";
+
+/* Settings toggle explanation */
+"Let Shortcuts, Raycast, Alfred or a link open the notch, the composer, the history, or resume a session. Resuming always asks first, because a link can be opened by any page you visit. Turn this off to remove the surface entirely." = "Let Shortcuts, Raycast, Alfred or a link open the notch, the composer, the history, or resume a session. Resuming always asks first, because a link can be opened by any page you visit. Turn this off to remove the surface entirely.";
 
 /* Settings toggle explanation */
 "Let the Claude mascot live on the notch: it peeks, strolls, hangs off the edge, naps, and celebrates finished tasks. Click it to boop it." = "Let the Claude mascot live on the notch: it peeks, strolls, hangs off the edge, naps, and celebrates finished tasks. Click it to boop it.";

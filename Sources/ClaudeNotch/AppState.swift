@@ -463,6 +463,11 @@ final class AppState: ObservableObject {
     // "what is this agent allowed to do" is the question the notch exists to
     // answer, and the badge only appears for a session that IS sandboxed.
     @Published var showSandboxBadge: Bool = true
+    // Whether claudenotch:// links do anything at all. On by default, because
+    // the scheme is how Shortcuts, Raycast and Alfred drive the app, and its
+    // one privileged verb now asks first. Off is for people who would rather
+    // the surface did not exist on their machine.
+    @Published var urlSchemeEnabled: Bool = true
     // Plan tier and the tightest limit, next to the menu-bar bell. Off by
     // default: it names the account's plan, which not everyone wants on screen.
     @Published var showPlanInMenuBar: Bool = false
@@ -853,6 +858,7 @@ final class AppState: ObservableObject {
             self.showSpendInMenuBar = snapshot.showSpendInMenuBar ?? false
             self.showPlanInMenuBar = snapshot.showPlanInMenuBar ?? false
             self.showSandboxBadge = snapshot.showSandboxBadge ?? true
+            self.urlSchemeEnabled = snapshot.urlSchemeEnabled ?? true
             self.statusBarItems = snapshot.statusBarItems?
                 .compactMap(StatusBarItem.init) ?? [.fiveHourLimit, .weeklyLimit]
             self.contextWindowMode = snapshot.contextWindowMode.flatMap(ContextWindowMode.init) ?? .auto

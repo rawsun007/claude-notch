@@ -572,6 +572,10 @@ struct SettingsView: View {
                 row(L("Show the sandbox badge", comment: "Settings toggle"),
                     L("Mark sessions whose tool calls run inside a sandbox, and say when something is allowed to run outside it. Only appears for sandboxed sessions.", comment: "Settings toggle explanation"),
                     bind(\.showSandboxBadge, state.setShowSandboxBadge))
+                divider
+                row(L("Allow claudenotch:// links", comment: "Settings toggle"),
+                    L("Let Shortcuts, Raycast, Alfred or a link open the notch, the composer, the history, or resume a session. Resuming always asks first, because a link can be opened by any page you visit. Turn this off to remove the surface entirely.", comment: "Settings toggle explanation"),
+                    bind(\.urlSchemeEnabled, state.setURLSchemeEnabled))
             }
 
             sectionLabel(L("Quick actions", comment: "Settings section heading"))

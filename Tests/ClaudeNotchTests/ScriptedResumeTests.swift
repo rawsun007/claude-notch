@@ -65,6 +65,22 @@ final class ScriptedResumeTests: XCTestCase {
         XCTAssertTrue(d.state.permissionQueue.isEmpty)
     }
 
+    /// Off means off: nothing a link asks for happens, not even a card.
+    func testTheSchemeCanBeSwitchedOff() {
+        let d = delegate()
+        d.state.setURLSchemeEnabled(false)
+        d.application(NSApplication.shared, open: [URL(string: "claudenotch://resume/notch")!])
+        XCTAssertTrue(d.state.permissionQueue.isEmpty)
+
+        d.state.setURLSchemeEnabled(true)
+        d.application(NSApplication.shared, open: [URL(string: "claudenotch://resume/notch")!])
+        XCTAssertEqual(d.state.permissionQueue.count, 1)
+    }
+
+    func testTheSchemeIsOnByDefault() {
+        XCTAssertTrue(AppState().urlSchemeEnabled)
+    }
+
     /// The parser still rejects a path dressed as a project name, which is the
     /// other half of this: a link cannot choose the directory either.
     func testAProjectNameIsStillAName() {

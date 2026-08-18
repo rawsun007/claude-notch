@@ -189,6 +189,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Handle `claudenotch://` links. See URLScheme.swift for the grammar and
     /// for why a project arrives as a name rather than as a path.
     func application(_ application: NSApplication, open urls: [URL]) {
+        guard state.urlSchemeEnabled else {
+            NSLog("ClaudeNotch: claudenotch:// links are switched off in settings")
+            return
+        }
         for url in urls {
             guard let action = NotchURL.parse(url) else {
                 NSLog("ClaudeNotch: ignoring unrecognised URL \(url.scheme ?? "?")://…")

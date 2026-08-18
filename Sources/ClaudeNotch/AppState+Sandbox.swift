@@ -119,6 +119,13 @@ extension AppState {
         }?.sandbox
     }
 
+    /// Whether claudenotch:// links do anything at all.
+    /// See AppState.urlSchemeEnabled for why this exists.
+    func setURLSchemeEnabled(_ on: Bool) {
+        urlSchemeEnabled = on
+        schedulePersist()
+    }
+
     func setShowSandboxBadge(_ on: Bool) {
         showSandboxBadge = on
         schedulePersist()
