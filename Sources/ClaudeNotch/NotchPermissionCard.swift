@@ -40,6 +40,11 @@ struct PermissionCard: View {
     /// the answer to "should I allow this".
     var sandbox: SandboxReader.Status? = nil
 
+    /// Why the last biometric confirmation did not go through. Nil when it has
+    /// not been tried, when it worked, or when the user simply cancelled, which
+    /// is an answer rather than a failure.
+    @State private var authMessage: String?
+
     private var isBudgetBlocked: Bool { request.budgetBlock != nil }
     private var accentColor: Color {
         if request.isDangerous { return .red }
@@ -230,8 +235,8 @@ struct PermissionCard: View {
                         // Biometric confirm for destructive commands. The system
                         // sheet appears; only a successful auth allows it.
                         Button {
-                            BiometricAuth.confirm(reason: "allow this command: \(String(SecretRedactor.redact(request.detail).prefix(80)))") { ok in
-                                if ok { onResolve(.allow, .none) }
+                            BiometricAuth.confirm(reason: "allow this command: \(String(SecretRedactor.redact(request.detail).prefix(80)))") { ok, message in
+                                if ok { onResolve(.allow, .none) } else { authMessage = message }
                             }
                         } label: {
                             HStack(spacing: 5) {
@@ -280,6 +285,18 @@ struct PermissionCard: View {
                 }
             }
             .padding(.top, 18)
+
+            // Why the last confirmation did not go through. Without this, a
+            // locked-out Touch ID turns "Confirm to Allow" into a button that
+            // does nothing, with no way to tell that from a slow sheet.
+            if let authMessage {
+                Text(authMessage)
+                    .font(.system(size: 11))
+                    .foregroundColor(.orange.opacity(0.95))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 6)
+                    .accessibilityAddTraits(.isStaticText)
+            }
         }
     }
 }

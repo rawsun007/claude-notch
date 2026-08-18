@@ -315,6 +315,9 @@
 /* Badge: the permission prompts are turned off */
 "BYPASS" = "BYPASS";
 
+/* Shown on the card when biometrics cannot be used */
+"Biometrics are unavailable right now. Use the hold-to-confirm button instead." = "Biometrics are unavailable right now. Use the hold-to-confirm button instead.";
+
 /* Settings toggle explanation */
 "Block new tool runs once a cap is crossed, instead of only warning." = "Block new tool runs once a cap is crossed, instead of only warning.";
 
@@ -1365,6 +1368,9 @@
 /* Note shown when a typed rule is a duplicate */
 "That rule is already in the list." = "That rule is already in the list.";
 
+/* Shown on the card when a biometric confirmation failed for any other reason */
+"That was not confirmed, so nothing was allowed." = "That was not confirmed, so nothing was allowed.";
+
 /* Explanation under the new-rule fields */
 "The command must match exactly, the way it appeared on the card. A blank command approves every call of the tool." = "The command must match exactly, the way it appeared on the card. A blank command approves every call of the tool.";
 
@@ -1418,6 +1424,9 @@
 
 /* Settings explanation */
 "Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess." = "Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess.";
+
+/* Shown on the card when biometry is locked out */
+"Too many attempts. Unlock your Mac with your password, then try again." = "Too many attempts. Unlock your Mac with your password, then try again.";
 
 /* Settings button */
 "Tool permission" = "Tool permission";
