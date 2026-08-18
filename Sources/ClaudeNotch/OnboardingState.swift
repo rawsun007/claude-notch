@@ -97,23 +97,84 @@ final class OnboardingState: ObservableObject {
         }
     }
 
+    /// Everything this window shows about the machine, gathered off the main
+    /// thread.
+    ///
+    /// This runs twice a second while the Setup window is open, and every one
+    /// of these asks the system a question: two TCC lookups, a launchd XPC
+    /// round trip, and, on a Mac with no jq on the usual paths, a subprocess.
+    /// On the main thread that is the window's own draw loop competing with
+    /// four system services twice a second, and on a machine where none of
+    /// them are warm — a fresh Mac, first launch, nothing granted yet — it is
+    /// enough for macOS to call the app unresponsive.
+    ///
+    /// None of these values are needed synchronously. They are booleans on a
+    /// checklist, so they are read on a background queue and published when
+    /// they arrive.
+    private struct Probe {
+        var accessibility = false
+        var inputMonitoring = false
+        var hooksInstalled = false
+        var hasJq = false
+        var launchAtLogin = false
+    }
+
+    /// jq is either installed or it is not; it does not change twice a second,
+    /// and finding out costs a subprocess when it is not on a known path.
+    private nonisolated(unsafe) static var jqCache: (value: Bool, at: Date)?
+    private static let jqCacheLock = NSLock()
+    private static let jqCacheTTL: TimeInterval = 10
+
+    nonisolated private static func cachedHasJq() -> Bool {
+        jqCacheLock.lock()
+        let hit = jqCache
+        jqCacheLock.unlock()
+        if let hit, Date().timeIntervalSince(hit.at) < jqCacheTTL { return hit.value }
+        let value = HookInstaller.hasJq
+        jqCacheLock.lock()
+        jqCache = (value, Date())
+        jqCacheLock.unlock()
+        return value
+    }
+
     func refresh() {
-        // Force a non-cached TCC lookup. AXIsProcessTrusted() can return
-        // stale `false` for the lifetime of the process; the WithOptions
-        // form (with prompt: false) re-queries the database.
-        let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false]
-        let ax = AXIsProcessTrustedWithOptions(opts as CFDictionary)
-        accessibility   = ax
-        inputMonitoring = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
-        hooksInstalled  = HookInstaller.isInstalled
-        hasJq           = HookInstaller.hasJq
-        if #available(macOS 13.0, *) {
-            launchAtLogin = SMAppService.mainApp.status == .enabled
+        Task.detached(priority: .userInitiated) {
+            var probe = Probe()
+            // Force a non-cached TCC lookup. AXIsProcessTrusted() can return
+            // stale `false` for the lifetime of the process; the WithOptions
+            // form (with prompt: false) re-queries the database.
+            let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: false]
+            probe.accessibility = AXIsProcessTrustedWithOptions(opts as CFDictionary)
+            probe.inputMonitoring = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
+            probe.hooksInstalled = HookInstaller.isInstalled
+            probe.hasJq = Self.cachedHasJq()
+            if #available(macOS 13.0, *) {
+                probe.launchAtLogin = SMAppService.mainApp.status == .enabled
+            }
+            await MainActor.run { [probe] in self.apply(probe) }
         }
+    }
+
+    /// Publish a probe. Assignments are guarded so an unchanged value does not
+    /// wake SwiftUI twice a second for nothing.
+    private func apply(_ probe: Probe) {
+        if accessibility   != probe.accessibility   { accessibility = probe.accessibility }
+        if inputMonitoring != probe.inputMonitoring { inputMonitoring = probe.inputMonitoring }
+        if hooksInstalled  != probe.hooksInstalled  { hooksInstalled = probe.hooksInstalled }
+        if hasJq           != probe.hasJq           { hasJq = probe.hasJq }
+        if launchAtLogin   != probe.launchAtLogin   { launchAtLogin = probe.launchAtLogin }
         // If the status flipped to true after the user clicked grant,
         // clear the "clicked at" timestamp so the relaunch hint disappears.
         if accessibility   { accessibilityGrantClickedAt = nil }
         if inputMonitoring { inputMonitoringGrantClickedAt = nil }
+    }
+
+    /// The user did something that could change jq or the hooks, so the next
+    /// probe must not answer from the cache.
+    nonisolated static func invalidateProbeCache() {
+        jqCacheLock.lock()
+        jqCache = nil
+        jqCacheLock.unlock()
     }
 
     // MARK: - Actions
@@ -161,6 +222,10 @@ final class OnboardingState: ObservableObject {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             do {
                 try HookInstaller.install()
+                // The install may have been what put jq on the path, or what
+                // wired the hooks, so the next probe asks the machine rather
+                // than repeating what it knew ten seconds ago.
+                OnboardingState.invalidateProbeCache()
                 Task { @MainActor in
                     self?.isInstallingHooks = false
                     self?.refresh()
