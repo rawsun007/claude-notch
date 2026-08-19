@@ -1951,8 +1951,9 @@ struct SettingsView: View {
     /// kind, the same way the website changelog groups them. Keep this in sync
     /// with the top changelog entry when cutting a release.
     static let whatsNew: [ChangeGroup] = [
-        ChangeGroup(kind: .fixed, items: [
-        "The Setup window no longer makes the app freeze on a Mac that has never run it. It polls the machine twice a second to tick off its checklist, and every line of that asked a system service from the main thread: two permission lookups, a login-item check that talks to launchd, and, on a Mac without jq installed, a whole subprocess. That is the window\'s own drawing competing with four services twice a second. On a machine where all of them are warm it costs nothing, which is why it went unnoticed; on a Mac opening the app for the first time, with nothing granted yet and macOS checking every new binary it runs, it was enough for the app to be reported as not responding. The checks now happen off the main thread, jq is remembered rather than re-checked twice a second, and a value that has not changed no longer redraws anything.",
+        ChangeGroup(kind: .added, items: [
+        "The notch tells you when a task picks up again after a usage limit. Claude Code 2.1.234 changed what running out of usage means: instead of ending the turn, it waits for the limit to reset and carries on by itself. Nothing announces that restart, and by the time a limit lifts you are somewhere else, which is the whole reason you walked away. A session that starts working again now gets a card and a notification, saying which project it was and how long it waited.",
+        "Running out of usage is no longer reported as an error. It used to raise a red \"Session stopped on an error\" card, which is the wrong story twice over: nothing is broken, and nothing is being asked of you. It now reads as a pause with a time on it, taken from the real reset timestamp your status line already reports, so the card says what time the work will start again. If you have switched off continuing automatically in Claude Code, the card says the opposite thing instead, because then the session is holding a dialog and waiting for a human rather than for a clock.",
         ]),
     ]
 }
