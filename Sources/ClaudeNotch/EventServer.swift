@@ -465,6 +465,11 @@ final class EventServer {
         Task { @MainActor [weak state] in
             let frontBID = Self.capturedOriginator(state: state)
             state?.noteSession(cwd: cwd, sessionId: sessionId, originatorBundleID: frontBID)
+            // Every hook comes through here, which makes it the one place that
+            // sees a session waiting out a usage limit start working again.
+            // The restart is not announced by anything: the turn simply
+            // continues, so the evidence is that a hook arrived at all.
+            state?.noteUsageLimitMaybeResumed(sessionId: sessionId, cwd: cwd)
             if !permissionMode.isEmpty {
                 state?.notePermissionMode(permissionMode, sessionId: sessionId, cwd: cwd)
             }
@@ -926,6 +931,14 @@ final class EventServer {
         let cwd = (payload["cwd"] as? String) ?? ""
         Task { @MainActor [weak state] in
             guard let state else { return }
+            // Running out of usage stopped being a failure in Claude Code
+            // 2.1.234: it waits for the reset and carries on by itself. A red
+            // "session stopped on an error" card is now the wrong story, and
+            // the right one has a time in it.
+            if UsageLimitPause.isLimitStop(reason: reasonKey) {
+                state.notePausedByUsageLimit(sessionId: sessionId, cwd: cwd)
+                return
+            }
             state.noteStopFailure(reason: reasonKey, title: title, detail: detail,
                                   cwd: cwd, sessionId: sessionId)
         }

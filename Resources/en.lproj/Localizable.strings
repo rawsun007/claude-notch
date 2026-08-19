@@ -426,6 +426,12 @@
 /* Settings: the Claude Code CLI could not be located */
 "Claude Code was not found on this Mac." = "Claude Code was not found on this Mac.";
 
+/* Card body for an auto-continuing usage-limit pause. %@ is a time of day */
+"Claude Code will pick the task up on its own at about %@. Nothing for you to do." = "Claude Code will pick the task up on its own at about %@. Nothing for you to do.";
+
+/* Card body for an auto-continuing usage-limit pause with no known reset time */
+"Claude Code will pick the task up on its own when the limit resets. Nothing for you to do." = "Claude Code will pick the task up on its own when the limit resets. Nothing for you to do.";
+
 /* VoiceOver label for the status line. %@ is the status word */
 "Claude Code, %@" = "Claude Code, %@";
 
@@ -533,6 +539,9 @@
 
 /* Settings picker label */
 "Context window size" = "Context window size";
+
+/* Card body when auto-continue is off and the reset time is unknown */
+"Continuing automatically is switched off, so the session is holding a dialog until you answer it." = "Continuing automatically is switched off, so the session is holding a dialog until you answer it.";
 
 /* Button state right after copying to the clipboard */
 "Copied" = "Copied";
@@ -1023,6 +1032,12 @@
 /* Onboarding step description for the login item */
 "Optional. Start ClaudeNotch automatically when you log in so it's always ready." = "Optional. Start ClaudeNotch automatically when you log in so it's always ready.";
 
+/* Card title when a session paused on a usage limit and will continue by itself */
+"Out of usage, waiting for the reset" = "Out of usage, waiting for the reset";
+
+/* Card title when a session paused on a usage limit and needs a human to continue it */
+"Out of usage, waiting for you" = "Out of usage, waiting for you";
+
 /* Budget block. %@ is a scope such as daily or weekly */
 "Over your %@ budget" = "Over your %@ budget";
 
@@ -1419,11 +1434,17 @@
 /* Settings row: the hooks are not installed */
 "The hooks are not in your Claude Code settings, so nothing will ever appear here. Run setup to put them back." = "The hooks are not in your Claude Code settings, so nothing will ever appear here. Run setup to put them back.";
 
+/* Card body when auto-continue is off. %@ is a time of day */
+"The limit resets at about %@, and continuing is switched off, so the session is holding a dialog until you answer it." = "The limit resets at about %@, and continuing is switched off, so the session is holding a dialog until you answer it.";
+
 /* Settings explanation */
 "The pet dressed as something else, each one a nod to whatever was in the air when it was built." = "The pet dressed as something else, each one a nod to whatever was in the air when it was built.";
 
 /* Card body when a tool keeps failing and no error text came with it */
 "The session is retrying something that is not working. Nothing is being asked of you." = "The session is retrying something that is not working. Nothing is being asked of you.";
+
+/* Card body when a paused session resumed. %@ is how long it was paused, such as \"3 hours\" */
+"The usage limit lifted and the session picked up where it stopped, after %@." = "The usage limit lifted and the session picked up where it stopped, after %@.";
 
 /* Tooltip on the version badge */
 "The version you are running" = "The version you are running";
@@ -1643,6 +1664,12 @@
 
 /* Card title: ~/.claude/settings.json was edited */
 "Your settings changed" = "Your settings changed";
+
+/* Card title when a paused session started working again */
+"Your task has been resumed" = "Your task has been resumed";
+
+/* Card title when a paused session started working again. %@ is a project name */
+"Your task in %@ has been resumed" = "Your task in %@ has been resumed";
 
 /* Limit tooltip fragment. %@ is a duration such as 40 min */
 "about %@ left at this rate" = "about %@ left at this rate";

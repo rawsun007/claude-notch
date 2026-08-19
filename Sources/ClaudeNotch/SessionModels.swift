@@ -72,6 +72,13 @@ struct LiveSession: Identifiable, Equatable {
     var webSearchCapHit: Bool = false
     var toolCallCount: Int = 0
 
+    // Set while a session is stopped on a usage limit. Claude Code waits for
+    // the reset and continues by itself, so this is a pause rather than an end,
+    // and the moment it picks up again is the moment the user wants to hear
+    // about: they left the machine precisely because of this.
+    var limitPausedAt: Date? = nil
+    var limitResumesAt: Date? = nil
+
     // The tool that failed last and how many times in a row. A session going
     // in circles is invisible otherwise: the status line says "Running
     // command" whether the command works or not.
