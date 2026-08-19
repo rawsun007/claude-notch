@@ -115,6 +115,8 @@ final class UsageLimitPauseTests: XCTestCase {
         XCTAssertEqual(s.permissionQueue.count, 1)
         XCTAssertEqual(s.permissionQueue.first?.toolName, "UsageLimit")
         XCTAssertEqual(s.sessionsWaitingOnUsageLimit.map(\.id), ["s1"])
+        // One row per event: the card logs itself, so this must not log a second.
+        XCTAssertEqual(s.history.filter { $0.toolName == "UsageLimit" }.count, 1)
     }
 
     /// The reset time is the nearest window still ahead of us, not whichever
@@ -151,6 +153,7 @@ final class UsageLimitPauseTests: XCTestCase {
         XCTAssertEqual(s.permissionQueue.count, 2)
         XCTAssertTrue(s.permissionQueue.last?.title.contains("resumed") ?? false)
         XCTAssertTrue(s.sessionsWaitingOnUsageLimit.isEmpty)
+        XCTAssertEqual(s.history.filter { $0.toolName == "UsageLimit" }.count, 2)
     }
 
     /// A hook a second after the stop is the stop's own tail, not the restart.

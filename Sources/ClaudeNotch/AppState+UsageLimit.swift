@@ -27,17 +27,11 @@ extension AppState {
             s.limitResumesAt = resumesAt
         }
 
+        // No appendHistory here: enqueuePermission writes the row for a
+        // notification card itself, and two rows for one event is noise in the
+        // drawer and in every export built from it.
         let title = UsageLimitPause.pausedTitle(autoContinues: auto)
         let detail = UsageLimitPause.pausedDetail(autoContinues: auto, resumesAt: resumesAt)
-        appendHistory(HistoryEntry(
-            timestamp: Date(),
-            kind: .notification,
-            toolName: "UsageLimit",
-            title: title,
-            detail: detail,
-            project: (dir as NSString).lastPathComponent,
-            outcome: .info))
-
         enqueuePermission(PermissionRequest(
             kind: .notification,
             title: title,
@@ -67,15 +61,6 @@ extension AppState {
         let project = session.project
         let title = UsageLimitPause.resumedTitle(project: project)
         let detail = UsageLimitPause.resumedDetail(pausedFor: at.timeIntervalSince(pausedAt))
-
-        appendHistory(HistoryEntry(
-            timestamp: Date(),
-            kind: .notification,
-            toolName: "UsageLimit",
-            title: title,
-            detail: detail,
-            project: project,
-            outcome: .info))
 
         enqueuePermission(PermissionRequest(
             kind: .notification,
