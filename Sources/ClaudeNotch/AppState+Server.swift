@@ -53,6 +53,40 @@ extension AppState {
             resolver: { _, _ in }))
     }
 
+    /// Read the managed policy and say so once.
+    ///
+    /// Called at launch and whenever a settings file changes, since managed
+    /// settings are exactly the kind that change without the user doing it.
+    func refreshPolicy() {
+        let path = PolicyLimits.defaultPath
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let status = PolicyLimits.read(path: path)
+            Task { @MainActor in
+                guard let self, status != self.policy else { return }
+                self.policy = status
+                self.announcePolicyIfNeeded()
+            }
+        }
+    }
+
+    /// A managed machine gets one card, keyed on the notice text so a changed
+    /// notice is shown again and an unchanged one is not.
+    func announcePolicyIfNeeded() {
+        guard policy.isManaged else { return }
+        let key = policy.monitoringNotice ?? policy.denied.joined(separator: ",")
+        guard key != announcedPolicyNotice else { return }
+        announcedPolicyNotice = key
+
+        enqueuePermission(PermissionRequest(
+            kind: .notification,
+            title: PolicyLimits.cardTitle(policy),
+            detail: PolicyLimits.cardDetail(policy),
+            toolName: "Policy",
+            source: "Managed settings",
+            cwd: currentCwd,
+            resolver: { _, _ in }))
+    }
+
     /// The headline. Says what is wrong with the app, not what is wrong with a
     /// socket: "bind failed, errno 48" is true and useless.
     nonisolated static func serverFailureTitle(_ status: ServerStatus) -> String {

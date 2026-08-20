@@ -949,6 +949,15 @@ final class AppState: ObservableObject {
     // here" is worth remembering, not worth re-deriving every hook.
     var sandboxCache: [String: (status: SandboxReader.Status?, readAt: Date)] = [:]
 
+    // MARK: - Managed policy (logic lives in AppState+Server.swift)
+
+    // What an organisation has decided this machine's agents may do. Empty on a
+    // personal Mac; on a company one it is the level above per-project rules.
+    @Published var policy = PolicyLimits.Status(monitoringNotice: nil, denied: [], taints: [])
+    // Announced once per notice, not once per launch: it is information, not an
+    // alert, and a card on every start is how information becomes wallpaper.
+    var announcedPolicyNotice: String?
+
     // MARK: - Hook server health (logic lives in AppState+Server.swift)
 
     // Whether the app is actually able to receive hooks. A failed bind used to

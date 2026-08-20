@@ -55,6 +55,9 @@ extension AppState {
             refreshSandbox(cwd: session.cwd, sessionId: session.id, model: session.model)
         }
 
+        // Managed settings are where the policy comes from, so re-read it.
+        refreshPolicy()
+
         let title = Self.configChangeLabel(source: source)
         let detail = Self.configChangeDetail(source: source, filePath: filePath)
         appendHistory(HistoryEntry(

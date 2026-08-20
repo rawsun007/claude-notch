@@ -1134,6 +1134,9 @@
 /* Settings section heading */
 "Quick actions" = "Quick actions";
 
+/* Policy restriction: setting up integrations from the web */
+"Quick web setup is switched off" = "Quick web setup is switched off";
+
 /* Onboarding button: restart the app so macOS applies a permission */
 "Quit & relaunch" = "Quit & relaunch";
 
@@ -1175,6 +1178,9 @@
 
 /* Button: open the changelog */
 "Release notes" = "Release notes";
+
+/* Policy restriction: controlling this Mac's sessions from another device */
+"Remote control is switched off" = "Remote control is switched off";
 
 /* Settings button: delete every allow rule */
 "Remove all rules" = "Remove all rules";
@@ -1578,6 +1584,9 @@
 /* Settings explanation */
 "Warn when estimated cost crosses a cap. Set a cap to 0 to disable it." = "Warn when estimated cost crosses a cap. Set a cap to 0 to disable it.";
 
+/* Policy restriction: isolation between web search and MCP servers */
+"Web search and MCP servers are kept isolated" = "Web search and MCP servers are kept isolated";
+
 /* History row: the session has used all its WebSearch calls */
 "Web search budget spent" = "Web search budget spent";
 
@@ -1652,6 +1661,12 @@
 
 /* Settings explanation */
 "Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps." = "Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps.";
+
+/* Card title when managed settings carry a monitoring notice */
+"Your organisation has a notice about this session" = "Your organisation has a notice about this session";
+
+/* Card title when managed settings restrict features, with no notice text */
+"Your organisation restricts what agents may do here" = "Your organisation restricts what agents may do here";
 
 /* VoiceOver label for the free-text answer field */
 "Your own answer" = "Your own answer";

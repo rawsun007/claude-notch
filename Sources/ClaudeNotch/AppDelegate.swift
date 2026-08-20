@@ -83,6 +83,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // hour, and this costs a subprocess plus a small HTTP GET.
         state.ensureCLIUpdateTimer()
 
+        // Managed policy: what an organisation has already decided about this
+        // machine, including whether it says sessions are monitored.
+        state.refreshPolicy()
+
         server = EventServer(port: 53127, state: state)
         do {
             // start() reports success itself, and retries a busy port rather
