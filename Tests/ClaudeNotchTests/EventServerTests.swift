@@ -60,10 +60,26 @@ final class EventServerParseTests: XCTestCase {
         XCTAssertNil(req("\r\n\r\n"))                // empty request line
     }
 
-    func testQueryStringStaysOnPath() {
-        // parseRequest preserves the raw path; query stripping happens later.
+    /// The query is split off the path at parse time rather than later, because
+    /// something now reads it: the hook token rides in it. The path a handler
+    /// switches on is the path alone.
+    func testTheQueryIsSplitFromThePath() {
         let r = req("POST /permission?session=abc HTTP/1.1\r\n\r\n")
-        XCTAssertEqual(r?.path, "/permission?session=abc")
+        XCTAssertEqual(r?.path, "/permission")
+        XCTAssertEqual(r?.query, "session=abc")
+    }
+
+    func testAPathWithNoQueryHasNone() {
+        let r = req("POST /permission HTTP/1.1\r\n\r\n")
+        XCTAssertEqual(r?.path, "/permission")
+        XCTAssertNil(r?.query)
+    }
+
+    /// A bare "?" is not a query, and must not turn into one.
+    func testAnEmptyQueryIsEmptyNotMissing() {
+        let r = req("POST /permission? HTTP/1.1\r\n\r\n")
+        XCTAssertEqual(r?.path, "/permission")
+        XCTAssertEqual(r?.query, "")
     }
 
     func testEmptyBufferReturnsNil() {
