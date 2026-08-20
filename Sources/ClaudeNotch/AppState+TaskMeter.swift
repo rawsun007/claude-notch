@@ -74,6 +74,38 @@ extension AppState {
         if isCurrent, !model.isEmpty { currentModel = model }
     }
 
+    /// Re-read the task list for every live session from Claude Code's own
+    /// directory.
+    ///
+    /// On the shared heartbeat rather than per hook: it is a directory listing
+    /// per session and the answer changes when a task does, not when a tool
+    /// call does.
+    func refreshTaskStore() {
+        let ids = sessions.values.map(\.id).filter { !$0.isEmpty && $0.hasPrefix("/") == false }
+        guard !ids.isEmpty else { return }
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            var counts: [String: (Int, Int, Int)] = [:]
+            for id in ids {
+                let tasks = TaskStore.tasks(sessionId: id)
+                guard !tasks.isEmpty else { continue }
+                let (done, total) = TaskStore.progress(tasks)
+                counts[id] = (done, total, tasks.filter(\.isBlocked).count)
+            }
+            guard !counts.isEmpty else { return }
+            Task { @MainActor in
+                guard let self else { return }
+                for (id, c) in counts {
+                    self.upsertSession(id: id, cwd: self.sessions[id]?.cwd ?? "", stampHook: false) { s in
+                        s.storeTaskDone = c.0
+                        s.storeTaskTotal = c.1
+                        s.storeTaskBlocked = c.2
+                        if c.1 > 0 { s.everReportedTask = true }
+                    }
+                }
+            }
+        }
+    }
+
     /// The session loaded an instruction file: CLAUDE.md, an imported memory
     /// file, or something a glob matched.
     ///

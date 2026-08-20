@@ -282,6 +282,9 @@ extension AppState {
                 // woke up. Nothing happening is not an event, so this is the
                 // only thing that can notice it.
                 self?.checkForStalledUsageLimits()
+                // And the task list on disk, which is the only source that
+                // survives a restart or a session the hooks never reached.
+                self?.refreshTaskStore()
             }
         }
     }

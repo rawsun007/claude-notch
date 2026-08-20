@@ -96,8 +96,24 @@ struct LiveSession: Identifiable, Equatable {
     // task tools", which look identical from an empty meter.
     var everReportedTask: Bool = false
 
-    var taskTotal: Int { todoTotal > 0 ? todoTotal : createdTaskIds.count }
-    var taskDone: Int { todoTotal > 0 ? todoDone : completedTaskIds.count }
+    // Read from Claude Code's own task directory rather than from hooks. The
+    // hooks describe what happened while this app was listening; the directory
+    // describes what is true, which is what a resumed session needs.
+    var storeTaskTotal: Int = 0
+    var storeTaskDone: Int = 0
+    var storeTaskBlocked: Int = 0
+
+    // Disk first: it survives restarts and cannot count a deleted task. The
+    // hook-fed numbers stay as the fallback for a session whose directory has
+    // not been written yet.
+    var taskTotal: Int {
+        if storeTaskTotal > 0 { return storeTaskTotal }
+        return todoTotal > 0 ? todoTotal : createdTaskIds.count
+    }
+    var taskDone: Int {
+        if storeTaskTotal > 0 { return storeTaskDone }
+        return todoTotal > 0 ? todoDone : completedTaskIds.count
+    }
 
     // Claude Code's own cost for this session, and the code it has changed.
     //
