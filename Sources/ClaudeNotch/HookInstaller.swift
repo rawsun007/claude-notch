@@ -324,17 +324,10 @@ enum HookInstaller {
         try? fm.createDirectory(at: parent, withIntermediateDirectories: true)
 
         var settings: [String: Any] = [:]
-        if let existing = try? Data(contentsOf: settingsURL) {
-            if let obj = try? JSONSerialization.jsonObject(with: existing) as? [String: Any] {
-                settings = obj
-            }
-            // Stash a backup whether the JSON parsed or not — paranoid wins.
-            let ts = Int(Date().timeIntervalSince1970)
-            let backupURL = URL(fileURLWithPath: settingsPath + ".before-claudenotch.\(ts)")
-            try? existing.write(to: backupURL)
-            // A copy of the user's settings, which can hold env values and
-            // tokens. It has no business being more readable than the original.
-            restrict(backupURL.path)
+        let existing = try? Data(contentsOf: settingsURL)
+        if let existing,
+           let obj = try? JSONSerialization.jsonObject(with: existing) as? [String: Any] {
+            settings = obj
         }
 
         // Non-destructive merge: keep any hooks the user already had at each
@@ -398,12 +391,55 @@ enum HookInstaller {
 
         do {
             let out = try JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .sortedKeys])
+            // Installing is idempotent and runs on launch whenever a release
+            // adds an event, so most of these writes change nothing. Backing up
+            // regardless left hundreds of copies of settings.json in ~/.claude,
+            // each one a full copy of a file that can hold env values and
+            // tokens, none of them ever removed. Back up what is about to be
+            // replaced, only when it is about to change.
+            if let existing, existing != out {
+                backUp(existing)
+            }
+            guard existing != out else { return }   // nothing to write
             try out.write(to: settingsURL, options: .atomic)
             // Every live session is about to fire ConfigChange at us for this
             // write. Mark it as ours so the notch does not announce its own edit.
             noteSelfWrite()
         } catch {
             throw InstallError.settingsWriteFailed(error.localizedDescription)
+        }
+    }
+
+    /// How many old copies of settings.json to keep. Enough to undo a bad
+    /// install by hand, few enough that they are not a pile of credentials.
+    static let settingsBackupsKept = 5
+
+    /// Write a timestamped copy of the settings we are replacing, then prune.
+    /// `settingsPath` is injectable so the pruning rules can be tested against
+    /// a temporary directory rather than the user's real ~/.claude.
+    static func backUp(_ bytes: Data, settingsPath: String = HookInstaller.settingsPath) {
+        let ts = Int(Date().timeIntervalSince1970)
+        let backupURL = URL(fileURLWithPath: settingsPath + ".before-claudenotch.\(ts)")
+        try? bytes.write(to: backupURL)
+        // A copy of the user's settings, which can hold env values and
+        // tokens. It has no business being more readable than the original.
+        restrict(backupURL.path)
+        pruneBackups(settingsPath: settingsPath)
+    }
+
+    /// Keep the newest few and delete the rest.
+    ///
+    /// The name carries the timestamp, so sorting the names sorts by age
+    /// without asking the filesystem for dates.
+    static func pruneBackups(settingsPath: String = HookInstaller.settingsPath,
+                             keeping: Int = settingsBackupsKept) {
+        let dir = (settingsPath as NSString).deletingLastPathComponent
+        let prefix = ((settingsPath as NSString).lastPathComponent) + ".before-claudenotch."
+        guard let names = try? FileManager.default.contentsOfDirectory(atPath: dir) else { return }
+        let backups = names.filter { $0.hasPrefix(prefix) }.sorted()
+        guard backups.count > keeping else { return }
+        for name in backups.dropLast(keeping) {
+            try? FileManager.default.removeItem(atPath: (dir as NSString).appendingPathComponent(name))
         }
     }
 
