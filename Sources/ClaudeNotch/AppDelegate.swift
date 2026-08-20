@@ -85,8 +85,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         server = EventServer(port: 53127, state: state)
         do {
+            // start() reports success itself, and retries a busy port rather
+            // than throwing: the usual reason it is busy is the copy of this
+            // app that is still exiting.
             try server.start()
-            state.noteServerListening()
         } catch {
             // Not just a log line. Without the server this app receives nothing
             // and shows nothing, which looks identical to a quiet afternoon —

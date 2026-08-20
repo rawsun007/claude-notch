@@ -5,6 +5,7 @@ final class EventServer {
     private let port: UInt16
     private weak var state: AppState?
     private var listener: HookListener?
+    private var bindRetryTimer: DispatchSourceTimer?
     private let queue = DispatchQueue(label: "com.claudenotch.server")
     private let workQueue = DispatchQueue(label: "com.claudenotch.server.work", attributes: .concurrent)
     private let transcriptPollLock = NSLock()
@@ -181,10 +182,18 @@ final class EventServer {
         // take a share of the connections, and the share includes PreToolUse
         // and PermissionRequest: blocking hooks, where whoever answers decides
         // whether a tool call runs. See HookSocket for the rest of it.
-        let l = HookListener(queue: queue)
-        try l.start(port: UInt16(port)) { [weak self] conn in self?.accept(conn) }
-        listener = l
-        NSLog("ClaudeNotch listening on 127.0.0.1:\(port) (exclusive)")
+        // A port that is busy right now is usually the copy of this app that
+        // is still exiting: every update and every quick restart goes through a
+        // moment where both processes exist. Giving up on the first refusal
+        // left the app running deaf until someone relaunched it by hand, which
+        // is the failure the menu bar warning was built to describe rather than
+        // a failure worth having.
+        do {
+            try bind()
+        } catch HookListener.ListenError.inUse {
+            NSLog("ClaudeNotch: port \(port) busy, retrying")
+            scheduleBindRetry()
+        }
 
         // Seed model and effort immediately at launch so Row 2 is populated
         // before the first hook fires (no wait for the 12-second timer below).
@@ -208,6 +217,58 @@ final class EventServer {
         dailyCostTimer = t
     }
 
+    /// Take the port, or throw.
+    private func bind() throws {
+        let l = HookListener(queue: queue)
+        try l.start(port: UInt16(port)) { [weak self] conn in self?.accept(conn) }
+        listener = l
+        NSLog("ClaudeNotch listening on 127.0.0.1:\(port) (exclusive)")
+        Task { @MainActor [weak state] in state?.noteServerListening() }
+    }
+
+    /// How long a predecessor gets to finish exiting before the app says
+    /// anything. Quitting and relaunching takes about a second; a card that
+    /// flashed up every time would be noise, and worse, noise about the one
+    /// thing that has to mean something when it appears.
+    static let bindGrace: TimeInterval = 8
+
+    /// How often to try again. Frequently while a predecessor might still be
+    /// letting go, then slowly forever, because whatever has the port may give
+    /// it back at any point and the app can simply start working again.
+    static let bindRetryInterval: TimeInterval = 2
+    static let bindRetrySlowInterval: TimeInterval = 30
+
+    private func scheduleBindRetry() {
+        let startedAt = Date()
+        var reported = false
+        let t = DispatchSource.makeTimerSource(queue: queue)
+        t.schedule(deadline: .now() + Self.bindRetryInterval,
+                   repeating: Self.bindRetryInterval)
+        t.setEventHandler { [weak self] in
+            guard let self else { return }
+            if (try? self.bind()) != nil {
+                NSLog("ClaudeNotch: took port \(self.port) on retry")
+                self.bindRetryTimer?.cancel()
+                self.bindRetryTimer = nil
+                return
+            }
+            let waited = Date().timeIntervalSince(startedAt)
+            // Past the grace period this is no longer a restart racing itself,
+            // so say so, once, and keep trying at a slower pace.
+            if !reported, waited > Self.bindGrace {
+                reported = true
+                let port = self.port
+                Task { @MainActor [weak state = self.state] in
+                    state?.noteServerFailed(.portTaken(port: Int(port)))
+                }
+                t.schedule(deadline: .now() + Self.bindRetrySlowInterval,
+                           repeating: Self.bindRetrySlowInterval)
+            }
+        }
+        t.resume()
+        bindRetryTimer = t
+    }
+
     /// Release the port and stop the timers.
     ///
     /// The app itself never stops the server (it lives as long as the process),
@@ -215,6 +276,8 @@ final class EventServer {
     /// give it back, and a listener that cannot be shut down is one that cannot
     /// be tested for exclusivity.
     func stop() {
+        bindRetryTimer?.cancel()
+        bindRetryTimer = nil
         dailyCostTimer?.cancel()
         dailyCostTimer = nil
         listener?.cancel()
