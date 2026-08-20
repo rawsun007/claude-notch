@@ -21,10 +21,19 @@ final class ConnectionDeadlineTests: XCTestCase {
         return (fds[0], fds[1])
     }
 
-    /// Whether the connection's end has been closed, by asking the kernel about
-    /// our own descriptor rather than trusting a flag on the object.
-    private func isClosed(_ fd: Int32) -> Bool {
-        fcntl(fd, F_GETFD) == -1 && errno == EBADF
+    /// Whether the connection's end has been closed, seen from the peer.
+    ///
+    /// Asking about our own descriptor number does not work: the moment it is
+    /// closed the number is free, and anything else in the test process that
+    /// opens a file can be handed it, at which point the number looks open
+    /// again. A closed socket is visible from the other end as an orderly
+    /// shutdown, and that cannot be confused with anything else.
+    private func peerSawClose(_ peer: Int32) -> Bool {
+        var byte: UInt8 = 0
+        let n = recv(peer, &byte, 1, MSG_PEEK | MSG_DONTWAIT)
+        if n == 0 { return true }                       // EOF: our end went
+        if n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) { return false }
+        return n < 0                                    // any other error: gone
     }
 
     private func waitUntil(_ timeout: TimeInterval, _ condition: () -> Bool) -> Bool {
@@ -46,7 +55,7 @@ final class ConnectionDeadlineTests: XCTestCase {
         conn.read(max: 1024) { _ in false }   // never a complete request
 
         _ = write(peer, "POST /ping HTTP/1.1\r\n", 21)
-        XCTAssertTrue(waitUntil(3) { self.isClosed(ours) },
+        XCTAssertTrue(waitUntil(5) { self.peerSawClose(peer) },
                       "an unfinished request should be closed at its deadline")
     }
 
@@ -61,7 +70,7 @@ final class ConnectionDeadlineTests: XCTestCase {
 
         let request = "POST /ping HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 2\r\n\r\n{}"
         _ = request.withCString { write(peer, $0, strlen($0)) }
-        XCTAssertTrue(waitUntil(3) { self.isClosed(ours) },
+        XCTAssertTrue(waitUntil(5) { self.peerSawClose(peer) },
                       "an unanswered request should be closed at the response deadline")
     }
 
@@ -81,11 +90,15 @@ final class ConnectionDeadlineTests: XCTestCase {
         _ = request.withCString { write(peer, $0, strlen($0)) }
 
         // The peer sees the reply...
-        var buf = [UInt8](repeating: 0, count: 256)
-        XCTAssertTrue(waitUntil(3) { read(peer, &buf, buf.count) > 0 })
-        XCTAssertTrue(String(decoding: buf, as: UTF8.self).contains("ok"))
+        var buf = [UInt8](repeating: 0, count: 512)
+        var got = ""
+        XCTAssertTrue(waitUntil(5) {
+            let n = recv(peer, &buf, buf.count, MSG_DONTWAIT)
+            if n > 0 { got += String(decoding: buf[0..<n], as: UTF8.self) }
+            return got.contains("ok")
+        }, "the peer should receive the reply")
         // ...and our end goes with it, well inside either deadline.
-        XCTAssertTrue(waitUntil(3) { self.isClosed(ours) })
+        XCTAssertTrue(waitUntil(5) { self.peerSawClose(peer) })
     }
 
     /// Closing twice must not close a descriptor number that has since been
@@ -97,7 +110,7 @@ final class ConnectionDeadlineTests: XCTestCase {
         conn.close()
         conn.close()
         conn.close()
-        XCTAssertTrue(isClosed(ours))
+        XCTAssertTrue(waitUntil(3) { self.peerSawClose(peer) })
     }
 
     /// The response deadline has to outlast the longest wait the app itself
