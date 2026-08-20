@@ -1368,40 +1368,35 @@ final class EventServer {
         let toolInput = payload["tool_input"] as? [String: Any] ?? [:]
         let cwd = (payload["cwd"] as? String) ?? ""
 
-        let semaphore = DispatchSemaphore(value: 0)
-        let lock = NSLock()
-        var decision: PermissionDecision = .ask
-        var denyReason: String? = nil
+        let pending = PendingAnswer(conn: conn, queue: workQueue,
+                                    timeout: Self.decisionWindow) {
+            Self.legacyDecisionBody(.ask, reason: nil)
+        }
 
         Task { @MainActor [weak self] in
-            guard let self, let state = self.state else { return }
-            let req = self.makeToolPermissionRequest(toolName: toolName, toolInput: toolInput, cwd: cwd) { d, r in
-                lock.withLock { decision = d; denyReason = r }
-                semaphore.signal()
+            guard let self, let state = self.state else {
+                pending.answer(Self.legacyDecisionBody(.ask, reason: nil))
+                return
             }
-            state.enqueuePermission(req)
+            state.enqueuePermission(self.makeToolPermissionRequest(
+                toolName: toolName, toolInput: toolInput, cwd: cwd
+            ) { decision, reason in
+                pending.answer(Self.legacyDecisionBody(decision, reason: reason))
+            })
         }
+    }
 
-        workQueue.async { [weak self] in
-            let result = semaphore.wait(timeout: .now() + .seconds(285))
-            let final: PermissionDecision
-            let reason: String?
-            if result == .timedOut {
-                final = .ask
-                reason = nil
-            } else {
-                (final, reason) = lock.withLock { (decision, denyReason) }
-            }
-            // Build with JSONSerialization so a free-text reason is escaped.
-            // The hook (claudenotch-permission.sh) forwards `reason` to Claude
-            // as the permissionDecisionReason on a deny.
-            var dict: [String: Any] = ["decision": final.rawValue]
-            if final == .deny, let r = reason, !r.isEmpty { dict["reason"] = r }
-            let body = (try? JSONSerialization.data(withJSONObject: dict))
-                .flatMap { String(data: $0, encoding: .utf8) }
-                ?? "{\"decision\":\"\(final.rawValue)\"}"
-            self?.send(body: body, on: conn)
-        }
+    /// The wire the script hook reads: `{decision, reason}`. Built with
+    /// JSONSerialization so a free-text reason is escaped;
+    /// claudenotch-permission.sh forwards `reason` as the
+    /// permissionDecisionReason on a deny.
+    nonisolated static func legacyDecisionBody(_ decision: PermissionDecision,
+                                               reason: String?) -> String {
+        var dict: [String: Any] = ["decision": decision.rawValue]
+        if decision == .deny, let reason, !reason.isEmpty { dict["reason"] = reason }
+        return (try? JSONSerialization.data(withJSONObject: dict))
+            .flatMap { String(data: $0, encoding: .utf8) }
+            ?? "{\"decision\":\"\(decision.rawValue)\"}"
     }
 
     /// Parse an AskUserQuestion payload into `AskQuestion`s. Accepts either
@@ -1436,60 +1431,43 @@ final class EventServer {
             return
         }
 
-        let semaphore = DispatchSemaphore(value: 0)
-        let lock = NSLock()
-        var answers: [[String]]? = nil
+        let pending = PendingAnswer(conn: conn, queue: workQueue,
+                                    timeout: Self.decisionWindow) {
+            "{\"cancelled\":true,\"reason\":\"timeout\"}"
+        }
 
         Task { @MainActor [weak state] in
-            guard let state else { return }
+            guard let state else {
+                pending.answer("{\"cancelled\":true,\"reason\":\"no state\"}")
+                return
+            }
             let frontBID = Self.capturedOriginator(state: state)
-            let req = QuestionRequest(
-                questions: parsed,
-                source: "Claude Code",
-                cwd: cwd,
+            state.enqueueQuestion(QuestionRequest(
+                questions: parsed, source: "Claude Code", cwd: cwd,
                 originatorBundleID: frontBID,
                 resolver: { ans in
-                    lock.withLock { answers = ans }
-                    semaphore.signal()
+                    pending.answer(Self.legacyAnswersBody(questions: parsed, answers: ans))
                 }
-            )
-            state.enqueueQuestion(req)
+            ))
         }
+    }
 
-        workQueue.async { [weak self] in
-            let result = semaphore.wait(timeout: .now() + .seconds(285))
-            let bodyJSON: String
-            if result == .timedOut {
-                bodyJSON = "{\"cancelled\":true,\"reason\":\"timeout\"}"
-                self?.send(body: bodyJSON, on: conn)
-                return
-            }
-
-            let ans = lock.withLock { answers }
-            guard let ans else {
-                self?.send(body: "{\"cancelled\":true,\"reason\":\"user dismissed\"}", on: conn)
-                return
-            }
-
-            // Always feed the answer back through the hook's deny reason so
-            // Claude Code never renders its own blocking prompt in the
-            // terminal. We used to optionally return allow + AppleScript
-            // keystrokes, but that left the terminal waiting for input whenever
-            // the keystroke mis-timed or the wrong app had focus — answering in
-            // the notch is now sufficient on its own.
-            let pairs = zip(parsed, ans).map { (q, picks) -> [String: Any] in
-                ["question": q.text, "header": q.header, "picked": picks]
-            }
-            let payload: [String: Any] = ["mode": "deny", "answers": pairs]
-            if let data = try? JSONSerialization.data(withJSONObject: payload),
-               let s = String(data: data, encoding: .utf8) {
-                bodyJSON = s
-            } else {
-                bodyJSON = "{\"cancelled\":true,\"reason\":\"encode failed\"}"
-            }
-
-            self?.send(body: bodyJSON, on: conn)
+    /// The wire the script hook reads for a question.
+    ///
+    /// Always fed back as the hook's deny reason so Claude Code never renders
+    /// its own blocking prompt in the terminal. We used to optionally return
+    /// allow plus AppleScript keystrokes, which left the terminal waiting for
+    /// input whenever the keystroke mis-timed or the wrong app had focus.
+    nonisolated static func legacyAnswersBody(questions: [AskQuestion],
+                                              answers: [[String]]?) -> String {
+        guard let answers else { return "{\"cancelled\":true,\"reason\":\"user dismissed\"}" }
+        let pairs = zip(questions, answers).map { q, picks -> [String: Any] in
+            ["question": q.text, "header": q.header, "picked": picks]
         }
+        guard let data = try? JSONSerialization.data(withJSONObject: ["mode": "deny", "answers": pairs]),
+              let body = String(data: data, encoding: .utf8)
+        else { return "{\"cancelled\":true,\"reason\":\"encode failed\"}" }
+        return body
     }
 
     // MARK: - HTTP hook unified endpoint
@@ -1601,24 +1579,38 @@ final class EventServer {
         }
     }
 
-    /// Shared wait: enqueue a permission card on the main actor and block on
-    /// workQueue until the user resolves it (or 285 s pass). Must be called
-    /// from workQueue.
-    private func awaitPermissionDecision(toolName: String, toolInput: [String: Any],
-                                         cwd: String) -> (PermissionDecision, String?) {
-        let sem  = DispatchSemaphore(value: 0)
-        let lock = NSLock()
-        var dec: PermissionDecision = .ask
-        var rsn: String?
+    /// How long a card may sit unanswered before the hook is let go.
+    ///
+    /// Matches the 3-minute "waiting on you" nudge plus room, and must stay
+    /// under the 290s the installed hook entry allows, or Claude Code gives up
+    /// on us and prompts in the terminal while the card is still on screen.
+    static let decisionWindow: TimeInterval = 285
 
+    /// Shared path: put a permission card up, and answer the connection when it
+    /// resolves or when the window closes, whichever happens first.
+    ///
+    /// Nothing waits. This used to park a queue thread on a semaphore for the
+    /// whole window; see PendingAnswer for why that does not scale past the
+    /// number of cards the app is willing to queue.
+    private func decidePermission(toolName: String, toolInput: [String: Any],
+                                  cwd: String, on conn: HookConnection,
+                                  reply: @escaping (PermissionDecision, String?) -> String) {
+        let pending = PendingAnswer(conn: conn, queue: workQueue,
+                                    timeout: Self.decisionWindow) {
+            // Nobody answered: say nothing rather than deciding for them.
+            reply(.ask, nil)
+        }
         Task { @MainActor [weak self] in
-            guard let self, let state = self.state else { sem.signal(); return }
+            guard let self, let state = self.state else {
+                pending.answer(reply(.ask, nil))
+                return
+            }
             state.enqueuePermission(self.makeToolPermissionRequest(
                 toolName: toolName, toolInput: toolInput, cwd: cwd
-            ) { d, r in lock.withLock { dec = d; rsn = r }; sem.signal() })
+            ) { decision, reason in
+                pending.answer(reply(decision, reason))
+            })
         }
-        if sem.wait(timeout: .now() + .seconds(285)) == .timedOut { return (.ask, nil) }
-        return lock.withLock { (dec, rsn) }
     }
 
     /// PreToolUse via HTTP hook: returns hookSpecificOutput with permissionDecision.
@@ -1626,12 +1618,10 @@ final class EventServer {
         let toolName  = (payload["tool_name"]  as? String)        ?? "tool"
         let toolInput = (payload["tool_input"] as? [String: Any]) ?? [:]
         let cwd       = (payload["cwd"]        as? String)        ?? ""
-        workQueue.async { [weak self] in
-            guard let self else { return }
-            let (final, reason) = self.awaitPermissionDecision(toolName: toolName, toolInput: toolInput, cwd: cwd)
+        decidePermission(toolName: toolName, toolInput: toolInput, cwd: cwd, on: conn) { final, reason in
             var inner: [String: Any] = ["hookEventName": "PreToolUse", "permissionDecision": final.rawValue]
             if final == .deny, let r = reason, !r.isEmpty { inner["permissionDecisionReason"] = String(r.prefix(200)) }
-            self.sendHookOutput(["hookSpecificOutput": inner], on: conn)
+            return Self.jsonBody(["hookSpecificOutput": inner])
         }
     }
 
@@ -1640,15 +1630,13 @@ final class EventServer {
         let toolName  = (payload["tool_name"]  as? String)        ?? "tool"
         let toolInput = (payload["tool_input"] as? [String: Any]) ?? [:]
         let cwd       = (payload["cwd"]        as? String)        ?? ""
-        workQueue.async { [weak self] in
-            guard let self else { return }
-            let (final, _) = self.awaitPermissionDecision(toolName: toolName, toolInput: toolInput, cwd: cwd)
-            guard final != .ask else { self.sendOK(on: conn); return }
+        decidePermission(toolName: toolName, toolInput: toolInput, cwd: cwd, on: conn) { final, _ in
+            guard final != .ask else { return Self.okBody }
             let behavior = (final == .allow) ? "allow" : "deny"
-            self.sendHookOutput(["hookSpecificOutput": [
+            return Self.jsonBody(["hookSpecificOutput": [
                 "hookEventName": "PermissionRequest",
                 "decision": ["behavior": behavior],
-            ]], on: conn)
+            ]])
         }
     }
 
@@ -1665,12 +1653,11 @@ final class EventServer {
         let questions = form.questions
         guard !questions.isEmpty else { sendOK(on: conn); return }
 
-        let sem  = DispatchSemaphore(value: 0)
-        let lock = NSLock()
-        var answers: [[String]]?
+        let pending = PendingAnswer(conn: conn, queue: workQueue,
+                                    timeout: Self.decisionWindow) { Self.okBody }
 
         Task { @MainActor [weak state] in
-            guard let state else { sem.signal(); return }
+            guard let state else { pending.answer(Self.okBody); return }
             let frontBID = Self.capturedOriginator(state: state)
             // The server's name is the source: the user is being asked by a
             // thing they installed, not by Claude, and the card should say so.
@@ -1679,21 +1666,18 @@ final class EventServer {
                 questions: questions, source: source, cwd: cwd,
                 originatorBundleID: frontBID,
                 elicitationId: (payload["elicitation_id"] as? String) ?? "",
-                resolver: { ans in lock.withLock { answers = ans }; sem.signal() }
+                resolver: { ans in
+                    guard let ans, let content = form.content(from: ans) else {
+                        pending.answer(Self.okBody)   // cancelled, or not fully answered
+                        return
+                    }
+                    pending.answer(Self.jsonBody(["hookSpecificOutput": [
+                        "hookEventName": "Elicitation",
+                        "action": "accept",
+                        "content": content,
+                    ]]))
+                }
             ))
-        }
-
-        workQueue.async { [weak self] in
-            guard let self else { return }
-            if sem.wait(timeout: .now() + .seconds(285)) == .timedOut { self.sendOK(on: conn); return }
-            guard let ans = lock.withLock({ answers }),
-                  let content = form.content(from: ans)
-            else { self.sendOK(on: conn); return }
-            self.sendHookOutput(["hookSpecificOutput": [
-                "hookEventName": "Elicitation",
-                "action": "accept",
-                "content": content,
-            ]], on: conn)
         }
     }
 
@@ -1717,39 +1701,50 @@ final class EventServer {
         let parsed = EventServer.parseQuestions(from: payload)
         guard !parsed.isEmpty else { sendOK(on: conn); return }
 
-        let sem  = DispatchSemaphore(value: 0)
-        let lock = NSLock()
-        var answers: [[String]]?
+        let pending = PendingAnswer(conn: conn, queue: workQueue,
+                                    timeout: Self.decisionWindow) { Self.okBody }
 
         Task { @MainActor [weak state] in
-            guard let state else { sem.signal(); return }
+            guard let state else { pending.answer(Self.okBody); return }
             let frontBID = Self.capturedOriginator(state: state)
             state.enqueueQuestion(QuestionRequest(
                 questions: parsed, source: "Claude Code", cwd: cwd,
                 originatorBundleID: frontBID,
-                resolver: { ans in lock.withLock { answers = ans }; sem.signal() }
+                resolver: { ans in
+                    guard let ans else { pending.answer(Self.okBody); return }
+                    pending.answer(Self.answersBody(questions: parsed, answers: ans))
+                }
             ))
-        }
-
-        workQueue.async { [weak self] in
-            guard let self else { return }
-            if sem.wait(timeout: .now() + .seconds(285)) == .timedOut { self.sendOK(on: conn); return }
-            guard let ans = lock.withLock({ answers }) else { self.sendOK(on: conn); return }
-            let lines = zip(parsed, ans).map { q, picks -> String in
-                let h = q.header.isEmpty ? q.text : q.header
-                let picked = picks.filter { !$0.isEmpty }
-                return picked.isEmpty ? "  - \(h): (no preference)" : "  - \(h): \(picked.joined(separator: ", "))"
-            }
-            let reason = "[ClaudeNotch, user replied via the notch]\n\(lines.joined(separator: "\n"))\n\nUse these answers and continue."
-            self.sendHookOutput(["hookSpecificOutput": [
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": String(reason.prefix(2000)),
-            ]], on: conn)
         }
     }
 
+    /// The answers, as the deny-with-reason wire Claude Code reads them from.
+    /// Pure and static so the exact text a session receives can be pinned by a
+    /// test rather than only seen in a terminal.
+    nonisolated static func answersBody(questions: [AskQuestion], answers: [[String]]) -> String {
+        let lines = zip(questions, answers).map { q, picks -> String in
+            let h = q.header.isEmpty ? q.text : q.header
+            let picked = picks.filter { !$0.isEmpty }
+            return picked.isEmpty ? "  - \(h): (no preference)" : "  - \(h): \(picked.joined(separator: ", "))"
+        }
+        let reason = "[ClaudeNotch, user replied via the notch]\n\(lines.joined(separator: "\n"))\n\nUse these answers and continue."
+        return jsonBody(["hookSpecificOutput": [
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": String(reason.prefix(2000)),
+        ]])
+    }
+
     // MARK: - Response
+
+    /// The bodies, as strings, so a path that answers later can build one
+    /// without a connection in hand.
+    static let okBody = "{\"ok\":true}"
+
+    nonisolated static func jsonBody(_ dict: [String: Any]) -> String {
+        (try? JSONSerialization.data(withJSONObject: dict))
+            .flatMap { String(data: $0, encoding: .utf8) } ?? okBody
+    }
 
     private func sendOK(on conn: HookConnection) {
         send(body: "{\"ok\":true}", on: conn)

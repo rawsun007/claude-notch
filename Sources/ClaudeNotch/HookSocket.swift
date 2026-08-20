@@ -177,6 +177,58 @@ final class HookConnection: @unchecked Sendable {
     }
 }
 
+/// A connection waiting on a human, and the one answer it will eventually get.
+///
+/// A blocking hook is answered either by the card resolving or by the decision
+/// window running out, whichever comes first, and exactly once. This used to be
+/// written as a semaphore: park a queue thread, wait up to 285 seconds, send
+/// whatever the wait produced. It reads well and it does not scale. Dispatch
+/// grows a concurrent queue to about 64 threads and the card queues cap at 64,
+/// so a machine running several sessions with subagents could park every thread
+/// the pool will ever make, and then nothing else the app does off the main
+/// thread runs either: not the transcript reads, not the cost timers, not the
+/// next hook.
+///
+/// Nothing is waiting here. The card's resolver calls `answer`, a timer calls
+/// it if nobody else does, and a lock makes sure only the first one counts.
+final class PendingAnswer: @unchecked Sendable {
+    private let conn: HookConnection
+    private let queue: DispatchQueue
+    private let lock = NSLock()
+    private var answered = false
+    private var timer: DispatchSourceTimer?
+
+    /// `onTimeout` produces the body to send when the window closes. It is a
+    /// closure rather than a string so a caller can decide late, and so the
+    /// cost of building it is not paid for the common case of a fast answer.
+    init(conn: HookConnection, queue: DispatchQueue, timeout: TimeInterval,
+         onTimeout: @escaping () -> String) {
+        self.conn = conn
+        self.queue = queue
+        let t = DispatchSource.makeTimerSource(queue: queue)
+        t.schedule(deadline: .now() + timeout)
+        t.setEventHandler { [weak self] in self?.answer(onTimeout()) }
+        t.resume()
+        timer = t
+    }
+
+    /// Send this and close. The second and later calls do nothing, so a card
+    /// resolved at the same moment the window closes cannot answer twice.
+    func answer(_ body: String) {
+        lock.lock()
+        let alreadyAnswered = answered
+        answered = true
+        let t = timer
+        timer = nil
+        lock.unlock()
+        guard !alreadyAnswered else { return }
+        t?.cancel()
+        // Off whatever thread called this: a resolver runs on the main actor,
+        // and writing to a socket is not main-actor work.
+        queue.async { [conn] in conn.send(body: body) }
+    }
+}
+
 /// The listening sockets. Both loopback addresses, because a hook that posts to
 /// `localhost` may resolve to either one.
 final class HookListener: @unchecked Sendable {
