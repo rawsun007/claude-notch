@@ -50,9 +50,26 @@ SETTINGS="$HOME/.claude/settings.json"
 mkdir -p "$(dirname "$SETTINGS")"
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
 
+# Back up what we are about to replace, keep the newest few, and keep them to
+# ourselves. This runs on every setup, and settings.json can hold env values and
+# tokens, so an unpruned pile of world-readable copies accumulates in ~/.claude
+# and stays there. Mirrors HookInstaller.backUp in the app, which does the same
+# thing when the app installs the hooks itself.
+BACKUPS_KEPT=5
 TS=$(date +%s)
 BACKUP="$SETTINGS.before-claudenotch.$TS"
 cp "$SETTINGS" "$BACKUP"
+# Every one of them, not only the one just written: an install that predates
+# this left world-readable copies behind, and they hold the same secrets.
+chmod 600 "$SETTINGS".before-claudenotch.* 2>/dev/null || true
+# The timestamp is in the name, so sorting the names sorts by age. Newest
+# first, then skip the ones we are keeping: `head -n -N` would read better but
+# a negative count is a GNU extension and macOS ships BSD head, where it is an
+# error and the whole pipeline quietly deletes nothing.
+ls -1 "$SETTINGS".before-claudenotch.* 2>/dev/null \
+    | sort -r \
+    | tail -n "+$((BACKUPS_KEPT + 1))" \
+    | while IFS= read -r old_backup; do rm -f "$old_backup"; done
 
 # Non-destructive merge (mirrors the in-app HookInstaller): keep whatever hooks
 # the user already has at each event, drop any prior ClaudeNotch entry (both
