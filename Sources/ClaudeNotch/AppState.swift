@@ -768,6 +768,8 @@ final class AppState: ObservableObject {
     // Instruction files per session. A big monorepo legitimately loads several;
     // past this it is a glob gone wide, and the payload is untrusted anyway.
     static let instructionFilesMax = 16
+    // Files changed under a session by something other than the agent.
+    static let externalChangesMax = 50
 
     @Published var composeText: String = ""
     @Published var isComposing: Bool = false

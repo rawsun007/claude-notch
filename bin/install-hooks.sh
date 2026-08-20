@@ -139,6 +139,7 @@ jq --arg url "$NOTCH_URL" '
     .hooks.DirectoryAdded     = add_hook(.hooks.DirectoryAdded    ; false) |
     .hooks.CwdChanged         = add_hook(.hooks.CwdChanged        ; false) |
     .hooks.PermissionDenied   = add_hook(.hooks.PermissionDenied  ; true) |
+    .hooks.FileChanged        = add_hook(.hooks.FileChanged        ; true)  |
     .hooks.InstructionsLoaded = add_hook(.hooks.InstructionsLoaded ; true)  |
     .hooks.ConfigChange       = add_hook(.hooks.ConfigChange      ; false)
 ' "$SETTINGS" > "$SETTINGS.new"

@@ -806,6 +806,26 @@ final class EventServer {
         }
     }
 
+    /// FileChanged: a watched file moved on disk. Carries `file_path` and
+    /// `event`.
+    ///
+    /// Only reported when the agent did not do it. Claude Code's own edits
+    /// already arrive as PostToolUse, and repeating them would turn a useful
+    /// signal into a running commentary on the session's own work. What is left
+    /// is the case worth knowing: the tree changed under the agent, which is
+    /// usually the user editing in another window, a branch switch, or a build.
+    private func handleFileChanged(payload: [String: Any]) {
+        let path = (payload["file_path"] as? String) ?? ""
+        guard !path.isEmpty else { return }
+        let event = (payload["event"] as? String) ?? ""
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let cwd = (payload["cwd"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.noteFileChangedOutsideTheAgent(path: path, event: event,
+                                                  sessionId: sessionId, cwd: cwd)
+        }
+    }
+
     /// InstructionsLoaded: the session pulled in a CLAUDE.md or a memory file.
     /// Carries `file_path`, `memory_type`, `load_reason`, and the glob or parent
     /// that dragged it in.
@@ -1596,6 +1616,9 @@ final class EventServer {
             // Plain OK. The hook may answer `{retry: true}` to tell the model
             // to try again — the notch reports what happened, it does not
             // overrule the classifier that blocked it.
+            sendOK(on: conn)
+        case "FileChanged":
+            handleFileChanged(payload: payload)
             sendOK(on: conn)
         case "InstructionsLoaded":
             handleInstructionsLoaded(payload: payload)

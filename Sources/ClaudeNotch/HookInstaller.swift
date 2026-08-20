@@ -79,7 +79,7 @@ enum HookInstaller {
             && s.contains("\"DirectoryAdded\"") && s.contains("\"CwdChanged\"")
             && s.contains("\"PermissionDenied\"") && s.contains("\"ConfigChange\"")
             && s.contains("\"PostCompact\"") && s.contains("\"Elicitation\"")
-            && s.contains("\"PostToolUseFailure\"") && s.contains("\"InstructionsLoaded\"")
+            && s.contains("\"PostToolUseFailure\"") && s.contains("\"InstructionsLoaded\"") && s.contains("\"FileChanged\"")
     }
 
     /// `jq` is required by posttool.sh to forward payload fields to the
@@ -345,6 +345,8 @@ enum HookInstaller {
         // Which instruction files are shaping this agent. Matched on the load
         // reason, so ".*" is every kind.
         appendHook(to: "InstructionsLoaded", in: &hooks, matcher: ".*")
+        // The working tree moving under an agent. Matched on the path glob.
+        appendHook(to: "FileChanged", in: &hooks, matcher: ".*")
         appendHook(to: "UserPromptSubmit", in: &hooks, matcher: nil)
         appendHook(to: "Notification", in: &hooks, matcher: nil)
         appendHook(to: "Stop", in: &hooks, matcher: nil)

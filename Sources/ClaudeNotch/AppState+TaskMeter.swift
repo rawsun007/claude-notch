@@ -74,6 +74,30 @@ extension AppState {
         if isCurrent, !model.isEmpty { currentModel = model }
     }
 
+    /// A file changed on disk that this session did not change.
+    ///
+    /// Recorded rather than announced. A card per file would be a running
+    /// commentary on an ordinary build, and the useful version of this is the
+    /// count: "eleven files moved under this session while it was working" is a
+    /// reason to look, one file is not.
+    func noteFileChangedOutsideTheAgent(path: String, event: String = "",
+                                        sessionId: String = "", cwd: String = "") {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        // Our own edit, already reported by PostToolUse. Comparing paths is
+        // enough: the agent writes the file it was told to write.
+        let key = sessionKey(sessionId: sessionId, cwd: cwd)
+        if sessions[key]?.touchedFiles.contains(trimmed) == true { return }
+
+        upsertSession(id: sessionId, cwd: cwd.isEmpty ? currentCwd : cwd) { s in
+            guard !s.externallyChangedFiles.contains(trimmed) else { return }
+            s.externallyChangedFiles.append(trimmed)
+            if s.externallyChangedFiles.count > Self.externalChangesMax {
+                s.externallyChangedFiles.removeFirst()
+            }
+        }
+    }
+
     /// Re-read the task list for every live session from Claude Code's own
     /// directory.
     ///

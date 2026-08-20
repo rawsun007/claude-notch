@@ -72,6 +72,11 @@ struct LiveSession: Identifiable, Equatable {
     var webSearchCapHit: Bool = false
     var toolCallCount: Int = 0
 
+    // Files that changed on disk while this session was running, which this
+    // session did not change. Usually you editing in another window, a branch
+    // switch, or a build. Ordered, unique, capped: the paths are payload-fed.
+    var externallyChangedFiles: [String] = []
+
     // Instruction files this session has loaded: CLAUDE.md, imported memory,
     // whatever a glob pulled in. What is shaping the agent is as much a part of
     // "what may this thing do" as its permissions are, and nothing showed it.
