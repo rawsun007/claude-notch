@@ -102,17 +102,21 @@ curl -fsSL --max-time 300 -o "$TMP/ClaudeNotch.dmg" "$DMG_URL" \
 # same release script that built the DMG. This is not protection against a
 # compromised GitHub, since both come from there. It catches the realistic
 # failure: a truncated or corrupted download being dragged over your app.
+#
+# It used to continue when the checksum could not be fetched, which is the
+# wrong way round. Anyone able to serve a bad DMG can also make one request
+# fail, and failing that one request was all it took to skip the check. An
+# integrity check that an attacker can switch off is not one, so this refuses.
 EXPECTED=$(curl -fsSL --max-time 20 "$CASK_URL" 2>/dev/null \
            | sed -n 's/.*sha256[[:space:]]*"\([a-f0-9]\{64\}\)".*/\1/p' | head -1)
 ACTUAL=$(shasum -a 256 "$TMP/ClaudeNotch.dmg" | awk '{print $1}')
-if [ -n "$EXPECTED" ]; then
-    [ "$EXPECTED" = "$ACTUAL" ] || die "Checksum mismatch, refusing to install.
+[ -n "$EXPECTED" ] || die "Could not fetch the published checksum, so this download cannot be
+verified. Nothing was installed. Try again, or update with:
+  brew upgrade --cask ${BREW_CASK}"
+[ "$EXPECTED" = "$ACTUAL" ] || die "Checksum mismatch, refusing to install.
   expected $EXPECTED
   got      $ACTUAL"
-    say "→ Checksum verified"
-else
-    say "→ Could not fetch the published checksum, continuing without it"
-fi
+say "→ Checksum verified"
 
 say "→ Mounting"
 # Mount at a path we picked. Reading the mount point back out of hdiutil's
@@ -136,9 +140,43 @@ if pgrep -x ClaudeNotch >/dev/null 2>&1; then
     done
 fi
 
+# The bundle we are about to install has to be signed by whoever signed the one
+# already there. The checksum says the download matches what the tap published;
+# this says the app inside it is the same app, from the same signer, which is
+# the part that matters when the thing being replaced is what gates an agent's
+# access to your machine. Read as text and compared, since the identity is
+# self-signed today and spctl would reject both copies for the same reason.
+signer() {
+    codesign -dvv "$1" 2>&1 | sed -n 's/^Authority=//p' | head -1
+}
+CURRENT_SIGNER=$(signer "$APP")
+NEW_SIGNER=$(signer "$MOUNT/ClaudeNotch.app")
+if [ -n "$CURRENT_SIGNER" ] && [ "$CURRENT_SIGNER" != "$NEW_SIGNER" ]; then
+    die "The downloaded app is signed by someone else, refusing to install.
+  installed  ${CURRENT_SIGNER}
+  downloaded ${NEW_SIGNER:-unsigned}"
+fi
+[ -n "$NEW_SIGNER" ] && say "→ Signed by ${NEW_SIGNER}"
+
 say "→ Installing to /Applications"
-rm -rf "$APP"
-cp -R "$MOUNT/ClaudeNotch.app" "$APP" || die "Could not copy into /Applications."
+# Staged beside the real one and swapped, rather than deleted and copied. A
+# copy that fails halfway used to leave no app at all in /Applications, which
+# turns a failed update into a lost install.
+STAGED="${APP}.incoming"
+rm -rf "$STAGED"
+cp -R "$MOUNT/ClaudeNotch.app" "$STAGED" || { rm -rf "$STAGED"; die "Could not copy into /Applications."; }
+PREVIOUS="${APP}.previous"
+rm -rf "$PREVIOUS"
+if [ -d "$APP" ]; then
+    mv "$APP" "$PREVIOUS" || { rm -rf "$STAGED"; die "Could not move the old app aside."; }
+fi
+if ! mv "$STAGED" "$APP"; then
+    # Put back what was there rather than leaving the user with nothing.
+    [ -d "$PREVIOUS" ] && mv "$PREVIOUS" "$APP"
+    rm -rf "$STAGED"
+    die "Could not install the new app. The previous version is still in place."
+fi
+rm -rf "$PREVIOUS"
 
 say "→ Relaunching"
 open -a "$APP"

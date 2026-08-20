@@ -51,6 +51,40 @@ if [ -d /Applications/ClaudeNotch.app ]; then
           "$(test -d /Applications/ClaudeNotch.app && echo yes)" "yes"
 fi
 
+# --- what the script refuses to do
+#
+# These read the script rather than run it: the install path replaces the app
+# in /Applications, which is not something a test suite gets to rehearse. What
+# can be pinned is that the dangerous shapes are absent from the source.
+
+# An integrity check an attacker can switch off by breaking one request is not
+# an integrity check. This used to say "continuing without it".
+check "a missing checksum stops the install" \
+      "$(grep -c 'cannot be$' "$UPDATE")" "1"
+check "no path continues without a checksum" \
+      "$(grep -ci 'continuing without it' "$UPDATE")" "0"
+
+# The old code deleted /Applications/ClaudeNotch.app and then copied. A copy
+# that failed halfway left the user with no app at all.
+check "the old app is not deleted before the new one is in place" \
+      "$(grep -c '^rm -rf "\$APP"$' "$UPDATE")" "0"
+check "the new app is staged first" \
+      "$(grep -c 'STAGED=' "$UPDATE")" "1"
+check "a failed install puts the old app back" \
+      "$(grep -c 'mv "\$PREVIOUS" "\$APP"' "$UPDATE")" "1"
+
+# The replacement has to come from the same signer as the copy being replaced.
+check "the signer is compared" \
+      "$(grep -c 'signed by someone else' "$UPDATE")" "1"
+
+# The signer reader works on the real installed app, or the comparison above
+# would silently compare two empty strings and pass everything.
+if [ -d /Applications/ClaudeNotch.app ]; then
+    SIGNER=$(codesign -dvv /Applications/ClaudeNotch.app 2>&1 | sed -n 's/^Authority=//p' | head -1)
+    check "the installed app has a readable signer" \
+          "$(test -n "$SIGNER" && echo yes)" "yes"
+fi
+
 echo
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
