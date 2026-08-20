@@ -53,7 +53,12 @@ done
 run() {   # run <script> <payload>
     printf '%s' "$2" | CLAUDENOTCH_HOST=127.0.0.1 CLAUDENOTCH_PORT="$PORT" "$BIN/$1"
 }
-last_path() { tail -1 "$CAPTURE/requests.jsonl" 2>/dev/null | jq -r '.path'; }
+# The endpoint, without the query. Forwarders append the hook token when this
+# machine has one (?t=...), and which endpoint a forwarder posts to is a
+# separate question from whether it authenticated; the token has its own tests.
+last_path() { tail -1 "$CAPTURE/requests.jsonl" 2>/dev/null | jq -r '.path' | cut -d'?' -f1; }
+# The query, for the tests that care that the token is being sent at all.
+last_query() { tail -1 "$CAPTURE/requests.jsonl" 2>/dev/null | jq -r '.path' | cut -s -d'?' -f2; }
 last_body() { tail -1 "$CAPTURE/requests.jsonl" 2>/dev/null | jq -r '.body'; }
 field()     { last_body | jq -r "$1"; }
 
@@ -91,8 +96,8 @@ check "task finds the subject"         "$(field '.subject')" "Ship it"
 : > "$CAPTURE/requests.jsonl"
 run claudenotch-posttool.sh '{"tool_name":"Edit","tool_input":{"file_path":"/a.swift"},"cwd":"/tmp/p","session_id":"s7"}'
 check "posttool sends two requests"    "$(wc -l < "$CAPTURE/requests.jsonl" | tr -d ' ')" "2"
-check "posttool reports the activity"  "$(head -1 "$CAPTURE/requests.jsonl" | jq -r '.path')" "/activity"
-check "posttool then reports thinking" "$(tail -1 "$CAPTURE/requests.jsonl" | jq -r '.path')" "/thinking"
+check "posttool reports the activity"  "$(head -1 "$CAPTURE/requests.jsonl" | jq -r '.path' | cut -d'?' -f1)" "/activity"
+check "posttool then reports thinking" "$(tail -1 "$CAPTURE/requests.jsonl" | jq -r '.path' | cut -d'?' -f1)" "/thinking"
 check "posttool carries the tool name" \
       "$(head -1 "$CAPTURE/requests.jsonl" | jq -r '.body | fromjson | .tool_name')" "Edit"
 
@@ -114,6 +119,18 @@ OUT=$(printf '{}' | "$LONE/claudenotch-stop.sh" 2>&1); RC=$?
 check "exits 0 without the shared file" "$RC" "0"
 check "and says nothing on stderr"      "$(printf '%s' "$OUT" | wc -c | tr -d ' ')" "0"
 rm -rf "$LONE"
+
+# --- the shared secret rides along
+#
+# Only when this machine has one: a fresh checkout with no install has no token
+# file, and the forwarders correctly send nothing.
+if [ -s "$HOME/.claudenotch/hook-token" ]; then
+    run claudenotch-prompt.sh '{"prompt":"tok","cwd":"/tmp/proj","session_id":"s1"}'
+    TOKEN=$(tr -d '\r\n' < "$HOME/.claudenotch/hook-token")
+    check "the forwarder sends the hook token" "$(last_query)" "t=$TOKEN"
+else
+    echo "  skip: no hook token on this machine"
+fi
 
 echo
 echo "$PASS passed, $FAIL failed"
