@@ -22,6 +22,27 @@ jobs:
       - name: Show toolchain
         run: swift --version
 
+      # Incremental builds across runs.
+      #
+      # This package has no external dependencies, so there is nothing to cache
+      # except compiled output: caching checkouts would save nothing. That means
+      # caching .build itself, which is the useful and the risky option, so it is
+      # arranged to fail safe.
+      #
+      # The key includes every source file, so a push that changes anything
+      # misses it and the restore-keys prefix supplies the previous build to
+      # compile incrementally against. Bump CACHE_EPOCH below to throw all of it
+      # away if a build ever looks like it is lying.
+      - name: Cache build output
+        uses: actions/cache@v4
+        env:
+          CACHE_EPOCH: 1
+        with:
+          path: .build
+          key: build-${{ env.CACHE_EPOCH }}-${{ runner.os }}-${{ hashFiles('Sources/**/*.swift', 'Tests/**/*.swift', 'Package.swift') }}
+          restore-keys: |
+            build-${{ env.CACHE_EPOCH }}-${{ runner.os }}-
+
       - name: Build app target
         run: swift build
 
