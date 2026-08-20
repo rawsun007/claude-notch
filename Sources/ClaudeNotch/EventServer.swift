@@ -6,6 +6,10 @@ final class EventServer {
     private weak var state: AppState?
     private var listener: HookListener?
     private var bindRetryTimer: DispatchSourceTimer?
+    /// What this install's own hooks are sending, or nil when it has none.
+    /// Read once at startup: it changes when the hooks are installed, which
+    /// restarts the app anyway.
+    private let expectedToken: String? = HookToken.read()
     private let queue = DispatchQueue(label: "com.claudenotch.server")
     private let workQueue = DispatchQueue(label: "com.claudenotch.server.work", attributes: .concurrent)
     private let transcriptPollLock = NSLock()
@@ -307,6 +311,9 @@ final class EventServer {
         let body: Data
         var host: String? = nil
         var origin: String? = nil
+        /// Everything after the `?`, unparsed. Carries the hook token when the
+        /// installed URLs have one; see HookToken.
+        var query: String? = nil
     }
 
     /// Parse a raw HTTP/1.1 request off the socket buffer. Returns nil when the
@@ -323,7 +330,10 @@ final class EventServer {
         let parts = requestLine.split(separator: " ", maxSplits: 2, omittingEmptySubsequences: false)
         guard parts.count >= 2 else { return nil }
         let method = String(parts[0])
-        let path = String(parts[1])
+        let target = String(parts[1])
+        let targetParts = target.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)
+        let path = String(targetParts.first ?? "")
+        let query = targetParts.count > 1 ? String(targetParts[1]) : nil
 
         var contentLength = 0
         var sawContentLength = false
@@ -359,7 +369,8 @@ final class EventServer {
         let body = contentLength > 0
             ? data.subdata(in: bodyStart..<(bodyStart + contentLength))
             : Data()
-        return HTTPRequest(method: method, path: path, body: body, host: host, origin: origin)
+        return HTTPRequest(method: method, path: path, body: body, host: host,
+                           origin: origin, query: query)
     }
 
     /// Whether a parsed request looks like it genuinely came from a local hook
@@ -433,6 +444,14 @@ final class EventServer {
         guard EventServer.isLocalHookRequest(req) else {
             NSLog("ClaudeNotch: rejected non-local request (host=%@ origin=%@)",
                   req.host ?? "-", req.origin ?? "-")
+            conn.close()
+            return
+        }
+        // A shared secret with our own forwarders, enforced only once this
+        // install actually has one. See HookToken for what that does and does
+        // not buy, and for why it can never make the app deaf.
+        guard HookToken.allows(query: req.query, expected: expectedToken) else {
+            NSLog("ClaudeNotch: rejected a hook with no valid token")
             conn.close()
             return
         }
