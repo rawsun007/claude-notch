@@ -305,19 +305,19 @@ struct SessionsList: View {
                                     NSWorkspace.shared.open(url)
                                 } label: {
                                     HStack(spacing: 2) {
-                                        Image(systemName: "arrow.triangle.pull")
+                                        Image(systemName: ReviewHost.infer(from: session.prURL).symbol)
                                             .font(.system(size: 7, weight: .semibold))
-                                        Text("#\(session.prNumber)")
+                                        Text(ReviewHost.chipLabel(url: session.prURL, number: session.prNumber))
                                             .font(.system(size: 9, design: .rounded).monospacedDigit())
                                     }
                                     .foregroundColor(NotchView.prTint(session.prState))
                                 }
                                 .buttonStyle(.plain)
                                 .disabled(session.prURL.isEmpty)
-                                .help(NotchView.prTooltip(number: session.prNumber, state: session.prState))
-                                .accessibilityLabel(String(format: L("Pull request %d",
-                                                                     comment: "VoiceOver label for the PR chip. %d is the PR number"),
-                                                           session.prNumber))
+                                .help(NotchView.prTooltip(number: session.prNumber, state: session.prState,
+                                                          url: session.prURL))
+                                .accessibilityLabel(ReviewHost.spoken(url: session.prURL,
+                                                                      number: session.prNumber))
                                 .accessibilityValue(session.prState)
                                 .accessibilityHint(L("Opens the pull request in your browser", comment: "VoiceOver hint for the PR chip"))
                             }

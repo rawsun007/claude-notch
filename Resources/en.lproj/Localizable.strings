@@ -900,6 +900,9 @@
 /* Settings toggle explanation */
 "Mark sessions whose tool calls run inside a sandbox, and say when something is allowed to run outside it. Only appears for sandboxed sessions." = "Mark sessions whose tool calls run inside a sandbox, and say when something is allowed to run outside it. Only appears for sandboxed sessions.";
 
+/* GitLab's name for a code review */
+"Merge request" = "Merge request";
+
 /* Toggle: also post cards to Notification Center */
 "Mirror Alerts to Notifications" = "Mirror Alerts to Notifications";
 
@@ -1125,8 +1128,8 @@
 /* Settings section heading */
 "Projects & recent sessions" = "Projects & recent sessions";
 
-/* VoiceOver label for the PR chip. %d is the PR number */
-"Pull request %d" = "Pull request %d";
+/* Bitbucket's name for a code review */
+"Pull request" = "Pull request";
 
 /* Settings toggle explanation */
 "Put the running session cost next to the menu-bar bell." = "Put the running session cost next to the menu-bar bell.";

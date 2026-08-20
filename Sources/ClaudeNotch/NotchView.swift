@@ -146,7 +146,10 @@ struct NotchView: View {
         }
     }
 
-    static func prTooltip(number: Int, state: String) -> String {
+    /// `url` decides whether this is a pull request or a merge request. The
+    /// state vocabulary is shared: GitLab reports opened, draft, mergeable,
+    /// approved and pending through the same field.
+    static func prTooltip(number: Int, state: String, url: String = "") -> String {
         let described: String = {
             switch state {
             case "approved":          return "approved"
@@ -156,7 +159,7 @@ struct NotchView: View {
             default:                  return ""
             }
         }()
-        let base = "Pull request #\(number)"
+        let base = ReviewHost.spoken(url: url, number: number)
         return described.isEmpty ? base : "\(base) · \(described)"
     }
 
