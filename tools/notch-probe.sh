@@ -65,16 +65,25 @@ roundtrip)
     # A blocking hook holds its connection until something answers it. Fire one,
     # release it from the other side, and report what the blocked caller got.
     # This is the shape that cannot be approved by rule when typed inline.
+    #
+    # This puts a real card in the real notch for about three seconds, because
+    # that is the only way to test the blocking path against a running app. It
+    # used to ask "which environment: dev or prod", which is indistinguishable
+    # from an actual MCP server asking something important, and it vanished
+    # before anyone could answer. It now says what it is on its face.
+    echo "note: this puts a self-test card in the notch for ~3s. Ignore it."
     id="probe-$$"
     out=$(mktemp)
     curl -s -m 20 -o "$out" -w '%{http_code}' -X POST "$URL/hook$(token_query)" \
          -H 'Content-Type: application/json' \
-         -d "{\"hook_event_name\":\"Elicitation\",\"mcp_server_name\":\"notch-probe\",
-              \"message\":\"probe\",\"mode\":\"form\",\"elicitation_id\":\"$id\",
+         -d "{\"hook_event_name\":\"Elicitation\",\"mcp_server_name\":\"ClaudeNotch self-test\",
+              \"message\":\"Self-test card. Ignore it: it cancels itself in a moment and nothing is waiting on you.\",
+              \"mode\":\"form\",\"elicitation_id\":\"$id\",
               \"cwd\":\"/tmp/notch-probe\",
               \"requested_schema\":{\"type\":\"object\",
-                \"properties\":{\"env\":{\"type\":\"string\",\"enum\":[\"dev\",\"prod\"]}},
-                \"required\":[\"env\"]}}" > /tmp/notch-probe-code.$$ &
+                \"properties\":{\"ignore_me\":{\"type\":\"boolean\",
+                  \"title\":\"Ignore this self-test\"}},
+                \"required\":[\"ignore_me\"]}}" > /tmp/notch-probe-code.$$ &
     blocked=$!
     sleep 3
     post /hook "{\"hook_event_name\":\"ElicitationResult\",\"mcp_server_name\":\"notch-probe\",
