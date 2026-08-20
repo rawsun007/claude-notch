@@ -115,6 +115,34 @@ enum UsageLimitPause {
         eventAt.timeIntervalSince(pausedAt) > restartGrace
     }
 
+    /// How long past the reset to wait before saying nothing has happened.
+    ///
+    /// The reset time is approximate and the CLI does not restart on the second,
+    /// so a few minutes of grace keeps this from crying wolf at a session that
+    /// is about to wake up on its own.
+    static let stalledAfter: TimeInterval = 10 * 60
+
+    /// Whether a paused session should have restarted by now and has not.
+    nonisolated static func looksStalled(resumesAt: Date?, now: Date = Date()) -> Bool {
+        guard let resumesAt else { return false }   // no known reset: nothing to be late for
+        return now.timeIntervalSince(resumesAt) > stalledAfter
+    }
+
+    nonisolated static func stalledTitle(project: String) -> String {
+        project.isEmpty
+            ? L("The usage limit lifted, but nothing restarted",
+                comment: "Card title when a paused session did not resume after its limit reset")
+            : String(format: L("%@ has not restarted since the limit lifted",
+                               comment: "Card title when a paused session did not resume. %@ is a project name"),
+                     project)
+    }
+
+    nonisolated static func stalledDetail(since: TimeInterval) -> String {
+        String(format: L("The limit reset %@ ago and this session has done nothing since. Claude Code may have been closed, or continuing automatically may be switched off, in which case the terminal is holding a dialog for you.",
+                         comment: "Card body when a paused session did not resume. %@ is a duration"),
+               HookHealth.duration(since))
+    }
+
     /// "3:40 PM", in the user's own clock format.
     nonisolated static func clockTime(_ date: Date) -> String {
         let f = DateFormatter()

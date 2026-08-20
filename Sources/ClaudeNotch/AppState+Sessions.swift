@@ -278,6 +278,10 @@ extension AppState {
                 // can exit without one either.
                 self?.refreshBackgroundAgents()
                 self?.refreshSessionRegistry()
+                // And a session that was waiting out a usage limit and never
+                // woke up. Nothing happening is not an event, so this is the
+                // only thing that can notice it.
+                self?.checkForStalledUsageLimits()
             }
         }
     }

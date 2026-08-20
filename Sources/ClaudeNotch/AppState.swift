@@ -952,6 +952,10 @@ final class AppState: ObservableObject {
     // here" is worth remembering, not worth re-deriving every hook.
     var sandboxCache: [String: (status: SandboxReader.Status?, readAt: Date)] = [:]
 
+    // Sessions already warned about not waking up after their limit reset. One
+    // warning per pause, not one per timer tick.
+    var stalledLimitReported: Set<String> = []
+
     // MARK: - Managed policy (logic lives in AppState+Server.swift)
 
     // What an organisation has decided this machine's agents may do. Empty on a

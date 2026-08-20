@@ -51,6 +51,9 @@
 /* History row for a failed tool call. %@ is a tool name */
 "%@ failed" = "%@ failed";
 
+/* Card title when a paused session did not resume. %@ is a project name */
+"%@ has not restarted since the limit lifted" = "%@ has not restarted since the limit lifted";
+
 /* Tooltip on the agent chip. %@ is the agent's name */
 "%@ session" = "%@ session";
 
@@ -1440,6 +1443,9 @@
 /* Settings row: the hooks are not installed */
 "The hooks are not in your Claude Code settings, so nothing will ever appear here. Run setup to put them back." = "The hooks are not in your Claude Code settings, so nothing will ever appear here. Run setup to put them back.";
 
+/* Card body when a paused session did not resume. %@ is a duration */
+"The limit reset %@ ago and this session has done nothing since. Claude Code may have been closed, or continuing automatically may be switched off, in which case the terminal is holding a dialog for you." = "The limit reset %@ ago and this session has done nothing since. Claude Code may have been closed, or continuing automatically may be switched off, in which case the terminal is holding a dialog for you.";
+
 /* Card body when auto-continue is off. %@ is a time of day */
 "The limit resets at about %@, and continuing is switched off, so the session is holding a dialog until you answer it." = "The limit resets at about %@, and continuing is switched off, so the session is holding a dialog until you answer it.";
 
@@ -1451,6 +1457,9 @@
 
 /* Card body when a paused session resumed. %@ is how long it was paused, such as \"3 hours\" */
 "The usage limit lifted and the session picked up where it stopped, after %@." = "The usage limit lifted and the session picked up where it stopped, after %@.";
+
+/* Card title when a paused session did not resume after its limit reset */
+"The usage limit lifted, but nothing restarted" = "The usage limit lifted, but nothing restarted";
 
 /* Tooltip on the version badge */
 "The version you are running" = "The version you are running";

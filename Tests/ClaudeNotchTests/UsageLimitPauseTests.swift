@@ -176,6 +176,73 @@ final class UsageLimitPauseTests: XCTestCase {
         XCTAssertEqual(s.permissionQueue.count, 2)
     }
 
+    // MARK: - The limit lifted and nothing happened
+
+    /// The resume card is driven by a hook arriving. The one case that produces
+    /// no hook is the case where the user has to go back to the Mac.
+    func testLatenessNeedsAKnownResetTime() {
+        let past = Date().addingTimeInterval(-UsageLimitPause.stalledAfter - 60)
+        XCTAssertTrue(UsageLimitPause.looksStalled(resumesAt: past))
+        // Not yet due, and no known reset, are both "nothing to be late for".
+        XCTAssertFalse(UsageLimitPause.looksStalled(resumesAt: Date().addingTimeInterval(600)))
+        XCTAssertFalse(UsageLimitPause.looksStalled(resumesAt: nil))
+    }
+
+    /// Inside the grace window it says nothing: the reset time is approximate
+    /// and the CLI does not restart on the second.
+    func testTheGraceWindowIsRespected() {
+        let justPast = Date().addingTimeInterval(-UsageLimitPause.stalledAfter + 60)
+        XCTAssertFalse(UsageLimitPause.looksStalled(resumesAt: justPast))
+        XCTAssertGreaterThanOrEqual(UsageLimitPause.stalledAfter, 300)
+    }
+
+    @MainActor
+    func testAStalledSessionIsReportedOnceAndSaysWhy() {
+        let s = pausedState()
+        s.upsertSession(id: "s1", cwd: "/tmp/proj") {
+            $0.limitResumesAt = Date().addingTimeInterval(-UsageLimitPause.stalledAfter - 120)
+        }
+        let before = s.permissionQueue.count
+        s.checkForStalledUsageLimits()
+        s.checkForStalledUsageLimits()
+        s.checkForStalledUsageLimits()
+        XCTAssertEqual(s.permissionQueue.count, before + 1)
+        let card = s.permissionQueue.last
+        XCTAssertEqual(card?.toolName, "UsageLimit")
+        // It has to name both explanations, since the user cannot tell them
+        // apart from here.
+        XCTAssertTrue(card?.detail.lowercased().contains("closed") ?? false)
+        XCTAssertTrue(card?.detail.lowercased().contains("switched off") ?? false)
+    }
+
+    /// A session still inside its window is left alone.
+    @MainActor
+    func testASessionStillWaitingIsNotReported() {
+        let s = pausedState()
+        let before = s.permissionQueue.count
+        s.checkForStalledUsageLimits()
+        XCTAssertEqual(s.permissionQueue.count, before)
+    }
+
+    /// After it wakes, a later pause may warn again.
+    @MainActor
+    func testWakingUpRearmsTheWarning() {
+        let s = pausedState()
+        s.upsertSession(id: "s1", cwd: "/tmp/proj") {
+            $0.limitResumesAt = Date().addingTimeInterval(-UsageLimitPause.stalledAfter - 120)
+        }
+        s.checkForStalledUsageLimits()
+        s.noteUsageLimitMaybeResumed(sessionId: "s1", cwd: "/tmp/proj",
+                                     at: Date().addingTimeInterval(3600))
+        s.notePausedByUsageLimit(sessionId: "s1", cwd: "/tmp/proj")
+        s.upsertSession(id: "s1", cwd: "/tmp/proj") {
+            $0.limitResumesAt = Date().addingTimeInterval(-UsageLimitPause.stalledAfter - 120)
+        }
+        let before = s.permissionQueue.count
+        s.checkForStalledUsageLimits()
+        XCTAssertEqual(s.permissionQueue.count, before + 1, "a second pause should warn again")
+    }
+
     /// A session that never paused is not told it resumed.
     @MainActor
     func testAnUnpausedSessionIsUntouched() {

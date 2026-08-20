@@ -57,6 +57,8 @@ extension AppState {
             s.limitPausedAt = nil
             s.limitResumesAt = nil
         }
+        // It woke up, so a later pause is allowed to warn again.
+        stalledLimitReported.remove(key)
 
         let project = session.project
         let title = UsageLimitPause.resumedTitle(project: project)
@@ -79,6 +81,40 @@ extension AppState {
                                              agentName: entityName,
                                              cwd: session.cwd,
                                              originatorBundleID: session.originatorBundleID)
+        }
+    }
+
+    /// Check whether any waiting session should have woken by now.
+    ///
+    /// The resume card is driven by evidence: a hook arriving for a session that
+    /// was paused. That works, except in the one case where nothing arrives,
+    /// which is exactly the case where the user needs to go back to the Mac.
+    /// Nothing was watching for it, because nothing happening is not an event.
+    func checkForStalledUsageLimits(now: Date = Date()) {
+        for session in sessionsWaitingOnUsageLimit {
+            guard UsageLimitPause.looksStalled(resumesAt: session.limitResumesAt, now: now) else { continue }
+            guard !stalledLimitReported.contains(session.id) else { continue }
+            stalledLimitReported.insert(session.id)
+
+            let since = now.timeIntervalSince(session.limitResumesAt ?? now)
+            enqueuePermission(PermissionRequest(
+                kind: .notification,
+                title: UsageLimitPause.stalledTitle(project: session.project),
+                detail: UsageLimitPause.stalledDetail(since: since),
+                toolName: "UsageLimit",
+                source: "Claude Code",
+                cwd: session.cwd,
+                resolver: { _, _ in }))
+
+            // This one is worth a notification: it is the only state in the
+            // whole pause flow that needs the user back at the machine.
+            if completionNotificationsEnabled, !AppState.appIsActive {
+                permissionMirror?.sendCompletion(
+                    project: session.project,
+                    snippet: UsageLimitPause.stalledDetail(since: since),
+                    agentName: entityName, cwd: session.cwd,
+                    originatorBundleID: session.originatorBundleID)
+            }
         }
     }
 
