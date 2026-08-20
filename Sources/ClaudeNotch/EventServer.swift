@@ -6,10 +6,12 @@ final class EventServer {
     private weak var state: AppState?
     private var listener: HookListener?
     private var bindRetryTimer: DispatchSourceTimer?
-    /// What this install's own hooks are sending, or nil when it has none.
-    /// Read once at startup: it changes when the hooks are installed, which
-    /// restarts the app anyway.
-    private let expectedToken: String? = HookToken.read()
+    /// What this install's own hook URL carries, or nil when it carries
+    /// nothing. Read from settings.json rather than from the token file, so the
+    /// app can only ever demand what the caller is actually sending. Read once
+    /// at startup: it changes when the hooks are installed, which restarts the
+    /// app anyway.
+    private let expectedToken: String? = HookToken.expected()
     private let queue = DispatchQueue(label: "com.claudenotch.server")
     private let workQueue = DispatchQueue(label: "com.claudenotch.server.work", attributes: .concurrent)
     private let transcriptPollLock = NSLock()

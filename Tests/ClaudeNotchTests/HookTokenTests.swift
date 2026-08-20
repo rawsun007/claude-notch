@@ -101,6 +101,50 @@ final class HookTokenTests: XCTestCase {
         XCTAssertTrue(HookToken.constantTimeEquals("", ""))
     }
 
+    // MARK: - What the app demands, and where it learns it
+
+    private func settingsFile(_ json: String) throws -> String {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cn-hooksettings-\(UUID().uuidString).json")
+        try json.write(to: url, atomically: true, encoding: .utf8)
+        return url.path
+    }
+
+    /// The requirement comes from the URL Claude Code is posting to, so it can
+    /// only ever demand what is actually being sent.
+    func testTheDemandComesFromTheInstalledURL() throws {
+        let with = try settingsFile(#"{"hooks":{"Stop":[{"hooks":[{"type":"http","url":"http://127.0.0.1:53127/hook?t=deadbeef"}]}]}}"#)
+        let without = try settingsFile(#"{"hooks":{"Stop":[{"hooks":[{"type":"http","url":"http://127.0.0.1:53127/hook"}]}]}}"#)
+        defer { try? FileManager.default.removeItem(atPath: with)
+                try? FileManager.default.removeItem(atPath: without) }
+
+        XCTAssertEqual(HookToken.expected(settingsPath: with), "deadbeef")
+        XCTAssertNil(HookToken.expected(settingsPath: without))
+    }
+
+    /// A settings file that is missing, unreadable, or has no hooks of ours
+    /// demands nothing. Every one of those has to keep working.
+    func testNoSettingsMeansNoDemand() throws {
+        XCTAssertNil(HookToken.expected(settingsPath: "/nonexistent/settings.json"))
+        let empty = try settingsFile("{}")
+        defer { try? FileManager.default.removeItem(atPath: empty) }
+        XCTAssertNil(HookToken.expected(settingsPath: empty))
+    }
+
+    /// The token file existing is not the trigger. An install whose settings
+    /// were rolled back must not leave the app demanding something nothing
+    /// sends, which is the one outcome this feature must never produce.
+    func testATokenFileAloneDemandsNothing() throws {
+        let path = tempPath()
+        defer { try? FileManager.default.removeItem(atPath: (path as NSString).deletingLastPathComponent) }
+        _ = HookToken.ensure(at: path)
+        let settings = try settingsFile(#"{"hooks":{"Stop":[{"hooks":[{"type":"http","url":"http://127.0.0.1:53127/hook"}]}]}}"#)
+        defer { try? FileManager.default.removeItem(atPath: settings) }
+
+        XCTAssertNotNil(HookToken.read(from: path))
+        XCTAssertNil(HookToken.expected(settingsPath: settings))
+    }
+
     // MARK: - The request path
 
     /// The query has to survive parsing, or the token can never be seen.

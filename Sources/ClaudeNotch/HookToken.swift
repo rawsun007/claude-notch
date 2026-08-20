@@ -68,6 +68,26 @@ enum HookToken {
         return token
     }
 
+    /// What the app should demand, read from the hook URL it installed.
+    ///
+    /// Deliberately not read from the token file. The question is not "does
+    /// this machine have a token", it is "does the thing calling us send one",
+    /// and only the installed URL answers that. A token file left behind by an
+    /// install whose settings were later edited or rolled back would otherwise
+    /// make the app demand something nothing sends, which is the one outcome
+    /// this feature must never produce.
+    nonisolated static func expected(settingsPath: String = HookInstaller.settingsPath) -> String? {
+        guard let data = FileManager.default.contents(atPath: settingsPath),
+              let text = String(data: data, encoding: .utf8) else { return nil }
+        // Find our own hook URL and read the parameter off it. Scanning the
+        // text rather than walking the JSON: the URL appears in every hook
+        // entry, they all carry the same token, and the first one settles it.
+        guard let range = text.range(of: "127.0.0.1:53127/hook?") else { return nil }
+        let tail = text[range.upperBound...]
+        let query = tail.prefix { $0 != "\"" && $0 != "\n" }
+        return inQuery(String(query))
+    }
+
     /// The token in a request's query string, if it carries one.
     ///
     /// Written by hand rather than with URLComponents: this runs on the hook
