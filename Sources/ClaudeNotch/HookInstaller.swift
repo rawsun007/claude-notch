@@ -79,7 +79,7 @@ enum HookInstaller {
             && s.contains("\"DirectoryAdded\"") && s.contains("\"CwdChanged\"")
             && s.contains("\"PermissionDenied\"") && s.contains("\"ConfigChange\"")
             && s.contains("\"PostCompact\"") && s.contains("\"Elicitation\"")
-            && s.contains("\"PostToolUseFailure\"")
+            && s.contains("\"PostToolUseFailure\"") && s.contains("\"InstructionsLoaded\"")
     }
 
     /// `jq` is required by posttool.sh to forward payload fields to the
@@ -342,6 +342,9 @@ enum HookInstaller {
         // A tool that failed. Without it, a session going in circles reads as a
         // session working.
         appendHook(to: "PostToolUseFailure", in: &hooks, matcher: ".*")
+        // Which instruction files are shaping this agent. Matched on the load
+        // reason, so ".*" is every kind.
+        appendHook(to: "InstructionsLoaded", in: &hooks, matcher: ".*")
         appendHook(to: "UserPromptSubmit", in: &hooks, matcher: nil)
         appendHook(to: "Notification", in: &hooks, matcher: nil)
         appendHook(to: "Stop", in: &hooks, matcher: nil)

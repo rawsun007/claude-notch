@@ -72,6 +72,12 @@ struct LiveSession: Identifiable, Equatable {
     var webSearchCapHit: Bool = false
     var toolCallCount: Int = 0
 
+    // Instruction files this session has loaded: CLAUDE.md, imported memory,
+    // whatever a glob pulled in. What is shaping the agent is as much a part of
+    // "what may this thing do" as its permissions are, and nothing showed it.
+    // Capped and de-duplicated: the paths arrive on hook payloads.
+    var instructionFiles: [String] = []
+
     // Set while a session is stopped on a usage limit. Claude Code waits for
     // the reset and continues by itself, so this is a pause rather than an end,
     // and the moment it picks up again is the moment the user wants to hear

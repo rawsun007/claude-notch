@@ -806,6 +806,21 @@ final class EventServer {
         }
     }
 
+    /// InstructionsLoaded: the session pulled in a CLAUDE.md or a memory file.
+    /// Carries `file_path`, `memory_type`, `load_reason`, and the glob or parent
+    /// that dragged it in.
+    private func handleInstructionsLoaded(payload: [String: Any]) {
+        let path = (payload["file_path"] as? String) ?? ""
+        guard !path.isEmpty else { return }
+        let type = (payload["memory_type"] as? String) ?? ""
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let cwd = (payload["cwd"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.noteInstructionsLoaded(path: path, memoryType: type,
+                                          sessionId: sessionId, cwd: cwd)
+        }
+    }
+
     /// PostToolUseFailure: a tool call did not work. Carries the tool, its
     /// error, how long it ran, and whether the user interrupted it.
     ///
@@ -1581,6 +1596,9 @@ final class EventServer {
             // Plain OK. The hook may answer `{retry: true}` to tell the model
             // to try again — the notch reports what happened, it does not
             // overrule the classifier that blocked it.
+            sendOK(on: conn)
+        case "InstructionsLoaded":
+            handleInstructionsLoaded(payload: payload)
             sendOK(on: conn)
         case "PostToolUseFailure":
             handleToolFailure(payload: payload)

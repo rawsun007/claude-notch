@@ -765,6 +765,9 @@ final class AppState: ObservableObject {
     // most-recent session so existing UI keeps working unchanged.
     @Published var sessions: [String: LiveSession] = [:]
     let sessionsMax = 12
+    // Instruction files per session. A big monorepo legitimately loads several;
+    // past this it is a glob gone wide, and the payload is untrusted anyway.
+    static let instructionFilesMax = 16
 
     @Published var composeText: String = ""
     @Published var isComposing: Bool = false

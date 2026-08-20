@@ -74,6 +74,32 @@ extension AppState {
         if isCurrent, !model.isEmpty { currentModel = model }
     }
 
+    /// The session loaded an instruction file: CLAUDE.md, an imported memory
+    /// file, or something a glob matched.
+    ///
+    /// Worth recording because it answers a question the notch could not
+    /// otherwise answer: what is this agent operating under. A file pulled in
+    /// halfway through a session is the interesting case, since by then nobody
+    /// is watching the startup output where it scrolled past.
+    func noteInstructionsLoaded(path: String, memoryType: String = "",
+                                sessionId: String = "", cwd: String = "") {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        upsertSession(id: sessionId, cwd: cwd.isEmpty ? currentCwd : cwd, create: true) { s in
+            guard !s.instructionFiles.contains(trimmed) else { return }
+            s.instructionFiles.append(trimmed)
+            if s.instructionFiles.count > Self.instructionFilesMax {
+                s.instructionFiles.removeFirst()
+            }
+        }
+    }
+
+    /// Instruction files for the session the header is showing, or a sibling's.
+    var currentInstructionFiles: [String] {
+        for s in currentAndSiblings where !s.instructionFiles.isEmpty { return s.instructionFiles }
+        return []
+    }
+
     /// A file was edited/written by Claude (PostToolUse for Edit / Write /
     /// MultiEdit / NotebookEdit). Kept unique and ordered, newest last.
     func noteFileTouched(_ path: String, sessionId: String, cwd: String) {
