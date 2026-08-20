@@ -30,9 +30,18 @@ final class HookConnection: @unchecked Sendable {
     private let lock = NSLock()
     private var closed = false
 
-    init(fd: Int32, queue: DispatchQueue) {
+    /// Deadlines are injectable so the two of them can be tested in a second
+    /// rather than in five minutes.
+    private let requestDeadline: TimeInterval
+    private let responseDeadline: TimeInterval
+
+    init(fd: Int32, queue: DispatchQueue,
+         requestDeadline: TimeInterval = HookConnection.requestDeadline,
+         responseDeadline: TimeInterval = HookConnection.responseDeadline) {
         self.fd = fd
         self.queue = queue
+        self.requestDeadline = requestDeadline
+        self.responseDeadline = responseDeadline
     }
 
     /// How long a connection may take to produce a complete request.
@@ -49,20 +58,25 @@ final class HookConnection: @unchecked Sendable {
     /// waiting for a human, so the deadline is cancelled at that point.
     static let requestDeadline: TimeInterval = 30
 
+    /// And how long a handler may take to answer one.
+    ///
+    /// A parsed request hands the socket to a handler, and the request deadline
+    /// stops there because a blocking hook is supposed to hold its connection
+    /// while a human decides. But nothing then guaranteed an answer: a handler
+    /// that returned without replying, or whose reply never ran, held the
+    /// descriptor until the process exited. In practice the blocking paths all
+    /// time out at 285s and answer, so this is not a leak anyone has hit; it is
+    /// only true because every one of those paths remembers to. This makes it
+    /// true by construction instead, just past the longest wait the app takes.
+    static let responseDeadline: TimeInterval = 300
+
     /// Read until `onRequest` accepts the bytes as a complete request, the peer
     /// hangs up, the ceiling is hit, or the deadline passes. `onRequest` returns
     /// true when it has taken ownership of the connection (it will answer and
     /// close).
     func read(max: Int, onRequest: @escaping (Data) -> Bool) {
-        let deadline = DispatchSource.makeTimerSource(queue: queue)
-        deadline.schedule(deadline: .now() + Self.requestDeadline)
-        deadline.setEventHandler { [weak self] in
-            guard let self else { return }
-            NSLog("ClaudeNotch: closing a connection that never finished its request")
-            self.close()
-        }
-        deadline.resume()
-        self.deadline = deadline
+        armDeadline(after: requestDeadline,
+                    why: "a connection that never finished its request")
         var buffer = Data()
         let src = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
         source = src
@@ -78,13 +92,14 @@ final class HookConnection: @unchecked Sendable {
                     return
                 }
                 if onRequest(buffer) {
-                    // Handled: stop reading, and stop the deadline — the
-                    // handler owns the connection now and a blocking hook is
-                    // supposed to hold it. Leave the socket open for the answer.
+                    // Handled: stop reading, and swap the request deadline for
+                    // the longer one. The handler owns the connection now and a
+                    // blocking hook is supposed to hold it while a human
+                    // decides, but not forever and not without answering.
                     self.source?.cancel()
                     self.source = nil
-                    self.deadline?.cancel()
-                    self.deadline = nil
+                    self.armDeadline(after: self.responseDeadline,
+                                     why: "a request that was never answered")
                 }
                 return
             }
@@ -96,6 +111,20 @@ final class HookConnection: @unchecked Sendable {
         // when the handler takes the connection over and when we close it, and
         // only `close()` owns the descriptor.
         src.resume()
+    }
+
+    /// Replace whatever timer is running with one that closes the socket.
+    private func armDeadline(after seconds: TimeInterval, why: String) {
+        deadline?.cancel()
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + seconds)
+        timer.setEventHandler { [weak self] in
+            guard let self else { return }
+            NSLog("ClaudeNotch: closing %@", why)
+            self.close()
+        }
+        timer.resume()
+        deadline = timer
     }
 
     /// Write one HTTP response and close. Loopback responses are a couple of KB
