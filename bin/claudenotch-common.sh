@@ -28,6 +28,16 @@ NOTCH_LOG_MAX=524288
 # controls instead of posting real events into a running app.
 NOTCH_HOST="${CLAUDENOTCH_HOST:-127.0.0.1}"
 NOTCH_PORT="${CLAUDENOTCH_PORT:-53127}"
+# Shared secret with the app, when this install has one. Read at call time
+# rather than baked in, so rotating the file is enough and nothing has to be
+# reinstalled. Absent is fine: the app only requires a token when the URL it
+# installed carries one.
+notch_token_query() {
+    local f="$HOME/.claudenotch/hook-token"
+    [ -r "$f" ] || return 0
+    local t; t=$(cat "$f" 2>/dev/null | tr -d '\r\n')
+    [ -n "$t" ] && printf '?t=%s' "$t"
+}
 
 notch_log() {
     [ -n "${HOME:-}" ] || return 0
@@ -67,7 +77,7 @@ notch_post() {
     jq -c "$filter" 2>/dev/null | curl -s --max-time "$timeout" -X POST \
         -H 'Content-Type: application/json' \
         --data-binary @- \
-        "http://$NOTCH_HOST:$NOTCH_PORT/$endpoint" >/dev/null 2>&1 || true
+        "http://$NOTCH_HOST:$NOTCH_PORT/$endpoint$(notch_token_query)" >/dev/null 2>&1 || true
 }
 
 # notch_forward <label> <endpoint> <jq-filter> [timeout]

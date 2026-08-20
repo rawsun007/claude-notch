@@ -38,7 +38,10 @@ if command -v jq >/dev/null 2>&1 && nc -z 127.0.0.1 53127 2>/dev/null; then
         seven_day_resets_at: (.rate_limits.seven_day.resets_at // null)
     }' 2>/dev/null | curl -s --max-time 1 -X POST \
         -H 'Content-Type: application/json' --data-binary @- \
-        http://127.0.0.1:53127/statusline >/dev/null 2>&1 || true
+        "http://127.0.0.1:53127/statusline$(
+            f="$HOME/.claudenotch/hook-token"
+            [ -r "$f" ] && printf '?t=%s' "$(tr -d '\r\n' < "$f")"
+        )" >/dev/null 2>&1 || true
 fi
 
 # 2) Re-emit the user's previous status line, preserving their display. The

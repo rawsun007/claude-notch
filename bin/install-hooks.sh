@@ -44,7 +44,21 @@ case "$INSTALL_DIR" in
     *" "*) echo "WARNING: \$HOME contains spaces ($INSTALL_DIR). The wired command will be quoted." ;;
 esac
 
+# Shared secret with the app. Created here when the app has not already made
+# one, so the fallback path installs a URL the app will accept.
+TOKEN_FILE="$HOME/.claudenotch/hook-token"
+if [ ! -s "$TOKEN_FILE" ]; then
+    mkdir -p "$(dirname "$TOKEN_FILE")" 2>/dev/null || true
+    chmod 700 "$(dirname "$TOKEN_FILE")" 2>/dev/null || true
+    if command -v openssl >/dev/null 2>&1; then
+        openssl rand -hex 32 > "$TOKEN_FILE" 2>/dev/null || true
+    fi
+    chmod 600 "$TOKEN_FILE" 2>/dev/null || true
+fi
 NOTCH_URL="http://127.0.0.1:53127/hook"
+if [ -s "$TOKEN_FILE" ]; then
+    NOTCH_URL="http://127.0.0.1:53127/hook?t=$(tr -d '\r\n' < "$TOKEN_FILE")"
+fi
 
 # Let the app do the merge when it is on disk.
 #

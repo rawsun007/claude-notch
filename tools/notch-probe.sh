@@ -25,8 +25,17 @@ set -uo pipefail
 PORT="${CLAUDENOTCH_PORT:-53127}"
 URL="http://127.0.0.1:${PORT}"
 
+# The app requires the hook token once the URL it installed carries one, so the
+# probe sends it too. Absent is fine.
+token_query() {
+    local f="$HOME/.claudenotch/hook-token"
+    [ -r "$f" ] || return 0
+    local t; t=$(tr -d '\r\n' < "$f" 2>/dev/null)
+    [ -n "$t" ] && printf '?t=%s' "$t"
+}
+
 post() {   # $1 = path, $2 = json body
-    curl -s -m "${CLAUDENOTCH_TIMEOUT:-10}" -X POST "${URL}$1" \
+    curl -s -m "${CLAUDENOTCH_TIMEOUT:-10}" -X POST "${URL}$1$(token_query)" \
          -H 'Content-Type: application/json' -d "$2"
 }
 
@@ -58,7 +67,7 @@ roundtrip)
     # This is the shape that cannot be approved by rule when typed inline.
     id="probe-$$"
     out=$(mktemp)
-    curl -s -m 20 -o "$out" -w '%{http_code}' -X POST "$URL/hook" \
+    curl -s -m 20 -o "$out" -w '%{http_code}' -X POST "$URL/hook$(token_query)" \
          -H 'Content-Type: application/json' \
          -d "{\"hook_event_name\":\"Elicitation\",\"mcp_server_name\":\"notch-probe\",
               \"message\":\"probe\",\"mode\":\"form\",\"elicitation_id\":\"$id\",

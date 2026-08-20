@@ -110,6 +110,24 @@ final class HookTokenTests: XCTestCase {
         return url.path
     }
 
+    /// Settings written by the app itself, escaped slashes and all. The first
+    /// version of this reader scanned the file as text for "53127/hook?" and
+    /// never matched, because Foundation writes 53127\\/hook.
+    func testTheRealFileShapeIsUnderstood() throws {
+        let written = try JSONSerialization.data(
+            withJSONObject: ["hooks": ["Stop": [["hooks": [[
+                "type": "http", "url": "http://127.0.0.1:53127/hook?t=cafebabe", "timeout": 290,
+            ]]]]]], options: [.prettyPrinted, .sortedKeys])
+        let path = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cn-escaped-\(UUID().uuidString).json").path
+        try written.write(to: URL(fileURLWithPath: path))
+        defer { try? FileManager.default.removeItem(atPath: path) }
+
+        // Proof the file really is escaped, so this test would have caught it.
+        XCTAssertTrue(String(data: written, encoding: .utf8)?.contains("\\/hook") ?? false)
+        XCTAssertEqual(HookToken.expected(settingsPath: path), "cafebabe")
+    }
+
     /// The requirement comes from the URL Claude Code is posting to, so it can
     /// only ever demand what is actually being sent.
     func testTheDemandComesFromTheInstalledURL() throws {

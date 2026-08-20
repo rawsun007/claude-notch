@@ -78,14 +78,26 @@ enum HookToken {
     /// this feature must never produce.
     nonisolated static func expected(settingsPath: String = HookInstaller.settingsPath) -> String? {
         guard let data = FileManager.default.contents(atPath: settingsPath),
-              let text = String(data: data, encoding: .utf8) else { return nil }
-        // Find our own hook URL and read the parameter off it. Scanning the
-        // text rather than walking the JSON: the URL appears in every hook
-        // entry, they all carry the same token, and the first one settles it.
-        guard let range = text.range(of: "127.0.0.1:53127/hook?") else { return nil }
-        let tail = text[range.upperBound...]
-        let query = tail.prefix { $0 != "\"" && $0 != "\n" }
-        return inQuery(String(query))
+              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let hooks = root["hooks"] as? [String: Any]
+        else { return nil }
+
+        // Walked as JSON rather than scanned as text. The first version searched
+        // the file for "53127/hook?" and never matched, because Foundation
+        // writes the URL with escaped slashes: 127.0.0.1:53127\\/hook. It failed
+        // open, so the check simply never engaged, which is the right direction
+        // to fail in and the wrong thing to ship.
+        for rules in hooks.values {
+            guard let rules = rules as? [[String: Any]] else { continue }
+            for rule in rules {
+                for entry in (rule["hooks"] as? [[String: Any]]) ?? [] {
+                    guard let url = entry["url"] as? String, url.contains("53127") else { continue }
+                    guard let mark = url.firstIndex(of: "?") else { continue }
+                    if let token = inQuery(String(url[url.index(after: mark)...])) { return token }
+                }
+            }
+        }
+        return nil
     }
 
     /// The token in a request's query string, if it carries one.

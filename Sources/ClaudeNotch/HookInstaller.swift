@@ -229,9 +229,11 @@ enum HookInstaller {
     event=$(printf '%s' "$input" | sed -n 's/.*"hook_event_name"[[:space:]]*:[[:space:]]*"\\([^"]*\\)".*/\\1/p' | head -1)
     ep="/hook"; [ "$event" = "PreToolUse" ] && ep="/extpretool"
     if nc -z 127.0.0.1 53127 2>/dev/null; then
+      tok=""
+      [ -r "$HOME/.claudenotch/hook-token" ] && tok="?t=$(cat "$HOME/.claudenotch/hook-token")"
       printf '%s' "$input" | curl -s --max-time 10 -X POST \\
         -H 'Content-Type: application/json' --data-binary @- \\
-        "http://127.0.0.1:53127$ep" >/dev/null 2>&1 &
+        "http://127.0.0.1:53127$ep$tok" >/dev/null 2>&1 &
     fi
     exit 0
     """
@@ -481,7 +483,12 @@ enum HookInstaller {
         // matching the 3-minute "waiting-on-you" nudge) — otherwise Claude Code
         // gives up on the HTTP request and falls back to its own terminal
         // prompt while the notch card sits there unable to reply to anything.
-        let httpEntry: [String: Any] = ["type": "http", "url": "http://127.0.0.1:53127/hook", "timeout": 290]
+        // The token, when this install has one. See HookToken: the server
+        // requires it only because this URL carries it, so the two can never
+        // disagree.
+        let token = HookToken.ensure()
+        let url = token.map { "http://127.0.0.1:53127/hook?t=\($0)" } ?? "http://127.0.0.1:53127/hook"
+        let httpEntry: [String: Any] = ["type": "http", "url": url, "timeout": 290]
         var ourRule: [String: Any] = ["hooks": [httpEntry]]
         if let m = matcher { ourRule["matcher"] = m }
 
