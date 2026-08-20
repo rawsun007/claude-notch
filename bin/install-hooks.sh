@@ -46,6 +46,29 @@ esac
 
 NOTCH_URL="http://127.0.0.1:53127/hook"
 
+# Let the app do the merge when it is on disk.
+#
+# The hooks used to be merged into settings.json by two programs: the app, in
+# Swift, and the jq below, in shell. Two implementations of one merge drift,
+# and they already had. A fix to the backup rules landed in the Swift copy and
+# did nothing, because the shell copy is the one that runs during setup.
+#
+# So the app is asked first, and the jq path below is the fallback for the one
+# case it cannot cover: a machine where the app is not installed yet.
+# Set CLAUDENOTCH_FORCE_JQ_MERGE=1 to take the fallback deliberately. The
+# conformance test runs both paths against the same settings file and compares
+# them, which is the only thing that keeps the fallback honest.
+for candidate in ${CLAUDENOTCH_FORCE_JQ_MERGE:+} "/Applications/ClaudeNotch.app" \
+                 "$(cd "$(dirname "$0")/../.." 2>/dev/null && pwd)/ClaudeNotch.app"; do
+    [ -n "${CLAUDENOTCH_FORCE_JQ_MERGE:-}" ] && break
+    BIN="$candidate/Contents/MacOS/ClaudeNotch"
+    if [ -x "$BIN" ] && "$BIN" --install-hooks >/dev/null 2>&1; then
+        echo "→ Hooks merged into ~/.claude/settings.json (by ClaudeNotch)"
+        exit 0
+    fi
+done
+echo "→ ClaudeNotch.app not available, merging with jq"
+
 SETTINGS="$HOME/.claude/settings.json"
 mkdir -p "$(dirname "$SETTINGS")"
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
@@ -95,18 +118,28 @@ jq --arg url "$NOTCH_URL" '
             else { "hooks": [{ "type": "http", "url": $url, "timeout": 290 }] }
             end ];
     .hooks = (.hooks // {}) |
-    .hooks.PreToolUse        = add_hook(.hooks.PreToolUse;        true)  |
-    .hooks.PermissionRequest = add_hook(.hooks.PermissionRequest; true)  |
-    .hooks.PostToolUse       = add_hook(.hooks.PostToolUse;       true)  |
-    .hooks.UserPromptSubmit  = add_hook(.hooks.UserPromptSubmit;  false) |
-    .hooks.Notification      = add_hook(.hooks.Notification;      false) |
-    .hooks.Stop              = add_hook(.hooks.Stop;              false) |
-    .hooks.SessionEnd        = add_hook(.hooks.SessionEnd;        true)  |
-    .hooks.TaskCreated       = add_hook(.hooks.TaskCreated;       false) |
-    .hooks.TaskCompleted     = add_hook(.hooks.TaskCompleted;     false) |
-    .hooks.PreCompact        = add_hook(.hooks.PreCompact;        false) |
-    .hooks.SubagentStart     = add_hook(.hooks.SubagentStart;     false) |
-    .hooks.SubagentStop      = add_hook(.hooks.SubagentStop;      false)
+    .hooks.PreToolUse         = add_hook(.hooks.PreToolUse        ; true) |
+    .hooks.PermissionRequest  = add_hook(.hooks.PermissionRequest ; true) |
+    .hooks.PostToolUse        = add_hook(.hooks.PostToolUse       ; true) |
+    .hooks.PostToolUseFailure = add_hook(.hooks.PostToolUseFailure; true) |
+    .hooks.UserPromptSubmit   = add_hook(.hooks.UserPromptSubmit  ; false) |
+    .hooks.Notification       = add_hook(.hooks.Notification      ; false) |
+    .hooks.Stop               = add_hook(.hooks.Stop              ; false) |
+    .hooks.StopFailure        = add_hook(.hooks.StopFailure       ; false) |
+    .hooks.SessionStart       = add_hook(.hooks.SessionStart      ; false) |
+    .hooks.SessionEnd         = add_hook(.hooks.SessionEnd        ; true) |
+    .hooks.TaskCreated        = add_hook(.hooks.TaskCreated       ; false) |
+    .hooks.TaskCompleted      = add_hook(.hooks.TaskCompleted     ; false) |
+    .hooks.PreCompact         = add_hook(.hooks.PreCompact        ; false) |
+    .hooks.PostCompact        = add_hook(.hooks.PostCompact       ; false) |
+    .hooks.Elicitation        = add_hook(.hooks.Elicitation       ; true) |
+    .hooks.ElicitationResult  = add_hook(.hooks.ElicitationResult ; true) |
+    .hooks.SubagentStart      = add_hook(.hooks.SubagentStart     ; false) |
+    .hooks.SubagentStop       = add_hook(.hooks.SubagentStop      ; false) |
+    .hooks.DirectoryAdded     = add_hook(.hooks.DirectoryAdded    ; false) |
+    .hooks.CwdChanged         = add_hook(.hooks.CwdChanged        ; false) |
+    .hooks.PermissionDenied   = add_hook(.hooks.PermissionDenied  ; true) |
+    .hooks.ConfigChange       = add_hook(.hooks.ConfigChange      ; false)
 ' "$SETTINGS" > "$SETTINGS.new"
 
 mv "$SETTINGS.new" "$SETTINGS"

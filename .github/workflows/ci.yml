@@ -55,6 +55,11 @@ jobs:
       - name: Test the update script
         run: tools/test-update-script.sh
 
+      # The hooks are installed by two programs, the app and the shell script
+      # that runs before the app exists. They drifted ten events apart once.
+      - name: Test that both hook installers agree
+        run: tools/test-hook-merge.sh
+
       # These forward every hook Claude Code fires. A failure in one must never
       # become Claude's, so the exit-0 paths are checked as well as the payloads.
       - name: Test the hook forwarders
