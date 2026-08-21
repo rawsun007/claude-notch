@@ -124,6 +124,41 @@ final class CompactAdviceTests: XCTestCase {
         XCTAssertTrue(s.permissionQueue.isEmpty)
     }
 
+    // MARK: - Acting on it
+
+    /// The card's Allow is "do it now". Advice you have to go and act on
+    /// somewhere else is advice most people skip, which is the whole reason
+    /// this app exists.
+    @MainActor
+    func testTheCardCarriesTheAction() {
+        let s = session(percent: 0.60)
+        s.upsertSession(id: "s1", cwd: "/tmp/proj") { $0.originatorBundleID = "com.apple.Terminal" }
+        s.adviseCompactionIfNeeded(sessionId: "s1", cwd: "/tmp/proj")
+        let card = s.permissionQueue.first { $0.toolName == "Compact" }
+        XCTAssertNotNil(card)
+        // Resolving it must not throw or hang, whatever the machine's
+        // Accessibility state is; the failure path is a message, not a crash.
+        card?.resolver(.allow, nil)
+    }
+
+    /// Dismissing the advice does nothing at all.
+    @MainActor
+    func testDismissingDoesNothing() {
+        let s = session(percent: 0.60)
+        s.adviseCompactionIfNeeded(sessionId: "s1", cwd: "/tmp/proj")
+        s.permissionQueue.first { $0.toolName == "Compact" }?.resolver(.deny, nil)
+        XCTAssertNil(s.compactActionError)
+    }
+
+    /// A session whose terminal has gone says so, rather than appearing to work.
+    @MainActor
+    func testAMissingTerminalIsReported() {
+        let s = session(percent: 0.60)
+        s.runCompact(forSessionCwd: "/tmp/proj", originatorBundleID: nil)
+        XCTAssertNotNil(s.compactActionError)
+        XCTAssertTrue(s.compactActionError?.lowercased().contains("not open") ?? false)
+    }
+
     /// After a compaction the window is new, so the advice starts over.
     @MainActor
     func testCompactingResetsTheAdvice() {

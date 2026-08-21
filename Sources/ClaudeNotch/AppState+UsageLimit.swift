@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 // Pausing on a usage limit, and coming back from one.
 //
@@ -155,14 +156,21 @@ extension AppState {
 
         upsertSession(id: sessionId, cwd: cwd) { $0.compactAdviceGiven = urgency.stringValue }
 
+        // Allow on this card means "do it now": the card is advice, and advice
+        // you have to go and act on somewhere else is advice most people skip.
+        let cwd = session.cwd
+        let originator = session.originatorBundleID
         enqueuePermission(PermissionRequest(
             kind: .notification,
             title: CompactAdvice.title(urgency, percent: session.contextPercent),
             detail: CompactAdvice.detail(urgency),
             toolName: "Compact",
             source: "ClaudeNotch",
-            cwd: session.cwd,
-            resolver: { _, _ in }))
+            cwd: cwd,
+            resolver: { [weak self] decision, _ in
+                guard decision == .allow else { return }
+                self?.runCompact(forSessionCwd: cwd, originatorBundleID: originator)
+            }))
     }
 }
 
@@ -183,5 +191,39 @@ extension CompactAdvice.Urgency {
         case "urgent": self = .urgent
         default: self = .none
         }
+    }
+}
+
+// MARK: - Running /compact for the user
+
+extension AppState {
+
+    /// Type `/compact` into the session the advice was about.
+    ///
+    /// The advice is only advice until acting on it is cheaper than ignoring
+    /// it. Ignoring it costs nothing; acting on it meant finding the terminal,
+    /// which is the same context switch this whole app exists to remove.
+    ///
+    /// Typed rather than sent over the hook socket, because compaction is a
+    /// slash command in the session's own prompt and there is no hook that
+    /// starts one. That means Accessibility, and when it is missing the honest
+    /// move is to say so rather than appear to do nothing.
+    func runCompact(forSessionCwd cwd: String, originatorBundleID: String?) {
+        guard let bid = originatorBundleID, !bid.isEmpty,
+              !NSRunningApplication.runningApplications(withBundleIdentifier: bid).isEmpty
+        else {
+            compactActionError = L("That session's terminal is not open any more.",
+                                   comment: "Error when the app cannot find the terminal to type /compact into")
+            return
+        }
+        guard TerminalAutomator.isAccessibilityTrusted else {
+            promptAccessibility()
+            compactActionError = L("ClaudeNotch needs Accessibility to type into your terminal. I opened System Settings; enable it there and try again.",
+                                   comment: "Error when Accessibility is missing and the app cannot type /compact")
+            return
+        }
+        TerminalAutomator.sendText("/compact", toBundleID: bid)
+        play(.messageSent)
+        compactActionError = nil
     }
 }

@@ -468,6 +468,9 @@
 /* Accessibility label for the menu bar icon when the hook server is down */
 "ClaudeNotch is not receiving prompts" = "ClaudeNotch is not receiving prompts";
 
+/* Error when Accessibility is missing and the app cannot type /compact */
+"ClaudeNotch needs Accessibility to type into your terminal. I opened System Settings; enable it there and try again." = "ClaudeNotch needs Accessibility to type into your terminal. I opened System Settings; enable it there and try again.";
+
 /* Update dialog body. %1$@ is the new version, %2$@ is the installed one */
 "ClaudeNotch v%1$@ is available. You're on v%2$@." = "ClaudeNotch v%1$@ is available. You're on v%2$@.";
 
@@ -1442,6 +1445,9 @@
 
 /* Note shown when a typed rule is a duplicate */
 "That rule is already in the list." = "That rule is already in the list.";
+
+/* Error when the app cannot find the terminal to type /compact into */
+"That session's terminal is not open any more." = "That session's terminal is not open any more.";
 
 /* Shown on the card when a biometric confirmation failed for any other reason */
 "That was not confirmed, so nothing was allowed." = "That was not confirmed, so nothing was allowed.";

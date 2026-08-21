@@ -960,6 +960,9 @@ final class AppState: ObservableObject {
     // here" is worth remembering, not worth re-deriving every hook.
     var sandboxCache: [String: (status: SandboxReader.Status?, readAt: Date)] = [:]
 
+    // Why the last "compact now" button did nothing, when it did nothing.
+    @Published var compactActionError: String?
+
     // Sessions already warned about not waking up after their limit reset. One
     // warning per pause, not one per timer tick.
     var stalledLimitReported: Set<String> = []
