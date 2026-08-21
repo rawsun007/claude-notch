@@ -127,6 +127,8 @@ extension AppState {
             if contextTokens > 0 { s.isCompacting = false }
         }
 
+        adviseCompactionIfNeeded(sessionId: sessionId)
+
         // Per-session budget: alert when this session crosses 80% / 100% of cap.
         if sessionCostCap > 0 {
             let key = !sessionId.isEmpty ? sessionId : currentCwd
@@ -357,6 +359,8 @@ extension AppState {
         let dir = cwd.isEmpty ? currentCwd : cwd
         upsertSession(id: sessionId, cwd: dir) { s in
             s.isCompacting = false
+            // New window, so the advice starts over.
+            s.compactAdviceGiven = ""
         }
         // The summary is the whole point of the event: it is what the session
         // now remembers instead of the conversation it just lost.

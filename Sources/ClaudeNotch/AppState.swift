@@ -468,6 +468,11 @@ final class AppState: ObservableObject {
     // one privileged verb now asks first. Off is for people who would rather
     // the surface did not exist on their machine.
     @Published var urlSchemeEnabled: Bool = true
+    // Suggest compacting when a session's context passes half a window. On by
+    // default: it is the habit that separates a long session that stays good
+    // from one that degrades, and the app is the only thing that sees the
+    // number before the user does.
+    @Published var compactAdviceEnabled: Bool = true
     // Plan tier and the tightest limit, next to the menu-bar bell. Off by
     // default: it names the account's plan, which not everyone wants on screen.
     @Published var showPlanInMenuBar: Bool = false
@@ -864,6 +869,7 @@ final class AppState: ObservableObject {
             self.showPlanInMenuBar = snapshot.showPlanInMenuBar ?? false
             self.showSandboxBadge = snapshot.showSandboxBadge ?? true
             self.urlSchemeEnabled = snapshot.urlSchemeEnabled ?? true
+            self.compactAdviceEnabled = snapshot.compactAdviceEnabled ?? true
             self.statusBarItems = snapshot.statusBarItems?
                 .compactMap(StatusBarItem.init) ?? [.fiveHourLimit, .weeklyLimit]
             self.contextWindowMode = snapshot.contextWindowMode.flatMap(ContextWindowMode.init) ?? .auto

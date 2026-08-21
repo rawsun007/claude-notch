@@ -548,6 +548,7 @@ extension AppState {
             showPlanInMenuBar: showPlanInMenuBar,
             showSandboxBadge: showSandboxBadge,
             urlSchemeEnabled: urlSchemeEnabled,
+            compactAdviceEnabled: compactAdviceEnabled,
             enforceBudget: enforceBudget,
             statusBarItems: statusBarItems.map(\.rawValue),
             contextWindowMode: contextWindowMode.rawValue,

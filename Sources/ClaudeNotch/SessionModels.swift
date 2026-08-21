@@ -83,6 +83,11 @@ struct LiveSession: Identifiable, Equatable {
     // Capped and de-duplicated: the paths arrive on hook payloads.
     var instructionFiles: [String] = []
 
+    // The strongest compaction advice already given for this session, so
+    // crossing a threshold twice says nothing and crossing the next one still
+    // does. Reset when the session compacts, because then it is a new window.
+    var compactAdviceGiven: String = ""
+
     // Set while a session is stopped on a usage limit. Claude Code waits for
     // the reset and continues by itself, so this is a pause rather than an end,
     // and the moment it picks up again is the moment the user wants to hear

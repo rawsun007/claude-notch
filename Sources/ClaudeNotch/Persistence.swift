@@ -38,6 +38,7 @@ enum Persistence {
         var showPlanInMenuBar: Bool? = nil
         var showSandboxBadge: Bool? = nil
         var urlSchemeEnabled: Bool? = nil
+        var compactAdviceEnabled: Bool? = nil
         var enforceBudget: Bool? = nil
         var statusBarItems: [String]? = nil
         var contextWindowMode: String? = nil
@@ -191,6 +192,7 @@ extension Persistence.Snapshot {
             showPlanInMenuBar: try? c.decode(Bool.self, forKey: .showPlanInMenuBar),
             showSandboxBadge: try? c.decode(Bool.self, forKey: .showSandboxBadge),
             urlSchemeEnabled: try? c.decode(Bool.self, forKey: .urlSchemeEnabled),
+            compactAdviceEnabled: try? c.decode(Bool.self, forKey: .compactAdviceEnabled),
             enforceBudget: try? c.decode(Bool.self, forKey: .enforceBudget),
             statusBarItems: try? c.decode([String].self, forKey: .statusBarItems),
             contextWindowMode: try? c.decode(String.self, forKey: .contextWindowMode),

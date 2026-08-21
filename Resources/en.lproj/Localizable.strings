@@ -333,6 +333,9 @@
 /* Settings toggle */
 "Auto-approve permissions" = "Auto-approve permissions";
 
+/* Card body when auto-compaction is imminent */
+"Auto-compaction is close. Doing it now means it happens between two things rather than inside one." = "Auto-compaction is close. Doing it now means it happens between two things rather than inside one.";
+
 /* Heading: auto mode blocked this action without asking */
 "Auto-denied" = "Auto-denied";
 
@@ -510,6 +513,9 @@
 /* Settings section heading */
 "Codex usage (tokens)" = "Codex usage (tokens)";
 
+/* Card body suggesting a deliberate compaction */
+"Compacting now writes the summary while the conversation still has its shape. Left alone, Claude Code will do it on its own schedule, which tends to be in the middle of the next thing you ask for." = "Compacting now writes the summary while the conversation still has its shape. Left alone, Claude Code will do it on its own schedule, which tends to be in the middle of the next thing you ask for.";
+
 /* Card title shown when a turn pauses because the context filled up and is being summarised */
 "Compacting the conversation" = "Compacting the conversation";
 
@@ -536,6 +542,12 @@
 
 /* History row: the user compacted the context by hand */
 "Context compacted with /compact" = "Context compacted with /compact";
+
+/* Card title when auto-compact is close. %d is a percentage */
+"Context is %d%% full. Compact before it happens on its own." = "Context is %d%% full. Compact before it happens on its own.";
+
+/* Card title suggesting the user compact. %d is a percentage */
+"Context is %d%% full. Good moment to compact." = "Context is %d%% full. Good moment to compact.";
 
 /* Settings section heading */
 "Context window" = "Context window";

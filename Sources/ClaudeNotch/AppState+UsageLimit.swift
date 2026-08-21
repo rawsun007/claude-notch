@@ -134,3 +134,54 @@ extension AppState {
         return Self.normalizedCwd(dir)
     }
 }
+
+// MARK: - Compaction advice
+
+extension AppState {
+
+    /// Say something when a session's context crosses a line worth crossing
+    /// deliberately. See CompactAdvice for the thresholds and the reasoning.
+    func adviseCompactionIfNeeded(sessionId: String, cwd: String = "") {
+        guard compactAdviceEnabled else { return }
+        let key = sessionKey(sessionId: sessionId, cwd: cwd)
+        guard let session = sessions[key] else { return }
+        guard CompactAdvice.worthAdvising(hasMeter: session.hasMeter,
+                                          isWorking: Self.isWorking(status: session.status),
+                                          isCompacting: session.isCompacting) else { return }
+
+        let said = CompactAdvice.Urgency(rawValueString: session.compactAdviceGiven)
+        let urgency = CompactAdvice.urgency(percent: session.contextPercent, alreadySaid: said)
+        guard urgency != .none else { return }
+
+        upsertSession(id: sessionId, cwd: cwd) { $0.compactAdviceGiven = urgency.stringValue }
+
+        enqueuePermission(PermissionRequest(
+            kind: .notification,
+            title: CompactAdvice.title(urgency, percent: session.contextPercent),
+            detail: CompactAdvice.detail(urgency),
+            toolName: "Compact",
+            source: "ClaudeNotch",
+            cwd: session.cwd,
+            resolver: { _, _ in }))
+    }
+}
+
+extension CompactAdvice.Urgency {
+    /// Stored on the session as a string, because LiveSession stays a plain
+    /// value type that anything can read without importing this rule.
+    var stringValue: String {
+        switch self {
+        case .none: return ""
+        case .suggested: return "suggested"
+        case .urgent: return "urgent"
+        }
+    }
+
+    init(rawValueString: String) {
+        switch rawValueString {
+        case "suggested": self = .suggested
+        case "urgent": self = .urgent
+        default: self = .none
+        }
+    }
+}

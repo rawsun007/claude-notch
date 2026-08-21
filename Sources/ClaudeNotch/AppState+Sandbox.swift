@@ -126,6 +126,11 @@ extension AppState {
         schedulePersist()
     }
 
+    func setCompactAdviceEnabled(_ on: Bool) {
+        compactAdviceEnabled = on
+        schedulePersist()
+    }
+
     func setShowSandboxBadge(_ on: Bool) {
         showSandboxBadge = on
         schedulePersist()
