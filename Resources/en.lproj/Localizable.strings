@@ -1317,6 +1317,9 @@
 /* History tab: past sessions */
 "Sessions" = "Sessions";
 
+/* Card body listing compliance labels. %@ is a list of labels */
+"Sessions on this Mac carry: %@" = "Sessions on this Mac carry: %@";
+
 /* Menu item: open the settings window */
 "Settings…" = "Settings…";
 
@@ -1707,8 +1710,8 @@
 /* Card title when managed settings carry a monitoring notice */
 "Your organisation has a notice about this session" = "Your organisation has a notice about this session";
 
-/* Card title when managed settings restrict features, with no notice text */
-"Your organisation restricts what agents may do here" = "Your organisation restricts what agents may do here";
+/* Card title when managed settings carry compliance labels but no notice text */
+"Your organisation has labelled these sessions" = "Your organisation has labelled these sessions";
 
 /* VoiceOver label for the free-text answer field */
 "Your own answer" = "Your own answer";

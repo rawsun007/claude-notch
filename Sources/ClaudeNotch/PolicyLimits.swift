@@ -27,7 +27,20 @@ enum PolicyLimits: Equatable {
         /// Compliance labels attached to this machine's sessions.
         var taints: [String]
 
-        var isManaged: Bool { monitoringNotice != nil || !denied.isEmpty || !taints.isEmpty }
+        /// Whether an organisation has actually decided something here.
+        ///
+        /// Not "are any restrictions off". Every personal Mac has a
+        /// policy-limits.json with several of them off, because that file also
+        /// carries what a consumer account simply does not include:
+        /// remote control, quick web setup, and so on. Reading those as an
+        /// administrator's decision told people with no administrator that
+        /// their organisation restricts their machine, which is both false and
+        /// alarming, and it is what shipped.
+        ///
+        /// A managed machine is one where somebody wrote something: a
+        /// monitoring notice, or a compliance label. Restrictions are then
+        /// worth listing as detail, but they are not the evidence.
+        var isManaged: Bool { monitoringNotice != nil || !taints.isEmpty }
     }
 
     static var defaultPath: String {
@@ -94,13 +107,14 @@ enum PolicyLimits: Equatable {
         status.monitoringNotice != nil
             ? L("Your organisation has a notice about this session",
                 comment: "Card title when managed settings carry a monitoring notice")
-            : L("Your organisation restricts what agents may do here",
-                comment: "Card title when managed settings restrict features, with no notice text")
+            : L("Your organisation has labelled these sessions",
+                comment: "Card title when managed settings carry compliance labels but no notice text")
     }
 
     nonisolated static func cardDetail(_ status: Status) -> String {
         if let notice = status.monitoringNotice { return notice }
-        let names = status.denied.map { label(for: $0) }
-        return names.joined(separator: ". ")
+        return String(format: L("Sessions on this Mac carry: %@",
+                                comment: "Card body listing compliance labels. %@ is a list of labels"),
+                      status.taints.joined(separator: ", "))
     }
 }

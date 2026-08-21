@@ -24,7 +24,19 @@ final class PolicyLimitsTests: XCTestCase {
                                   "enforce_web_search_mcp_isolation"])
         XCTAssertNil(s.monitoringNotice)
         XCTAssertTrue(s.taints.isEmpty)
-        XCTAssertTrue(s.isManaged)
+        // And this is a PERSONAL Mac. Those three are off because a consumer
+        // account does not include them, not because an administrator said so.
+        // The first version of this called it managed and told the owner their
+        // organisation restricts their machine.
+        XCTAssertFalse(s.isManaged, "restrictions alone are not an organisation")
+    }
+
+    /// The evidence of a managed machine is somebody having written something.
+    func testOnlyANoticeOrALabelMeansManaged() {
+        XCTAssertTrue(parse(#"{"monitoring_notice":"Recorded for audit."}"#).isManaged)
+        XCTAssertTrue(parse(#"{"compliance_taints":["pci"]}"#).isManaged)
+        XCTAssertFalse(parse(#"{"restrictions":{"allow_remote_control":{"allowed":false}}}"#).isManaged)
+        XCTAssertFalse(parse("{}").isManaged)
     }
 
     /// Only denials are kept. A list of what is permitted is not news.
@@ -97,13 +109,32 @@ final class PolicyLimitsTests: XCTestCase {
         let withNotice = parse(#"{"monitoring_notice":"We record everything.","restrictions":{"allow_remote_control":{"allowed":false}}}"#)
         XCTAssertEqual(PolicyLimits.cardDetail(withNotice), "We record everything.")
         XCTAssertTrue(PolicyLimits.cardTitle(withNotice).lowercased().contains("notice"))
+    }
 
-        let restrictionsOnly = parse(#"{"restrictions":{"allow_remote_control":{"allowed":false}}}"#)
-        XCTAssertTrue(PolicyLimits.cardDetail(restrictionsOnly).lowercased().contains("remote control"))
-        XCTAssertFalse(PolicyLimits.cardTitle(restrictionsOnly).isEmpty)
+    /// With labels but no notice, the card names the labels rather than
+    /// reciting restrictions that are not evidence of anything.
+    func testLabelsCarryTheCardWhenThereIsNoNotice() {
+        let tainted = parse(#"{"compliance_taints":["pci","hipaa"]}"#)
+        let detail = PolicyLimits.cardDetail(tainted)
+        XCTAssertTrue(detail.contains("pci"), detail)
+        XCTAssertTrue(detail.contains("hipaa"), detail)
+        XCTAssertFalse(PolicyLimits.cardTitle(tainted).isEmpty)
     }
 
     // MARK: - Announcing it
+
+    /// The regression, on a real session: this machine's own file must produce
+    /// no card at all.
+    @MainActor
+    func testThisMachinesOwnPolicyFileSaysNothing() {
+        let s = AppState()
+        s.policy = PolicyLimits.read()   // the real ~/.claude/policy-limits.json
+        s.announcePolicyIfNeeded()
+        if s.policy.monitoringNotice == nil && s.policy.taints.isEmpty {
+            XCTAssertTrue(s.permissionQueue.isEmpty,
+                          "an unmanaged Mac must not be told it has an organisation")
+        }
+    }
 
     @MainActor
     func testAManagedMachineIsAnnouncedOnce() {
