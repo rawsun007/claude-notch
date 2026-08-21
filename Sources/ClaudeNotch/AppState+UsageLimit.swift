@@ -227,3 +227,42 @@ extension AppState {
         compactActionError = nil
     }
 }
+
+// MARK: - Whether a project tells its agent anything
+
+extension AppState {
+
+    /// Say once, per project, whether this project has a CLAUDE.md worth having.
+    ///
+    /// Keyed on the directory rather than the session: the answer is a property
+    /// of the project, and hearing it again for every session opened in the
+    /// same repo is how a fair point becomes nagging.
+    func adviseProjectInstructionsIfNeeded(sessionId: String, cwd: String = "") {
+        guard compactAdviceEnabled else { return }   // same "should the app nudge" switch
+        let key = sessionKey(sessionId: sessionId, cwd: cwd)
+        guard let session = sessions[key], !session.cwd.isEmpty else { return }
+        guard !instructionAdviceGiven.contains(session.cwd) else { return }
+
+        let status = ProjectInstructions.status(cwd: session.cwd)
+        guard ProjectInstructions.worthAdvising(status, toolCalls: session.toolCallCount) else { return }
+        instructionAdviceGiven.insert(session.cwd)
+
+        enqueuePermission(PermissionRequest(
+            kind: .notification,
+            title: ProjectInstructions.title(status),
+            detail: ProjectInstructions.detail(status),
+            toolName: "Instructions",
+            source: "ClaudeNotch",
+            cwd: session.cwd,
+            resolver: { _, _ in }))
+    }
+}
+
+extension AppState {
+    /// Run the check for every live session, off the heartbeat.
+    func adviseProjectInstructionsForLiveSessions() {
+        for session in Array(sessions.values) {
+            adviseProjectInstructionsIfNeeded(sessionId: session.id, cwd: session.cwd)
+        }
+    }
+}

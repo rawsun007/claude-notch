@@ -960,6 +960,10 @@ final class AppState: ObservableObject {
     // here" is worth remembering, not worth re-deriving every hook.
     var sandboxCache: [String: (status: SandboxReader.Status?, readAt: Date)] = [:]
 
+    // Projects already told about their CLAUDE.md. Keyed on the directory: the
+    // answer belongs to the project, not to each session opened in it.
+    var instructionAdviceGiven: Set<String> = []
+
     // Why the last "compact now" button did nothing, when it did nothing.
     @Published var compactActionError: String?
 

@@ -285,6 +285,10 @@ extension AppState {
                 // And the task list on disk, which is the only source that
                 // survives a restart or a session the hooks never reached.
                 self?.refreshTaskStore()
+                // And whether the projects being worked in tell their agent
+                // anything. Once per project, after enough work to know this is
+                // real rather than a one-line question in a scratch directory.
+                self?.adviseProjectInstructionsForLiveSessions()
             }
         }
     }

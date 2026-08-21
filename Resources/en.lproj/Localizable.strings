@@ -843,6 +843,9 @@
 /* Settings section heading */
 "Integrations (beta)" = "Integrations (beta)";
 
+/* Card body when a project has no instruction file */
+"It is the only context an agent carries into every task here without being asked: your conventions, the architecture, what not to touch. A short one is worth more than none." = "It is the only context an agent carries into every task here without being asked: your conventions, the architecture, what not to touch. A short one is worth more than none.";
+
 /* Settings button */
 "Keep on until I turn it off" = "Keep on until I turn it off";
 
@@ -860,6 +863,9 @@
 
 /* Sparkline caption. %@ is a money total */
 "Last 7 days: %@" = "Last 7 days: %@";
+
+/* Card body when the instruction file is old. First %@ is a duration, second is a file name */
+"Last changed %@ ago (%@). If the codebase has moved since, the agent is being told something that is no longer true, which is worse than being told nothing." = "Last changed %@ ago (%@). If the codebase has moved since, the agent is being told something that is no longer true, which is worse than being told nothing.";
 
 /* Dialog button: dismiss the update prompt */
 "Later" = "Later";
@@ -1496,6 +1502,12 @@
 
 /* Settings row: spend since the first of the month */
 "This month so far" = "This month so far";
+
+/* Card title when a project has no instruction file */
+"This project has no CLAUDE.md" = "This project has no CLAUDE.md";
+
+/* Card title when the instruction file is old */
+"This project's CLAUDE.md has not changed in a long time" = "This project's CLAUDE.md has not changed in a long time";
 
 /* History row detail for the web search cap */
 "This session has used every WebSearch call it is allowed. Raise CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION to allow more." = "This session has used every WebSearch call it is allowed. Raise CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION to allow more.";
