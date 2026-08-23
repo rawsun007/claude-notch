@@ -110,7 +110,13 @@ extension AppState {
 
         if !bypassRules, !req.isDangerous,
            let matched = allowRules.first(where: { $0.matches(req) }),
-           !(strictBlocksBlanketApproval && matched.commandRegex == nil) {
+           !(strictBlocksBlanketApproval && matched.commandRegex == nil),
+           // A hand-written regex is matched unanchored, so a rule meant for
+           // one command can match a line that runs several. Refuse the silent
+           // approval and ask instead. Exact-command rules are built anchored
+           // and so cover the whole line; blanket rules are a decision the user
+           // made on purpose and are Strict Mode's business, not this check's.
+           !ChainedCommand.wouldOverApprove(regex: matched.commandRegex, command: req.detail) {
             // Auto-allowed by a rule the user installed earlier. Still
             // log it to history so they can see what we approved silently.
             // Dangerous commands are exempt — even a tool-wide always-allow
