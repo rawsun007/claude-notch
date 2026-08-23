@@ -32,9 +32,14 @@ source_fingerprint() {
 # It used to live in Contents/Resources/.source-stamp, which broke the code
 # signature of every install: the file was added after signing, so the seal no
 # longer matched and `codesign --verify` reported "a sealed resource is missing
-# or invalid". That is worse than being unsigned. It also defeated the whole
-# point of the check, because an invalid seal is exactly what makes macOS
-# re-validate the bundle on launch, which is the 38 seconds described below.
+# or invalid". That is worse than being unsigned, and it matters most on
+# somebody else's Mac, where a broken seal is what Gatekeeper refuses hardest.
+#
+# It does NOT explain the 38-second first-launch delay described below. That was
+# the guess when this was fixed, and it was measured afterwards: with a valid
+# seal, a cold launch still takes 39 seconds to reach the listening socket. The
+# delay is the Gatekeeper assessment an unnotarized bundle gets, and only
+# notarizing the app removes it.
 STAMP_PATH="$HOME/.claudenotch/source-stamp"
 SRC_HASH=$(source_fingerprint)
 
