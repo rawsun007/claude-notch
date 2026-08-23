@@ -26,12 +26,33 @@ source_fingerprint() {
          \( -name '*.swift' -o -name '*.sh' -o -name '*.strings' -o -name '*.json' -o -name '*.py' \) \
          2>/dev/null | sort | xargs shasum -a 256 2>/dev/null | shasum -a 256 | cut -d' ' -f1
 }
-STAMP_PATH="/Applications/ClaudeNotch.app/Contents/Resources/.source-stamp"
+#
+# The stamp lives beside the app's other state, NOT inside the bundle.
+#
+# It used to live in Contents/Resources/.source-stamp, which broke the code
+# signature of every install: the file was added after signing, so the seal no
+# longer matched and `codesign --verify` reported "a sealed resource is missing
+# or invalid". That is worse than being unsigned. It also defeated the whole
+# point of the check, because an invalid seal is exactly what makes macOS
+# re-validate the bundle on launch, which is the 38 seconds described below.
+STAMP_PATH="$HOME/.claudenotch/source-stamp"
 SRC_HASH=$(source_fingerprint)
+
+# Repair an install made by the version that stamped inside the bundle. Left in
+# place it keeps that install's signature broken forever, since nothing else
+# ever removes it.
+LEGACY_STAMP="/Applications/ClaudeNotch.app/Contents/Resources/.source-stamp"
+if [ -f "$LEGACY_STAMP" ]; then
+    rm -f "$LEGACY_STAMP" 2>/dev/null || true
+    # The bundle it was in is now unstamped, so fall through to a real install
+    # rather than trusting a stamp written by the broken scheme.
+    rm -f "$STAMP_PATH" 2>/dev/null || true
+fi
 
 if [ "${1:-}" != "--force" ] \
    && [ -f "$STAMP_PATH" ] \
    && [ "$(cat "$STAMP_PATH" 2>/dev/null)" = "$SRC_HASH" ] \
+   && [ -d "/Applications/ClaudeNotch.app" ] \
    && pgrep -x ClaudeNotch >/dev/null 2>&1; then
     echo "✓ /Applications is already running this source tree, nothing to do."
     echo "  (./install.sh --force reinstalls anyway)"
@@ -118,8 +139,12 @@ if [ "$NEEDS_SWAP" = "1" ]; then
     fi
     rm -rf "$APP.previous"
     # Stamp what went in, so the next run can tell whether it would change
-    # anything before paying for a restart.
-    printf '%s' "$SRC_HASH" > "$APP/Contents/Resources/.source-stamp" 2>/dev/null || true
+    # anything before paying for a restart. Outside the bundle: writing into a
+    # signed app after signing it invalidates the seal, which is the cost this
+    # check exists to avoid.
+    mkdir -p "$(dirname "$STAMP_PATH")" 2>/dev/null || true
+    chmod 700 "$(dirname "$STAMP_PATH")" 2>/dev/null || true
+    printf '%s' "$SRC_HASH" > "$STAMP_PATH" 2>/dev/null || true
     echo "→ Installed to $APP"
     open "$APP"
 fi
