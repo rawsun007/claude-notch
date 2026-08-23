@@ -1245,6 +1245,7 @@ final class EventServer {
             cancelPolling(transcriptPath: path)
         }
         Task { @MainActor [weak state] in
+            state?.clearToolRepeats(sessionId: sessionId, cwd: cwd)
             state?.removeSession(sessionId: sessionId, cwd: cwd)
         }
     }
@@ -1419,11 +1420,16 @@ final class EventServer {
         let input = payload["tool_input"] as? [String: Any] ?? [:]
         let sessionId = (payload["session_id"] as? String) ?? ""
         guard !tool.isEmpty else { return }
+        let cwd = (payload["cwd"] as? String) ?? ""
         Task { @MainActor [weak state] in
             guard let state else { return }
             let detail = self.enrichedDetail(for: tool, input: input)
             let label = detail.isEmpty ? tool : "\(tool): \(detail)"
             state.noteActivity(String(label.prefix(80)), sessionId: sessionId)
+            // Counted here rather than on PostToolUse so a session stuck
+            // retrying the same call shows up as it starts, and still counts
+            // when a call never returns at all.
+            state.noteToolRepeat(tool: tool, input: input, sessionId: sessionId, cwd: cwd)
         }
     }
 

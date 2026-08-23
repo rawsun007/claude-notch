@@ -159,6 +159,9 @@
 /* Why a link-triggered resume is treated as dangerous */
 "A link can be opened by any page you visit" = "A link can be opened by any page you visit";
 
+/* Card body explaining why a repeated tool call matters */
+"A loop that cannot make progress bills at full speed, so this is worth a look at the terminal." = "A loop that cannot make progress bills at full speed, so this is worth a look at the terminal.";
+
 /* Settings toggle explanation */
 "A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost." = "A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost.";
 
@@ -810,6 +813,9 @@
 /* Button opening Anthropic's help page about usage credits */
 "How credits work" = "How credits work";
 
+/* Lead sentence when a tool call has repeated with the same input */
+"Identical input each time." = "Identical input each time.";
+
 /* Settings sidebar group */
 "Info" = "Info";
 
@@ -842,6 +848,9 @@
 
 /* Settings section heading */
 "Integrations (beta)" = "Integrations (beta)";
+
+/* Lead sentence when a repeated tool call has continued to a very high count */
+"It is still going." = "It is still going.";
 
 /* Card body when a project has no instruction file */
 "It is the only context an agent carries into every task here without being asked: your conventions, the architecture, what not to touch. A short one is worth more than none." = "It is the only context an agent carries into every task here without being asked: your conventions, the architecture, what not to touch. A short one is worth more than none.";
@@ -1464,6 +1473,9 @@
 /* Shown on the card when a biometric confirmation failed for any other reason */
 "That was not confirmed, so nothing was allowed." = "That was not confirmed, so nothing was allowed.";
 
+/* Card body naming the repeated call. %@ is a short preview of it */
+"The call is %@. A loop that cannot make progress bills at full speed, so this is worth a look at the terminal." = "The call is %@. A loop that cannot make progress bills at full speed, so this is worth a look at the terminal.";
+
 /* Explanation under the new-rule fields */
 "The command must match exactly, the way it appeared on the card. A blank command approves every call of the tool." = "The command must match exactly, the way it appeared on the card. A blank command approves every call of the tool.";
 
@@ -1514,6 +1526,9 @@
 
 /* Card title when the instruction file is old */
 "This project's CLAUDE.md has not changed in a long time" = "This project's CLAUDE.md has not changed in a long time";
+
+/* Card title for a repeated tool call. %@ is the tool name, %d the count */
+"This session has run the same %@ call %d times" = "This session has run the same %@ call %d times";
 
 /* History row detail for the web search cap */
 "This session has used every WebSearch call it is allowed. Raise CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION to allow more." = "This session has used every WebSearch call it is allowed. Raise CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION to allow more.";

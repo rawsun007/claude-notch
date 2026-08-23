@@ -686,6 +686,19 @@ final class AppState: ObservableObject {
         schedulePersist()
     }
 
+    /// Whether to say so when a session runs the same tool call over and over.
+    @Published var runawayAlertsEnabled: Bool = true
+
+    func setRunawayAlertsEnabled(_ on: Bool) {
+        runawayAlertsEnabled = on
+        schedulePersist()
+    }
+
+    /// How many times each session has made each distinct tool call, keyed
+    /// "sessionKey|signature". Payload-fed, so capped like the rest.
+    var toolRepeatCounts: [String: Int] = [:]
+    static let toolRepeatCountsCap = 512
+
     /// Tier drops already announced, as "sessionKey|From>To".
     ///
     /// A drop is detected by comparing against the model the session is
