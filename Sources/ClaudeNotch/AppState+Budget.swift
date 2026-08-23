@@ -192,6 +192,9 @@ extension AppState {
         // Model update is independent of contextPct — a status line may carry a
         // model string but no context percentage (e.g. early in a session).
         let pct = contextPct.map { min(1, max(0, $0 / 100)) }
+        // Before the model is overwritten below: the value it is replacing is
+        // the only evidence that a session fell a tier.
+        noteModelChange(sessionId: sessionId, cwd: currentCwd, model: model)
         upsertSession(id: sessionId, cwd: currentCwd) { s in
             if let pct { s.contextPercent = pct }
             if !model.isEmpty { s.model = model }

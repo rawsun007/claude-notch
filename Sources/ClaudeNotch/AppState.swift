@@ -678,6 +678,26 @@ final class AppState: ObservableObject {
 
     @Published var rateLimitWarningsEnabled: Bool = true
 
+    /// Whether to say so when a session's model drops a tier under it.
+    @Published var modelChangeAlertsEnabled: Bool = true
+
+    func setModelChangeAlertsEnabled(_ on: Bool) {
+        modelChangeAlertsEnabled = on
+        schedulePersist()
+    }
+
+    /// Tier drops already announced, as "sessionKey|From>To".
+    ///
+    /// A drop is detected by comparing against the model the session is
+    /// currently on, so one fall can only be found once; by the next status
+    /// line the session already reads Sonnet and there is nothing left to
+    /// compare. What this set is actually for is flapping. A session bouncing
+    /// between Opus and Sonnet around a cap boundary would otherwise raise a
+    /// card on every bounce, so each transition is said once per session and
+    /// then stays quiet. Capped like every other payload-fed collection here.
+    var modelDriftAnnounced: Set<String> = []
+    static let modelDriftAnnouncedCap = 64
+
     /// Language override for the notch's own text. Empty follows macOS. Lives
     /// in UserDefaults rather than the state snapshot because Localization
     /// reads it from outside the main actor, and publishing it here is what

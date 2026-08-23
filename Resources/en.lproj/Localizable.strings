@@ -846,6 +846,9 @@
 /* Card body when a project has no instruction file */
 "It is the only context an agent carries into every task here without being asked: your conventions, the architecture, what not to touch. A short one is worth more than none." = "It is the only context an agent carries into every task here without being asked: your conventions, the architecture, what not to touch. A short one is worth more than none.";
 
+/* Card body when a session's model dropped a tier. %@ is the model family it started on */
+"It started on %@. Either you switched it, or your plan moved it. Claude Code does not say which, so this is only the change itself." = "It started on %@. Either you switched it, or your plan moved it. Claude Code does not say which, so this is only the change itself.";
+
 /* Settings button */
 "Keep on until I turn it off" = "Keep on until I turn it off";
 
@@ -1514,6 +1517,9 @@
 
 /* History row detail for the web search cap */
 "This session has used every WebSearch call it is allowed. Raise CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION to allow more." = "This session has used every WebSearch call it is allowed. Raise CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION to allow more.";
+
+/* Card title when a session's model dropped to a lower tier. First %@ is the new model family, second is the old one */
+"This session is now on %@, not %@" = "This session is now on %@, not %@";
 
 /* History row detail for the subagent cap */
 "This session is running as many agents at once as it is allowed to. Raise CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS to allow more." = "This session is running as many agents at once as it is allowed to. Raise CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS to allow more.";
