@@ -150,6 +150,7 @@ jq --arg url "$NOTCH_URL" '
     .hooks.ElicitationResult  = add_hook(.hooks.ElicitationResult ; true) |
     .hooks.SubagentStart      = add_hook(.hooks.SubagentStart     ; false) |
     .hooks.SubagentStop       = add_hook(.hooks.SubagentStop      ; false) |
+    .hooks.TeammateIdle       = add_hook(.hooks.TeammateIdle      ; false) |
     .hooks.DirectoryAdded     = add_hook(.hooks.DirectoryAdded    ; false) |
     .hooks.CwdChanged         = add_hook(.hooks.CwdChanged        ; false) |
     .hooks.PermissionDenied   = add_hook(.hooks.PermissionDenied  ; true) |

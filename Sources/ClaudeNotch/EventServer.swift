@@ -1126,6 +1126,24 @@ final class EventServer {
     ///
     /// CwdChanged hook: Claude ran `cd`, so a session moved. Carries `old_cwd`
     /// and `new_cwd`.
+    /// A named teammate in this session's team has stopped and is idle.
+    ///
+    /// The payload carries `teammate_name` on top of the common fields, plus a
+    /// `team_name` the CLI already marks deprecated, which is why it is not
+    /// read here.
+    ///
+    /// Answered with a plain OK. This event can carry a decision that keeps the
+    /// teammate working, and the notch has no business making that call: it
+    /// reports, it does not steer somebody else's agent.
+    private func handleTeammateIdle(payload: [String: Any]) {
+        let name = (payload["teammate_name"] as? String) ?? ""
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let cwd = (payload["cwd"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.noteTeammateIdle(name: name, sessionId: sessionId, cwd: cwd)
+        }
+    }
+
     private func handleCwdChanged(payload: [String: Any]) {
         let sessionId = (payload["session_id"] as? String) ?? ""
         let oldCwd = (payload["old_cwd"] as? String) ?? ""
@@ -1662,6 +1680,9 @@ final class EventServer {
             sendOK(on: conn)
         case "CwdChanged":
             handleCwdChanged(payload: payload)
+            sendOK(on: conn)
+        case "TeammateIdle":
+            handleTeammateIdle(payload: payload)
             sendOK(on: conn)
         case "SessionStart":
             handleSessionStart(payload: payload)

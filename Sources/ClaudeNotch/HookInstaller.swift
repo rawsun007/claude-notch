@@ -376,6 +376,10 @@ enum HookInstaller {
         // Subagent lifecycle: show spawned agents in the activity strip.
         appendHook(to: "SubagentStart", in: &hooks, matcher: nil)
         appendHook(to: "SubagentStop", in: &hooks, matcher: nil)
+        // A named teammate has stopped and is idle in a pane of its own. Panes
+        // do not report agent status, so without this a team member can wait on
+        // you for twenty minutes with nothing on screen saying so.
+        appendHook(to: "TeammateIdle", in: &hooks, matcher: nil)
         // /add-dir mid-session. The notch shows what a session may touch, and
         // a directory granted after it started is exactly that changing.
         appendHook(to: "DirectoryAdded", in: &hooks, matcher: nil)
