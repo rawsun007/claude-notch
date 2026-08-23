@@ -80,6 +80,12 @@ enum HookInstaller {
             && s.contains("\"PermissionDenied\"") && s.contains("\"ConfigChange\"")
             && s.contains("\"PostCompact\"") && s.contains("\"Elicitation\"")
             && s.contains("\"PostToolUseFailure\"") && s.contains("\"InstructionsLoaded\"") && s.contains("\"FileChanged\"")
+            // Added later than the rest. Listed here so an existing install
+            // picks them up on update: without this the events are registered
+            // only for people installing from scratch, and the features behind
+            // them silently never fire for anybody else.
+            && s.contains("\"TeammateIdle\"")
+            && s.contains("\"WorktreeCreate\"") && s.contains("\"WorktreeRemove\"")
     }
 
     /// `jq` is required by posttool.sh to forward payload fields to the
@@ -380,6 +386,11 @@ enum HookInstaller {
         // do not report agent status, so without this a team member can wait on
         // you for twenty minutes with nothing on screen saying so.
         appendHook(to: "TeammateIdle", in: &hooks, matcher: nil)
+        // Worktrees appearing and disappearing. Parallel checkouts are how
+        // people run several agents at once, and which one a session is in is
+        // otherwise only visible in its path.
+        appendHook(to: "WorktreeCreate", in: &hooks, matcher: nil)
+        appendHook(to: "WorktreeRemove", in: &hooks, matcher: nil)
         // /add-dir mid-session. The notch shows what a session may touch, and
         // a directory granted after it started is exactly that changing.
         appendHook(to: "DirectoryAdded", in: &hooks, matcher: nil)

@@ -1144,6 +1144,33 @@ final class EventServer {
         }
     }
 
+    /// A worktree was created. The payload carries `name`, not a path: the two
+    /// worktree events are not symmetric, which is verified against the CLI's
+    /// own schema rather than assumed. `worktree_path` is read as a fallback so
+    /// a future CLI that does send one is not ignored.
+    private func handleWorktreeCreate(payload: [String: Any]) {
+        let name = (payload["name"] as? String) ?? ""
+        let path = (payload["worktree_path"] as? String) ?? ""
+        guard !name.isEmpty || !path.isEmpty else { return }
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let cwd = (payload["cwd"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.noteWorktreeCreated(name: name.isEmpty ? (path as NSString).lastPathComponent : name,
+                                       sessionId: sessionId, cwd: cwd)
+        }
+    }
+
+    /// A worktree was removed. This one carries `worktree_path`.
+    private func handleWorktreeRemove(payload: [String: Any]) {
+        let path = (payload["worktree_path"] as? String) ?? (payload["name"] as? String) ?? ""
+        guard !path.isEmpty else { return }
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let cwd = (payload["cwd"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.noteWorktreeRemoved(path: path, sessionId: sessionId, cwd: cwd)
+        }
+    }
+
     private func handleCwdChanged(payload: [String: Any]) {
         let sessionId = (payload["session_id"] as? String) ?? ""
         let oldCwd = (payload["old_cwd"] as? String) ?? ""
@@ -1683,6 +1710,12 @@ final class EventServer {
             sendOK(on: conn)
         case "TeammateIdle":
             handleTeammateIdle(payload: payload)
+            sendOK(on: conn)
+        case "WorktreeCreate":
+            handleWorktreeCreate(payload: payload)
+            sendOK(on: conn)
+        case "WorktreeRemove":
+            handleWorktreeRemove(payload: payload)
             sendOK(on: conn)
         case "SessionStart":
             handleSessionStart(payload: payload)

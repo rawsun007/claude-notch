@@ -165,11 +165,20 @@
 /* Card body explaining why a repeated tool call matters */
 "A loop that cannot make progress bills at full speed, so this is worth a look at the terminal." = "A loop that cannot make progress bills at full speed, so this is worth a look at the terminal.";
 
+/* Card title when a git worktree is created and its name is unknown */
+"A new worktree was created" = "A new worktree was created";
+
 /* Settings toggle explanation */
 "A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost." = "A once-a-day summary of what Claude did, plus a weekly roundup of sessions and estimated cost.";
 
+/* Card body explaining what a worktree does and does not isolate */
+"A session working here is isolated from your other checkouts by file, but not by port, database, or environment." = "A session working here is isolated from your other checkouts by file, but not by port, database, or environment.";
+
 /* Card title when an unnamed teammate agent has gone idle */
 "A teammate is waiting on you" = "A teammate is waiting on you";
+
+/* Card title when a git worktree is removed and its name is unknown */
+"A worktree was removed" = "A worktree was removed";
 
 /* Settings row value: authenticated via ANTHROPIC_API_KEY */
 "API key (pay-as-you-go)" = "API key (pay-as-you-go)";
@@ -963,6 +972,9 @@
 /* Onboarding step name for the custom notch title */
 "Name the notch" = "Name the notch";
 
+/* Card title when a git worktree is created. %@ is its name */
+"New worktree: %@" = "New worktree: %@";
+
 /* Menu item shown when no agent is running */
 "No Active Session" = "No Active Session";
 
@@ -1721,6 +1733,9 @@
 
 /* Settings sidebar group */
 "Workspace" = "Workspace";
+
+/* Card title when a git worktree is removed. %@ is its name */
+"Worktree removed: %@" = "Worktree removed: %@";
 
 /* VoiceOver form of the repeat-approval hint */
 "You have allowed this command %d times before" = "You have allowed this command %d times before";
