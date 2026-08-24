@@ -16,6 +16,14 @@ final class PortExclusivityTests: XCTestCase {
     /// app on 53127 does not collide with the test.
     private let testPort: UInt16 = 53929
 
+    /// A port of its own for the one test that actually serves a request.
+    ///
+    /// Serving leaves accepted connections in TIME_WAIT on that port, and the
+    /// test below deliberately binds with no reuse options to prove the port is
+    /// released on stop. Sharing one port between the two makes the second fail
+    /// on the first one's leftovers, which says nothing about the app.
+    private let servedPort: UInt16 = 53930
+
     /// The outcome of a bind attempt: the descriptor, or the errno that
     /// refused it. Not Result, because an errno is an Int32 and Int32 is not an
     /// Error.
@@ -58,7 +66,8 @@ final class PortExclusivityTests: XCTestCase {
     /// Start the real server, give the listener a moment to come up, and hand
     /// back a teardown.
     @MainActor
-    private func startServer() throws -> EventServer {
+    private func startServer(port: UInt16? = nil) throws -> EventServer {
+        let testPort = port ?? self.testPort
         let server = EventServer(port: testPort, state: AppState())
         try server.start()
         // Poll until the port is taken rather
@@ -154,18 +163,18 @@ final class PortExclusivityTests: XCTestCase {
     /// let those go. Serve one request first, and the difference shows.
     @MainActor
     func testAServerThatHasServedARequestCanStillRestartAtOnce() throws {
-        let server = try startServer()
-        makeOneConnection(port: testPort)
+        let server = try startServer(port: servedPort)
+        makeOneConnection(port: servedPort)
         server.stop()
 
-        let second = EventServer(port: testPort, state: AppState())
+        let second = EventServer(port: servedPort, state: AppState())
         defer { second.stop() }
         XCTAssertNoThrow(try second.start(),
                          "a restart after serving one hook must not wait for TIME_WAIT to drain")
 
         var listening = false
         for _ in 0..<100 {
-            if case .refused = attemptBind(port: testPort, reusePort: false, reuseAddr: false) {
+            if case .refused = attemptBind(port: servedPort, reusePort: false, reuseAddr: false) {
                 listening = true
                 break
             }
