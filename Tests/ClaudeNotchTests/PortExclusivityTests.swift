@@ -122,4 +122,55 @@ final class PortExclusivityTests: XCTestCase {
         }
         XCTAssertTrue(rebound, "port still held after stop: the app could not restart without SO_REUSEPORT")
     }
+
+    /// Connect to the server and hang up, leaving the accepted connection in
+    /// TIME_WAIT on the listening port.
+    private func makeOneConnection(port: UInt16) {
+        let fd = Darwin.socket(AF_INET, SOCK_STREAM, 0)
+        guard fd >= 0 else { return }
+        defer { Darwin.close(fd) }
+        var addr = sockaddr_in()
+        addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = port.bigEndian
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+        _ = withUnsafePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                Darwin.connect(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        let request = "GET /health HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n"
+        _ = request.withCString { Darwin.send(fd, $0, strlen($0), 0) }
+        usleep(50_000)
+    }
+
+    /// The regression, and the reason it went unnoticed for so long.
+    ///
+    /// The test above restarts a server that never served anything, and a
+    /// listening socket really does not enter TIME_WAIT, so it passed while the
+    /// app was unusable for forty seconds after every update. Every connection
+    /// the listener ACCEPTS enters TIME_WAIT carrying the same local port, so a
+    /// server that has answered even one hook could not rebind until the kernel
+    /// let those go. Serve one request first, and the difference shows.
+    @MainActor
+    func testAServerThatHasServedARequestCanStillRestartAtOnce() throws {
+        let server = try startServer()
+        makeOneConnection(port: testPort)
+        server.stop()
+
+        let second = EventServer(port: testPort, state: AppState())
+        defer { second.stop() }
+        XCTAssertNoThrow(try second.start(),
+                         "a restart after serving one hook must not wait for TIME_WAIT to drain")
+
+        var listening = false
+        for _ in 0..<100 {
+            if case .refused = attemptBind(port: testPort, reusePort: false, reuseAddr: false) {
+                listening = true
+                break
+            }
+            usleep(20_000)
+        }
+        XCTAssertTrue(listening, "the restarted server never took the port")
+    }
 }

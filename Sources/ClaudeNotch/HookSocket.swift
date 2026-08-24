@@ -266,9 +266,38 @@ final class HookListener: @unchecked Sendable {
             let fd = socket(family, SOCK_STREAM, 0)
             guard fd >= 0 else { lastErrno = errno; continue }
 
-            // No SO_REUSEADDR and no SO_REUSEPORT. Both of them are how another
-            // process gets a foot in this door, and neither is needed: a
-            // listening socket does not enter TIME_WAIT.
+            // SO_REUSEADDR yes, SO_REUSEPORT never.
+            //
+            // These are not two strengths of the same setting, and treating
+            // them as one is what made every restart of this app deaf for the
+            // better part of a minute.
+            //
+            // SO_REUSEPORT is the dangerous one, and the reason this file
+            // exists: it lets a second process bind a port another process is
+            // already listening on, so anything running as the user could take
+            // over the hook socket and answer permission prompts. It stays off.
+            //
+            // SO_REUSEADDR does not do that. On macOS a second bind to an
+            // address:port that already has a LISTEN socket is refused with
+            // EADDRINUSE whether or not SO_REUSEADDR is set; the option only
+            // permits binding over sockets in TIME_WAIT. Both halves of that
+            // are verified in HookSocketTests rather than taken on trust,
+            // because getting it wrong reopens the hole this file was written
+            // to close.
+            //
+            // TIME_WAIT is exactly the state that was hurting. The previous
+            // comment here reasoned that a listening socket never enters
+            // TIME_WAIT, which is true and beside the point: every connection
+            // it accepts does, and those carry the same local port. So a
+            // restart of an app that had served even one hook found the port
+            // unbindable for as long as the kernel held those entries, the
+            // retry schedule turned that into roughly forty seconds, and
+            // Claude Code printed a connection error for every hook fired
+            // during it.
+            var reuse: Int32 = 1
+            setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse,
+                       socklen_t(MemoryLayout<Int32>.size))
+
             if family == AF_INET6 {
                 var on: Int32 = 1   // v6 socket answers on ::1 only, never v4-mapped
                 setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, socklen_t(MemoryLayout<Int32>.size))
