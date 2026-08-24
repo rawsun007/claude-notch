@@ -173,8 +173,20 @@ extension AppState {
     func ensureRegistryTimer() {
         guard registryTimer == nil else { return }
         refreshSessionRegistry()
+        // Immediately too, not only on the tick: a reading restored from the
+        // last run can already be expired, and waiting twenty seconds to say so
+        // means the notch paints a dead window first.
+        expireStaleLimitWindows()
         registryTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.refreshSessionRegistry() }
+            Task { @MainActor [weak self] in
+                self?.refreshSessionRegistry()
+                // A window resets whether or not anything is running, and the
+                // status line that would tell us only arrives when a session
+                // redraws. Without a tick of its own, an expired reading sits
+                // on screen until the next session starts, which can be the
+                // next day.
+                self?.expireStaleLimitWindows()
+            }
         }
     }
 

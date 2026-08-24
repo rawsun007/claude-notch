@@ -167,6 +167,14 @@ extension AppState {
                         fiveHourPct: Double?, sevenDayPct: Double?,
                         fiveHourResetsAt: Date? = nil, sevenDayResetsAt: Date? = nil) {
         statusLineUpdateCount += 1
+        // First, before anything this line carries is applied: drop any window
+        // that has already reset. A line reporting a percentage but no reset
+        // instant would otherwise inherit the previous window's date, and that
+        // date can be hours in the past, which is how the warning below ended
+        // up saying "resets in now" about a window that reset long ago.
+        // Running it here rather than afterwards matters: afterwards would wipe
+        // the fresh reading this line just brought.
+        expireStaleLimitWindows()
         if fiveHourPct != nil || sevenDayPct != nil { everSawPlanLimitData = true }
         if let p = fiveHourPct { fiveHourLimitPercent = min(1, max(0, p / 100)) }
         if let p = sevenDayPct { weeklyLimitPercent = min(1, max(0, p / 100)) }
