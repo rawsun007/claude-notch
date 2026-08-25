@@ -9,6 +9,16 @@ command -v jq >/dev/null 2>&1 || { echo "jq is required"; exit 1; }
 TS=$(date +%s)
 BACKUP="$SETTINGS.before-claudenotch-uninstall.$TS"
 cp "$SETTINGS" "$BACKUP"
+# Same rules the install path already follows, and for the same reason: this
+# copy holds whatever settings.json held, including the hook token and any env
+# values, and an unpruned pile of them accumulates in ~/.claude forever. The
+# install script hardened this; the uninstall script never did, so it was
+# leaving world-readable copies behind on the way out.
+chmod 600 "$SETTINGS".before-claudenotch-uninstall.* 2>/dev/null || true
+ls -1 "$SETTINGS".before-claudenotch-uninstall.* 2>/dev/null \
+    | sort -r \
+    | tail -n +6 \
+    | while IFS= read -r old_backup; do rm -f "$old_backup"; done
 
 # Restore the user's original statusLine (captured at install time). If there
 # was none, drop our forwarder entry entirely.

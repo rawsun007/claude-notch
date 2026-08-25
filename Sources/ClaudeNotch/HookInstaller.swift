@@ -424,6 +424,17 @@ enum HookInstaller {
             }
             guard existing != out else { return }   // nothing to write
             try out.write(to: settingsURL, options: .atomic)
+            // The hook URL we just wrote carries the shared secret as a query
+            // parameter, so this file now holds a credential. Claude Code
+            // creates it at the umask default, commonly 0644, and .atomic
+            // replaces the inode anyway, so the mode has to be set after every
+            // write rather than assumed. ~/.claude is 0700 on this machine,
+            // which makes 0644 unreachable today, but that is the directory's
+            // property and not ours: a restored backup, a different umask or a
+            // synced home would expose the token, and the token is the only
+            // thing standing between another local process and answering
+            // permission prompts as this app.
+            restrict(settingsPath)
             // Every live session is about to fire ConfigChange at us for this
             // write. Mark it as ours so the notch does not announce its own edit.
             noteSelfWrite()
