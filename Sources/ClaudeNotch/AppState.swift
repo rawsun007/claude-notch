@@ -1077,7 +1077,11 @@ final class AppState: ObservableObject {
         // Data files whose default handler takes a dangerous action on open
         // (not caught by the execute-bit check): a config profile install, or a
         // link file that opens an arbitrary URL / custom-scheme handler.
-        "mobileconfig", "webloc", "url", "desktop",
+        // .inetloc and .fileloc are the same kind of file as .webloc under
+        // different extensions, and the one that has actually been used to run
+        // commands: an internet-location file whose URL is a file:// or a
+        // custom scheme, opened by its default handler without asking.
+        "mobileconfig", "webloc", "inetloc", "fileloc", "url", "desktop",
     ]
 
     /// When the tool named in `lastActivity` started running. Nil when nothing

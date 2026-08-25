@@ -37,6 +37,9 @@ final class OpenEditedFileTests: XCTestCase {
 
     func testRunnableExtensionsAreRisky() throws {
         for name in ["run.sh", "go.command", "Evil.mobileconfig", "link.webloc",
+                     // Same file type as .webloc under other extensions, and the
+                     // variant actually used to run commands via a file:// URL.
+                     "link.inetloc", "link.fileloc",
                      "link.url", "prof.terminal", "x.desktop", "a.js"] {
             XCTAssertTrue(AppState.isRiskyToOpen(try makeFile(name)),
                           "\(name) should be revealed in Finder, not opened")
