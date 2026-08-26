@@ -79,6 +79,9 @@ struct LiveSession: Identifiable, Equatable {
     var ranVerification: Bool = false
     var verificationAdvised: Bool = false
 
+    // Whether this session has already been told how much ran unprompted.
+    var autoModeReviewed: Bool = false
+
     // Files that changed on disk while this session was running, which this
     // session did not change. Usually you editing in another window, a branch
     // switch, or a build. Ordered, unique, capped: the paths are payload-fed.

@@ -998,6 +998,7 @@ final class EventServer {
             guard let state else { return }
             state.markSessionDone(cwd: cwd, sessionId: sessionId)
             state.adviseVerificationIfNeeded(sessionId: sessionId, cwd: cwd)
+            state.reviewAutoModeIfNeeded(sessionId: sessionId, cwd: cwd)
             // Name the agent that actually ran (and the user's custom title when
             // they set one) — a Codex turn must not report "Claude finished".
             let agent = state.sessionAgent(sessionId: sessionId, cwd: cwd)

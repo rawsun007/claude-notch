@@ -30,6 +30,9 @@
 /* Spend submenu row. %1$@ is a period, %2$@ is a money amount */
 "%1$@: %2$@" = "%1$@: %2$@";
 
+/* Card title summarising unprompted actions. %1$d is a count, %2$@ a folder name */
+"%1$d actions ran in %2$@ without asking you" = "%1$d actions ran in %2$@ without asking you";
+
 /* Tooltip on the task meter. %1$d is finished tasks, %2$d is the total */
 "%1$d of %2$d tasks done" = "%1$d of %2$d tasks done";
 
@@ -329,6 +332,9 @@
 
 /* Settings explanation */
 "Auto" = "Auto";
+
+/* Card body explaining what auto mode does and does not catch */
+"Auto mode checks each one with a classifier, which catches far more than people do. It is not everything: Anthropic puts its miss rate on overeager actions at about one in six. The history drawer has the full list if you want to skim what ran." = "Auto mode checks each one with a classifier, which catches far more than people do. It is not everything: Anthropic puts its miss rate on overeager actions at about one in six. The history drawer has the full list if you want to skim what ran.";
 
 /* Tooltip for the AUTO badge */
 "Auto mode, background safety checks approve safe actions" = "Auto mode, background safety checks approve safe actions";
