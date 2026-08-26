@@ -162,6 +162,9 @@
 /* Why a link-triggered resume is treated as dangerous */
 "A link can be opened by any page you visit" = "A link can be opened by any page you visit";
 
+/* Card body when the instruction file is long */
+"A long instruction file gets skimmed, and the rules that matter go with the rest. The test for a line is whether removing it would cause a mistake." = "A long instruction file gets skimmed, and the rules that matter go with the rest. The test for a line is whether removing it would cause a mistake.";
+
 /* Card body explaining why a repeated tool call matters */
 "A loop that cannot make progress bills at full speed, so this is worth a look at the terminal." = "A loop that cannot make progress bills at full speed, so this is worth a look at the terminal.";
 
@@ -830,6 +833,9 @@
 
 /* Lead sentence when a tool call has repeated with the same input */
 "Identical input each time." = "Identical input each time.";
+
+/* Card body when too many lines are marked important */
+"If several lines are marked important, none of them stands out. One line can carry the emphasis." = "If several lines are marked important, none of them stands out. One line can carry the emphasis.";
 
 /* Settings sidebar group */
 "Info" = "Info";
@@ -1551,8 +1557,14 @@
 /* Card title when a project has no instruction file */
 "This project has no CLAUDE.md" = "This project has no CLAUDE.md";
 
+/* Card title when too many lines are marked important. %d is a count */
+"This project's CLAUDE.md emphasises %d lines" = "This project's CLAUDE.md emphasises %d lines";
+
 /* Card title when the instruction file is old */
 "This project's CLAUDE.md has not changed in a long time" = "This project's CLAUDE.md has not changed in a long time";
+
+/* Card title when the instruction file is long. %d is a line count */
+"This project's CLAUDE.md is %d lines" = "This project's CLAUDE.md is %d lines";
 
 /* Card title when a session edited files without running tests or a build. %d is a file count */
 "This session changed %d files and ran no check" = "This session changed %d files and ran no check";

@@ -686,6 +686,9 @@ final class AppState: ObservableObject {
         schedulePersist()
     }
 
+    /// Projects already told their instruction file is long or shouty.
+    var instructionBloatAdvised: Set<String> = []
+
     /// Directories already flagged as having two sessions in them at once.
     var worktreeAdviceGiven: Set<String> = []
     static let worktreeAdviceCap = 32

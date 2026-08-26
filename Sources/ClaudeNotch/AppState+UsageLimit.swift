@@ -263,6 +263,7 @@ extension AppState {
     func adviseProjectInstructionsForLiveSessions() {
         for session in Array(sessions.values) {
             adviseProjectInstructionsIfNeeded(sessionId: session.id, cwd: session.cwd)
+            adviseInstructionsBloatIfNeeded(sessionId: session.id, cwd: session.cwd)
         }
     }
 }
