@@ -997,6 +997,7 @@ final class EventServer {
         Task { @MainActor [weak state] in
             guard let state else { return }
             state.markSessionDone(cwd: cwd, sessionId: sessionId)
+            state.adviseVerificationIfNeeded(sessionId: sessionId, cwd: cwd)
             // Name the agent that actually ran (and the user's custom title when
             // they set one) — a Codex turn must not report "Claude finished".
             let agent = state.sessionAgent(sessionId: sessionId, cwd: cwd)
@@ -1475,6 +1476,9 @@ final class EventServer {
             // retrying the same call shows up as it starts, and still counts
             // when a call never returns at all.
             state.noteToolRepeat(tool: tool, input: input, sessionId: sessionId, cwd: cwd)
+            // And whether this call changed code or checked it, so the end of
+            // the turn can tell a finished session from an unverified one.
+            state.noteVerificationSignal(tool: tool, input: input, sessionId: sessionId, cwd: cwd)
         }
     }
 

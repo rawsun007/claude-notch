@@ -72,6 +72,13 @@ struct LiveSession: Identifiable, Equatable {
     var webSearchCapHit: Bool = false
     var toolCallCount: Int = 0
 
+    // How much this session changed, and whether it ever checked itself. An
+    // agent stops when the work looks done, so a session that edited a lot and
+    // ran nothing that could fail is unverified rather than finished.
+    var editCount: Int = 0
+    var ranVerification: Bool = false
+    var verificationAdvised: Bool = false
+
     // Files that changed on disk while this session was running, which this
     // session did not change. Usually you editing in another window, a branch
     // switch, or a build. Ordered, unique, capped: the paths are payload-fed.

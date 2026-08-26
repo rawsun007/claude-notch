@@ -1008,6 +1008,9 @@
 /* Empty search result. %@ is what was typed */
 "No sessions match “%@”." = "No sessions match “%@”.";
 
+/* Card body explaining why an unverified session is worth a second look */
+"No tests, no build, nothing that could have failed. An agent stops when the work looks done, so without a check it can run, looking done is the only signal it had." = "No tests, no build, nothing that could have failed. An agent stops when the work looks done, so without a check it can run, looking done is the only signal it had.";
+
 /* Settings row: the hook server is not running */
 "Not listening, so nothing can reach this app. See the menu bar." = "Not listening, so nothing can reach this app. See the menu bar.";
 
@@ -1547,6 +1550,9 @@
 
 /* Card title when the instruction file is old */
 "This project's CLAUDE.md has not changed in a long time" = "This project's CLAUDE.md has not changed in a long time";
+
+/* Card title when a session edited files without running tests or a build. %d is a file count */
+"This session changed %d files and ran no check" = "This session changed %d files and ran no check";
 
 /* Card title for a repeated tool call. %@ is the tool name, %d the count */
 "This session has run the same %@ call %d times" = "This session has run the same %@ call %d times";
