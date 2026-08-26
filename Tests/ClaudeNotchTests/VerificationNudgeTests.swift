@@ -27,13 +27,18 @@ final class VerificationNudgeTests: XCTestCase {
     /// property that matters is that it can say no.
     func testBuildsAndCheckersCountToo() {
         for c in ["swift build", "npm run build", "cargo check", "tsc --noEmit",
+                  // A build reached after a directory change still counts.
+                  "cd api && swift build",
                   "go vet ./...", "eslint src", "make all"] {
             XCTAssertTrue(VerificationNudge.isVerification(tool: "Bash", input: ["command": c]), c)
         }
     }
 
+    /// The regression: a plain substring test counted this as a build, because
+    /// "make " appears inside it.
     func testOrdinaryCommandsAreNotVerification() {
-        for c in ["ls -la", "git status", "cat README.md", "echo make believe"] {
+        for c in ["ls -la", "git status", "cat README.md", "echo make believe",
+                  "grep tsc notes.txt", "cat eslint.config.mjs"] {
             XCTAssertFalse(VerificationNudge.isVerification(tool: "Bash", input: ["command": c]), c)
         }
     }

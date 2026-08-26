@@ -38,13 +38,21 @@ enum VerificationNudge {
     /// second list that will drift from it.
     nonisolated static func isVerification(tool: String, input: [String: Any]) -> Bool {
         guard tool == "Bash", let raw = input["command"] as? String else { return false }
-        let command = raw.lowercased()
         if CompletionAudit.isTestCommand(raw) { return true }
-        return buildMarkers.contains { command.contains($0) }
+        // Matched at the start of a command, not anywhere inside one. A plain
+        // substring test counted `echo make believe` as a build, because
+        // "make " appears in it. Splitting on the shell separators first means
+        // `cd api && swift build` still counts, which a bare prefix check on
+        // the whole line would miss.
+        return ChainedCommand.segments(raw).contains { segment in
+            let s = segment.lowercased()
+            return buildMarkers.contains { s.hasPrefix($0) }
+        }
     }
 
-    /// Commands that fail when the tree is broken. Substring matched, because
-    /// they arrive inside real command lines with flags and paths around them.
+    /// Commands that fail when the tree is broken. Matched as a prefix of a
+    /// command, so flags and paths after them are fine while a mention of one
+    /// in the middle of some other command is not.
     static let buildMarkers: [String] = [
         "swift build", "xcodebuild", "npm run build", "yarn build", "pnpm build",
         "make ", "cargo build", "cargo check", "go build", "go vet",
