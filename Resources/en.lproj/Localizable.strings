@@ -1533,6 +1533,9 @@
 /* Tooltip on the version badge */
 "The version you are running" = "The version you are running";
 
+/* Card body explaining why two sessions in one directory collide, and what a worktree does and does not separate */
+"They will edit the same files underneath each other, and neither will report an error when it happens. `claude --worktree` gives a session its own checkout. It separates files, though not ports, databases, or environment." = "They will edit the same files underneath each other, and neither will report an error when it happens. `claude --worktree` gives a session its own checkout. It separates files, though not ports, databases, or environment.";
+
 /* Status: the agent is reasoning, not running a tool */
 "Thinking" = "Thinking";
 
@@ -1613,6 +1616,9 @@
 
 /* Onboarding window subtitle */
 "Two quick permissions and a one-click hook install. Then your Claude Code prompts appear in the notch instead of your terminal." = "Two quick permissions and a one-click hook install. Then your Claude Code prompts appear in the notch instead of your terminal.";
+
+/* Card title when several live sessions share one directory. %@ is a folder name */
+"Two sessions are working in %@ at once" = "Two sessions are working in %@ at once";
 
 /* VoiceOver hint for the free-text answer field */
 "Type an answer if none of the options fit" = "Type an answer if none of the options fit";

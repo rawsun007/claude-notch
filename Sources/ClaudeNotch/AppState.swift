@@ -686,6 +686,10 @@ final class AppState: ObservableObject {
         schedulePersist()
     }
 
+    /// Directories already flagged as having two sessions in them at once.
+    var worktreeAdviceGiven: Set<String> = []
+    static let worktreeAdviceCap = 32
+
     /// Whether to say so when a session runs the same tool call over and over.
     @Published var runawayAlertsEnabled: Bool = true
 

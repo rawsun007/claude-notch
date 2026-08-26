@@ -186,6 +186,7 @@ extension AppState {
                 // on screen until the next session starts, which can be the
                 // next day.
                 self?.expireStaleLimitWindows()
+                self?.adviseWorktreeIfNeeded()
             }
         }
     }
