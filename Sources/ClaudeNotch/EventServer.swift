@@ -1479,6 +1479,7 @@ final class EventServer {
             // And whether this call changed code or checked it, so the end of
             // the turn can tell a finished session from an unverified one.
             state.noteVerificationSignal(tool: tool, input: input, sessionId: sessionId, cwd: cwd)
+            state.noteMCPToolUse(tool: tool)
         }
     }
 

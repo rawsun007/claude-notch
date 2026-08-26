@@ -686,6 +686,12 @@ final class AppState: ObservableObject {
         schedulePersist()
     }
 
+    /// Commands already suggested in place of an MCP server, and whether each
+    /// is installed. The presence answer is cached: it is a filesystem lookup
+    /// on a path that does not change while the app runs.
+    var cliOverMCPAdvised: Set<String> = []
+    var cliPresenceCache: [String: Bool] = [:]
+
     /// Projects already told their instruction file is long or shouty.
     var instructionBloatAdvised: Set<String> = []
 
