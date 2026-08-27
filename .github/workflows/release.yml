@@ -1,0 +1,163 @@
+name: Release
+
+# Build, sign, notarize and publish a DMG when a version tag is pushed.
+#
+# The point of doing this here rather than on a laptop is that a release stops
+# depending on one machine's keychain, one person's Apple session, and that
+# person being awake. It also means the DMG people download was built from
+# exactly the commit the tag points at, by something anyone can audit, rather
+# than from whatever happened to be in a working copy.
+#
+# This does NOT replace tools/release.sh, which still does the version bump,
+# the changelog, the Homebrew tap and the local reinstall. This is the half
+# that has to be reproducible: build the artifact, get Apple to bless it,
+# attach it to the release.
+on:
+  push:
+    tags: ["v*"]
+  # So a failed notarization can be retried without inventing a new version.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build and notarize (e.g. v0.32.0)"
+        required: true
+
+permissions:
+  contents: write   # to attach the DMG to the release
+
+jobs:
+  release:
+    name: Build, notarize, publish
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest
+
+      # Fail here, loudly, rather than silently producing an unsigned DMG that
+      # looks like a real release. An unsigned build published under a version
+      # tag is worse than no build: people download it, hit the Gatekeeper
+      # warning, and conclude the app is broken.
+      - name: Check the signing secrets are present
+        env:
+          CERT_P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          missing=""
+          [ -n "$CERT_P12" ]           || missing="$missing DEVELOPER_ID_P12"
+          [ -n "$CERT_PASSWORD" ]      || missing="$missing DEVELOPER_ID_P12_PASSWORD"
+          [ -n "$APPLE_ID" ]           || missing="$missing APPLE_ID"
+          [ -n "$APPLE_TEAM_ID" ]      || missing="$missing APPLE_TEAM_ID"
+          [ -n "$APPLE_APP_PASSWORD" ] || missing="$missing APPLE_APP_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing"
+            echo "Add them under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      # A keychain of its own, unlocked only for this job.
+      #
+      # The default login keychain on a runner is shared with everything else in
+      # the job and stays unlocked; a dedicated one is deleted with the runner
+      # and keeps the private key out of anything that runs after this step.
+      - name: Import the Developer ID certificate
+        env:
+          CERT_P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" \
+              -P "$CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          # Without this, codesign blocks on a GUI prompt that nobody can
+          # answer and the job hangs until it times out.
+          security set-key-partition-list -S apple-tool:,apple: \
+              -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" \
+              | grep "Developer ID Application" | head -1 \
+              | sed -E 's/.*"(.*)"/\1/')
+          if [ -z "$IDENTITY" ]; then
+            echo "::error::No Developer ID Application identity in the imported certificate."
+            echo "The .p12 probably contains a different certificate type."
+            exit 1
+          fi
+          echo "Signing as: $IDENTITY"
+          echo "CLAUDENOTCH_SIGN_ID=$IDENTITY" >> "$GITHUB_ENV"
+
+      - name: Store the notarization credentials
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          xcrun notarytool store-credentials "claudenotch-ci" \
+              --apple-id "$APPLE_ID" \
+              --team-id "$APPLE_TEAM_ID" \
+              --password "$APPLE_APP_PASSWORD" \
+              --keychain "$RUNNER_TEMP/signing.keychain-db"
+
+      - name: Build the DMG
+        run: ./tools/build-dmg.sh
+
+      # Both the app and the DMG, for the reason tools/release.sh explains:
+      # stapling only the DMG leaves the app needing a network round trip on
+      # first launch, which fails offline.
+      - name: Notarize and staple
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          /usr/bin/ditto -c -k --keepParent ClaudeNotch.app "$RUNNER_TEMP/app.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/app.zip" \
+              --keychain-profile "claudenotch-ci" --keychain "$KEYCHAIN" --wait
+          xcrun stapler staple ClaudeNotch.app
+
+          # Repackage WITHOUT rebuilding: build.sh would replace the bundle and
+          # throw away the ticket just attached, leaving a DMG that looks
+          # notarized around an app that is not.
+          CLAUDENOTCH_SKIP_BUILD=1 ./tools/build-dmg.sh
+          xcrun notarytool submit dist/ClaudeNotch.dmg \
+              --keychain-profile "claudenotch-ci" --keychain "$KEYCHAIN" --wait
+          xcrun stapler staple dist/ClaudeNotch.dmg
+
+      # Ask Gatekeeper rather than assuming the submission worked. A ticket can
+      # be issued and still not satisfy assessment if the bundle was modified
+      # after signing, which is exactly the class of mistake worth catching
+      # before publishing rather than in a bug report.
+      - name: Verify Gatekeeper accepts it
+        run: |
+          set -euo pipefail
+          spctl -a -vvv -t install dist/ClaudeNotch.dmg
+          codesign --verify --deep --strict --verbose=2 ClaudeNotch.app
+          xcrun stapler validate dist/ClaudeNotch.dmg
+
+      - name: Attach the DMG to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          # --clobber so a retried run replaces the artifact rather than
+          # failing on one that is already there.
+          gh release upload "$TAG" dist/ClaudeNotch.dmg --clobber
+
+      - name: Report the checksum
+        run: |
+          echo "### Notarized DMG" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          shasum -a 256 dist/ClaudeNotch.dmg >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "The Homebrew cask sha256 must match this." >> "$GITHUB_STEP_SUMMARY"
