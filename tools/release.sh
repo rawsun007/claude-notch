@@ -39,6 +39,48 @@ echo "  version ${OLD_SHORT} → ${VERSION} (build ${OLD_BUILD} → ${NEW_BUILD}
 DMG="dist/ClaudeNotch.dmg"
 [ -f "$DMG" ] || { echo "DMG build failed"; exit 1; }
 
+# 2b. Notarize, when there is a credential profile to do it with.
+#
+# Without this the download is stamped "Apple could not verify this app is free
+# of malware", every new user has to right-click-Open past it, and macOS holds
+# a first-launch assessment on the bundle. Skipped entirely when
+# CLAUDENOTCH_NOTARY_PROFILE is unset, so a release still works on a machine
+# with no Apple credentials rather than failing at the last step.
+#
+# Both the app and the DMG are stapled. Stapling only the DMG leaves the app
+# needing a network round trip on first launch, which fails offline; stapling
+# only the app leaves the DMG itself flagged on download.
+if [ -n "${CLAUDENOTCH_NOTARY_PROFILE:-}" ]; then
+    echo "→ Notarizing (profile: ${CLAUDENOTCH_NOTARY_PROFILE})"
+    APP_ZIP="dist/ClaudeNotch-notarize.zip"
+    rm -f "$APP_ZIP"
+    # ditto, not zip: it preserves the bundle's symlinks and extended
+    # attributes, and a zip of a .app that loses them fails notarization.
+    /usr/bin/ditto -c -k --keepParent ClaudeNotch.app "$APP_ZIP"
+    xcrun notarytool submit "$APP_ZIP" \
+        --keychain-profile "$CLAUDENOTCH_NOTARY_PROFILE" --wait \
+        || { echo "notarization of the app failed"; exit 1; }
+    xcrun stapler staple ClaudeNotch.app \
+        || { echo "could not staple the app"; exit 1; }
+    rm -f "$APP_ZIP"
+
+    # Repackage so the DMG carries the stapled app. Explicitly WITHOUT
+    # rebuilding: build.sh would produce a fresh bundle and the ticket just
+    # attached would be gone, which is a mistake that leaves a DMG looking
+    # notarized while the app inside is not.
+    CLAUDENOTCH_SKIP_BUILD=1 ./tools/build-dmg.sh >/dev/null
+    xcrun notarytool submit "$DMG" \
+        --keychain-profile "$CLAUDENOTCH_NOTARY_PROFILE" --wait \
+        || { echo "notarization of the DMG failed"; exit 1; }
+    xcrun stapler staple "$DMG" || { echo "could not staple the DMG"; exit 1; }
+
+    # Say what Gatekeeper will say, rather than assuming it worked.
+    spctl -a -vvv -t install "$DMG" 2>&1 | sed 's/^/  /'
+    echo "✓ Notarized and stapled"
+else
+    echo "  (not notarized: CLAUDENOTCH_NOTARY_PROFILE unset, download will warn)"
+fi
+
 # 3. sha256 + generate the Homebrew cask into dist/ (NOT the repo root — the
 #    cask is served only from rawsun007/homebrew-tap now, so the main repo no
 #    longer carries a Casks/ dir that would make it a second, conflicting tap).

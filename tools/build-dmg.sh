@@ -9,7 +9,13 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # 1. Build the .app fresh (icons + hooks bundled).
-./build.sh
+#
+# Skipped when CLAUDENOTCH_SKIP_BUILD is set, which the release script does on
+# its second pass: by then the app has been notarized and stapled, and
+# rebuilding would replace the bundle and throw the ticket away.
+if [ -z "${CLAUDENOTCH_SKIP_BUILD:-}" ]; then
+    ./build.sh
+fi
 
 APP="ClaudeNotch.app"
 [ -d "$APP" ] || { echo "build failed — no $APP"; exit 1; }
