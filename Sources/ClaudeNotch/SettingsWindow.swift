@@ -550,7 +550,8 @@ struct SettingsView: View {
 
             group {
                 row(L("Launch at login", comment: "Settings toggle"),
-                    L("Start ClaudeNotch automatically when you log in.", comment: "Settings toggle explanation"),
+                    String(format: L("Start %@ automatically when you log in.", comment: "Settings toggle explanation"),
+                           AppInfo.displayName),
                     Binding(get: { launchAtLoginEnabled }, set: { setLaunchAtLogin($0) }))
                 divider
                 row(L("Keep the notch open", comment: "Settings toggle"),

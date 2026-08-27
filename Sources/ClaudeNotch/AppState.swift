@@ -176,7 +176,7 @@ final class AppState: ObservableObject {
             let agents = Set(activeSessions.compactMap {
                 $0.model.isEmpty ? nil : AgentKind.infer(fromModel: $0.model)
             })
-            if agents.count > 1 { return "ClaudeNotch" }
+            if agents.count > 1 { return AppInfo.displayName }
             if let only = agents.first { return only.notchLabel }
             return currentModel.isEmpty ? Self.statusEntityName
                                         : AgentKind.infer(fromModel: currentModel).notchLabel

@@ -467,7 +467,7 @@
 "Start Claude in a folder…" = "Lancer Claude dans un dossier…";
 
 /* Settings toggle explanation */
-"Start ClaudeNotch automatically when you log in." = "Lance ClaudeNotch automatiquement à l'ouverture de session.";
+"Start %@ automatically when you log in." = "Lance %@ automatiquement à l'ouverture de session.";
 
 /* Settings button */
 "Start Codex in a folder…" = "Lancer Codex dans un dossier…";

@@ -83,7 +83,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         let menu = NSMenu()
         let buildStamp = MenuBarController.buildTimestamp()
-        let header = NSMenuItem(title: String(format: L("ClaudeNotch  ·  build %@", comment: "Menu header. %@ is a build timestamp"), buildStamp),
+        let header = NSMenuItem(title: String(format: L("%1$@  ·  build %2$@", comment: "Menu header. %1$@ is the app name, %2$@ a build timestamp"), AppInfo.displayName, buildStamp),
                                 action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)
@@ -397,7 +397,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        let quit = NSMenuItem(title: L("Quit ClaudeNotch", comment: "Menu item: quit the app"),
+        let quit = NSMenuItem(title: String(format: L("Quit %@", comment: "Menu item: quit the app. %@ is the app name"), AppInfo.displayName),
                               action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
 
@@ -837,8 +837,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             button.image = status.isHealthy
                 ? MenuBarController.statusIcon()
                 : NSImage(systemSymbolName: "exclamationmark.triangle.fill",
-                          accessibilityDescription: L("ClaudeNotch is not receiving prompts",
-                                                      comment: "Accessibility label for the menu bar icon when the hook server is down"))
+                          accessibilityDescription: String(format: L("%@ is not receiving prompts",
+                                                      comment: "Accessibility label for the menu bar icon when the hook server is down"),
+                                                                       AppInfo.displayName))
             button.image?.isTemplate = true
             button.toolTip = label
         }

@@ -467,7 +467,7 @@
 "Start Claude in a folder…" = "Запустить Claude в папке…";
 
 /* Settings toggle explanation */
-"Start ClaudeNotch automatically when you log in." = "Запускать ClaudeNotch при входе в систему.";
+"Start %@ automatically when you log in." = "Запускать %@ при входе в систему.";
 
 /* Settings button */
 "Start Codex in a folder…" = "Запустить Codex в папке…";

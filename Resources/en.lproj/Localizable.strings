@@ -6,6 +6,9 @@
 /* Status bar label for the session cost, a currency symbol */
 "$" = "$";
 
+/* Menu header. %1$@ is the app name, %2$@ a build timestamp */
+"%1$@  ·  build %2$@" = "%1$@  ·  build %2$@";
+
 /* Sandbox badge tooltip with a violation count. %1$@ is the base tooltip, %2$d is how many were blocked */
 "%1$@ %2$d blocked so far this session." = "%1$@ %2$d blocked so far this session.";
 
@@ -59,6 +62,9 @@
 
 /* Card body explaining why a CLI is cheaper than an MCP server. %@ is a command name */
 "%@ is installed here. A command costs nothing until it runs, while an MCP server spends context on tool definitions in every session, used or not." = "%@ is installed here. A command costs nothing until it runs, while an MCP server spends context on tool definitions in every session, used or not.";
+
+/* Accessibility label for the menu bar icon when the hook server is down */
+"%@ is not receiving prompts" = "%@ is not receiving prompts";
 
 /* Card title when a named teammate agent has gone idle. %@ is the teammate's name */
 "%@ is waiting on you" = "%@ is waiting on you";
@@ -486,17 +492,11 @@
 /* Settings explanation */
 "ClaudeNotch" = "ClaudeNotch";
 
-/* Menu header. %@ is a build timestamp */
-"ClaudeNotch  ·  build %@" = "ClaudeNotch  ·  build %@";
-
 /* Card title when the hook server could not start for any other reason */
 "ClaudeNotch cannot receive Claude Code's prompts" = "ClaudeNotch cannot receive Claude Code's prompts";
 
 /* Why the hook-server card is marked dangerous */
 "ClaudeNotch is not receiving Claude Code's prompts" = "ClaudeNotch is not receiving Claude Code's prompts";
-
-/* Accessibility label for the menu bar icon when the hook server is down */
-"ClaudeNotch is not receiving prompts" = "ClaudeNotch is not receiving prompts";
 
 /* Error when Accessibility is missing and the app cannot type /compact */
 "ClaudeNotch needs Accessibility to type into your terminal. I opened System Settings; enable it there and try again." = "ClaudeNotch needs Accessibility to type into your terminal. I opened System Settings; enable it there and try again.";
@@ -1215,11 +1215,11 @@
 /* Policy restriction: setting up integrations from the web */
 "Quick web setup is switched off" = "Quick web setup is switched off";
 
+/* Menu item: quit the app. %@ is the app name */
+"Quit %@" = "Quit %@";
+
 /* Onboarding button: restart the app so macOS applies a permission */
 "Quit & relaunch" = "Quit & relaunch";
-
-/* Menu item: quit the app */
-"Quit ClaudeNotch" = "Quit ClaudeNotch";
 
 /* Button: raise the spending cap. %@ is a money amount */
 "Raise to %@" = "Raise to %@";
@@ -1446,6 +1446,9 @@
 /* Card title after copying the standup */
 "Standup copied" = "Standup copied";
 
+/* Settings toggle explanation */
+"Start %@ automatically when you log in." = "Start %@ automatically when you log in.";
+
 /* Confirm button in the folder picker */
 "Start Claude here" = "Start Claude here";
 
@@ -1457,9 +1460,6 @@
 
 /* Settings button */
 "Start Claude in a folder…" = "Start Claude in a folder…";
-
-/* Settings toggle explanation */
-"Start ClaudeNotch automatically when you log in." = "Start ClaudeNotch automatically when you log in.";
 
 /* Settings button */
 "Start Codex in a folder…" = "Start Codex in a folder…";

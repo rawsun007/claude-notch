@@ -467,7 +467,7 @@
 "Start Claude in a folder…" = "폴더에서 Claude 시작…";
 
 /* Settings toggle explanation */
-"Start ClaudeNotch automatically when you log in." = "로그인할 때 ClaudeNotch를 자동으로 실행합니다.";
+"Start %@ automatically when you log in." = "로그인할 때 %@를 자동으로 실행합니다.";
 
 /* Settings button */
 "Start Codex in a folder…" = "폴더에서 Codex 시작…";
