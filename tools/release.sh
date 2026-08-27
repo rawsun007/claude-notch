@@ -36,15 +36,16 @@ sed -i '' "s#CFBundleVersion</key><string>${OLD_BUILD}</string>#CFBundleVersion<
 # Info.plist and project.yml rather than build.sh's heredoc. Left alone they
 # drift, and a build made from Xcode then reports a version that never existed.
 # build.sh stays the source of truth; these follow it.
-if [ -f Info.plist ]; then
-    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" Info.plist 2>/dev/null || true
-    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${NEW_BUILD}" Info.plist 2>/dev/null || true
-fi
+# Info.plist is deliberately NOT touched. It holds $(MARKETING_VERSION) and
+# $(CURRENT_PROJECT_VERSION), which Xcode substitutes at build time from
+# project.yml. Writing literals into it would replace those variables with a
+# number that then never changes again, which is the opposite of keeping the
+# two in step.
 if [ -f project.yml ]; then
     sed -i '' "s/MARKETING_VERSION: \".*\"/MARKETING_VERSION: \"${VERSION}\"/" project.yml
     sed -i '' "s/CURRENT_PROJECT_VERSION: \".*\"/CURRENT_PROJECT_VERSION: \"${NEW_BUILD}\"/" project.yml
 fi
-git add -A Info.plist project.yml 2>/dev/null || true
+git add -A project.yml 2>/dev/null || true
 
 echo "  version ${OLD_SHORT} → ${VERSION} (build ${OLD_BUILD} → ${NEW_BUILD})"
 
