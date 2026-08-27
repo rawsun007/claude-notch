@@ -113,6 +113,11 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
             <key>CFBundleURLSchemes</key><array><string>claudenotch</string></array>
         </dict>
     </array>
+    <!-- Shown verbatim in the macOS permission prompts. Without them the
+         dialog has an empty reason line, which reads as an app that will not
+         say why it wants control of your terminal. -->
+    <key>NSAppleEventsUsageDescription</key><string>ClaudeNotch types into your terminal to resume a session, send a message, or run /compact when you ask it to.</string>
+    <key>NSAccessibilityUsageDescription</key><string>ClaudeNotch needs Accessibility to type into the terminal window running your agent.</string>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSSupportsAutomaticGraphicsSwitching</key><true/>
 </dict>
@@ -138,7 +143,13 @@ SIGN_ID="ClaudeNotch Code Signing"
 if [ -n "$DEV_ID" ]; then
     # --options runtime is required for notarization; --timestamp is required
     # for the ticket to remain valid after the certificate expires.
+    # --entitlements is not optional here. Hardened runtime is required for
+    # notarization, and under it a process may not send AppleEvents to another
+    # app without com.apple.security.automation.apple-events. Without this the
+    # first notarized build would ship with TerminalAutomator silently unable
+    # to drive Terminal, which is how the app resumes and composes sessions.
     codesign --force --deep --options runtime --timestamp \
+             --entitlements ClaudeNotch.entitlements \
              --sign "$DEV_ID" "$APP"
     echo "→ Code signed with Developer ID ($DEV_ID), hardened runtime"
 elif security find-identity 2>/dev/null | grep -q "$SIGN_ID" \

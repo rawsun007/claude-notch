@@ -29,3 +29,8 @@ assets/AppIcon.iconset/
 # Local debug + hook logs (runtime artifacts)
 /tmp/claudenotch-*.log
 claudenotch-*.log
+
+# Xcode per-user state, not project configuration
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/

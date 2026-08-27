@@ -32,6 +32,20 @@ OLD_BUILD=$(grep -oE 'CFBundleVersion</key><string>[0-9]*' build.sh | sed 's/.*>
 NEW_BUILD=$(( ${OLD_BUILD:-0} + 1 ))
 sed -i '' "s#CFBundleShortVersionString</key><string>${OLD_SHORT}</string>#CFBundleShortVersionString</key><string>${VERSION}</string>#" build.sh
 sed -i '' "s#CFBundleVersion</key><string>${OLD_BUILD}</string>#CFBundleVersion</key><string>${NEW_BUILD}</string>#" build.sh
+# The Xcode project carries the same two numbers, because Xcode reads
+# Info.plist and project.yml rather than build.sh's heredoc. Left alone they
+# drift, and a build made from Xcode then reports a version that never existed.
+# build.sh stays the source of truth; these follow it.
+if [ -f Info.plist ]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" Info.plist 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${NEW_BUILD}" Info.plist 2>/dev/null || true
+fi
+if [ -f project.yml ]; then
+    sed -i '' "s/MARKETING_VERSION: \".*\"/MARKETING_VERSION: \"${VERSION}\"/" project.yml
+    sed -i '' "s/CURRENT_PROJECT_VERSION: \".*\"/CURRENT_PROJECT_VERSION: \"${NEW_BUILD}\"/" project.yml
+fi
+git add -A Info.plist project.yml 2>/dev/null || true
+
 echo "  version ${OLD_SHORT} → ${VERSION} (build ${OLD_BUILD} → ${NEW_BUILD})"
 
 # 2. Build the DMG (this also rebuilds the .app).

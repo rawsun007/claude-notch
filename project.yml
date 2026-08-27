@@ -1,0 +1,105 @@
+name: ClaudeNotch
+options:
+  bundleIdPrefix: com.claudenotch
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "13.0"
+  developmentLanguage: en
+  groupSortPosition: top
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MACOSX_DEPLOYMENT_TARGET: "13.0"
+    ALWAYS_SEARCH_USER_PATHS: NO
+    CLANG_ENABLE_MODULES: YES
+    ENABLE_STRICT_OBJC_MSGSEND: YES
+    GCC_NO_COMMON_BLOCKS: YES
+
+targets:
+  ClaudeNotch:
+    type: application
+    platform: macOS
+    deploymentTarget: "13.0"
+    sources:
+      - path: Sources/ClaudeNotch
+      - path: Resources/ClaudeNotch.sdef
+        buildPhase: resources
+      - path: Resources/en.lproj
+        buildPhase: resources
+      - path: Resources/de.lproj
+        buildPhase: resources
+      - path: Resources/es.lproj
+        buildPhase: resources
+      - path: Resources/fr.lproj
+        buildPhase: resources
+      - path: Resources/hi.lproj
+        buildPhase: resources
+      - path: Resources/ja.lproj
+        buildPhase: resources
+      - path: Resources/ko.lproj
+        buildPhase: resources
+      - path: Resources/pt-BR.lproj
+        buildPhase: resources
+      - path: Resources/ru.lproj
+        buildPhase: resources
+      - path: Resources/zh-Hans.lproj
+        buildPhase: resources
+      - path: assets/AppIcon.icns
+        buildPhase: resources
+      - path: assets/menubar.png
+        buildPhase: resources
+      - path: assets/claude-color.svg
+        buildPhase: resources
+      - path: assets/spiderman-meme-song.mp3
+        buildPhase: resources
+    settings:
+      base:
+        INFOPLIST_FILE: Info.plist
+        CODE_SIGN_ENTITLEMENTS: ClaudeNotch.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: com.claudenotch.app
+        PRODUCT_NAME: ClaudeNotch
+        MARKETING_VERSION: "0.32.0"
+        CURRENT_PROJECT_VERSION: "141"
+        MACOSX_DEPLOYMENT_TARGET: "13.0"
+        SWIFT_VERSION: "5.0"
+        COMBINE_HIDPI_IMAGES: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+        ENABLE_HARDENED_RUNTIME: YES
+        OTHER_CODE_SIGN_FLAGS: "--timestamp"
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGN_IDENTITY: "Developer ID Application"
+        LD_RUNPATH_SEARCH_PATHS: "@executable_path/../Frameworks"
+        DEAD_CODE_STRIPPING: YES
+      configs:
+        Debug:
+          ONLY_ACTIVE_ARCH: YES
+          CODE_SIGN_IDENTITY: "-"
+          ENABLE_HARDENED_RUNTIME: NO
+          SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+          GCC_PREPROCESSOR_DEFINITIONS: "DEBUG=1"
+        Release:
+          ONLY_ACTIVE_ARCH: NO
+          ARCHS: "arm64 x86_64"
+          VALID_ARCHS: "arm64 x86_64"
+          SWIFT_OPTIMIZATION_LEVEL: "-O"
+          SWIFT_COMPILATION_MODE: wholemodule
+    postBuildScripts:
+      - name: Bundle hook scripts
+        shell: /bin/bash
+        script: |
+          set -euo pipefail
+          HOOKS_DIR="$BUILT_PRODUCTS_DIR/$CONTENTS_FOLDER_PATH/Resources/hooks"
+          mkdir -p "$HOOKS_DIR"
+          for f in "$SRCROOT/bin/"*.sh; do
+            [ -f "$f" ] || continue
+            cp "$f" "$HOOKS_DIR/"
+            chmod +x "$HOOKS_DIR/$(basename "$f")"
+          done
+        inputFiles:
+          - $(SRCROOT)/bin
+        outputFiles:
+          - $(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/Resources/hooks/.bundled
