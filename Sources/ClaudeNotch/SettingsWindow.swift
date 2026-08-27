@@ -43,7 +43,7 @@ final class SettingsWindowController {
 
         let host = NSHostingController(rootView: SettingsView(state: appState, onOpenSetup: onOpenSetup))
         let w = NSWindow(contentViewController: host)
-        w.title = "ClaudeNotch Settings"
+        w.title = "\(AppInfo.displayName) Settings"
         w.identifier = NSUserInterfaceItemIdentifier("ClaudeNotchSettings")
         // A normal opaque title bar (not full-size content) so scrolled page
         // content stays below the bar instead of sliding up under the title.
@@ -1447,7 +1447,10 @@ struct SettingsView: View {
     }
 
     func window() -> NSWindow? {
-        NSApp.windows.first { $0.title == "ClaudeNotch Settings" }
+        // Matched on the identifier set when the window is built, not on its
+        // title. The title carries the app's display name, so a rename used to
+        // silently stop this finding the window it had just opened.
+        NSApp.windows.first { $0.identifier?.rawValue == "ClaudeNotchSettings" }
     }
 
     /// Last 7 days of spend as (weekday label, cost), oldest to newest.
