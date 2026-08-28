@@ -95,7 +95,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundleIdentifier</key><string>com.claudenotch.app</string>
     <key>CFBundleDevelopmentRegion</key><string>en</string>
     <key>CFBundleName</key><string>ClaudeNotch</string>
-    <key>CFBundleDisplayName</key><string>AI Agent Notch</string>
+    <key>CFBundleDisplayName</key><string>ClaudeNotch</string>
     <key>CFBundleExecutable</key><string>ClaudeNotch</string>
     <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundleShortVersionString</key><string>0.32.0</string>
