@@ -138,7 +138,26 @@ PLIST
 # "cannot be opened because Apple cannot check it for malicious software" and
 # has to right-click Open, which is a lot to ask of somebody installing a tool
 # that gates what an AI may run on their Mac.
-DEV_ID="${CLAUDENOTCH_SIGN_ID:-}"
+# The Developer ID to sign with.
+#
+# Pinned to a SHA-1 hash rather than a name on purpose. This team has several
+# "Developer ID Application: Alfastack Solution Private Limited (PS8FJ3MQB2)"
+# certificates, identical in every visible respect, so codesign given the name
+# picks whichever it finds first. That is fine until one is revoked or expires
+# and a release is quietly signed by a certificate nobody meant to use. The
+# hash names exactly one.
+#
+# `security find-identity -v -p codesigning` lists the hashes. Overriding
+# CLAUDENOTCH_SIGN_ID still works, for CI, which imports its own copy.
+DEV_ID="${CLAUDENOTCH_SIGN_ID:-D1977844AE12568324248A02C78DC7C4A2440AB3}"
+
+# Signing is now the default rather than something to remember: an unsigned
+# release is the one outcome this whole exercise existed to prevent. Falls back
+# to the previous behaviour if that certificate is not on this machine.
+if [ -n "$DEV_ID" ] && ! security find-identity -v -p codesigning 2>/dev/null | grep -q "$DEV_ID"; then
+    echo "  (Developer ID $DEV_ID not in this keychain, falling back to local signing)"
+    DEV_ID=""
+fi
 SIGN_ID="ClaudeNotch Code Signing"
 if [ -n "$DEV_ID" ]; then
     # --options runtime is required for notarization; --timestamp is required
