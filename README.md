@@ -111,20 +111,23 @@ is universal from v0.14.0 onward; earlier releases are Apple Silicon only.
 
 1. **[⬇ Download ClaudeNotch.dmg](https://github.com/rawsun007/claude-notch/releases/latest/download/ClaudeNotch.dmg)**
 2. Open the DMG and drag **ClaudeNotch** into **Applications**.
-3. Double-click ClaudeNotch. **macOS Sequoia 15 and later** will block the
-   first launch because the app isn't notarized through Apple's paid Developer
-   program. Click **Done** on the warning, then open **System Settings → Privacy
-   & Security**, scroll to the Security section, and click **Open Anyway** next
-   to ClaudeNotch. You only do this once. (On macOS Sonoma and earlier you can
-   still right-click → **Open** to bypass.)
+3. Double-click ClaudeNotch. It opens straight away, no Gatekeeper warning and
+   no right-click trick: the app and the disk image are signed with a Developer
+   ID and notarized by Apple, and the notarization ticket is stapled, so the
+   check passes even with no network.
 4. A small **bell icon** appears in your menu bar. Click it → **Setup** to
    wire up the Claude Code hooks. Done!
 
-> 💡 **Skip the warning entirely:** install with **Homebrew** (see below).
-> ClaudeNotch is ad-hoc signed (no Apple Developer ID at all), which macOS
-> treats more leniently than an unnotarized Developer ID app, Homebrew
-> casks in that tier launch straight away with no Gatekeeper prompt,
-> confirmed on a clean install with Gatekeeper and SIP both enabled.
+> 🔐 **Check it yourself before you trust it.** On any copy you download:
+>
+> ```bash
+> spctl -a -vvv /Applications/ClaudeNotch.app
+> ```
+>
+> Expect `source=Notarized Developer ID` and
+> `origin=Developer ID Application: Alfastack Solution Private Limited (PS8FJ3MQB2)`.
+> Anything else is not a build we published, whatever it calls itself. Nothing
+> we ship ever asks you to bypass Gatekeeper.
 
 > **Tip:** To launch automatically on startup, click the menu-bar bell →
 > *Launch at Login*.
@@ -302,9 +305,18 @@ Yes, free for personal and any noncommercial use, and the full source lives righ
 here on GitHub. **Commercial use isn't allowed without permission**, if you want to
 sell it or make money from it, [ask me first](https://www.linkedin.com/in/roshan-ramani-0510102b2).
 
-**Why does macOS warn me on first open?**
-It isn't notarized through Apple's paid program yet. Right-click the app → **Open**
-once, and you're set from then on.
+**Does macOS warn me on first open?**
+No. The app and the DMG are signed with a Developer ID (team `PS8FJ3MQB2`) and
+notarized by Apple, with the ticket stapled, so a fresh download launches with no
+warning. If a copy of "ClaudeNotch" does make macOS complain, it did not come
+from us, don't click through it. Verify with
+`spctl -a -vvv /Applications/ClaudeNotch.app`.
+
+**Do my Accessibility and Input Monitoring grants survive an update?**
+Yes, from the first notarized release on. Those permissions are remembered
+against the code signature, and every build now carries the same Developer ID
+identity instead of a per-build ad-hoc one, so you grant them once rather than
+after each update.
 
 **Does it send my data anywhere?**
 No. Everything runs locally over a localhost hook. Nothing leaves your machine.
