@@ -91,6 +91,13 @@ if [ -n "${CLAUDENOTCH_NOTARY_PROFILE:-}" ]; then
 
     # Say what Gatekeeper will say, rather than assuming it worked.
     spctl -a -vvv -t install "$DMG" 2>&1 | sed 's/^/  /'
+
+    # And check the app, not only the disk image. A notarized DMG says nothing
+    # about whether the bundle inside carries its entitlements, its usage
+    # strings, or the resources build.sh is meant to have copied in, and each of
+    # those fails silently at runtime rather than here.
+    ./tools/verify-notarized-build.sh ClaudeNotch.app \
+        || { echo "the signed app failed verification, not publishing"; exit 1; }
     echo "✓ Notarized and stapled"
 else
     echo "  (not notarized: CLAUDENOTCH_NOTARY_PROFILE unset, download will warn)"

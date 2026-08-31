@@ -142,8 +142,12 @@ jobs:
         run: |
           set -euo pipefail
           spctl -a -vvv -t install dist/ClaudeNotch.dmg
-          codesign --verify --deep --strict --verbose=2 ClaudeNotch.app
           xcrun stapler validate dist/ClaudeNotch.dmg
+          # The DMG being notarized says nothing about the bundle inside it.
+          # This checks the app: entitlements, usage strings, secure timestamp,
+          # the team requirement users are told to run, and the resources
+          # build.sh copies in. All of those fail silently at runtime.
+          ./tools/verify-notarized-build.sh ClaudeNotch.app
 
       - name: Attach the DMG to the release
         env:
