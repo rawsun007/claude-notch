@@ -109,12 +109,13 @@ can tell.
 **A tool-wide allow rule approves every future call of that tool.** The Rules
 page marks them amber for this reason.
 
-**The app is signed but not notarized.** macOS Gatekeeper will refuse the first
-launch and you have to allow it by hand. That is a real weakness in how the app
-is distributed and we would rather not have it; notarization needs a paid Apple
-Developer account. Verify the DMG against the checksum published in the
-[Homebrew cask](https://github.com/rawsun007/homebrew-tap/blob/main/Casks/claudenotch.rb),
-or install through Homebrew, which checks it for you.
+**Releases are signed and notarized, so a warning means something.** The app and
+the DMG are signed with `Developer ID Application: Alfastack Solution Private
+Limited (PS8FJ3MQB2)` under the hardened runtime, notarized by Apple, and
+stapled. A published build launches with no Gatekeeper prompt. If a copy of
+"ClaudeNotch" asks you to bypass Gatekeeper, that is now a signal, not a chore:
+it did not come from us. Nothing we publish, in the DMG, the cask or the docs,
+will ever ask you to click through it.
 
 **Any local process can post to the loopback port.** That is inherent: it is how
 the hooks reach the app. A process running as you could inject a fake session or
@@ -126,6 +127,27 @@ action. It does not verify that the command shown is the command Claude Code
 will run; that comes from the hook payload.
 
 ## Verifying a build
+
+Start with the signature, which is the stronger check of the two. It says who
+built the bundle, not merely that the bytes arrived intact:
+
+```sh
+spctl -a -vvv /Applications/ClaudeNotch.app
+xcrun stapler validate /Applications/ClaudeNotch.app
+codesign -dvv --verify /Applications/ClaudeNotch.app
+```
+
+Expect `source=Notarized Developer ID`, `The validate action worked!`, and
+`TeamIdentifier=PS8FJ3MQB2` with `flags=0x10000(runtime)`. A stricter form, which
+fails rather than printing something you have to read:
+
+```sh
+codesign --verify --deep --strict -R \
+    '=anchor apple generic and certificate leaf[subject.OU] = PS8FJ3MQB2' \
+    /Applications/ClaudeNotch.app
+```
+
+Then the checksum, which catches a corrupted download:
 
 ```sh
 shasum -a 256 ClaudeNotch.dmg
@@ -140,25 +162,28 @@ since both the DMG and the checksum come from there.
 Or build it yourself: `./build.sh`, no dependencies beyond a Swift toolchain.
 `Package.swift` pulls in nothing, so there is no package supply chain here.
 
-## Enabling notarization
+## How notarization is wired
 
-The build is wired for it; what is missing is a paid Apple Developer account.
-With one, two environment variables switch the whole path on:
+Two environment variables drive the whole path, and a release without them is
+refused:
 
 ```sh
-export CLAUDENOTCH_SIGN_ID="Developer ID Application: Your Name (TEAMID)"
-xcrun notarytool store-credentials claudenotch \
-    --apple-id you@example.com --team-id TEAMID --password <app-specific-password>
-export CLAUDENOTCH_NOTARY_PROFILE=claudenotch
+export CLAUDENOTCH_SIGN_ID="Developer ID Application: Alfastack Solution Private Limited (PS8FJ3MQB2)"
+export CLAUDENOTCH_NOTARY_PROFILE=claudenotch   # a notarytool keychain profile
 
 ./tools/release.sh <version>
 ```
 
-`build.sh` then signs the app with the hardened runtime and a timestamp,
-`tools/build-dmg.sh` signs, notarizes and staples the disk image, and refuses
-to finish if Gatekeeper still rejects the result. The instructions inside the
-DMG change to match, because shipping Gatekeeper-bypass steps to someone who
-does not need them teaches them to bypass Gatekeeper for anything calling
-itself ClaudeNotch.
+`build.sh` signs the app with the hardened runtime, a secure timestamp and
+`ClaudeNotch.entitlements`; `tools/release.sh` notarizes and staples the app
+itself, then `tools/build-dmg.sh` signs, notarizes and staples the disk image;
+finally `spctl -a -t install` and `stapler validate` run against the DMG and the
+release fails if either does. The instructions inside the DMG are written to
+match the build, because shipping Gatekeeper-bypass steps to someone who does
+not need them teaches them to bypass Gatekeeper for anything calling itself
+ClaudeNotch.
 
-Without those variables everything behaves exactly as it does today.
+Local development builds still fall back to ad-hoc signing when those variables
+are unset. Those builds are not distributable and `tools/release.sh` will not
+publish one. Credential storage and rotation are in
+[SIGNING.md](SIGNING.md).
