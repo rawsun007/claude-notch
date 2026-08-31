@@ -28,11 +28,13 @@ cask "claudenotch" do
     "~/Library/Preferences/com.claudenotch.app.plist",
   ]
 
+  # No Gatekeeper-bypass step here on purpose. The DMG is signed with a
+  # Developer ID and notarized by Apple, with the ticket stapled, so the app
+  # launches on a clean machine with no prompt and no network round trip.
+  # Telling people to right-click Open when they do not need to teaches them to
+  # bypass Gatekeeper for anything calling itself ClaudeNotch.
   caveats <<~EOS
-    ClaudeNotch is ad-hoc signed (not yet notarized). On first launch:
-      right-click ClaudeNotch in /Applications and choose Open.
-
-    Then open the Setup window from the menu-bar bell to wire up the
+    Open the Setup window from the menu-bar bell to wire up the
     Claude Code hooks.
   EOS
 end
