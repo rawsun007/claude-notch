@@ -1189,8 +1189,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
         refreshLoginItem()
 
-        // If macOS now needs the user to approve the login item (common for
-        // ad-hoc-signed apps), take them straight to the Login Items pane.
+        // If macOS now needs the user to approve the login item, take them
+        // straight to the Login Items pane. Signing and notarizing did not
+        // remove this: .requiresApproval is about the user's Login Items list,
+        // not about the signature, so it still happens on a signed build.
         if svc.status == .requiresApproval {
             SMAppService.openSystemSettingsLoginItems()
         }
