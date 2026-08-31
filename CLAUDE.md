@@ -19,6 +19,18 @@ detail in the file before relying on it.
   pushes, creates the GitHub release + DMG, updates the Homebrew tap, reinstalls
   locally. After it: add the release to the website changelog (separate repo,
   `../claude mac app website/app/changelog/releases.ts`), rebuild, sync `docs/`.
+- **Releases are signed + notarized**, and that is not optional. Every published
+  build is Developer ID signed (team `PS8FJ3MQB2`, hardened runtime), notarized
+  and stapled; `release.sh` refuses to run without
+  `CLAUDENOTCH_NOTARY_PROFILE`, and both it and CI gate on
+  **`tools/verify-notarized-build.sh`** (15 static checks on the bundle:
+  authority, team, runtime flag, timestamp, entitlements, usage strings,
+  designated requirement, staple, spctl, bundled hooks/localizations/URL
+  scheme). `build.sh`'s self-signed and ad-hoc tiers are development-only.
+  Never write a Gatekeeper-bypass step ("right-click Open", "Open Anyway") into
+  any user-visible text: it is false now and it trains users to click past the
+  one signal that a build is not ours. Credentials, rotation and the
+  apple-events entitlement note live in `SIGNING.md`.
 - **No em dashes** anywhere user-visible (commits, UI strings, changelog, site).
 - **`tools/l10n-extract.py`**: regenerates `Resources/en.lproj/Localizable.strings`
   from `NSLocalizedString` calls (there is no `genstrings` without Xcode). Run it
