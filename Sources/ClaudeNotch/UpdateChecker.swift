@@ -3,10 +3,12 @@ import Foundation
 /// Lightweight update checker. Asks the GitHub Releases API for the latest
 /// tag and, if it's newer than the running build, fires `onUpdateAvailable`.
 ///
-/// This is a notify-and-link updater (it opens the releases page / DMG), not a
-/// silent in-place updater — that would need Sparkle, signing keys, a signed
-/// appcast, and ideally notarization. For an ad-hoc-signed app whose first
-/// launch is manual anyway, notify-and-link is the pragmatic choice.
+/// This notifies; installing is `claudenotch-update.sh`, which the Update Now
+/// button runs (see `TerminalAutomator.runUpdater`). Not Sparkle: that would add
+/// a framework, an EdDSA key pair and a signed appcast to do what the script
+/// already does, and now that releases are notarized the script can check the
+/// downloaded bundle against the Developer ID team rather than a checksum alone,
+/// which was the part Sparkle would otherwise have been buying us.
 final class UpdateChecker: @unchecked Sendable {
     static let shared = UpdateChecker()
 
