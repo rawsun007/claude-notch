@@ -140,23 +140,56 @@ if pgrep -x ClaudeNotch >/dev/null 2>&1; then
     done
 fi
 
-# The bundle we are about to install has to be signed by whoever signed the one
+# The bundle we are about to install has to come from whoever signed the one
 # already there. The checksum says the download matches what the tap published;
 # this says the app inside it is the same app, from the same signer, which is
 # the part that matters when the thing being replaced is what gates an agent's
-# access to your machine. Read as text and compared, since the identity is
-# self-signed today and spctl would reject both copies for the same reason.
+# access to your machine.
+#
+# Releases are notarized now, so this is a real cryptographic check rather than
+# the string comparison it used to be. The team identifier is read from the copy
+# already installed, not hardcoded, so a future team change does not need this
+# script updated in the field, and a stolen script cannot widen what it accepts.
 signer() {
     codesign -dvv "$1" 2>&1 | sed -n 's/^Authority=//p' | head -1
 }
+team_of() {
+    codesign -dvv "$1" 2>&1 | sed -n 's/^TeamIdentifier=//p' | head -1
+}
 CURRENT_SIGNER=$(signer "$APP")
 NEW_SIGNER=$(signer "$MOUNT/ClaudeNotch.app")
-if [ -n "$CURRENT_SIGNER" ] && [ "$CURRENT_SIGNER" != "$NEW_SIGNER" ]; then
-    die "The downloaded app is signed by someone else, refusing to install.
+CURRENT_TEAM=$(team_of "$APP")
+
+if [ -n "$CURRENT_TEAM" ] && [ "$CURRENT_TEAM" != "not set" ]; then
+    # The installed copy is Developer ID signed. Demand the same of the
+    # replacement: an Apple-issued certificate chain whose leaf belongs to the
+    # same team. Unlike comparing authority strings, this cannot be satisfied by
+    # anyone who can name themselves convincingly.
+    REQ="anchor apple generic and certificate leaf[subject.OU] = ${CURRENT_TEAM}"
+    codesign --verify --strict -R "=${REQ}" "$MOUNT/ClaudeNotch.app" 2>/dev/null \
+        || die "The downloaded app is not signed by the same developer, refusing to install.
+  installed  ${CURRENT_SIGNER} (team ${CURRENT_TEAM})
+  downloaded ${NEW_SIGNER:-unsigned}"
+
+    # And that Apple notarized it. The signature says who built it; this says
+    # Apple has seen that build. Together they rule out a validly signed bundle
+    # that was never published as a release.
+    spctl -a -t exec "$MOUNT/ClaudeNotch.app" >/dev/null 2>&1 \
+        || die "The downloaded app is not notarized, refusing to install.
+Every published ClaudeNotch release is. Get it from
+  https://github.com/${REPO}/releases/latest"
+    say "→ Notarized, signed by ${NEW_SIGNER}"
+else
+    # A locally built copy (ad-hoc or self-signed) is being updated to a
+    # published one. There is no team to match, so fall back to comparing the
+    # authority. Weaker, and only reachable on a machine that built its own app.
+    if [ -n "$CURRENT_SIGNER" ] && [ "$CURRENT_SIGNER" != "$NEW_SIGNER" ]; then
+        die "The downloaded app is signed by someone else, refusing to install.
   installed  ${CURRENT_SIGNER}
   downloaded ${NEW_SIGNER:-unsigned}"
+    fi
+    [ -n "$NEW_SIGNER" ] && say "→ Signed by ${NEW_SIGNER}"
 fi
-[ -n "$NEW_SIGNER" ] && say "→ Signed by ${NEW_SIGNER}"
 
 say "→ Installing to /Applications"
 # Staged beside the real one and swapped, rather than deleted and copied. A

@@ -77,12 +77,46 @@ check "a failed install puts the old app back" \
 check "the signer is compared" \
       "$(grep -c 'signed by someone else' "$UPDATE")" "1"
 
-# The signer reader works on the real installed app, or the comparison above
-# would silently compare two empty strings and pass everything.
+# Now that releases are notarized, the primary gate is cryptographic: the
+# downloaded bundle must satisfy a designated requirement naming the installed
+# copy's team, and must pass a notarization assessment. Comparing authority
+# strings is the fallback for locally built copies only.
+check "the download is checked against a designated requirement" \
+      "$(grep -c 'certificate leaf\[subject.OU\]' "$UPDATE")" "1"
+check "the requirement demands an Apple anchor" \
+      "$(grep -c 'anchor apple generic' "$UPDATE")" "1"
+check "the requirement is an exact match, not a prefix" \
+      "$(grep -c 'R "=\${REQ}"' "$UPDATE")" "1"
+check "notarization is asserted" \
+      "$(grep -c 'spctl -a -t exec' "$UPDATE")" "1"
+# Hardcoding the team would mean a field-installed script cannot follow a team
+# change, and would let an edited copy widen what it accepts without that being
+# visible next to the check.
+check "the team is read from the installed app, not hardcoded" \
+      "$(grep -c 'CURRENT_TEAM=\$(team_of "\$APP")' "$UPDATE")" "1"
+
+# The signer and team readers work on the real installed app, or the checks
+# above would compare empty strings and pass everything.
 if [ -d /Applications/ClaudeNotch.app ]; then
     SIGNER=$(codesign -dvv /Applications/ClaudeNotch.app 2>&1 | sed -n 's/^Authority=//p' | head -1)
     check "the installed app has a readable signer" \
           "$(test -n "$SIGNER" && echo yes)" "yes"
+    TEAM=$(codesign -dvv /Applications/ClaudeNotch.app 2>&1 | sed -n 's/^TeamIdentifier=//p' | head -1)
+    check "the installed app has a readable team identifier" \
+          "$(test -n "$TEAM" && echo yes)" "yes"
+    # The requirement this script relies on has to actually hold for a build we
+    # shipped, and has to fail for a team we did not. A check that only ever
+    # passes is indistinguishable from no check.
+    if [ -n "$TEAM" ] && [ "$TEAM" != "not set" ]; then
+        check "the installed app satisfies its own team requirement" \
+              "$(codesign --verify --strict \
+                    -R "=anchor apple generic and certificate leaf[subject.OU] = $TEAM" \
+                    /Applications/ClaudeNotch.app 2>/dev/null && echo yes)" "yes"
+        check "the requirement rejects a different team" \
+              "$(codesign --verify --strict \
+                    -R '=anchor apple generic and certificate leaf[subject.OU] = XXXXXXXXXX' \
+                    /Applications/ClaudeNotch.app 2>/dev/null && echo yes || echo no)" "no"
+    fi
 fi
 
 echo
