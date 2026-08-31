@@ -7,6 +7,17 @@
 # permission ticks reset. A self-signed cert with a fixed identity keeps the
 # app's "designated requirement" constant, so the grants stick.
 #
+# DEVELOPMENT ONLY, and only needed on a machine without the release
+# certificate. Published releases are signed with the Developer ID
+# (team PS8FJ3MQB2) and notarized, which gives the same stable identity plus
+# everything this cannot: Gatekeeper acceptance and an Apple-anchored chain a
+# user can verify. If build.sh reports "Code signed with Developer ID", you do
+# not need this script and running it changes nothing about your builds.
+#
+# Kept because the fallback tier it feeds still exists, and a contributor
+# without the certificate would otherwise re-grant Accessibility and Input
+# Monitoring after every single rebuild. See SIGNING.md.
+#
 # Run this ONCE. macOS may ask for your login password to add the key.
 set -euo pipefail
 
