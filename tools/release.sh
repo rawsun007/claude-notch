@@ -26,6 +26,37 @@ fi
 
 echo "→ Releasing v$VERSION"
 
+# 0. Refuse to publish a build that cannot be notarized.
+#
+# Until the Developer ID existed, this script skipped notarization when the
+# credentials were absent and said so in one line, so a release still worked on
+# a machine with no Apple account. Now that every published release is notarized
+# that leniency is a trap: the DMG builds, the tag pushes, the cask updates, and
+# the artifact people download is one Gatekeeper blocks, which reads to them as
+# ClaudeNotch having been compromised. Worse, it would train users to click past
+# the warning again after we spent this work removing it.
+#
+# Escape hatch, deliberately awkward to type, for the case where an unsigned
+# artifact is genuinely wanted (reproducing an old build, testing this script):
+#   CLAUDENOTCH_ALLOW_UNNOTARIZED=1 ./tools/release.sh <version>
+if [ -z "${CLAUDENOTCH_NOTARY_PROFILE:-}" ] && [ -z "${CLAUDENOTCH_ALLOW_UNNOTARIZED:-}" ]; then
+    cat >&2 <<'TXT'
+CLAUDENOTCH_NOTARY_PROFILE is not set, so this release could not be notarized.
+
+Every published release is notarized, so shipping one that is not would put a
+Gatekeeper warning in front of every download, on an app whose whole job is
+gating what an agent may run.
+
+  export CLAUDENOTCH_NOTARY_PROFILE=claudenotch
+
+See SIGNING.md if the profile is not on this machine yet. To build an
+unnotarized artifact on purpose:
+
+  CLAUDENOTCH_ALLOW_UNNOTARIZED=1 ./tools/release.sh <version>
+TXT
+    exit 1
+fi
+
 # 1. Bump versions in build.sh.
 OLD_SHORT=$(grep -oE 'CFBundleShortVersionString</key><string>[^<]*' build.sh | sed 's/.*>//')
 OLD_BUILD=$(grep -oE 'CFBundleVersion</key><string>[0-9]*' build.sh | sed 's/.*>//')
@@ -100,7 +131,10 @@ if [ -n "${CLAUDENOTCH_NOTARY_PROFILE:-}" ]; then
         || { echo "the signed app failed verification, not publishing"; exit 1; }
     echo "✓ Notarized and stapled"
 else
-    echo "  (not notarized: CLAUDENOTCH_NOTARY_PROFILE unset, download will warn)"
+    # Only reachable with CLAUDENOTCH_ALLOW_UNNOTARIZED set, since the guard at
+    # the top of this script exits otherwise.
+    echo "  ⚠ NOT NOTARIZED (CLAUDENOTCH_ALLOW_UNNOTARIZED). Gatekeeper will"
+    echo "    block this DMG for every user. Do not publish it as a release."
 fi
 
 # 3. sha256 + generate the Homebrew cask into dist/ (NOT the repo root — the
