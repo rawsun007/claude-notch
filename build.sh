@@ -126,18 +126,21 @@ PLIST
 
 # Signing, best available tier first.
 #
-#   1. Developer ID, when CLAUDENOTCH_SIGN_ID names one. This is the only tier
-#      Gatekeeper accepts without the user overriding it by hand, and the only
-#      one that can be notarized. Set it and the DMG build will notarize too.
+#   1. Developer ID, when the pinned certificate below (or CLAUDENOTCH_SIGN_ID)
+#      is in the keychain. The only tier that can be notarized, and therefore
+#      the only tier a release may ship in.
 #   2. A stable self-signed identity, so TCC grants (Accessibility, Input
 #      Monitoring) survive a rebuild, because the designated requirement stays
 #      constant. See tools/make-signing-cert.sh.
 #   3. Ad-hoc, which works but re-prompts for permissions on every update.
 #
-# Only the first clears Gatekeeper. The other two mean every new user meets
-# "cannot be opened because Apple cannot check it for malicious software" and
-# has to right-click Open, which is a lot to ask of somebody installing a tool
-# that gates what an AI may run on their Mac.
+# Tiers 2 and 3 are DEVELOPMENT ONLY, and are now only reachable on a machine
+# without the release certificate. They exist so the app builds and runs there,
+# not so it can be handed to anyone: both produce a bundle Gatekeeper refuses
+# with "cannot be opened because Apple cannot check it for malicious software",
+# which is a lot to ask of somebody installing a tool that gates what an AI may
+# run on their Mac. tools/release.sh refuses to publish one, and
+# tools/verify-notarized-build.sh fails on one.
 # The Developer ID to sign with.
 #
 # Pinned to a SHA-1 hash rather than a name on purpose. This team has several
@@ -174,10 +177,11 @@ if [ -n "$DEV_ID" ]; then
 elif security find-identity 2>/dev/null | grep -q "$SIGN_ID" \
    && codesign --force --deep --sign "$SIGN_ID" "$APP" 2>/dev/null; then
     echo "→ Code signed with stable identity ($SIGN_ID) — permissions persist across updates"
-    echo "  (not notarized: set CLAUDENOTCH_SIGN_ID to a Developer ID to clear Gatekeeper)"
+    echo "  DEVELOPMENT BUILD: not notarized, do not distribute this bundle."
 else
     echo "→ Ad-hoc code signing (run tools/make-signing-cert.sh once so permissions persist)"
     codesign --force --deep --sign - "$APP" 2>/dev/null || true
+    echo "  DEVELOPMENT BUILD: not notarized, do not distribute this bundle."
 fi
 
 echo
