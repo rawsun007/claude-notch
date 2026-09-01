@@ -151,14 +151,20 @@ else
     echo "    block this DMG for every user. Do not publish it as a release."
 fi
 
-# 3. sha256 + generate the Homebrew cask into dist/ (NOT the repo root — the
-#    cask is served only from rawsun007/homebrew-tap now, so the main repo no
-#    longer carries a Casks/ dir that would make it a second, conflicting tap).
-SHA=$(shasum -a 256 "$DMG" | cut -d' ' -f1)
-mkdir -p dist
-sed -e "s/__VERSION__/${VERSION}/" -e "s/__SHA__/${SHA}/" \
-    tools/claudenotch.rb.tmpl > dist/claudenotch.rb
-echo "  cask generated: version ${VERSION}, sha256 ${SHA:0:12}…"
+# 3. The Homebrew cask is NOT generated here.
+#
+# It used to be, from the checksum of the DMG just built locally. That is only
+# correct while the local build is the file users download. The release workflow
+# also builds a DMG from the tag commit and uploads it with --clobber, so it
+# wins the race, and a cask pinned to the local checksum then points at bytes
+# nobody can fetch: `brew install` fails on a checksum mismatch and the
+# self-updater refuses the download, which between them mean nobody can update.
+#
+# tools/sync-cask-to-release.sh runs at the end instead, after the release
+# exists and after any workflow that might replace the asset has finished, and
+# takes the checksum from what is actually published. The cask is served only
+# from rawsun007/homebrew-tap; the main repo carries no Casks/ dir, which would
+# be a second and conflicting tap.
 
 # 4. Commit the bump and push so the tag points at this commit.
 git add build.sh
@@ -231,8 +237,15 @@ else
 fi
 
 
-# Keep the Homebrew tap serving the new version.
-"$(dirname "$0")/push-cask-to-tap.sh" || true
+# Keep the Homebrew tap serving the new version, checksummed from the published
+# asset rather than the local build, and only after verifying it. This waits on
+# the release workflow when there is one, so it is the slow step; it is last for
+# that reason, and it is re-runnable on its own if it fails:
+#   ./tools/sync-cask-to-release.sh <version>
+"$(dirname "$0")/sync-cask-to-release.sh" "$VERSION" || {
+    echo "⚠ The cask was NOT updated. Users cannot brew install or update until"
+    echo "  it is. Re-run: ./tools/sync-cask-to-release.sh ${VERSION}"
+}
 
 # Reinstall the freshly built .app into /Applications and relaunch, so the
 # machine that cut the release is actually running it. build-dmg.sh already
