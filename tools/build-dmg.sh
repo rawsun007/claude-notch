@@ -135,18 +135,31 @@ rm -f "$RW"; rmdir "$(dirname "$RW")" 2>/dev/null || true
 # tool whose whole job is deciding what an AI may run on their Mac. That is an
 # expensive first impression and it is the single biggest install-time drop.
 #
-# Needs, all three, or this block is skipped in full:
-#   CLAUDENOTCH_SIGN_ID       the Developer ID Application identity, which
-#                             build.sh also reads so the .app inside is signed
-#                             with the hardened runtime
-#   CLAUDENOTCH_NOTARY_PROFILE  a notarytool keychain profile, stored once with
-#                             xcrun notarytool store-credentials
+# Needs a notarytool keychain profile in CLAUDENOTCH_NOTARY_PROFILE, stored once
+# with xcrun notarytool store-credentials, or this block is skipped in full.
+#
+# The signing identity is NOT read from the environment alone. It used to be,
+# and build.sh meanwhile grew a pinned default, so the two disagreed: a release
+# run with only CLAUDENOTCH_NOTARY_PROFILE set produced a properly signed app
+# inside a disk image that was never signed at all. Apple notarizes that
+# happily, because the app inside is what it inspects, and stapler staples it,
+# so every step reported success and `spctl -t install` on the result said
+# "rejected: no usable signature". Same default as build.sh, read from build.sh
+# rather than copied, because a second copy of the hash is a second thing to
+# update when the certificate rotates.
 #
 # Stapling matters: it puts the ticket inside the DMG so a first launch works
 # with no network. Without it, someone offline sees the refusal anyway.
-if [ -n "${CLAUDENOTCH_SIGN_ID:-}" ] && [ -n "${CLAUDENOTCH_NOTARY_PROFILE:-}" ]; then
+DMG_SIGN_ID="${CLAUDENOTCH_SIGN_ID:-$(sed -n 's/^DEV_ID="\${CLAUDENOTCH_SIGN_ID:-\([0-9A-F]*\)}".*$/\1/p' build.sh)}"
+if [ -n "$DMG_SIGN_ID" ] \
+   && ! security find-identity -v -p codesigning 2>/dev/null | grep -q "$DMG_SIGN_ID"; then
+    echo "  (signing identity $DMG_SIGN_ID not in this keychain)"
+    DMG_SIGN_ID=""
+fi
+
+if [ -n "$DMG_SIGN_ID" ] && [ -n "${CLAUDENOTCH_NOTARY_PROFILE:-}" ]; then
     echo "→ Signing the disk image"
-    codesign --force --timestamp --sign "$CLAUDENOTCH_SIGN_ID" "$DMG"
+    codesign --force --timestamp --sign "$DMG_SIGN_ID" "$DMG"
 
     echo "→ Notarizing (this waits on Apple, usually a minute or two)"
     if xcrun notarytool submit "$DMG" \
@@ -167,7 +180,8 @@ if [ -n "${CLAUDENOTCH_SIGN_ID:-}" ] && [ -n "${CLAUDENOTCH_NOTARY_PROFILE:-}" ]
         exit 1
     fi
 else
-    echo "→ Not notarized (set CLAUDENOTCH_SIGN_ID and CLAUDENOTCH_NOTARY_PROFILE)"
+    echo "→ Not notarized (set CLAUDENOTCH_NOTARY_PROFILE, and check the signing"
+    echo "  identity build.sh pins is in this keychain)"
 fi
 
 # Set the .dmg FILE's Finder icon (what you see in Downloads) to our logo.

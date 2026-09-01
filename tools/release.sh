@@ -120,8 +120,22 @@ if [ -n "${CLAUDENOTCH_NOTARY_PROFILE:-}" ]; then
         || { echo "notarization of the DMG failed"; exit 1; }
     xcrun stapler staple "$DMG" || { echo "could not staple the DMG"; exit 1; }
 
-    # Say what Gatekeeper will say, rather than assuming it worked.
-    spctl -a -vvv -t install "$DMG" 2>&1 | sed 's/^/  /'
+    # Say what Gatekeeper will say, rather than assuming it worked, and stop if
+    # it says no. This was already fatal, but only by accident: spctl exits
+    # nonzero and `set -o pipefail` took the script down with no explanation of
+    # what had failed or what state the tree was left in. Cutting v0.34.0 hit
+    # exactly that, and the last line of output was "source=no usable signature"
+    # with no indication that the release had stopped.
+    if ! spctl -a -vvv -t install "$DMG" 2>&1 | sed 's/^/  /'; then
+        echo
+        echo "Gatekeeper rejects $DMG, so this release stops here. Nothing was"
+        echo "committed, tagged or published."
+        echo
+        echo "'no usable signature' means the disk image itself was not signed,"
+        echo "even though the app inside it was and Apple notarized it. Check the"
+        echo "signing identity build.sh pins is in this keychain."
+        exit 1
+    fi
 
     # And check the app, not only the disk image. A notarized DMG says nothing
     # about whether the bundle inside carries its entitlements, its usage
