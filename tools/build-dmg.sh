@@ -128,28 +128,31 @@ rmdir "$MNT" 2>/dev/null || true
 hdiutil convert "$RW" -format UDZO -o "$DMG" >/dev/null
 rm -f "$RW"; rmdir "$(dirname "$RW")" 2>/dev/null || true
 
-# Notarize and staple, when there is a Developer ID to do it with.
+# Sign the disk image.
 #
-# Without this the DMG is signed but not notarized, so Gatekeeper refuses the
-# first launch and every new user has to right-click Open, or run xattr, on a
-# tool whose whole job is deciding what an AI may run on their Mac. That is an
-# expensive first impression and it is the single biggest install-time drop.
+# Unconditionally, whenever an identity is available, and NOT as part of the
+# notarization block below. It used to be the first line inside that block, and
+# that coupling produced the same broken artifact twice in one release:
 #
-# Needs a notarytool keychain profile in CLAUDENOTCH_NOTARY_PROFILE, stored once
-# with xcrun notarytool store-credentials, or this block is skipped in full.
+#   - Locally, the block is gated on CLAUDENOTCH_NOTARY_PROFILE, and the signing
+#     identity was read from CLAUDENOTCH_SIGN_ID alone while build.sh had grown
+#     a pinned default. A run with only the notary profile set signed the app
+#     and left the image around it bare.
+#   - In CI, the identity is set but CLAUDENOTCH_NOTARY_PROFILE never is: the
+#     workflow notarizes in its own steps, because it needs --keychain to reach
+#     the throwaway keychain it imported the certificate into. So the whole
+#     block was skipped and the image went unsigned again.
 #
-# The signing identity is NOT read from the environment alone. It used to be,
-# and build.sh meanwhile grew a pinned default, so the two disagreed: a release
-# run with only CLAUDENOTCH_NOTARY_PROFILE set produced a properly signed app
-# inside a disk image that was never signed at all. Apple notarizes that
-# happily, because the app inside is what it inspects, and stapler staples it,
-# so every step reported success and `spctl -t install` on the result said
-# "rejected: no usable signature". Same default as build.sh, read from build.sh
-# rather than copied, because a second copy of the hash is a second thing to
-# update when the certificate rotates.
+# Both callers notarize themselves. Neither signs the image itself. So signing
+# belongs here, on its own, with no second condition attached to it. The failure
+# it caused is silent in a nasty way: Apple notarizes an unsigned image without
+# complaint, because the app inside is what it inspects, and stapler attaches
+# the ticket regardless, so every step reports success and only
+# `spctl -t install` says "rejected: no usable signature".
 #
-# Stapling matters: it puts the ticket inside the DMG so a first launch works
-# with no network. Without it, someone offline sees the refusal anyway.
+# The identity default is read out of build.sh rather than copied, because a
+# second copy of the hash is a second thing to update when the certificate
+# rotates.
 DMG_SIGN_ID="${CLAUDENOTCH_SIGN_ID:-$(sed -n 's/^DEV_ID="\${CLAUDENOTCH_SIGN_ID:-\([0-9A-F]*\)}".*$/\1/p' build.sh)}"
 if [ -n "$DMG_SIGN_ID" ] \
    && ! security find-identity -v -p codesigning 2>/dev/null | grep -q "$DMG_SIGN_ID"; then
@@ -157,10 +160,29 @@ if [ -n "$DMG_SIGN_ID" ] \
     DMG_SIGN_ID=""
 fi
 
-if [ -n "$DMG_SIGN_ID" ] && [ -n "${CLAUDENOTCH_NOTARY_PROFILE:-}" ]; then
+if [ -n "$DMG_SIGN_ID" ]; then
     echo "→ Signing the disk image"
     codesign --force --timestamp --sign "$DMG_SIGN_ID" "$DMG"
+    # Assert it took. codesign can succeed and leave an image that carries no
+    # usable signature, and every later step reports success anyway.
+    codesign --verify --strict "$DMG" \
+        || { echo "the disk image did not end up signed, refusing to continue"; exit 1; }
+fi
 
+# Notarize and staple, when there are credentials to do it with.
+#
+# Without this the DMG is signed but not notarized, so Gatekeeper refuses the
+# first launch and every new user has to right-click Open, or run xattr, on a
+# tool whose whole job is deciding what an AI may run on their Mac. That is an
+# expensive first impression and it is the single biggest install-time drop.
+#
+# Needs a notarytool keychain profile in CLAUDENOTCH_NOTARY_PROFILE, stored once
+# with xcrun notarytool store-credentials, or this block is skipped. The release
+# workflow leaves it unset on purpose and does this itself.
+#
+# Stapling matters: it puts the ticket inside the DMG so a first launch works
+# with no network. Without it, someone offline sees the refusal anyway.
+if [ -n "$DMG_SIGN_ID" ] && [ -n "${CLAUDENOTCH_NOTARY_PROFILE:-}" ]; then
     echo "→ Notarizing (this waits on Apple, usually a minute or two)"
     if xcrun notarytool submit "$DMG" \
            --keychain-profile "$CLAUDENOTCH_NOTARY_PROFILE" --wait; then
@@ -179,10 +201,16 @@ if [ -n "$DMG_SIGN_ID" ] && [ -n "${CLAUDENOTCH_NOTARY_PROFILE:-}" ]; then
         echo "⚠ Notarization failed. Check: xcrun notarytool log <id> --keychain-profile $CLAUDENOTCH_NOTARY_PROFILE"
         exit 1
     fi
+elif [ -n "$DMG_SIGN_ID" ]; then
+    echo "→ Signed, not notarized (CLAUDENOTCH_NOTARY_PROFILE unset). Expected"
+    echo "  in CI, which notarizes in its own step."
 else
-    echo "→ Not notarized (set CLAUDENOTCH_NOTARY_PROFILE, and check the signing"
-    echo "  identity build.sh pins is in this keychain)"
+    echo "→ Neither signed nor notarized: the signing identity build.sh pins is"
+    echo "  not in this keychain. Development build only."
 fi
+
+# Everything below this line touches the finished image, so the signature is
+# checked again at the end rather than assumed to have survived.
 
 # Set the .dmg FILE's Finder icon (what you see in Downloads) to our logo.
 if [ -f assets/icon-1024.png ]; then
@@ -196,9 +224,20 @@ SWIFT
 fi
 
 rm -rf "$(dirname "$STAGE")"
+
+# Last word on the artifact, after the Finder icon has been written into it.
+# Setting the icon goes through NSWorkspace and is not expected to disturb the
+# signature, and this says so rather than trusting it: the cost of being wrong
+# is a release nobody can install, and the check is one process.
+if [ -n "$DMG_SIGN_ID" ]; then
+    codesign --verify --strict "$DMG" \
+        || { echo "the disk image's signature did not survive packaging"; exit 1; }
+    echo "→ Disk image signature verified"
+fi
+
 SIZE=$(du -h "$DMG" | cut -f1)
 echo
 echo "✓ Built $DMG ($SIZE)"
 echo
-echo "  Next: upload $DMG to Google Drive → Share → 'Anyone with the link'."
-echo "  Recipients: open the DMG, drag the app to Applications, right-click → Open."
+echo "  Next: publish it with tools/release.sh, which notarizes, verifies and"
+echo "  points the Homebrew cask at the published file."
