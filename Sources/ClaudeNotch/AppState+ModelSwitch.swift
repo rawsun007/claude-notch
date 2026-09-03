@@ -52,22 +52,29 @@ extension AppState {
         }
 
         let detail = Self.modelSwitchDetail(from: from, to: to)
-        appendHistory(HistoryEntry(
-            timestamp: Date(),
-            kind: .notification,
-            toolName: "PostModelSwitch",
-            title: L("Model switched", comment: "Card title: the session changed model mid-run"),
-            detail: detail,
-            project: (cwd as NSString).lastPathComponent,
-            outcome: .info))
+        let title = L("Model switched", comment: "Card title: the session changed model mid-run")
 
+        // History is written here ONLY for the switch that gets no card.
+        // enqueuePermission logs notification cards itself, so appending before
+        // calling it files the same switch twice, which is what the first
+        // version of this did: one POST, two identical rows in the activity log.
         if let last = lastModelSwitch[sessionId], last.to == to,
-           Date().timeIntervalSince(last.at) < Self.modelSwitchCardGrace { return }
+           Date().timeIntervalSince(last.at) < Self.modelSwitchCardGrace {
+            appendHistory(HistoryEntry(
+                timestamp: Date(),
+                kind: .notification,
+                toolName: "PostModelSwitch",
+                title: title,
+                detail: detail,
+                project: (cwd as NSString).lastPathComponent,
+                outcome: .info))
+            return
+        }
         lastModelSwitch[sessionId] = (to: to, at: Date())
 
         enqueuePermission(PermissionRequest(
             kind: .notification,
-            title: L("Model switched", comment: "Card title: the session changed model mid-run"),
+            title: title,
             detail: detail,
             toolName: "PostModelSwitch",
             source: "Claude Code",
