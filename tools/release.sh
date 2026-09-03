@@ -242,10 +242,16 @@ fi
 # the release workflow when there is one, so it is the slow step; it is last for
 # that reason, and it is re-runnable on its own if it fails:
 #   ./tools/sync-cask-to-release.sh <version>
-"$(dirname "$0")/sync-cask-to-release.sh" "$VERSION" || {
-    echo "⚠ The cask was NOT updated. Users cannot brew install or update until"
-    echo "  it is. Re-run: ./tools/sync-cask-to-release.sh ${VERSION}"
-}
+CASK_OK=1
+"$(dirname "$0")/sync-cask-to-release.sh" "$VERSION" || CASK_OK=0
+
+# Then confirm it from outside, by fetching the tap and the release the way a
+# user would. The sync script reporting success is not the same claim: it says
+# what it pushed, not what the tap now serves, and the release asset can still
+# be replaced by a workflow run that finishes after it.
+if [ "$CASK_OK" -eq 1 ]; then
+    "$(dirname "$0")/check-cask-matches-release.sh" "$VERSION" || CASK_OK=0
+fi
 
 # Reinstall the freshly built .app into /Applications and relaunch, so the
 # machine that cut the release is actually running it. build-dmg.sh already
@@ -274,3 +280,24 @@ fi
 echo
 echo "Next: add a v${VERSION} entry to app/changelog/releases.ts on the website,"
 echo "then rebuild it and copy out/ into docs/ so the changelog page updates."
+
+# Loud, and genuinely last, so it is what is left on screen and what the exit
+# status says. This used to be a warning, and it should not have been: a release
+# whose cask does not match the published DMG is a release nobody can install or
+# update, and the only other symptom is a user reporting that brew fails on a
+# checksum days later. The local reinstall above still runs first, because the
+# machine that cut the release should end up on it either way.
+if [ "$CASK_OK" -eq 0 ]; then
+    echo
+    echo "================================================================"
+    echo " v${VERSION} IS PUBLISHED BUT NOT INSTALLABLE."
+    echo
+    echo ' The Homebrew cask does not match the published DMG, so'
+    echo ' "brew install --cask" fails on a checksum mismatch and Update Now'
+    echo ' refuses the download for every existing user.'
+    echo
+    echo "   ./tools/sync-cask-to-release.sh ${VERSION}"
+    echo "   ./tools/check-cask-matches-release.sh ${VERSION}"
+    echo "================================================================"
+    exit 1
+fi
