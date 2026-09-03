@@ -22,6 +22,40 @@ extension AppState {
     /// second switch back and forth is news.
     nonisolated static let modelSwitchCardGrace: TimeInterval = 5
 
+    /// Rough cost order of the model families: haiku < sonnet < opus.
+    ///
+    /// Zero means "not a family we know", which is not the same as cheap. Every
+    /// caller has to treat 0 as unknown and decline to act, because the whole
+    /// point of the ordering is deciding whether a switch costs more, and a
+    /// model we cannot place tells us nothing about that.
+    ///
+    /// Version is deliberately not part of the order. Anthropic prices by
+    /// family, and sonnet 4.6 is not more expensive than sonnet 4.5, so
+    /// treating a version bump as an upgrade would gate switches that cost
+    /// nothing extra and teach people to turn the gate off.
+    nonisolated static func modelCostRank(_ model: String) -> Int {
+        let m = model.lowercased()
+        if m.contains("haiku")  { return 1 }
+        if m.contains("sonnet") { return 2 }
+        if m.contains("opus")   { return 3 }
+        return 0
+    }
+
+    /// Is this switch a move to a more expensive family?
+    ///
+    /// False whenever we cannot tell, which covers an empty `from_model` (the
+    /// CLI does not always know what it is switching away from) and any id
+    /// outside the three families. That direction is chosen on purpose: this
+    /// answer gates a blocking card, so being wrong the other way would stop a
+    /// session on a switch nobody asked to be asked about, with the terminal
+    /// waiting on a notch the user may not be looking at.
+    nonisolated static func modelSwitchIsUpgrade(from: String, to: String) -> Bool {
+        let a = modelCostRank(from)
+        let b = modelCostRank(to)
+        guard a > 0, b > 0 else { return false }
+        return b > a
+    }
+
     /// One line for the card: "opus 5 to sonnet 4.6".
     ///
     /// Falls back to the raw ids when a model is not one of the families we

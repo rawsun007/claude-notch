@@ -42,6 +42,48 @@ final class ModelSwitchTests: XCTestCase {
         XCTAssertGreaterThan(AppState.modelSwitchCardGrace, 0)
     }
 
+    // MARK: - Which switches count as an upgrade
+
+    func testMovingToAMoreExpensiveFamilyIsAnUpgrade() {
+        XCTAssertTrue(AppState.modelSwitchIsUpgrade(from: "claude-haiku-4-5", to: "claude-sonnet-4-6"))
+        XCTAssertTrue(AppState.modelSwitchIsUpgrade(from: "claude-sonnet-4-6", to: "claude-opus-5"))
+        XCTAssertTrue(AppState.modelSwitchIsUpgrade(from: "claude-haiku-4-5", to: "claude-opus-5"))
+    }
+
+    func testMovingDownOrSidewaysIsNot() {
+        XCTAssertFalse(AppState.modelSwitchIsUpgrade(from: "claude-opus-5", to: "claude-sonnet-4-6"))
+        XCTAssertFalse(AppState.modelSwitchIsUpgrade(from: "claude-opus-5", to: "claude-haiku-4-5"))
+        XCTAssertFalse(AppState.modelSwitchIsUpgrade(from: "claude-opus-5", to: "claude-opus-5"))
+    }
+
+    /// A version bump inside one family is not an upgrade in the sense that
+    /// matters here. Anthropic prices by family, so gating these would stop
+    /// sessions over a switch that costs nothing extra, which is how a gate
+    /// gets switched off for good.
+    func testAVersionBumpWithinAFamilyIsNotAnUpgrade() {
+        XCTAssertFalse(AppState.modelSwitchIsUpgrade(from: "claude-sonnet-4-5", to: "claude-sonnet-4-6"))
+        XCTAssertFalse(AppState.modelSwitchIsUpgrade(from: "claude-opus-4-8", to: "claude-opus-5"))
+    }
+
+    /// Everything we cannot place has to come back false. This gates a blocking
+    /// card, so the cost of a wrong true is a session stopped dead waiting on a
+    /// notch nobody is looking at.
+    func testUnknownOrMissingModelsAreNeverTreatedAsUpgrades() {
+        XCTAssertFalse(AppState.modelSwitchIsUpgrade(from: "", to: "claude-opus-5"))
+        XCTAssertFalse(AppState.modelSwitchIsUpgrade(from: "claude-haiku-4-5", to: ""))
+        XCTAssertFalse(AppState.modelSwitchIsUpgrade(from: "some-future-model", to: "claude-opus-5"))
+        XCTAssertFalse(AppState.modelSwitchIsUpgrade(from: "claude-haiku-4-5", to: "some-future-model"))
+        XCTAssertEqual(AppState.modelCostRank("some-future-model"), 0)
+    }
+
+    /// The families are ordered by cost, not alphabetically or by release date.
+    func testFamilyOrder() {
+        XCTAssertLessThan(AppState.modelCostRank("claude-haiku-4-5"),
+                          AppState.modelCostRank("claude-sonnet-4-6"))
+        XCTAssertLessThan(AppState.modelCostRank("claude-sonnet-4-6"),
+                          AppState.modelCostRank("claude-opus-5"))
+    }
+
     // MARK: - The hook entry itself
 
     /// The matcher for this event is tested against the destination model id
