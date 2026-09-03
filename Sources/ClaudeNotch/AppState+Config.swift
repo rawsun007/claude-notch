@@ -60,20 +60,31 @@ extension AppState {
 
         let title = Self.configChangeLabel(source: source)
         let detail = Self.configChangeDetail(source: source, filePath: filePath)
-        appendHistory(HistoryEntry(
-            timestamp: Date(),
-            kind: .notification,
-            toolName: "ConfigChange",
-            title: title,
-            detail: detail,
-            project: currentProject,
-            outcome: .info))
 
-        guard Self.configChangeIsSecurity(source: source) else { return }
+        // Record it, unless a card is about to. enqueuePermission writes its own
+        // history entry for a notification card, deliberately, because a
+        // notification has no Allow/Deny to record later. Appending here as well
+        // filed every permission-bearing settings change twice: one hook, two
+        // identical rows in the activity log, same second. The log this is meant
+        // to make scannable was the thing being made unscannable.
+        func record() {
+            appendHistory(HistoryEntry(
+                timestamp: Date(),
+                kind: .notification,
+                toolName: "ConfigChange",
+                title: title,
+                detail: detail,
+                project: currentProject,
+                outcome: .info))
+        }
+
+        // A source that changes what Claude knows rather than what it may do.
+        guard Self.configChangeIsSecurity(source: source) else { record(); return }
         // Our own write, or a burst of writes for the same source (an editor
-        // saving twice, or several sessions reporting the same edit).
-        guard Date().timeIntervalSince(HookInstaller.lastSelfWriteAt) > Self.selfSettingsWriteGrace else { return }
-        if let last = lastConfigCardAt[source], Date().timeIntervalSince(last) < 5 { return }
+        // saving twice, or several sessions reporting the same edit). Still
+        // recorded, just not announced.
+        guard Date().timeIntervalSince(HookInstaller.lastSelfWriteAt) > Self.selfSettingsWriteGrace else { record(); return }
+        if let last = lastConfigCardAt[source], Date().timeIntervalSince(last) < 5 { record(); return }
         lastConfigCardAt[source] = Date()
 
         enqueuePermission(PermissionRequest(
