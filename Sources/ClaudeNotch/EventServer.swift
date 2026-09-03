@@ -1210,6 +1210,21 @@ final class EventServer {
         }
     }
 
+    /// A session changed model mid-run. `from_model` and `to_model` carry
+    /// canonical model ids; `from_model` can be absent.
+    ///
+    /// Advisory only. `PostModelSwitch` runs after the switch has happened and
+    /// its exit code is ignored by the CLI, so there is nothing to decide here.
+    private func handleModelSwitch(payload: [String: Any]) {
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let cwd = (payload["cwd"] as? String) ?? ""
+        let from = (payload["from_model"] as? String) ?? ""
+        let to = (payload["to_model"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.noteModelSwitched(sessionId: sessionId, cwd: cwd, from: from, to: to)
+        }
+    }
+
     /// Auto mode denied a tool call. The payload carries `tool_name`,
     /// `tool_input`, `tool_use_id` and `reason`.
     private func handlePermissionDenied(payload: [String: Any]) {
@@ -1757,6 +1772,9 @@ final class EventServer {
             handleElicitationHTTP(payload: payload, on: conn)
         case "ElicitationResult":
             handleElicitationResult(payload: payload)
+            sendOK(on: conn)
+        case "PostModelSwitch":
+            handleModelSwitch(payload: payload)
             sendOK(on: conn)
         case "ConfigChange":
             handleConfigChange(payload: payload)

@@ -24,6 +24,9 @@
 /* Budget block detail. %1$@ is spend, %2$@ is the cap, %3$d is a percentage */
 "%1$@ of %2$@ cap (%3$d%%)" = "%1$@ of %2$@ cap (%3$d%%)";
 
+/* Card detail for a model switch. %1$@ is the old model, %2$@ is the new one */
+"%1$@ to %2$@" = "%1$@ to %2$@";
+
 /* Idle card title with more than one session. %1$@ is the agent name, %2$d is how many sessions */
 "%1$@ · %2$d sessions" = "%1$@ · %2$d sessions";
 
@@ -977,6 +980,9 @@
 
 /* Settings section heading */
 "Model mix (last 7 days)" = "Model mix (last 7 days)";
+
+/* Card title: the session changed model mid-run */
+"Model switched" = "Model switched";
 
 /* Settings explanation */
 "More" = "More";

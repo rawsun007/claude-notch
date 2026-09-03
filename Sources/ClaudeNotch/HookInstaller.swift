@@ -403,6 +403,13 @@ enum HookInstaller {
         // where permissions and sandboxing live, so this both refreshes what
         // the notch shows and is worth saying out loud.
         appendHook(to: "ConfigChange", in: &hooks, matcher: nil)
+        // A session changed model mid-run (Claude Code 2.1.251+). The matcher
+        // for this event is tested against the DESTINATION model id, not a tool
+        // name, so ".*" is every switch. Without it the notch only learns about
+        // a model change from whichever later hook happens to carry a model id,
+        // and until then reports cost against the wrong one. Older CLI versions
+        // do not fire this event and ignore the entry.
+        appendHook(to: "PostModelSwitch", in: &hooks, matcher: ".*")
         settings["hooks"] = hooks
 
         // StatusLine: the only local source of authoritative context-% and real

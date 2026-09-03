@@ -1050,6 +1050,13 @@ final class AppState: ObservableObject {
     // Last sandbox violation shown, so a command retrying against the same
     // blocked host doesn't raise a card per attempt.
     var lastSandboxViolationKey: String = ""
+
+    // MARK: - Model switch state (logic lives in AppState+ModelSwitch.swift)
+
+    // Last model switch announced, per session, so a switch reported twice
+    // raises one card. Keyed by session id, holding the destination model and
+    // when it was shown.
+    var lastModelSwitch: [String: (to: String, at: Date)] = [:]
     var lastSandboxViolationAt: Date = .distantPast
 
     // MARK: - Session registry (logic lives in AppState+Sessions.swift)
