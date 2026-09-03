@@ -16,6 +16,19 @@ REPO="rawsun007/claude-notch"
 # Fully qualified. A bare "claudenotch" is ambiguous the moment the token also
 # exists in another tap, and brew refuses rather than guessing.
 BREW_CASK="rawsun007/tap/claudenotch"
+# The cask carries the checksum for the published DMG. Read through the API
+# rather than raw.githubusercontent.com, which is a CDN and serves a stale copy
+# for minutes after the tap is updated. That window is exactly when people
+# update: the cask says one checksum, the release serves the new file, they
+# disagree, and the integrity check below correctly refuses a download that is
+# in fact genuine. Confirmed by fetching both within a minute of a release and
+# getting two different checksums.
+#
+# The raw URL stays as a fallback for the API being unreachable or rate-limited
+# (60 requests an hour per IP unauthenticated, which one update per user is
+# nowhere near). Stale is better than nothing here, because the failure it
+# causes is a refusal to install rather than installing something unverified.
+CASK_API_URL="https://api.github.com/repos/rawsun007/homebrew-tap/contents/Casks/claudenotch.rb"
 CASK_URL="https://raw.githubusercontent.com/rawsun007/homebrew-tap/main/Casks/claudenotch.rb"
 APP="/Applications/ClaudeNotch.app"
 DMG_URL="https://github.com/${REPO}/releases/latest/download/ClaudeNotch.dmg"
@@ -107,8 +120,14 @@ curl -fsSL --max-time 300 -o "$TMP/ClaudeNotch.dmg" "$DMG_URL" \
 # wrong way round. Anyone able to serve a bad DMG can also make one request
 # fail, and failing that one request was all it took to skip the check. An
 # integrity check that an attacker can switch off is not one, so this refuses.
-EXPECTED=$(curl -fsSL --max-time 20 "$CASK_URL" 2>/dev/null \
-           | sed -n 's/.*sha256[[:space:]]*"\([a-f0-9]\{64\}\)".*/\1/p' | head -1)
+cask_sha() {
+    sed -n 's/.*sha256[[:space:]]*"\([a-f0-9]\{64\}\)".*/\1/p' | head -1
+}
+EXPECTED=$(curl -fsSL --max-time 20 -H "Accept: application/vnd.github.raw" \
+                "$CASK_API_URL" 2>/dev/null | cask_sha)
+if [ -z "$EXPECTED" ]; then
+    EXPECTED=$(curl -fsSL --max-time 20 "$CASK_URL" 2>/dev/null | cask_sha)
+fi
 ACTUAL=$(shasum -a 256 "$TMP/ClaudeNotch.dmg" | awk '{print $1}')
 [ -n "$EXPECTED" ] || die "Could not fetch the published checksum, so this download cannot be
 verified. Nothing was installed. Try again, or update with:

@@ -20,7 +20,12 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 REPO="rawsun007/claude-notch"
-CASK_URL="https://raw.githubusercontent.com/rawsun007/homebrew-tap/main/Casks/claudenotch.rb"
+# Through the API, not raw.githubusercontent.com. That is a CDN and serves a
+# stale copy of the cask for minutes after the tap is updated, so a check run
+# right after a release, which is the only time anybody runs it, reports a
+# mismatch that does not exist. This script raising a false alarm is nearly as
+# bad as it missing a real one: both teach you to ignore the answer.
+CASK_URL="https://api.github.com/repos/rawsun007/homebrew-tap/contents/Casks/claudenotch.rb"
 
 VERSION="${1:-}"
 FAIL=0
@@ -36,7 +41,7 @@ echo "Checking the published release against the Homebrew cask"
 echo
 
 # --- the cask
-CASK=$(curl -fsSL --max-time 30 "$CASK_URL") \
+CASK=$(curl -fsSL --max-time 30 -H "Accept: application/vnd.github.raw" "$CASK_URL") \
     || { echo "  could not fetch the cask from the tap" >&2; exit 1; }
 CASK_VERSION=$(printf '%s\n' "$CASK" | sed -n 's/^  version "\(.*\)"$/\1/p' | head -1)
 CASK_SHA=$(printf '%s\n' "$CASK" | sed -n 's/^  sha256 "\([a-f0-9]\{64\}\)"$/\1/p' | head -1)

@@ -89,6 +89,13 @@ check "the requirement is an exact match, not a prefix" \
       "$(grep -c 'R "=\${REQ}"' "$UPDATE")" "1"
 check "notarization is asserted" \
       "$(grep -c 'spctl -a -t exec' "$UPDATE")" "1"
+# raw.githubusercontent.com is a CDN and serves a stale cask for minutes after
+# the tap is updated, which is exactly when people update. Reading the stale
+# copy makes the checksum check refuse a download that is genuine.
+check "the checksum is read through the API, not the CDN" \
+      "$(grep -c 'application/vnd.github.raw' "$UPDATE")" "1"
+check "the CDN copy is still there as a fallback" \
+      "$(grep -c '^CASK_URL="https://raw.githubusercontent.com' "$UPDATE")" "1"
 # Hardcoding the team would mean a field-installed script cannot follow a team
 # change, and would let an edited copy widen what it accepts without that being
 # visible next to the check.
