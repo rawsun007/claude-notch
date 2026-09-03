@@ -84,6 +84,51 @@ final class ModelSwitchTests: XCTestCase {
                           AppState.modelCostRank("claude-opus-5"))
     }
 
+    // MARK: - What the gate answers the CLI
+
+    /// The shape is not ours to choose: permissionDecision lives inside
+    /// hookSpecificOutput, alongside a hookEventName that must be the event's
+    /// own name. Get any of that wrong and the CLI ignores the answer, which
+    /// looks exactly like a gate that does not work.
+    func testDenyNamesTheEventAndCarriesAReason() throws {
+        let body = EventServer.modelSwitchReply(.deny, "too expensive")
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(
+            with: Data(body.utf8)) as? [String: Any])
+        let inner = try XCTUnwrap(json["hookSpecificOutput"] as? [String: Any])
+        XCTAssertEqual(inner["hookEventName"] as? String, "PreModelSwitch")
+        XCTAssertEqual(inner["permissionDecision"] as? String, "deny")
+        XCTAssertEqual(inner["permissionDecisionReason"] as? String, "too expensive")
+    }
+
+    /// A deny with nothing typed still has to say something, or the terminal
+    /// reports a blocked switch with no explanation at all.
+    func testDenyWithoutAReasonStillExplainsItself() throws {
+        for reason in [nil, ""] as [String?] {
+            let body = EventServer.modelSwitchReply(.deny, reason)
+            let json = try XCTUnwrap(try JSONSerialization.jsonObject(
+                with: Data(body.utf8)) as? [String: Any])
+            let inner = try XCTUnwrap(json["hookSpecificOutput"] as? [String: Any])
+            let text = try XCTUnwrap(inner["permissionDecisionReason"] as? String)
+            XCTAssertFalse(text.isEmpty)
+        }
+    }
+
+    func testAllowIsStatedAndCarriesNoReason() throws {
+        let body = EventServer.modelSwitchReply(.allow, nil)
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(
+            with: Data(body.utf8)) as? [String: Any])
+        let inner = try XCTUnwrap(json["hookSpecificOutput"] as? [String: Any])
+        XCTAssertEqual(inner["permissionDecision"] as? String, "allow")
+        XCTAssertNil(inner["permissionDecisionReason"])
+    }
+
+    /// Anything that is not a decision has to be silence, not a guess. A
+    /// dismissed card or a timeout must leave the user's own /model change
+    /// alone: the CLI reads a plain OK as no opinion and carries on.
+    func testNoDecisionIsSilenceSoTheSwitchProceeds() {
+        XCTAssertEqual(EventServer.modelSwitchReply(.ask, nil), EventServer.okBody)
+    }
+
     // MARK: - The hook entry itself
 
     /// The matcher for this event is tested against the destination model id

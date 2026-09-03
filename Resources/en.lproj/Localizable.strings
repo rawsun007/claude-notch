@@ -1491,6 +1491,9 @@
 /* Settings explanation */
 "Surface other coding agents in the notch. Codex support is experimental: session status, prompts, activity and notifications appear, but permission cards and cost are not wired yet." = "Surface other coding agents in the notch. Codex support is experimental: session status, prompts, activity and notifications appear, but permission cards and cost are not wired yet.";
 
+/* Card title: a session wants to move to a more expensive model */
+"Switch to a pricier model?" = "Switch to a pricier model?";
+
 /* Settings section heading */
 "System permissions" = "System permissions";
 

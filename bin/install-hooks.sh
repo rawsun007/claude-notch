@@ -159,7 +159,8 @@ jq --arg url "$NOTCH_URL" '
     .hooks.FileChanged        = add_hook(.hooks.FileChanged        ; true)  |
     .hooks.InstructionsLoaded = add_hook(.hooks.InstructionsLoaded ; true)  |
     .hooks.ConfigChange       = add_hook(.hooks.ConfigChange      ; false) |
-    .hooks.PostModelSwitch    = add_hook(.hooks.PostModelSwitch   ; true)
+    .hooks.PostModelSwitch    = add_hook(.hooks.PostModelSwitch   ; true) |
+    .hooks.PreModelSwitch     = add_hook(.hooks.PreModelSwitch    ; true)
 ' "$SETTINGS" > "$SETTINGS.new"
 
 mv "$SETTINGS.new" "$SETTINGS"

@@ -86,6 +86,7 @@ enum HookInstaller {
             // them silently never fire for anybody else.
             && s.contains("\"TeammateIdle\"")
             && s.contains("\"WorktreeCreate\"") && s.contains("\"WorktreeRemove\"")
+            && s.contains("\"PostModelSwitch\"") && s.contains("\"PreModelSwitch\"")
     }
 
     /// `jq` is required by posttool.sh to forward payload fields to the
@@ -410,6 +411,14 @@ enum HookInstaller {
         // and until then reports cost against the wrong one. Older CLI versions
         // do not fire this event and ignore the entry.
         appendHook(to: "PostModelSwitch", in: &hooks, matcher: ".*")
+        // The same switch, before it happens, so "ask before moving to a
+        // pricier model" can hold it. Installed unconditionally even though the
+        // setting is off by default: the handler answers a plain OK in a
+        // fraction of a millisecond when the switch is not an upgrade, and
+        // installing or removing a hook entry when a toggle flips would rewrite
+        // settings.json under every running session, which fires ConfigChange
+        // cards at everyone and is a worse trade than one no-op round trip.
+        appendHook(to: "PreModelSwitch", in: &hooks, matcher: ".*")
         settings["hooks"] = hooks
 
         // StatusLine: the only local source of authoritative context-% and real

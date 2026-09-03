@@ -1210,6 +1210,62 @@ final class EventServer {
         }
     }
 
+    /// A session is about to change model. Blocking, but only for the switches
+    /// the user asked to be asked about: opt in via Settings, and only a move to
+    /// a more expensive family.
+    ///
+    /// Everything else answers a plain OK, which the CLI reads as no opinion, so
+    /// the switch goes through exactly as it would with no hook installed. That
+    /// includes a timeout and a dismissed card: the user's own `/model` in their
+    /// own terminal must not be stopped because nobody was looking at the notch.
+    private func handleModelSwitchGateHTTP(payload: [String: Any], on conn: HookConnection) {
+        let cwd = (payload["cwd"] as? String) ?? ""
+        let from = (payload["from_model"] as? String) ?? ""
+        let to = (payload["to_model"] as? String) ?? ""
+
+        // Cheap and off the main actor: an upgrade this is not, no card, no hop.
+        guard AppState.modelSwitchIsUpgrade(from: from, to: to) else { sendOK(on: conn); return }
+
+        let pending = PendingAnswer(conn: conn, queue: workQueue,
+                                    timeout: Self.decisionWindow) { Self.okBody }
+        Task { @MainActor [weak self] in
+            guard let self, let state = self.state, state.gateModelUpgrades else {
+                pending.answer(Self.okBody)
+                return
+            }
+            let detail = AppState.modelSwitchDetail(from: from, to: to)
+            // bypassRules: this card exists because the user turned the gate on
+            // deliberately. An always-allow rule or Auto-Approve answering it for
+            // them would leave the setting on and doing nothing, which is worse
+            // than not offering it.
+            state.enqueuePermission(PermissionRequest(
+                kind: .toolUse,
+                title: L("Switch to a pricier model?", comment: "Card title: a session wants to move to a more expensive model"),
+                detail: detail,
+                toolName: "PreModelSwitch",
+                source: "Claude Code",
+                cwd: cwd,
+                resolver: { decision, reason in
+                    pending.answer(Self.modelSwitchReply(decision, reason))
+                }), bypassRules: true)
+        }
+    }
+
+    /// The hook's answer. Allow and deny are stated; anything else is silence,
+    /// which the CLI treats as no decision and lets the switch continue.
+    nonisolated static func modelSwitchReply(_ decision: PermissionDecision, _ reason: String?) -> String {
+        guard decision == .allow || decision == .deny else { return okBody }
+        var inner: [String: Any] = [
+            "hookEventName": "PreModelSwitch",
+            "permissionDecision": decision.rawValue,
+        ]
+        if decision == .deny {
+            let text = (reason?.isEmpty == false) ? reason! : "Denied in ClaudeNotch"
+            inner["permissionDecisionReason"] = String(text.prefix(200))
+        }
+        return jsonBody(["hookSpecificOutput": inner])
+    }
+
     /// A session changed model mid-run. `from_model` and `to_model` carry
     /// canonical model ids; `from_model` can be absent.
     ///
@@ -1773,6 +1829,9 @@ final class EventServer {
         case "ElicitationResult":
             handleElicitationResult(payload: payload)
             sendOK(on: conn)
+        case "PreModelSwitch":
+            // Blocking: this one sends its own response.
+            handleModelSwitchGateHTTP(payload: payload, on: conn)
         case "PostModelSwitch":
             handleModelSwitch(payload: payload)
             sendOK(on: conn)
