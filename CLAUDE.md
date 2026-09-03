@@ -71,7 +71,11 @@ back as the response.
   didSet), **Alerts**, **Sound**, **Sandbox** (per-cwd sandbox posture, cached
   60 s), **Config** (ConfigChange: a settings file edited mid-session),
   **CLIUpdate** (is the Claude Code CLI itself behind),
-  **ModelSwitch** (PostModelSwitch: a session changed model mid-run).
+  **ModelSwitch** (PostModelSwitch: a session changed model mid-run; and the
+  cost ranking behind the opt-in `gateModelUpgrades`, which holds a
+  PreModelSwitch when it moves UP a family. Every other case must answer a
+  plain OK: the CLI reads that as no decision, so the user's own `/model`
+  is never stopped by a card nobody is watching).
   Note for any extension that raises a card: `enqueuePermission` writes its
   own history entry for a `.notification`, so calling `appendHistory` as well
   files the same event twice. Log only on the paths that return without a card.
@@ -108,7 +112,12 @@ back as the response.
   of a tool result (network/file denials). Format is not a documented
   contract, so it degrades to raw lines rather than guessing.
 - **HookInstaller.swift**: installs/uninstalls the hook forwarders + status line
-  into `~/.claude` and `~/.codex`.
+  into `~/.claude` and `~/.codex`. **Adding a hook event takes three edits, not
+  one**: `appendHook` here, the jq list in `bin/install-hooks.sh` (the fallback
+  for machines without the app; `tools/test-hook-merge.sh` fails the build if
+  they disagree), and `hooksCurrent`, which gates auto-migration. Miss the third
+  and the event is registered only for people installing from scratch, so the
+  feature silently never fires for existing users.
 
 ### UI
 - **NotchView.swift**: the notch's root SwiftUI view and card sizing. Each card
