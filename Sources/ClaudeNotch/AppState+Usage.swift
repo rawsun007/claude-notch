@@ -142,6 +142,7 @@ extension AppState {
 
     func setRequireTouchID(_ on: Bool) { requireTouchID = on; schedulePersist() }
     func setStrictMode(_ on: Bool) { strictMode = on; schedulePersist() }
+    func setGateModelUpgrades(_ on: Bool) { gateModelUpgrades = on; schedulePersist() }
 
     func setMirrorToNotificationCenter(_ on: Bool) {
         mirrorToNotificationCenter = on

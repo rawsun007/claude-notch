@@ -907,6 +907,7 @@ final class AppState: ObservableObject {
             self.enforceBudget = snapshot.enforceBudget ?? false
             self.requireTouchID = snapshot.requireTouchID ?? BiometricAuth.isAvailable
             self.strictMode = snapshot.strictMode ?? false
+            self.gateModelUpgrades = snapshot.gateModelUpgrades ?? false
             self.mirrorToNotificationCenter = snapshot.mirrorToNotificationCenter ?? true
             self.completionNotificationsEnabled = snapshot.completionNotificationsEnabled ?? false
             self.digestNotificationsEnabled = snapshot.digestNotificationsEnabled ?? false
@@ -1050,6 +1051,16 @@ final class AppState: ObservableObject {
     // Last sandbox violation shown, so a command retrying against the same
     // blocked host doesn't raise a card per attempt.
     var lastSandboxViolationKey: String = ""
+
+    /// Hold a session's `/model` switch for approval when it moves to a more
+    /// expensive family (sonnet to opus, say). Off by default, and only ever
+    /// upgrades: a switch down, or one inside a family, is never held.
+    ///
+    /// Off by default because this is the only card the notch raises that
+    /// interrupts something the user just did themselves in their own terminal.
+    /// Worth having for anyone watching spend, wrong to impose on everyone.
+    /// Persisted.
+    @Published var gateModelUpgrades: Bool = false
 
     // MARK: - Model switch state (logic lives in AppState+ModelSwitch.swift)
 

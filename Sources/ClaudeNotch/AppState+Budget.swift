@@ -551,6 +551,7 @@ extension AppState {
             weeklyCostCap: weeklyCostCap,
             requireTouchID: requireTouchID,
             strictMode: strictMode,
+            gateModelUpgrades: gateModelUpgrades,
             mirrorToNotificationCenter: mirrorToNotificationCenter,
             completionNotificationsEnabled: completionNotificationsEnabled,
             digestNotificationsEnabled: digestNotificationsEnabled,

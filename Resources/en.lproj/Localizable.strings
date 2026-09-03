@@ -327,6 +327,9 @@
 /* Card title, Codex token budget nearly passed */
 "Approaching your daily Codex budget" = "Approaching your daily Codex budget";
 
+/* Settings toggle */
+"Ask before switching to a pricier model" = "Ask before switching to a pricier model";
+
 /* Settings toggle explanation */
 "Ask for Touch ID before allowing a tool request from the notch." = "Ask for Touch ID before allowing a tool request from the notch.";
 
@@ -830,6 +833,9 @@
 
 /* Settings page title */
 "History" = "History";
+
+/* Settings toggle explanation */
+"Hold a session's /model change for your approval when it moves up to a more expensive family, such as sonnet to opus. Switching down, or between versions of the same family, is never held. Off by default: this is the one card that interrupts something you just did yourself, and the session waits in the terminal until you answer it." = "Hold a session's /model change for your approval when it moves up to a more expensive family, such as sonnet to opus. Switching down, or between versions of the same family, is never held. Off by default: this is the one card that interrupts something you just did yourself, and the session waits in the terminal until you answer it.";
 
 /* Button: press and hold to allow a destructive command */
 "Hold to Allow" = "Hold to Allow";
