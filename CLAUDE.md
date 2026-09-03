@@ -15,10 +15,16 @@ detail in the file before relying on it.
 - **CI is the test authority** (`.github/workflows/ci.yml`, Swift 6.2). Local
   `swift test` fails (Command Line Tools ship no XCTest). Verify with
   `gh run list`.
-- **`tools/release.sh <ver>`**: bumps version, builds DMG, generates cask,
-  pushes, creates the GitHub release + DMG, updates the Homebrew tap, reinstalls
-  locally. After it: add the release to the website changelog (separate repo,
+- **`tools/release.sh <ver>`**: bumps version, builds DMG, publishes the GitHub
+  release, points the Homebrew tap at it, reinstalls locally. After it: add the
+  release to the website changelog (separate repo,
   `../claude mac app website/app/changelog/releases.ts`), rebuild, sync `docs/`.
+  The cask is NOT checksummed from the local build: the release workflow
+  uploads its own DMG with `--clobber`, so **`tools/sync-cask-to-release.sh`**
+  takes the checksum from the published asset (after waiting out that workflow,
+  and verifying the artifact), and **`tools/check-cask-matches-release.sh`**
+  confirms it from outside. A mismatch breaks `brew install` AND every user's
+  Update Now, so release.sh exits nonzero on one. Both are safe to run any time.
 - **Releases are signed + notarized**, and that is not optional. Every published
   build is Developer ID signed (team `PS8FJ3MQB2`, hardened runtime), notarized
   and stapled; `release.sh` refuses to run without
@@ -64,7 +70,11 @@ back as the response.
   (CSV/JSON, standup), **Queues** (permission/question/completed, capped via
   didSet), **Alerts**, **Sound**, **Sandbox** (per-cwd sandbox posture, cached
   60 s), **Config** (ConfigChange: a settings file edited mid-session),
-  **CLIUpdate** (is the Claude Code CLI itself behind).
+  **CLIUpdate** (is the Claude Code CLI itself behind),
+  **ModelSwitch** (PostModelSwitch: a session changed model mid-run).
+  Note for any extension that raises a card: `enqueuePermission` writes its
+  own history entry for a `.notification`, so calling `appendHistory` as well
+  files the same event twice. Log only on the paths that return without a card.
   Add new behaviour to the matching extension,
   not to AppState.swift. Because the extensions live in other files, members
   they touch are `internal` rather than `private`.
