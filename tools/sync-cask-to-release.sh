@@ -39,9 +39,28 @@ command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1 \
 # Only runs of the release workflow matter here; CI and the Pages deploy do not
 # touch the asset. A run that fails is reported rather than waited on forever:
 # the local upload is then what is published, which is still a valid artifact.
-RUN=$(gh run list --workflow=release.yml --limit 20 \
+#
+# The tag is created by the release moments before this runs, and GitHub takes a
+# few seconds to queue the workflow for it, so asking once is a race this lost
+# on the first release that used it: no run was found, the cask was written, and
+# the workflow started twelve seconds later to replace the asset underneath it.
+# Poll for one to appear instead. The wait is bounded because most tags never
+# start a run at all, and waiting the full window on every release would add a
+# minute of nothing to each one.
+find_run() {
+    gh run list --workflow=release.yml --limit 20 \
         --json databaseId,headBranch,status,conclusion \
-        --jq "[.[] | select(.headBranch == \"$TAG\")] | first" 2>/dev/null || echo "")
+        --jq "[.[] | select(.headBranch == \"$TAG\")] | first" 2>/dev/null || echo ""
+}
+RUN=$(find_run)
+if [ -z "$RUN" ] || [ "$RUN" = "null" ]; then
+    echo "→ No release workflow run for $TAG yet, watching for one to start"
+    for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
+        sleep 5
+        RUN=$(find_run)
+        if [ -n "$RUN" ] && [ "$RUN" != "null" ]; then break; fi
+    done
+fi
 
 if [ -n "$RUN" ] && [ "$RUN" != "null" ]; then
     RUN_ID=$(printf '%s' "$RUN" | python3 -c 'import sys,json; print(json.load(sys.stdin)["databaseId"])')
@@ -56,7 +75,8 @@ if [ -n "$RUN" ] && [ "$RUN" != "null" ]; then
         echo "   what the release serves, and that is what gets checksummed)"
     fi
 else
-    echo "→ No release workflow run for $TAG"
+    echo "→ No release workflow run for $TAG, nothing else is going to replace"
+    echo "  the asset. Run this again if one appears later."
 fi
 
 # 2. Download what the release actually serves, through the same URL the cask
