@@ -1958,7 +1958,14 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page grouped by
     /// kind, the same way the website changelog groups them. Keep this in sync
     /// with the top changelog entry when cutting a release.
+    // 0.35.1 is a patch on 0.35.0, so its one fix leads and the 0.35.0
+    // highlights stay below rather than being replaced. Anyone updating from
+    // 0.34.x lands straight here and would otherwise never be shown the two
+    // features 0.35.0 added.
     static let whatsNew: [ChangeGroup] = [
+        ChangeGroup(kind: .fixed, items: [
+        "Update Now no longer refuses a perfectly good download in the minutes right after a release. Before installing anything it checks the file against the checksum published alongside the release, and it was reading that checksum from a cache that can lag a few minutes behind. During that window the check compared the new download against the previous release's number, decided they disagreed, and stopped. It was right to stop on what it had been told; it was being told something out of date. The checksum now comes from a source that is not cached, and the cached one is only a fallback for when that is unreachable.",
+        ]),
         ChangeGroup(kind: .added, items: [
         "The notch says when a session changes model. Claude Code reports a mid-run switch outright now, so a /model change shows up as one line rather than being noticed whenever some later tool call happened to mention which model was running. Until then the session list named the old model and the cost meter counted against it.",
         "Optional: hold a switch to a pricier model for your approval. Off by default, in Settings under Privacy and permissions. With it on, a session moving up to a more expensive family, sonnet to opus say, raises a card and waits for your answer. Only upgrades: switching down, or between versions of one family, is never held, because those do not cost more. Everything the notch cannot decide, a dismissed card or a timeout included, lets the switch through exactly as if the setting were off. Your own /model in your own terminal should never be stuck behind a card you are not looking at.",
