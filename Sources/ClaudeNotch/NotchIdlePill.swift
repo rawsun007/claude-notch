@@ -414,7 +414,12 @@ struct MinimizedQuestionTab: View {
 
     /// Fixed so the caller can place it without measuring, and deliberately
     /// short: this is the notch getting a little longer, not a second object.
-    static func width(count: Int) -> CGFloat { count > 1 ? 52 : 38 }
+    ///
+    /// Includes the 14pt that gets slid underneath the notch, so the part
+    /// actually visible is this minus that. Sized here rather than at the call
+    /// site because the overlap is a placement detail and the visible width is
+    /// the thing being designed.
+    static func width(count: Int) -> CGFloat { count > 1 ? 66 : 52 }
 
     var body: some View {
         let count = state.minimizedQuestionCount

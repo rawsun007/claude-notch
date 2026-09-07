@@ -497,18 +497,27 @@ struct NotchView: View {
         // icons; the left holds an app's menus, which are sparse enough that a
         // short stub displaces far less.
         //
-        // No gap: any space between the two turns one shape into two objects.
-        // Offset from the card's CURRENT animated width so it stays attached
-        // while the notch grows on hover.
+        // It OVERLAPS the notch rather than sitting flush against it. Butting
+        // the two edges together at -(w/2 + tabWidth/2) left a visible gap in
+        // practice: `w` is the sizer's animating width and the black actually
+        // drawn is the notch shape inside it, so the two edges do not agree at
+        // every frame, and the seam showed as a slot of wallpaper between a
+        // purple pill and the notch. Both shapes are the same black, so sliding
+        // the stub under the notch by more than the error can ever be costs
+        // nothing visually and cannot come apart.
+        //
+        // The height matches the drawn card, not the screen inset, for the same
+        // reason: those differ while the sizer is interpolating.
         let minimizedCount = state.minimizedQuestionCount
         let tabWidth = MinimizedQuestionTab.width(count: minimizedCount)
+        let tabOverlap: CGFloat = 14
 
         return AnyView(ZStack(alignment: .top) {
             if minimizedCount > 0 {
                 MinimizedQuestionTab(state: state,
-                                     height: max(22, localInset),
+                                     height: max(22, min(h, localInset)),
                                      cornerRadius: notchBottomRadius)
-                    .offset(x: -(w / 2 + tabWidth / 2) + 0.5, y: 0)
+                    .offset(x: -(w / 2 + tabWidth / 2 - tabOverlap), y: 0)
                     .transition(.opacity)
             }
             ZStack(alignment: .top) {
