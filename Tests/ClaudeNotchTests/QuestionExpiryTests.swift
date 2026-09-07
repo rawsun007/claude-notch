@@ -49,6 +49,32 @@ final class QuestionExpiryTests: XCTestCase {
         XCTAssertLessThanOrEqual(req.secondsLeft, EventServer.decisionWindow)
     }
 
+    // MARK: - Permission cards have the same problem
+
+    private func permission(kind: PermissionRequest.Kind) -> PermissionRequest {
+        PermissionRequest(kind: kind, title: "Run shell command", detail: "ls",
+                          toolName: "Bash", source: "Test", cwd: "/tmp",
+                          resolver: { _, _ in })
+    }
+
+    func testAFreshPermissionCardIsNotExpired() {
+        XCTAssertFalse(permission(kind: .toolUse).hasExpired)
+    }
+
+    func testAPermissionCardUsesTheSameWindow() {
+        let req = permission(kind: .toolUse)
+        XCTAssertEqual(req.expiresAt.timeIntervalSince(req.receivedAt),
+                       EventServer.decisionWindow, accuracy: 0.001)
+    }
+
+    /// A notification card is not blocking anything, so there is no hook to
+    /// outlive and it must never claim to have gone stale. Getting this wrong
+    /// would put an alarming orange banner on every routine ping five minutes
+    /// after it arrived.
+    func testANotificationCardNeverExpires() {
+        XCTAssertFalse(permission(kind: .notification).hasExpired)
+    }
+
     /// The countdown floors at zero rather than going negative, because it is
     /// what the card renders and a negative number would read as nonsense.
     func testSecondsLeftIsFlooredAtZero() {

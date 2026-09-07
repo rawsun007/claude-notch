@@ -22,6 +22,40 @@ struct PermissionCard: View {
         return parts.joined(separator: " ")
     }
 
+    /// Flipped by one timer at the moment the hook window closes. See
+    /// PermissionRequest.expiresAt: after it, Claude Code has asked in the
+    /// terminal instead and anything pressed here is discarded in silence.
+    @State private var expired = false
+
+    /// Says the session stopped waiting, and where the ask went instead.
+    private var expiredBanner: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "clock.badge.exclamationmark")
+                .foregroundColor(.orange)
+                .font(.system(size: 13, weight: .semibold))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L("Too late to answer here", comment: "Banner title on a permission card whose session stopped waiting"))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.orange)
+                Text(L("Claude stopped waiting after about five minutes and asked again where the session is running: your terminal, the VS Code extension, or a cloud session. Allowing or denying here would not reach it.", comment: "Banner body on a permission card whose session stopped waiting"))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.7))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.orange.opacity(0.12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.orange.opacity(0.35), lineWidth: 1)
+                )
+        )
+    }
+
     let request: PermissionRequest
     var pendingCount: Int = 1
     let onResolve: (PermissionDecision, AllowScope) -> Void
@@ -163,10 +197,23 @@ struct PermissionCard: View {
                 PreviewBlock(preview: preview)
             }
 
+            if expired { expiredBanner }
+
             // No Spacer here — let the buttons sit directly under the
             // content. The window sizing in size(for:) is calibrated to
             // match content height, so we don't need to push them down.
             HStack(spacing: 8) {
+                if expired {
+                    // Deny is dropped along with Allow. Neither reaches the
+                    // session any more, and a Deny that silently does nothing
+                    // is the more dangerous of the two to leave lying around:
+                    // it would read as "I stopped that", which is false.
+                    NotchButton(label: L("Dismiss", comment: "Button: close a permission card that can no longer be answered"),
+                                style: .primary) {
+                        onResolve(.ask, .none)
+                    }
+                    Spacer()
+                } else {
                 NotchButton(label: L("Deny", comment: "Button: refuse the permission request"), style: .destructive, shortcut: "⎋") {
                     onResolve(.deny, .none)
                 }
@@ -283,6 +330,7 @@ struct PermissionCard: View {
                         onResolve(.allow, .none)
                     }
                 }
+                }
             }
             .padding(.top, 18)
 
@@ -297,6 +345,15 @@ struct PermissionCard: View {
                     .padding(.top, 6)
                     .accessibilityAddTraits(.isStaticText)
             }
+        }
+        .task {
+            // One wake-up at the boundary rather than a poll. A notification
+            // card blocks nothing and reports hasExpired false forever, so this
+            // sleeps and never fires for those.
+            guard request.kind == .toolUse else { return }
+            if request.hasExpired { expired = true; return }
+            try? await Task.sleep(nanoseconds: UInt64(request.secondsLeft * 1_000_000_000))
+            expired = true
         }
     }
 }

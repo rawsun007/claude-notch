@@ -252,6 +252,21 @@ final class PermissionRequest: Identifiable, Equatable {
     let receivedAt = Date()
     let originatorBundleID: String?   // app that was frontmost when request came in
     let preview: ToolPreview?         // Edit diff / Write head / MultiEdit summary
+
+    /// When the hook waiting on this card gives up, for the reasons written out
+    /// on QuestionRequest.expiresAt. A blocking permission card has exactly the
+    /// same problem: after the window closes Claude Code asks in the terminal,
+    /// and Allow pressed here afterwards is discarded in silence.
+    ///
+    /// Only meaningful for `.toolUse`. A `.notification` card is not blocking
+    /// anything, so it never goes stale.
+    var expiresAt: Date { receivedAt.addingTimeInterval(EventServer.decisionWindow) }
+
+    /// Has the session stopped listening to this card?
+    var hasExpired: Bool { kind == .toolUse && Date() >= expiresAt }
+
+    /// Seconds until it expires, floored at zero.
+    var secondsLeft: TimeInterval { max(0, expiresAt.timeIntervalSinceNow) }
     let dangerReasons: [String]       // empty unless command matched a danger pattern
     // `reason` is an optional note (used for "deny with a reason"): the hook
     // forwards it to Claude as the permissionDecisionReason so it knows what to

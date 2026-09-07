@@ -495,6 +495,9 @@
 /* Submenu: token usage read from the transcripts */
 "Claude Usage" = "Claude Usage";
 
+/* Banner body on a permission card whose session stopped waiting */
+"Claude stopped waiting after about five minutes and asked again where the session is running: your terminal, the VS Code extension, or a cloud session. Allowing or denying here would not reach it." = "Claude stopped waiting after about five minutes and asked again where the session is running: your terminal, the VS Code extension, or a cloud session. Allowing or denying here would not reach it.";
+
 /* Banner body on a question card whose session stopped waiting */
 "Claude stopped waiting after about five minutes and asked again where the session is running: your terminal, the VS Code extension, or a cloud session. Answer it there, not here." = "Claude stopped waiting after about five minutes and asked again where the session is running: your terminal, the VS Code extension, or a cloud session. Answer it there, not here.";
 
