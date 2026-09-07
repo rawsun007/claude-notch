@@ -10,6 +10,14 @@ detail in the file before relying on it.
 - **`./build.sh`**: builds `ClaudeNotch.app` (the bundle). Plain `swift build`
   compiles `.build/` only and does NOT update the app; always run `build.sh`
   before reinstalling to `/Applications`.
+- **`tools/run-dev-build.sh [--fast]`**: build, restart the app, and PROVE the
+  running process is the one just built (it compares process start time against
+  the binary's mtime and fails if not). Use this, never `open ClaudeNotch.app`
+  by hand: `open` on an already-running app just fronts it, `osascript quit` has
+  returned success without quitting, and `pgrep` answers "something is running"
+  rather than "the build I just made is running". A test build once ran for four
+  hours while six commits went into the bundle and none reached the screen, and
+  bugs already fixed were reported and re-argued against it.
 - **`swift build`**: fast compile check of the app target. It does NOT compile
   the test target, so strict-concurrency errors in test code only surface on CI.
 - **CI is the test authority** (`.github/workflows/ci.yml`, Swift 6.2). Local
