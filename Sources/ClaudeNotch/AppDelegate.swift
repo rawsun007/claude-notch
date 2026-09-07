@@ -170,26 +170,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state.flushPersist()
     }
 
-    /// Handle the quit Apple Event ourselves.
+    /// Claim the quit Apple Event directly.
     ///
-    /// `tell application "ClaudeNotch" to quit` was seen returning success while
-    /// the app carried on running, with a question card on screen. It is
-    /// intermittent and was not reproducible on demand, so this is a fix for the
-    /// most likely cause rather than a proven one.
-    ///
-    /// That cause: ClaudeNotch.sdef declares `quit` (code `aevtquit`) in its own
-    /// Standard Suite with no `<cocoa>` implementation attached. Cocoa scripting
-    /// normally answers that verb for free, but a dictionary that names the
-    /// command without saying what implements it is exactly the shape where the
-    /// event can be accepted, replied to with no error, and dropped. A sender
-    /// then sees success and nothing happens, which is what was observed.
-    ///
-    /// Claiming the event explicitly removes the ambiguity: the handler below is
-    /// what the default is supposed to do anyway, flush and terminate, so there
-    /// is nothing lost if Cocoa would have handled it correctly.
-    ///
-    /// SIGTERM stayed reliable throughout, which is why the tooling that has to
-    /// restart this app uses `pkill` rather than AppleScript.
+    /// The sdef fix below (naming NSQuitCommand) is necessary but was not
+    /// sufficient: with a question card on screen the scripting path still
+    /// answered the event and left the app running. SIGTERM, which reaches
+    /// NSApp.terminate through our own signal source, worked in the same state,
+    /// so termination itself is fine and the problem is entirely in how the
+    /// event is dispatched. This takes the event before scripting can and calls
+    /// the same terminate the signal path does.
     private func installQuitEventHandler() {
         NSAppleEventManager.shared().setEventHandler(
             self,
@@ -200,8 +189,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func handleQuitAppleEvent(_ event: NSAppleEventDescriptor,
                                             withReplyEvent reply: NSAppleEventDescriptor) {
-        // Same flush as every other exit path: writes are debounced, and this is
-        // the last moment anything can get them to disk.
         state.flushPersist()
         NSApp.terminate(nil)
     }

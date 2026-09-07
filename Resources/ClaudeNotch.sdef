@@ -13,7 +13,18 @@
 <dictionary title="ClaudeNotch Terminology">
 
     <suite name="Standard Suite" code="????" description="Common commands.">
-        <command name="quit" code="aevtquit" description="Quit ClaudeNotch."/>
+        <!-- NSQuitCommand is not optional here, and its absence is the whole
+             bug. Declaring `quit` in the dictionary makes Cocoa's scripting
+             machinery own the verb; with no implementation class named, it
+             builds a generic NSScriptCommand that does nothing, replies with
+             no error, and drops the event. `tell application "ClaudeNotch" to
+             quit` then reports success while the app carries on running, and a
+             raw kAEQuitApplication handler on the app delegate never sees the
+             event because scripting consumed it first. Naming AppKit's own
+             implementation routes the verb to the code that actually quits. -->
+        <command name="quit" code="aevtquit" description="Quit ClaudeNotch.">
+            <cocoa class="NSQuitCommand"/>
+        </command>
     </suite>
 
     <suite name="ClaudeNotch Suite" code="CnTc" description="Drive the notch.">
