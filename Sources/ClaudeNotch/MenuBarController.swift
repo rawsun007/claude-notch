@@ -174,6 +174,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         addDemo("Edit with Diff Preview", #selector(triggerDemoDiff),     "e")
         addDemo("Auto-Approve (Live Activity)", #selector(triggerDemoAutoApprove), "")
         addDemo("Notification",         #selector(triggerDemoNotification), "n")
+        addDemo("Question (Plan-Shaped)", #selector(triggerDemoQuestion), "")
         addDemo("Task Complete",        #selector(triggerDemoCompleted),  "c")
         // Same list Settings builds its rows from, so a verdict added there
         // turns up here too. The index rides on the item's tag rather than a
@@ -684,6 +685,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func triggerDemoNotification() {
         state.enqueuePermission(DemoCards.notification(), bypassRules: true)
+    }
+
+    @objc private func triggerDemoQuestion() {
+        state.enqueueQuestion(DemoCards.question())
     }
 
     @objc private func triggerDemoCompleted() {

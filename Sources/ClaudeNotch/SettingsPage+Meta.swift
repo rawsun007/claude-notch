@@ -21,6 +21,8 @@ extension SettingsView {
                     divider
                     actionRow(L("Notification", comment: "Settings button"), "bell") { demoNotification() }
                     divider
+                    actionRow(L("Question (plan-shaped)", comment: "Settings button"), "questionmark.bubble") { demoQuestion() }
+                    divider
                     actionRow(L("Task complete", comment: "Settings button"), "checkmark.seal") { demoCompleted() }
                     divider
                     // Built from the same list the menu bar reads, so the two

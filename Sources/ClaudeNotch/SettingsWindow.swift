@@ -1639,6 +1639,9 @@ struct SettingsView: View {
     func demoNotification() {
         state.enqueuePermission(DemoCards.notification(), bypassRules: true)
     }
+    func demoQuestion() {
+        state.enqueueQuestion(DemoCards.question())
+    }
     func demoCompleted() {
         state.enqueueCompleted(DemoCards.completed())
     }

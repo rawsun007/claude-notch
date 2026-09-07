@@ -1242,6 +1242,9 @@
 /* History filter: only questions the agent asked */
 "Q&A" = "Q&A";
 
+/* Settings button */
+"Question (plan-shaped)" = "Question (plan-shaped)";
+
 /* Settings section heading */
 "Quick actions" = "Quick actions";
 

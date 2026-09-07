@@ -69,6 +69,56 @@ enum DemoCards {
             source: source, cwd: "", resolver: { _, _ in })
     }
 
+    // MARK: - Questions
+
+    /// A plan-shaped question card: several questions, options with
+    /// descriptions, one multi-select, one with no descriptions at all.
+    ///
+    /// Deliberately tall. The card that started this feature was a plan with
+    /// five questions of four options each, which is taller than the screen, and
+    /// a demo that fits comfortably would exercise none of what matters: the
+    /// inner scrolling, the minimize control, and the stub that appears beside
+    /// the notch when it is put away.
+    ///
+    /// `receivedAt` is the default, so this expires on the same clock as a real
+    /// card. Left alone for five minutes it turns into the "too late to answer
+    /// here" state, which is the one part of this that is otherwise awkward to
+    /// see on purpose.
+    static func question() -> QuestionRequest {
+        QuestionRequest(
+            questions: [
+                AskQuestion(
+                    header: "Storage",
+                    text: "Where should the exported reports live?",
+                    multiSelect: false,
+                    options: [
+                        AskOption(label: "Local disk", description: "Fastest, but nothing is shared between machines and a reinstall loses it."),
+                        AskOption(label: "iCloud Drive", description: "Syncs across your Macs. Conflicts are possible when two sessions write at once."),
+                        AskOption(label: "S3 bucket", description: "Durable and shareable, needs credentials in the keychain."),
+                    ]),
+                AskQuestion(
+                    header: "Checks",
+                    text: "Which checks should run before a release?",
+                    multiSelect: true,
+                    options: [
+                        AskOption(label: "Unit tests", description: "The full suite on CI."),
+                        AskOption(label: "Notarization", description: "Fifteen static assertions on the signed bundle."),
+                        AskOption(label: "Cask checksum", description: "Confirms install and update still work."),
+                    ]),
+                AskQuestion(
+                    header: "Schedule",
+                    text: "How often should it run?",
+                    multiSelect: false,
+                    options: [
+                        AskOption(label: "On demand", description: ""),
+                        AskOption(label: "Hourly", description: ""),
+                        AskOption(label: "Daily", description: ""),
+                        AskOption(label: "Weekly", description: ""),
+                    ]),
+            ],
+            source: source, cwd: NSHomeDirectory(), resolver: { _ in })
+    }
+
     // MARK: - Finished tasks
 
     static func completed() -> CompletedTask {
