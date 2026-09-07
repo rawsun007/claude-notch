@@ -302,7 +302,12 @@ struct NotchView: View {
             // The card is "open" — and shows the full meter + detail — whenever
             // the cursor is on the notch OR persistentNotchDisplay is holding it
             // open. Both states get the same size so they show the same data.
-            let full = hovering || (state?.persistentNotchDisplay == true)
+            // `hovering` already accounts for a waiting question (see
+            // isIdleOpen), but persistentNotchDisplay is read straight from
+            // state here and would reopen the card behind its back, leaving the
+            // window sized open around collapsed content.
+            let questionWaiting = (state?.minimizedQuestionCount ?? 0) > 0
+            let full = !questionWaiting && (hovering || (state?.persistentNotchDisplay == true))
             guard full else {
                 // Pet mode: the card grows just enough to be the stage for
                 // whatever the pet is currently doing. It's not "opening" —
@@ -646,7 +651,17 @@ struct NotchView: View {
     }
 
     private var isIdleOpen: Bool {
-        state.persistentNotchDisplay || state.isHovering
+        // A question that was put away keeps the notch shut.
+        //
+        // Hovering normally opens the idle card into the session list and the
+        // meters. With a question waiting that is the wrong thing to show: the
+        // notch is standing in for a card the user has not answered yet, a
+        // session is blocked on it, and sliding the cursor past the top of the
+        // screen would bury the one thing that still needs doing under a
+        // dashboard. It stays a notch with a stub on it until the question is
+        // dealt with, and the stub opens the question rather than the card.
+        if state.minimizedQuestionCount > 0 { return false }
+        return state.persistentNotchDisplay || state.isHovering
     }
 
     /// The Apple-style drop panel: a black fill covering the card with a centred
