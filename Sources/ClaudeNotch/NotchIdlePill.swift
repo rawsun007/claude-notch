@@ -389,45 +389,56 @@ struct CommandLineBlock: View {
     }
 }
 
-/// A question the user put away, shown as a small tab beside the notch.
+/// A question the user put away, drawn as the notch growing a little to its
+/// LEFT rather than as anything floating next to it.
 ///
-/// It lives to the LEFT of the notch rather than inside it, and that is the
-/// whole point. The first version of this widened the notch to make room for a
-/// badge, which turned the hardware cutout into a wider light-edged bar sitting
-/// where the black notch should be. The notch reads well precisely because it
-/// matches the hardware; anything that makes it wider than the cutout looks
-/// like a bug in the display.
+/// Three tries to get here, and each rejection said something. Widening the
+/// notch symmetrically turned the hardware cutout into a light-edged bar and
+/// looked like a display fault. A detached pill on the left read as a separate
+/// object rather than part of the notch. On the right it collided with the
+/// clock and the menu bar icons, which is where every status item already is.
 ///
-/// So the notch keeps its exact size and this floats next to it on the
-/// transparent panel, the same trick the pet uses to hang off the lip.
+/// So: same notch, same size, with a stub attached flush to its left edge in
+/// the same black. Only the left corners are rounded, so the seam against the
+/// notch is invisible and the two read as one shape that got slightly longer on
+/// one side. The left of the menu bar holds an app's menus, which are text and
+/// sparse, so a short stub there displaces far less than it would on the right.
 struct MinimizedQuestionTab: View {
     @ObservedObject var state: AppState
+    /// Matches the notch's own height so the stub and the notch share a top and
+    /// bottom edge. Passed in because only the caller knows the inset for the
+    /// screen the notch is on.
+    let height: CGFloat
+    /// The notch's bottom corner radius, mirrored onto the stub's left corners.
+    let cornerRadius: CGFloat
 
-    /// Fixed so the caller can place it without measuring. Two sizes only: the
-    /// count is worth showing when there is more than one and is noise when
-    /// there is not.
-    static func width(count: Int) -> CGFloat { count > 1 ? 44 : 28 }
-    static let height: CGFloat = 20
+    /// Fixed so the caller can place it without measuring, and deliberately
+    /// short: this is the notch getting a little longer, not a second object.
+    static func width(count: Int) -> CGFloat { count > 1 ? 52 : 38 }
 
     var body: some View {
         let count = state.minimizedQuestionCount
-        return HStack(spacing: 2) {
+        return HStack(spacing: 3) {
             Image(systemName: "questionmark.bubble.fill")
-                .font(.system(size: 10, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
             if count > 1 {
                 Text("\(count)")
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
             }
         }
         .foregroundColor(.purple)
-        .frame(width: Self.width(count: count), height: Self.height)
+        .frame(width: Self.width(count: count), height: height)
         .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color.black.opacity(0.85))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color.purple.opacity(0.65), lineWidth: 1)
-                )
+            // Rounded on the left only. The right edge is square so it butts
+            // against the notch with no seam, which is what makes this read as
+            // the notch itself rather than a tab stuck to it.
+            UnevenRoundedRectangle(
+                topLeadingRadius: cornerRadius,
+                bottomLeadingRadius: cornerRadius,
+                bottomTrailingRadius: 0,
+                topTrailingRadius: 0
+            )
+            .fill(Color.black)
         )
         .contentShape(Rectangle())
         .onTapGesture { state.restoreMinimizedQuestions() }

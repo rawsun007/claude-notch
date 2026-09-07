@@ -491,21 +491,24 @@ struct NotchView: View {
         // notch keeps the exact width of the hardware cutout: widening it to fit
         // a badge turned the notch into a light-edged bar and looked broken.
         //
-        // On the RIGHT, which is where it was asked for after trying it on the
-        // left. The left of the notch is where an app's own menus run, so a tab
-        // there sits among File and Edit; the right is the status-item side,
-        // which is where a thing you click to get something back belongs.
+        // Flush against the notch's LEFT edge, in the same black and the same
+        // height, so it reads as the notch having grown a little on one side.
+        // The right was tried and collides with the clock and the menu bar
+        // icons; the left holds an app's menus, which are sparse enough that a
+        // short stub displaces far less.
         //
-        // Offset from the card's CURRENT animated width, so it slides out of the
-        // way as the notch opens on hover instead of being overlapped by it.
+        // No gap: any space between the two turns one shape into two objects.
+        // Offset from the card's CURRENT animated width so it stays attached
+        // while the notch grows on hover.
         let minimizedCount = state.minimizedQuestionCount
         let tabWidth = MinimizedQuestionTab.width(count: minimizedCount)
 
         return AnyView(ZStack(alignment: .top) {
             if minimizedCount > 0 {
-                MinimizedQuestionTab(state: state)
-                    .offset(x: w / 2 + tabWidth / 2 + 8,
-                            y: max(2, (localInset - MinimizedQuestionTab.height) / 2))
+                MinimizedQuestionTab(state: state,
+                                     height: max(22, localInset),
+                                     cornerRadius: notchBottomRadius)
+                    .offset(x: -(w / 2 + tabWidth / 2) + 0.5, y: 0)
                     .transition(.opacity)
             }
             ZStack(alignment: .top) {
