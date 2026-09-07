@@ -1062,6 +1062,16 @@ final class AppState: ObservableObject {
     /// Persisted.
     @Published var gateModelUpgrades: Bool = false
 
+    // Questions the user has put away without answering. They stay in
+    // questionQueue, so the hook is still waiting and the card can come back;
+    // they are just not what the notch draws. A plan with five questions and
+    // four options each is taller than the screen, and reading the middle of it
+    // was impossible without a way to get it out of the way first.
+    //
+    // Pruned against the queue in recompute(), so an id cannot outlive the
+    // request it names.
+    var collapsedQuestionIDs: Set<UUID> = []
+
     // MARK: - Model switch state (logic lives in AppState+ModelSwitch.swift)
 
     // Last model switch announced, per session, so a switch reported twice

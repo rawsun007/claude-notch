@@ -295,6 +295,14 @@ extension AppState {
     }
 
     func recompute() {
+        // An id for a question that has since been answered, cancelled or
+        // resolved elsewhere would keep a later question with a recycled slot
+        // hidden. Pruning here rather than at each mutation site means every
+        // path that removes a question is covered, including the elicitation
+        // one that removes by a different key.
+        if !collapsedQuestionIDs.isEmpty {
+            collapsedQuestionIDs.formIntersection(Set(questionQueue.map(\.id)))
+        }
         let next: NotchMode
         if isHistoryOpen {
             next = .history
@@ -302,7 +310,7 @@ extension AppState {
             next = .responseDetail
         } else if isComposing {
             next = .compose
-        } else if let q = questionQueue.first {
+        } else if let q = visibleQuestion {
             next = .question(q)
         } else if let p = permissionQueue.first {
             next = .permission(p)

@@ -420,9 +420,46 @@ extension AppState {
         recompute()
     }
 
+    /// The question the notch is actually showing: the first one not put away.
+    ///
+    /// Minimizing does not dequeue, because the hook is still waiting on it and
+    /// the card has to be able to come back. So the visible card is no longer
+    /// necessarily the head of the queue, and everything that acts on "the
+    /// current question" has to go through this rather than through .first.
+    var visibleQuestion: QuestionRequest? {
+        questionQueue.first { !collapsedQuestionIDs.contains($0.id) }
+    }
+
+    /// How many are waiting out of sight. Drives the notch's indicator: putting
+    /// a question away must not be the same as losing it.
+    var minimizedQuestionCount: Int {
+        questionQueue.reduce(0) { $0 + (collapsedQuestionIDs.contains($1.id) ? 1 : 0) }
+    }
+
+    /// Put the visible question away without answering it. The session keeps
+    /// waiting; the notch goes back to whatever it would otherwise show.
+    func minimizeVisibleQuestion() {
+        guard let q = visibleQuestion else { return }
+        collapsedQuestionIDs.insert(q.id)
+        recompute()
+    }
+
+    /// Bring them all back. One gesture, because the indicator is one dot and
+    /// asking the user which of three hidden cards they meant would be a worse
+    /// problem than the one this solves.
+    func restoreMinimizedQuestions() {
+        guard !collapsedQuestionIDs.isEmpty else { return }
+        collapsedQuestionIDs.removeAll()
+        recompute()
+    }
+
     func resolveCurrentQuestion(_ answers: [[String]]?) {
-        guard !questionQueue.isEmpty else { return }
-        let first = questionQueue.removeFirst()
+        // The visible one, not the head: with a minimized card ahead of it in
+        // the queue those are different, and removing the head would answer one
+        // question with another's answers and strand the card on screen.
+        guard let target = visibleQuestion,
+              let idx = questionQueue.firstIndex(where: { $0.id == target.id }) else { return }
+        let first = questionQueue.remove(at: idx)
         first.resolver(answers)
         let title: String
         let outcome: HistoryEntry.Outcome
