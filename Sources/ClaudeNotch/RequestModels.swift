@@ -142,7 +142,10 @@ final class QuestionRequest: Identifiable, Equatable {
     let questions: [AskQuestion]
     let source: String
     let cwd: String
-    let receivedAt = Date()
+    /// Injectable so a test can build a card that is already past its window.
+    /// Every real caller takes the default; without it the expiry rules below
+    /// can only ever be tested on the side that says "not yet".
+    let receivedAt: Date
     let originatorBundleID: String?
     /// The MCP elicitation this card is asking on behalf of, if it is one.
     /// Empty for Claude's own AskUserQuestion. An elicitation can be resolved
@@ -171,10 +174,12 @@ final class QuestionRequest: Identifiable, Equatable {
 
     init(questions: [AskQuestion], source: String, cwd: String,
          originatorBundleID: String? = nil, elicitationId: String = "",
+         receivedAt: Date = Date(),
          resolver: @escaping ([[String]]?) -> Void) {
         self.questions = questions
         self.source = source
         self.cwd = cwd
+        self.receivedAt = receivedAt
         self.originatorBundleID = originatorBundleID
         self.elicitationId = elicitationId
         self.resolver = resolver

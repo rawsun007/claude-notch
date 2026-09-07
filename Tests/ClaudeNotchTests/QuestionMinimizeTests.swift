@@ -14,11 +14,69 @@ import XCTest
 @MainActor
 final class QuestionMinimizeTests: XCTestCase {
 
-    private func question(_ text: String, answered: @escaping ([[String]]?) -> Void = { _ in }) -> QuestionRequest {
+    private func question(_ text: String,
+                          receivedAt: Date = Date(),
+                          answered: @escaping ([[String]]?) -> Void = { _ in }) -> QuestionRequest {
         QuestionRequest(
             questions: [AskQuestion(header: "", text: text, multiSelect: false,
                                     options: [AskOption(label: "A", description: "")])],
-            source: "Test", cwd: "/tmp", resolver: answered)
+            source: "Test", cwd: "/tmp", receivedAt: receivedAt, resolver: answered)
+    }
+
+    /// Old enough that the hook waiting on it has long since given up.
+    private func expiredQuestion(_ text: String,
+                                 answered: @escaping ([[String]]?) -> Void = { _ in }) -> QuestionRequest {
+        question(text,
+                 receivedAt: Date().addingTimeInterval(-EventServer.decisionWindow - 60),
+                 answered: answered)
+    }
+
+    // MARK: - A dead card must not block a live one
+
+    func testALiveQuestionComesForwardAheadOfAnExpiredOne() {
+        let state = AppState()
+        let dead = expiredQuestion("expired")
+        let live = question("live")
+        state.questionQueue = [dead, live]
+
+        XCTAssertTrue(dead.hasExpired)
+        XCTAssertFalse(live.hasExpired)
+        XCTAssertEqual(state.visibleQuestion?.id, live.id,
+                       "an unanswerable card must not sit in front of one still waiting")
+    }
+
+    /// And answering shows the live one's answers to the live one's resolver.
+    func testAnsweringWithADeadCardQueuedResolvesTheLiveOne() {
+        let state = AppState()
+        var deadAnswered = false
+        var liveAnswered = false
+        let dead = expiredQuestion("expired") { _ in deadAnswered = true }
+        let live = question("live") { _ in liveAnswered = true }
+        state.questionQueue = [dead, live]
+
+        state.resolveCurrentQuestion([["A"]])
+        XCTAssertFalse(deadAnswered)
+        XCTAssertTrue(liveAnswered)
+        XCTAssertEqual(state.questionQueue.first?.id, dead.id)
+    }
+
+    /// Once nothing live is left, the expired card does come forward. Seeing
+    /// the "too late" banner is how anyone finds out why their answer vanished,
+    /// so hiding these entirely would trade one silent failure for another.
+    func testAnExpiredQuestionStillShowsWhenNothingLiveIsLeft() {
+        let state = AppState()
+        let dead = expiredQuestion("expired")
+        state.questionQueue = [dead]
+        XCTAssertEqual(state.visibleQuestion?.id, dead.id)
+    }
+
+    func testAnExpiredCardCanStillBeMinimized() {
+        let state = AppState()
+        let dead = expiredQuestion("expired")
+        state.questionQueue = [dead]
+        state.minimizeVisibleQuestion()
+        XCTAssertNil(state.visibleQuestion)
+        XCTAssertEqual(state.minimizedQuestionCount, 1)
     }
 
     func testTheVisibleQuestionIsTheFirstOneNotPutAway() {

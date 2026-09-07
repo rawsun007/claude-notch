@@ -27,6 +27,32 @@ final class QuestionExpiryTests: XCTestCase {
         XCTAssertFalse(req.hasExpired)
     }
 
+    /// The side that matters, and the one that could not be tested at all until
+    /// receivedAt became injectable: a card older than the window knows it.
+    func testACardPastItsWindowKnowsIt() {
+        let old = QuestionRequest(
+            questions: [AskQuestion(header: "", text: "?", multiSelect: false,
+                                    options: [AskOption(label: "A", description: "")])],
+            source: "Test", cwd: "/tmp",
+            receivedAt: Date().addingTimeInterval(-EventServer.decisionWindow - 1),
+            resolver: { _ in })
+        XCTAssertTrue(old.hasExpired)
+        XCTAssertEqual(old.secondsLeft, 0, "the countdown floors at zero rather than going negative")
+    }
+
+    /// A card one second short of the boundary is still answerable. Off by one
+    /// here would either kill live cards early or keep dead ones alive.
+    func testACardJustInsideTheWindowIsStillLive() {
+        let almost = QuestionRequest(
+            questions: [AskQuestion(header: "", text: "?", multiSelect: false,
+                                    options: [AskOption(label: "A", description: "")])],
+            source: "Test", cwd: "/tmp",
+            receivedAt: Date().addingTimeInterval(-EventServer.decisionWindow + 5),
+            resolver: { _ in })
+        XCTAssertFalse(almost.hasExpired)
+        XCTAssertGreaterThan(almost.secondsLeft, 0)
+    }
+
     /// The window has to match what the server actually waits, or the card
     /// either declares itself dead while the session is still listening, or
     /// keeps taking answers after it stopped.

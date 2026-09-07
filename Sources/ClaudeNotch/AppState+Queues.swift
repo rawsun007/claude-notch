@@ -426,8 +426,17 @@ extension AppState {
     /// the card has to be able to come back. So the visible card is no longer
     /// necessarily the head of the queue, and everything that acts on "the
     /// current question" has to go through this rather than through .first.
+    /// A live question wins over a dead one.
+    ///
+    /// An expired card stays queued until it is dismissed, so without this a
+    /// card nobody can answer any more sits in front of one that is still
+    /// waiting, and the only way to reach the live question is to clear the
+    /// corpse first. Expired cards still come forward once nothing live is
+    /// left, because seeing the "too late" banner is how anyone learns why an
+    /// answer did not land.
     var visibleQuestion: QuestionRequest? {
-        questionQueue.first { !collapsedQuestionIDs.contains($0.id) }
+        let open = questionQueue.filter { !collapsedQuestionIDs.contains($0.id) }
+        return open.first { !$0.hasExpired } ?? open.first
     }
 
     /// How many are waiting out of sight. Drives the notch's indicator: putting
