@@ -434,11 +434,16 @@ struct MinimizedQuestionTab: View {
         .foregroundColor(.purple)
         .frame(width: Self.width(count: count), height: height)
         .background(
-            // Rounded on the left only. The right edge is square so it butts
-            // against the notch with no seam, which is what makes this read as
-            // the notch itself rather than a tab stuck to it.
+            // Square along the TOP, rounded at the bottom left. That is the
+            // notch's own shape: it runs straight into the top edge of the
+            // screen and curves only underneath. A rounded top-left corner made
+            // the stub read as a pill parked next to the notch rather than the
+            // notch continuing, which is exactly what it looked like.
+            //
+            // The right edge is square too, so it butts into the notch with no
+            // seam of its own.
             UnevenRoundedRectangle(
-                topLeadingRadius: cornerRadius,
+                topLeadingRadius: 0,
                 bottomLeadingRadius: cornerRadius,
                 bottomTrailingRadius: 0,
                 topTrailingRadius: 0
