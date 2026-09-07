@@ -79,6 +79,13 @@ back as the response.
   Note for any extension that raises a card: `enqueuePermission` writes its
   own history entry for a `.notification`, so calling `appendHistory` as well
   files the same event twice. Log only on the paths that return without a card.
+  Two invariants in **Queues** that are easy to break by reaching for
+  `.first`: a question card can be minimized, so the one on screen is
+  `visibleQuestion`, not `questionQueue.first` (acting on the head answers
+  the wrong question and strands the card); and a blocking card goes STALE
+  after `EventServer.decisionWindow`, at which point Claude Code has asked
+  in the terminal instead and anything pressed in the notch is discarded
+  silently, so `hasExpired` cards must say so rather than take an answer.
   Add new behaviour to the matching extension,
   not to AppState.swift. Because the extensions live in other files, members
   they touch are `internal` rather than `private`.
