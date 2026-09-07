@@ -405,10 +405,13 @@
 /* Settings toggle */
 "Break reminders" = "Break reminders";
 
-/* VoiceOver label for the minimized-question badge */
-"Bring the minimized question back" = "Bring the minimized question back";
+/* VoiceOver label for the minimized-question tab. %d is how many */
+"Bring back %d minimized questions" = "Bring back %d minimized questions";
 
-/* Tooltip on the minimized-question badge */
+/* VoiceOver label for the minimized-question tab */
+"Bring back the minimized question" = "Bring back the minimized question";
+
+/* Tooltip on the minimized-question tab beside the notch */
 "Bring the question back" = "Bring the question back";
 
 /* Settings page title */

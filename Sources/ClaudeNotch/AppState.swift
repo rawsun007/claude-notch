@@ -1070,7 +1070,12 @@ final class AppState: ObservableObject {
     //
     // Pruned against the queue in recompute(), so an id cannot outlive the
     // request it names.
-    var collapsedQuestionIDs: Set<UUID> = []
+    // @Published because the tab beside the notch is drawn from it. Minimizing
+    // usually also changes `mode`, which would redraw anyway, but not always:
+    // minimizing the last question when a permission card is already queued
+    // leaves mode alone, and the tab would not appear until something else
+    // happened to publish.
+    @Published var collapsedQuestionIDs: Set<UUID> = []
 
     // MARK: - Model switch state (logic lives in AppState+ModelSwitch.swift)
 

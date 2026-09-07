@@ -106,37 +106,6 @@ struct IdlePill: View {
                               startPoint: .leading, endPoint: .trailing)
     }
 
-    /// Brings a put-away question back. Bordered rather than a plain tint so it
-    /// reads as something to press, since the rest of the badges on this row
-    /// are labels that do nothing.
-    private var minimizedQuestionChip: some View {
-        let count = state.minimizedQuestionCount
-        return HStack(spacing: 3) {
-            Image(systemName: "questionmark.bubble.fill")
-                .font(.system(size: 8, weight: .semibold))
-            Text(count == 1
-                 ? L("1 question", comment: "Badge: one question was minimized and is still waiting")
-                 : String(format: L("%d questions", comment: "Badge: how many minimized questions are still waiting"), count))
-                .font(.system(size: 9, weight: .semibold, design: .rounded))
-        }
-        .foregroundColor(.purple)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(
-            RoundedRectangle(cornerRadius: 4)
-                .fill(Color.purple.opacity(0.20))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .stroke(Color.purple.opacity(0.55), lineWidth: 1)
-                )
-        )
-        .contentShape(Rectangle())
-        .onTapGesture { state.restoreMinimizedQuestions() }
-        .help(L("Bring the question back", comment: "Tooltip on the minimized-question badge"))
-        .accessibilityAddTraits(.isButton)
-        .accessibilityLabel(L("Bring the minimized question back", comment: "VoiceOver label for the minimized-question badge"))
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             // Row 1 — Claude icon · name · status dot · status label · action buttons
@@ -179,11 +148,6 @@ struct IdlePill: View {
                         .cornerRadius(4)
                         .help(badge.help)
                 }
-                // A question the user put away. Deliberately NOT inside the
-                // `isOpen` check below: the point of minimizing is that the
-                // card is gone, and a session is still waiting on it, so the
-                // one thing that must not need a hover to notice is this.
-                if state.minimizedQuestionCount > 0 { minimizedQuestionChip }
                 // Secondary counts — shown whenever the card is open, whether
                 // the cursor is on the notch or persistentNotchDisplay is
                 // holding it open, so the two states show the same detail.
@@ -422,5 +386,55 @@ struct CommandLineBlock: View {
                     )
             )
         }
+    }
+}
+
+/// A question the user put away, shown as a small tab beside the notch.
+///
+/// It lives to the LEFT of the notch rather than inside it, and that is the
+/// whole point. The first version of this widened the notch to make room for a
+/// badge, which turned the hardware cutout into a wider light-edged bar sitting
+/// where the black notch should be. The notch reads well precisely because it
+/// matches the hardware; anything that makes it wider than the cutout looks
+/// like a bug in the display.
+///
+/// So the notch keeps its exact size and this floats next to it on the
+/// transparent panel, the same trick the pet uses to hang off the lip.
+struct MinimizedQuestionTab: View {
+    @ObservedObject var state: AppState
+
+    /// Fixed so the caller can place it without measuring. Two sizes only: the
+    /// count is worth showing when there is more than one and is noise when
+    /// there is not.
+    static func width(count: Int) -> CGFloat { count > 1 ? 44 : 28 }
+    static let height: CGFloat = 20
+
+    var body: some View {
+        let count = state.minimizedQuestionCount
+        return HStack(spacing: 2) {
+            Image(systemName: "questionmark.bubble.fill")
+                .font(.system(size: 10, weight: .semibold))
+            if count > 1 {
+                Text("\(count)")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+            }
+        }
+        .foregroundColor(.purple)
+        .frame(width: Self.width(count: count), height: Self.height)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.black.opacity(0.85))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.purple.opacity(0.65), lineWidth: 1)
+                )
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { state.restoreMinimizedQuestions() }
+        .help(L("Bring the question back", comment: "Tooltip on the minimized-question tab beside the notch"))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel(count > 1
+            ? String(format: L("Bring back %d minimized questions", comment: "VoiceOver label for the minimized-question tab. %d is how many"), count)
+            : L("Bring back the minimized question", comment: "VoiceOver label for the minimized-question tab"))
     }
 }
