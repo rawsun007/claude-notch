@@ -503,27 +503,43 @@ struct NotchView: View {
         // short stub displaces far less.
         //
         // It OVERLAPS the notch rather than sitting flush against it. Butting
-        // the two edges together at -(w/2 + tabWidth/2) left a visible gap in
-        // practice: `w` is the sizer's animating width and the black actually
-        // drawn is the notch shape inside it, so the two edges do not agree at
-        // every frame, and the seam showed as a slot of wallpaper between a
-        // purple pill and the notch. Both shapes are the same black, so sliding
-        // the stub under the notch by more than the error can ever be costs
-        // nothing visually and cannot come apart.
+        // the two edges together left a visible gap: the black actually drawn is
+        // the notch shape, which does not share an edge with the frame it sits
+        // in. Both shapes are the same black, so sliding the stub under the
+        // notch costs nothing visually and cannot come apart.
         //
-        // The height matches the drawn card, not the screen inset, for the same
-        // reason: those differ while the sizer is interpolating.
+        // Anchored to where the notch ENDS UP, not to the card's animating
+        // width, and this is what makes the motion read as one thing.
+        //
+        // Anchoring to the live width meant that on minimize the stub started
+        // out beside a 600pt question card, roughly 200pt off to the left, and
+        // flew inward while the card shrank underneath it. Two objects moving
+        // on different paths at the same time, which is exactly the
+        // disconnected feeling reported.
+        //
+        // Fixed to the collapsed geometry, the stub simply sits where it will
+        // live, behind the card. It is drawn before the card in this ZStack, so
+        // while the card is still large it is covered, and the card shrinking
+        // uncovers it. Restoring runs the same thing backwards: the card grows
+        // out of the notch and swallows it. Nothing has to be animated for the
+        // two to agree, because only one of them ever moves.
         let minimizedCount = state.minimizedQuestionCount
         let tabWidth = MinimizedQuestionTab.width(count: minimizedCount)
         let tabOverlap: CGFloat = 14
+        let restingNotchWidth = NotchView.collapsedSize(on: localScreen).width
 
         return AnyView(ZStack(alignment: .top) {
             if minimizedCount > 0 {
                 MinimizedQuestionTab(state: state,
-                                     height: max(22, min(h, localInset)),
-                                     cornerRadius: notchBottomRadius)
-                    .offset(x: -(w / 2 + tabWidth / 2 - tabOverlap), y: 0)
-                    .transition(.opacity)
+                                     height: max(22, localInset),
+                                     // The collapsed notch's bottom radius, as
+                                     // a constant rather than notchBottomRadius:
+                                     // that returns 18 while a card is open, so
+                                     // the stub's curve would change shape out
+                                     // of sight and be wrong the moment the card
+                                     // shrank away from it.
+                                     cornerRadius: 10)
+                    .offset(x: -(restingNotchWidth / 2 + tabWidth / 2 - tabOverlap), y: 0)
             }
             ZStack(alignment: .top) {
                 if !collapsed {
