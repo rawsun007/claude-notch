@@ -386,6 +386,11 @@ struct QuestionCard: View {
     @State private var others: [String] = []
     @FocusState private var focusedOther: Int?
 
+    /// Flipped by a single timer that fires when the hook window closes, rather
+    /// than by polling the clock. Once true the card stops pretending it can
+    /// deliver an answer: the session has already gone and asked elsewhere.
+    @State private var expired = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
@@ -441,14 +446,36 @@ struct QuestionCard: View {
             }
             .frame(maxHeight: .infinity)
 
+            if expired { expiredBanner }
+
             HStack {
                 Spacer()
-                NotchButton(label: L("Cancel", comment: "Button: abandon answering the question"), style: .secondary, action: onCancel)
-                NotchButton(label: L("Send", comment: "Button: submit the answer to Claude's question"), style: .primary) {
-                    onSubmit(buildAnswers())
+                if expired {
+                    // Send is gone rather than disabled. A greyed-out button
+                    // invites a click and then explains itself; removing it says
+                    // the same thing before the click.
+                    NotchButton(label: L("Dismiss", comment: "Button: close a question card that can no longer be answered"),
+                                style: .primary, action: onCancel)
+                } else {
+                    NotchButton(label: L("Cancel", comment: "Button: abandon answering the question"), style: .secondary, action: onCancel)
+                    NotchButton(label: L("Send", comment: "Button: submit the answer to Claude's question"), style: .primary) {
+                        // Checked here too, not only when the timer fires. The
+                        // timer is bound to this view's lifetime, and a card
+                        // that was off screen when the window closed must not
+                        // come back answerable.
+                        guard !request.hasExpired else { expired = true; return }
+                        onSubmit(buildAnswers())
+                    }
                 }
             }
             .padding(.top, 18)
+        }
+        .task {
+            // One wake-up at the boundary, not a poll. SwiftUI cancels this when
+            // the card goes away.
+            if request.hasExpired { expired = true; return }
+            try? await Task.sleep(nanoseconds: UInt64(request.secondsLeft * 1_000_000_000))
+            expired = true
         }
         .onAppear {
             if selections.count != request.questions.count {
@@ -458,6 +485,39 @@ struct QuestionCard: View {
                 others = Array(repeating: "", count: request.questions.count)
             }
         }
+    }
+
+    /// Says the session stopped waiting, and where the question went instead.
+    ///
+    /// Naming the alternatives matters: the fallback prompt appears wherever
+    /// the session is running, which is often not a terminal window on this
+    /// Mac. Someone told only "it timed out" goes looking in the wrong place.
+    private var expiredBanner: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "clock.badge.exclamationmark")
+                .foregroundColor(.orange)
+                .font(.system(size: 13, weight: .semibold))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L("Too late to answer here", comment: "Banner title on a question card whose session stopped waiting"))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.orange)
+                Text(L("Claude stopped waiting after about five minutes and asked again where the session is running: your terminal, the VS Code extension, or a cloud session. Answer it there, not here.", comment: "Banner body on a question card whose session stopped waiting"))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.7))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.orange.opacity(0.12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.orange.opacity(0.35), lineWidth: 1)
+                )
+        )
     }
 
     /// Combine the picked options with any typed "Other" text. For

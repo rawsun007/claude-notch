@@ -489,6 +489,9 @@
 /* Submenu: token usage read from the transcripts */
 "Claude Usage" = "Claude Usage";
 
+/* Banner body on a question card whose session stopped waiting */
+"Claude stopped waiting after about five minutes and asked again where the session is running: your terminal, the VS Code extension, or a cloud session. Answer it there, not here." = "Claude stopped waiting after about five minutes and asked again where the session is running: your terminal, the VS Code extension, or a cloud session. Answer it there, not here.";
+
 /* Settings section heading */
 "Claude usage (from transcripts)" = "Claude usage (from transcripts)";
 
@@ -1625,6 +1628,9 @@
 
 /* Settings explanation */
 "Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess." = "Token counts from Codex rollouts. No dollar cost: gpt pricing isn't published, so a figure would be a guess.";
+
+/* Banner title on a question card whose session stopped waiting */
+"Too late to answer here" = "Too late to answer here";
 
 /* Shown on the card when biometry is locked out */
 "Too many attempts. Unlock your Mac with your password, then try again." = "Too many attempts. Unlock your Mac with your password, then try again.";
