@@ -1961,26 +1961,25 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page grouped by
     /// kind, the same way the website changelog groups them. Keep this in sync
     /// with the top changelog entry when cutting a release.
-    // 0.35.1 is a patch on 0.35.0, so its one fix goes at the top of the
-    // existing Fixed group and the 0.35.0 highlights stay rather than being
-    // replaced. Anyone updating from 0.34.x lands straight here and would
-    // otherwise never be shown the two features 0.35.0 added.
-    //
-    // One group per kind, which WhatsNewTests enforces. Adding a second Fixed
-    // group is the obvious way to write a patch's notes and it renders as two
-    // "Fixed" headings on the About page.
+    /// Highlights for the current release, shown on the About page grouped by
+    /// kind, the same way the website changelog groups them. Keep this in sync
+    /// with the top changelog entry when cutting a release.
+    ///
+    /// One group per kind, which WhatsNewTests enforces. Adding a second group
+    /// of the same kind is the obvious way to write a patch's notes and it
+    /// renders as two identical headings on the About page.
     static let whatsNew: [ChangeGroup] = [
-        ChangeGroup(kind: .added, items: [
-        "The notch says when a session changes model. Claude Code reports a mid-run switch outright now, so a /model change shows up as one line rather than being noticed whenever some later tool call happened to mention which model was running. Until then the session list named the old model and the cost meter counted against it.",
-        "Optional: hold a switch to a pricier model for your approval. Off by default, in Settings under Privacy and permissions. With it on, a session moving up to a more expensive family, sonnet to opus say, raises a card and waits for your answer. Only upgrades: switching down, or between versions of one family, is never held, because those do not cost more. Everything the notch cannot decide, a dismissed card or a timeout included, lets the switch through exactly as if the setting were off. Your own /model in your own terminal should never be stuck behind a card you are not looking at.",
-        ]),
         ChangeGroup(kind: .fixed, items: [
-        "Update Now no longer refuses a perfectly good download in the minutes right after a release. Before installing anything it checks the file against the checksum published alongside the release, and it was reading that checksum from a cache that can lag a few minutes behind. During that window the check compared the new download against the previous release's number, decided they disagreed, and stopped. It was right to stop on what it had been told; it was being told something out of date. The checksum now comes from a source that is not cached, and the cached one is only a fallback for when that is unreachable.",
-        "A settings change is recorded once in the activity log, not twice. Every edit to a file that decides what an agent may do, your settings, a project's settings, a managed policy, was being filed as two identical entries a fraction of a second apart. The log exists to be scanned for exactly those changes, so duplicating precisely them was the worst possible half to get wrong.",
-        "Setting up before installing the app no longer leaves you with an incomplete set of hooks. Hooks are wired into settings.json by the app, or by a shell script for a machine that does not have the app yet, and the two lists had drifted. An update also now refreshes the hook list for people who installed earlier, instead of new events only ever reaching fresh installs.",
+        "A question you answer late no longer disappears into nothing. Claude stops waiting after about five minutes and asks again wherever the session is running, and until now the card stayed on screen looking perfectly answerable. You picked your answers, pressed Send, and nothing happened, because there was no longer anything listening. The card now says so: it turns amber, explains that the question moved to your terminal or editor, and drops the Send button rather than pretending. Permission cards do the same, where a Deny that quietly did nothing was the more alarming of the two.",
+        "The activity log records a settings change once instead of twice. Every edit to a file that decides what an agent may do was being filed as two identical entries a fraction of a second apart.",
+        ]),
+        ChangeGroup(kind: .added, items: [
+        "A question card can be put away and picked up again. Long ones, a plan with five questions of four options each, are taller than the screen and there was no way to set one aside and come back. The shrink button at its top right tucks it away without answering; the notch grows a small purple stub on its left to say one is still waiting, and clicking that opens it back up. The session keeps waiting the whole time. While a question is put away the notch will not open on hover either, so brushing the cursor past the top of the screen cannot bury the thing you still have to answer.",
+        "The notch says when a session changes model, and can optionally hold the switch. Off by default, in Settings under Privacy and permissions: with it on, a session moving up to a more expensive family raises a card and waits. Only upgrades, never a switch down or between versions of one family.",
+        "A sample question card in the demos, so the whole thing can be tried without a real session. Menu bar Demos, or Settings, Developer.",
         ]),
         ChangeGroup(kind: .changed, items: [
-        "Installing and updating are checked from the outside before a release is called done. The Homebrew formula carries a checksum for the file it installs, and that file can be replaced after the formula is written; when the two disagree, brew refuses to install and Update Now refuses to update, with nothing visible from our side until somebody says so. The checksum is now taken from the published download, verified, and confirmed again afterwards, and a release that fails that check fails outright rather than being announced.",
+        "Installing and updating are checked from the outside before a release is called done, and quitting from a script now actually quits. Both were silent failures: a mismatched checksum stops brew and Update Now with nothing visible on our side, and a quit that reported success without quitting is how a test build once ran for hours against code that had already moved on.",
         ]),
     ]
 }
