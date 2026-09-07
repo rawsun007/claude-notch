@@ -299,11 +299,21 @@ struct NotchView: View {
             if state?.isDropTarget == true || state?.isDropHot == true {
                 return CGSize(width: max(base.width, 260), height: inset + 70)
             }
+            // A question was put away and a session is still waiting on it. The
+            // badge that says so is drawn whether or not the card is open, so
+            // the closed pill has to be wide enough to hold it: at 160 to 200pt
+            // it is not, and the badge would be clipped by exactly the amount
+            // that makes it invisible.
+            let minimizedQuestions = (state?.minimizedQuestionCount ?? 0) > 0
+
             // The card is "open" — and shows the full meter + detail — whenever
             // the cursor is on the notch OR persistentNotchDisplay is holding it
             // open. Both states get the same size so they show the same data.
             let full = hovering || (state?.persistentNotchDisplay == true)
             guard full else {
+                if minimizedQuestions, state?.petActivity ?? .tucked == .tucked {
+                    return CGSize(width: max(base.width, 300), height: base.height)
+                }
                 // Pet mode: the card grows just enough to be the stage for
                 // whatever the pet is currently doing. It's not "opening" —
                 // the notch swells a little and the mascot moves in it.
@@ -323,7 +333,8 @@ struct NotchView: View {
             // Cap raised to 520: a two-agent card (model + effort + branch +
             // token label + cost, plus a secondary session row) needs the room,
             // and under-sizing clipped the content on both edges.
-            let width = min(520, max(230, idleContentWidth(for: state, hovering: true) + 56 + 12))
+            let badgeRoom: CGFloat = minimizedQuestions ? 96 : 0
+            let width = min(560, max(230, idleContentWidth(for: state, hovering: true) + 56 + 12 + badgeRoom))
             return CGSize(width: width, height: inset + 64)
         case .thinking:
             return CGSize(width: 340, height: inset + 64)
@@ -726,6 +737,8 @@ struct NotchView: View {
                 state.resolveCurrentQuestion(answers)
             }, onCancel: {
                 state.resolveCurrentQuestion(nil)
+            }, onMinimize: {
+                state.minimizeVisibleQuestion()
             })
             // Key by request id so a queued question (e.g. from another
             // concurrent session) gets a fresh card: its @State selections /

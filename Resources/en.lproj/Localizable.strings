@@ -405,6 +405,12 @@
 /* Settings toggle */
 "Break reminders" = "Break reminders";
 
+/* VoiceOver label for the minimized-question badge */
+"Bring the minimized question back" = "Bring the minimized question back";
+
+/* Tooltip on the minimized-question badge */
+"Bring the question back" = "Bring the question back";
+
 /* Settings page title */
 "Budget" = "Budget";
 
@@ -981,6 +987,9 @@
 /* GitLab's name for a code review */
 "Merge request" = "Merge request";
 
+/* VoiceOver label for the question card's minimize button */
+"Minimize this question" = "Minimize this question";
+
 /* Toggle: also post cards to Notification Center */
 "Mirror Alerts to Notifications" = "Mirror Alerts to Notifications";
 
@@ -1220,6 +1229,9 @@
 
 /* Settings toggle explanation */
 "Put the running session cost next to the menu-bar bell." = "Put the running session cost next to the menu-bar bell.";
+
+/* Tooltip on the question card's minimize button */
+"Put this away and keep it waiting" = "Put this away and keep it waiting";
 
 /* History filter: only questions the agent asked */
 "Q&A" = "Q&A";

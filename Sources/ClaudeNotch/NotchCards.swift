@@ -379,6 +379,9 @@ struct QuestionCard: View {
     let request: QuestionRequest
     let onSubmit: ([[String]]) -> Void
     let onCancel: () -> Void
+    /// Put the card away without answering. nil hides the control, which is
+    /// what the demo and preview paths want.
+    var onMinimize: (() -> Void)? = nil
 
     // selections[questionIndex] = set of selected option labels
     @State private var selections: [Set<String>] = []
@@ -409,6 +412,20 @@ struct QuestionCard: View {
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.55))
                 Spacer()
+                if let onMinimize {
+                    // Top right, where a window's own minimize lives, and not
+                    // next to Cancel: putting it beside the button that
+                    // abandons the question is how someone loses their place
+                    // by aiming badly.
+                    Button(action: onMinimize) {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.45))
+                    }
+                    .buttonStyle(.plain)
+                    .help(L("Put this away and keep it waiting", comment: "Tooltip on the question card's minimize button"))
+                    .accessibilityLabel(L("Minimize this question", comment: "VoiceOver label for the question card's minimize button"))
+                }
             }
 
             // Let the option list fill whatever vertical space the window

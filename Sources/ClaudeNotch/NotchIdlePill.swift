@@ -106,6 +106,37 @@ struct IdlePill: View {
                               startPoint: .leading, endPoint: .trailing)
     }
 
+    /// Brings a put-away question back. Bordered rather than a plain tint so it
+    /// reads as something to press, since the rest of the badges on this row
+    /// are labels that do nothing.
+    private var minimizedQuestionChip: some View {
+        let count = state.minimizedQuestionCount
+        return HStack(spacing: 3) {
+            Image(systemName: "questionmark.bubble.fill")
+                .font(.system(size: 8, weight: .semibold))
+            Text(count == 1
+                 ? L("1 question", comment: "Badge: one question was minimized and is still waiting")
+                 : String(format: L("%d questions", comment: "Badge: how many minimized questions are still waiting"), count))
+                .font(.system(size: 9, weight: .semibold, design: .rounded))
+        }
+        .foregroundColor(.purple)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Color.purple.opacity(0.20))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(Color.purple.opacity(0.55), lineWidth: 1)
+                )
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { state.restoreMinimizedQuestions() }
+        .help(L("Bring the question back", comment: "Tooltip on the minimized-question badge"))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel(L("Bring the minimized question back", comment: "VoiceOver label for the minimized-question badge"))
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             // Row 1 — Claude icon · name · status dot · status label · action buttons
@@ -148,6 +179,11 @@ struct IdlePill: View {
                         .cornerRadius(4)
                         .help(badge.help)
                 }
+                // A question the user put away. Deliberately NOT inside the
+                // `isOpen` check below: the point of minimizing is that the
+                // card is gone, and a session is still waiting on it, so the
+                // one thing that must not need a hover to notice is this.
+                if state.minimizedQuestionCount > 0 { minimizedQuestionChip }
                 // Secondary counts — shown whenever the card is open, whether
                 // the cursor is on the notch or persistentNotchDisplay is
                 // holding it open, so the two states show the same detail.
