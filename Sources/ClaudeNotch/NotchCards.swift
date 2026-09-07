@@ -418,9 +418,20 @@ struct QuestionCard: View {
                     // abandons the question is how someone loses their place
                     // by aiming badly.
                     Button(action: onMinimize) {
-                        Image(systemName: "minus.circle.fill")
-                            .font(.system(size: 13, weight: .semibold))
+                        // A shrink glyph, not a minus. A minus reads as "remove
+                        // this", which is the one thing this button must not be
+                        // mistaken for on a card holding a session open.
+                        Image(systemName: "arrow.down.right.and.arrow.up.left")
+                            .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(.white.opacity(0.45))
+                            // The glyph was the whole hit target, about 13pt
+                            // square, so most clicks landed just outside it and
+                            // did nothing. That is what "I have to click it two
+                            // or three times" was. The frame gives it a 24pt
+                            // target; contentShape makes the padding clickable
+                            // rather than only the drawn pixels.
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .help(L("Put this away and keep it waiting", comment: "Tooltip on the question card's minimize button"))
