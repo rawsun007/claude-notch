@@ -151,6 +151,24 @@ final class QuestionRequest: Identifiable, Equatable {
     let elicitationId: String
     let resolver: ([[String]]?) -> Void   // nil = cancel; otherwise one [labels] per question
 
+    /// When the hook waiting on this card gives up.
+    ///
+    /// Claude Code holds the tool call open while the card is up, and the
+    /// installed hook entry allows 290s. The server lets go at 285s and answers
+    /// "no opinion", which makes Claude Code ask the question in the terminal
+    /// instead, or in the VS Code extension, or in a cloud session. From that
+    /// moment this card is a ghost: tapping Send still runs the resolver,
+    /// PendingAnswer has already answered and discards the second answer, and
+    /// nothing reaches the session. The card has to know that, because silently
+    /// eating an answer is worse than admitting it arrived too late.
+    var expiresAt: Date { receivedAt.addingTimeInterval(EventServer.decisionWindow) }
+
+    /// Has the session stopped listening to this card?
+    var hasExpired: Bool { Date() >= expiresAt }
+
+    /// Seconds until it expires, floored at zero.
+    var secondsLeft: TimeInterval { max(0, expiresAt.timeIntervalSinceNow) }
+
     init(questions: [AskQuestion], source: String, cwd: String,
          originatorBundleID: String? = nil, elicitationId: String = "",
          resolver: @escaping ([[String]]?) -> Void) {
