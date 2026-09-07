@@ -486,10 +486,15 @@ struct NotchView: View {
             )
         }
 
-        // A question that was put away, parked to the LEFT of the notch on the
+        // A question that was put away, parked beside the notch on the
         // transparent panel. Drawn here rather than inside the card so the black
         // notch keeps the exact width of the hardware cutout: widening it to fit
         // a badge turned the notch into a light-edged bar and looked broken.
+        //
+        // On the RIGHT, which is where it was asked for after trying it on the
+        // left. The left of the notch is where an app's own menus run, so a tab
+        // there sits among File and Edit; the right is the status-item side,
+        // which is where a thing you click to get something back belongs.
         //
         // Offset from the card's CURRENT animated width, so it slides out of the
         // way as the notch opens on hover instead of being overlapped by it.
@@ -499,7 +504,7 @@ struct NotchView: View {
         return AnyView(ZStack(alignment: .top) {
             if minimizedCount > 0 {
                 MinimizedQuestionTab(state: state)
-                    .offset(x: -(w / 2 + tabWidth / 2 + 8),
+                    .offset(x: w / 2 + tabWidth / 2 + 8,
                             y: max(2, (localInset - MinimizedQuestionTab.height) / 2))
                     .transition(.opacity)
             }
