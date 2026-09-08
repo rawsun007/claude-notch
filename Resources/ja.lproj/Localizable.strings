@@ -31,8 +31,6 @@
 /* Settings sidebar group */
 "Alerts & Cost" = "通知とコスト";
 
-/* Settings explanation */
-"All-time counters, kept locally on this Mac." = "累計のカウント。この Mac のみに保存されます。";
 
 /* Button: approve the permission request */
 "Allow" = "許可";

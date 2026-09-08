@@ -31,8 +31,6 @@
 /* Settings sidebar group */
 "Alerts & Cost" = "提醒与费用";
 
-/* Settings explanation */
-"All-time counters, kept locally on this Mac." = "全部历史计数，仅保存在这台 Mac 上。";
 
 /* Button: approve the permission request */
 "Allow" = "允许";

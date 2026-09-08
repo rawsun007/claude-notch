@@ -31,8 +31,6 @@
 /* Settings sidebar group */
 "Alerts & Cost" = "알림 및 비용";
 
-/* Settings explanation */
-"All-time counters, kept locally on this Mac." = "전체 기간 집계이며 이 Mac에만 저장됩니다.";
 
 /* Button: approve the permission request */
 "Allow" = "허용";

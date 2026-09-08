@@ -31,8 +31,6 @@
 /* Settings sidebar group */
 "Alerts & Cost" = "Оповещения и расходы";
 
-/* Settings explanation */
-"All-time counters, kept locally on this Mac." = "Счётчики за всё время, хранятся только на этом Mac.";
 
 /* Button: approve the permission request */
 "Allow" = "Разрешить";

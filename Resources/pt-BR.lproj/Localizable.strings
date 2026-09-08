@@ -31,8 +31,6 @@
 /* Settings sidebar group */
 "Alerts & Cost" = "Alertas e custo";
 
-/* Settings explanation */
-"All-time counters, kept locally on this Mac." = "Contadores de sempre, guardados só neste Mac.";
 
 /* Button: approve the permission request */
 "Allow" = "Permitir";

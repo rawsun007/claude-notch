@@ -31,8 +31,6 @@
 /* Settings sidebar group */
 "Alerts & Cost" = "अलर्ट और लागत";
 
-/* Settings explanation */
-"All-time counters, kept locally on this Mac." = "सर्वकालिक गणना, केवल इसी Mac पर संग्रहीत।";
 
 /* Button: approve the permission request */
 "Allow" = "अनुमति दें";

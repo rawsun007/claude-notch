@@ -31,8 +31,6 @@
 /* Settings sidebar group */
 "Alerts & Cost" = "Alertes et coût";
 
-/* Settings explanation */
-"All-time counters, kept locally on this Mac." = "Compteurs cumulés, conservés uniquement sur ce Mac.";
 
 /* Button: approve the permission request */
 "Allow" = "Autoriser";
