@@ -322,9 +322,12 @@ after each update.
 No. Everything runs locally over a localhost hook. Nothing leaves your machine.
 
 **Which AI tools does it support?**
-Claude Code and the Codex CLI. Setup wires hooks into `~/.claude` and `~/.codex`,
-and sessions from both show up side by side in the notch, each tagged with the
-agent it came from.
+Claude Code fully, and the Codex CLI in beta. Setup wires hooks into `~/.claude`
+and `~/.codex`, and sessions from both show up side by side, each tagged with the
+agent it came from. What differs is what the notch can do about them: for Claude
+Code it holds the permission and question prompts so you answer in the notch,
+while Codex keeps its own prompts in the terminal and the notch reports what is
+running, the cost and the context rather than gating it.
 
 **I run Claude Code inside VS Code or the Claude Desktop app and the notch stays quiet.**
 Update the Claude Code CLI to **2.1.233 or later**. Before that version it did not
