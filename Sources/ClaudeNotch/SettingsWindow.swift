@@ -329,6 +329,9 @@ struct SettingsView: View {
     var onOpenSetup: (() -> Void)? = nil
     @State var section: SettingsSection = .general
     @State var claudeUsage: ClaudeUsageReader.Usage?
+    /// Claude Code's own lifetime stats, from ~/.claude/stats-cache.json.
+    /// Optional because the file only exists once the CLI has computed it.
+    @State var cliStats: ClaudeStatsCache.Stats?
     @State private var heatTip: String?
     @State private var search = ""
     @State private var healthTick = 0

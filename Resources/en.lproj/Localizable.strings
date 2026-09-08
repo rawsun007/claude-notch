@@ -21,6 +21,9 @@
 /* Card title when a tool keeps failing. %1$@ is a tool name, %2$d a count */
 "%1$@ has failed %2$d times in a row" = "%1$@ has failed %2$d times in a row";
 
+/* Per-model token split. %1$@ input, %2$@ output, %3$@ cache read */
+"%1$@ in, %2$@ out, %3$@ cached" = "%1$@ in, %2$@ out, %3$@ cached";
+
 /* Budget block detail. %1$@ is spend, %2$@ is the cap, %3$d is a percentage */
 "%1$@ of %2$@ cap (%3$d%%)" = "%1$@ of %2$@ cap (%3$d%%)";
 
@@ -216,6 +219,9 @@
 /* Permission row once accessibility access is granted */
 "Accessibility: Granted" = "Accessibility: Granted";
 
+/* Stat label: days with any activity */
+"Active days" = "Active days";
+
 /* History tab: the log of resolved cards */
 "Activity" = "Activity";
 
@@ -264,8 +270,11 @@
 /* Settings explanation about the all-time Codex total */
 "All time covers the session files Codex still keeps on this Mac. Codex prunes its own history, so anything it has already removed cannot be counted." = "All time covers the session files Codex still keeps on this Mac. Codex prunes its own history, so anything it has already removed cannot be counted.";
 
+/* Settings section heading */
+"All time, from Claude Code" = "All time, from Claude Code";
+
 /* Settings explanation */
-"All-time counters, kept locally on this Mac." = "All-time counters, kept locally on this Mac.";
+"All-time counters for the notch itself, kept locally on this Mac." = "All-time counters for the notch itself, kept locally on this Mac.";
 
 /* Button: approve the permission request */
 "Allow" = "Allow";
@@ -420,6 +429,9 @@
 /* Settings button */
 "Budget hard-stop" = "Budget hard-stop";
 
+/* Stat label: the day with the most messages */
+"Busiest day" = "Busiest day";
+
 /* Two-letter status bar label for paid usage credits */
 "CR" = "CR";
 
@@ -474,8 +486,14 @@
 /* Explanation of the rule export */
 "Claude Code keeps its own allowlist in ~/.claude/settings.json. Copy these rules across so a terminal session the notch is not watching stops asking too." = "Claude Code keeps its own allowlist in ~/.claude/settings.json. Copy these rules across so a terminal session the notch is not watching stops asking too.";
 
+/* Settings explanation for the CLI's own statistics */
+"Claude Code keeps its own running totals across every session you have ever had, which is what its /stats screen shows. These are those numbers, not the app's: they reach back further than the transcripts read above, and they carry no cost figure, so the money on this page stays an estimate made here." = "Claude Code keeps its own running totals across every session you have ever had, which is what its /stats screen shows. These are those numbers, not the app's: they reach back further than the transcripts read above, and they carry no cost figure, so the money on this page stays an estimate made here.";
+
 /* Settings explanation, freshness of the plan numbers */
 "Claude Code last checked this %@." = "Claude Code last checked this %@.";
+
+/* Note under the CLI statistics. %@ is a date */
+"Claude Code last recomputed these on %@, so today is not included yet." = "Claude Code last recomputed these on %@, so today is not included yet.";
 
 /* Limit tooltip fragment explaining why a reading can be stale */
 "Claude Code only reports usage while a session is running" = "Claude Code only reports usage while a session is running";
@@ -657,6 +675,9 @@
 /* Settings section heading */
 "Current session" = "Current session";
 
+/* Stat label: consecutive active days now */
+"Current streak" = "Current streak";
+
 /* Settings explanation */
 "Custom" = "Custom";
 
@@ -797,6 +818,9 @@
 
 /* Multi-edit preview heading. %d is the number of edits */
 "First of %d edits" = "First of %d edits";
+
+/* Stat label: date of the earliest session */
+"First session" = "First session";
 
 /* Changelog group heading */
 "Fixed" = "Fixed";
@@ -981,6 +1005,12 @@
 /* Settings toggle */
 "Long-run alerts" = "Long-run alerts";
 
+/* Stat label: longest single session */
+"Longest session" = "Longest session";
+
+/* Stat label: longest run of consecutive active days */
+"Longest streak" = "Longest streak";
+
 /* Button opening the Anthropic usage settings page */
 "Manage on claude.ai" = "Manage on claude.ai";
 
@@ -992,6 +1022,9 @@
 
 /* GitLab's name for a code review */
 "Merge request" = "Merge request";
+
+/* Stat label: lifetime message count */
+"Messages" = "Messages";
 
 /* VoiceOver label for the question card's minimize button */
 "Minimize this question" = "Minimize this question";
@@ -1010,6 +1043,9 @@
 
 /* Settings explanation */
 "More" = "More";
+
+/* Stat label: the model with the most tokens */
+"Most used model" = "Most used model";
 
 /* Settings toggle */
 "Mute all sounds" = "Mute all sounds";
@@ -1667,6 +1703,9 @@
 
 /* Settings section heading */
 "Top tools" = "Top tools";
+
+/* Stat label: lifetime token count */
+"Total tokens" = "Total tokens";
 
 /* Onboarding button: switch auto-approval off */
 "Turn Off" = "Turn Off";

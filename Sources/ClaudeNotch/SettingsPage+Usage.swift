@@ -47,7 +47,13 @@ extension SettingsView {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .cardChrome()
 
-            Text(L("All-time counters, kept locally on this Mac.", comment: "Settings explanation"))
+            // Claude Code's own lifetime numbers, above the app's own counters:
+            // they answer the bigger question ("how much have I ever done")
+            // and the app's counters below are about what the notch itself has
+            // handled, which is a narrower thing.
+            cliLifetimeStats
+
+            Text(L("All-time counters for the notch itself, kept locally on this Mac.", comment: "Settings explanation"))
                 .font(.callout).foregroundStyle(.secondary)
             group {
                 statRow("Permissions allowed", "\(state.stats.allowed)")
@@ -165,11 +171,14 @@ extension SettingsView {
         .task(id: section) {
             guard section == SettingsSection.usage else { return }
             let codexOn = HookInstaller.isCodexInstalled
-            let (usage, ctotals) = await Task.detached(priority: .utility) {
-                (ClaudeUsageReader.compute(), codexOn ? CodexReader.tokenTotals() : nil)
+            let (usage, ctotals, stats) = await Task.detached(priority: .utility) {
+                (ClaudeUsageReader.compute(),
+                 codexOn ? CodexReader.tokenTotals() : nil,
+                 ClaudeStatsCache.load())
             }.value
             claudeUsage = usage
             codexTotals = ctotals
+            cliStats = stats
         }
     }
 }
