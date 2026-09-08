@@ -62,7 +62,7 @@ system, and shows no Dock icon, just a small bell in your menu bar.
 
 <img src="assets/spiderman.gif" alt="A playful animation in the notch" width="720" />
 
-**In your language**: pick one of ten languages in Settings and the notch and the settings window switch straight away, no restart.
+**In your language**: pick English or one of nine translations in Settings and the notch and the settings window switch straight away, no restart.
 
 <img src="assets/multi-language.gif" alt="Switching the ClaudeNotch interface language in Settings" width="720" />
 
@@ -91,7 +91,7 @@ system, and shows no Dock icon, just a small bell in your menu bar.
 | 🏷️ **Personalise the notch title** | Pick what the notch calls itself from the **Notch Title** menu, keep **Claude**, track the active **project name**, or type your own **custom** label. It updates live and sticks between launches. |
 | 🗣️ **Works with VoiceOver** | The notch never steals focus, so a card could sit there silently. When one appears it is announced instead: the ask, the diff read as "removing 1 line, adding 2", and the keys that answer it. A queue says Return would allow all of them, and a destructive command never claims a key that does nothing. Resolving speaks the outcome, so you know Allow from Deny without looking. |
 | 🖥️🖥️ **Every screen at once** | Working on an external monitor? The notch (or a floating pill on a display with no physical notch) renders on every screen at the same time, and hover-expand follows your cursor between them, so the card is wherever you are actually looking. |
-| 🌍 **Nine languages** | Simplified Chinese, Spanish, Hindi, Portuguese, Japanese, German, French, Korean, and Russian. Pick one from **Settings → General → Language** and it applies immediately, no restart. |
+| 🌍 **Nine translations, plus English** | Simplified Chinese, Spanish, Hindi, Portuguese, Japanese, German, French, Korean, and Russian. Pick one from **Settings → General → Language** and it applies immediately, no restart. |
 | 🔮 **See the bill coming** | **Settings → Budget** projects what today finishes at from the rate so far, the clock time it would cross your daily cap, and what the month comes to. A card gives you one heads-up while the cap is still ahead of you, rather than only telling you once the money is gone. |
 | ⏳ **See your usage limit coming** | Hover a plan-limit bar and, once there is enough data to trust, it projects when the cap arrives at the rate you are actually spending, not just where you are right now. Says nothing when the window resets first or the answer is hours away. |
 | 🔍 **Check what Claude actually did** *(opt-in)* | Off by default, in **Settings → Session**. When on, a finished task is checked against what really happened: if the closing message claims a change the turn never made, or says the tests pass when none ran, the card says so. Silent the rest of the time, since a verdict that fires on every ordinary turn is one you stop reading. |
