@@ -141,6 +141,52 @@ struct SessionsList: View {
         }
     }
 
+    /// Prompt-cache chip: the session is about to go cold, or already has.
+    ///
+    /// Only appears when there is something to do about it and a number to
+    /// justify it, which is `isWorthReporting`. A warm session shows nothing:
+    /// this is a warning, and a warning that is lit most of the time is
+    /// decoration.
+    ///
+    /// The number is the point. "Cold" alone is a fact about the machine;
+    /// "waking this costs 45k" is a reason to send the message now or to
+    /// /compact before stepping away, which is what the CLI itself advises.
+    @ViewBuilder
+    static func cacheTag(for session: LiveSession, now: Date = Date()) -> some View {
+        let cache = session.promptCache
+        if cache.isWorthReporting(now: now) {
+            let cold = cache.isCold(now: now)
+            let tint: Color = cold ? .orange : .yellow
+            let tokens = SettingsView.compactTokens(cache.recacheTokens ?? 0)
+            let label = cold
+                ? String(format: L("cache cold %@", comment: "Session badge: the prompt cache has lapsed. %@ is the token cost of rebuilding it"), tokens)
+                : String(format: L("cache %@", comment: "Session badge: the prompt cache is about to lapse. %@ is time remaining, e.g. 1m"),
+                         Self.shortCountdown(cache.secondsUntilExpiry(now: now) ?? 0))
+            let help = cold
+                ? String(format: L("This session's prompt cache has lapsed. The next message re-sends about %@ tokens to rebuild it. Uncached input is the expensive kind.", comment: "Tooltip for a lapsed prompt cache. %@ is a token count"), tokens)
+                : String(format: L("This session's prompt cache lapses in %1$@. After that the next message re-sends about %2$@ tokens to rebuild it, so send now or run /compact before stepping away.", comment: "Tooltip for a prompt cache about to lapse. %1$@ is a countdown, %2$@ a token count"),
+                         Self.shortCountdown(cache.secondsUntilExpiry(now: now) ?? 0), tokens)
+            Text(label)
+                .font(.system(size: 8, weight: .bold, design: .rounded))
+                .foregroundColor(tint.opacity(0.95))
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1)
+                .background(
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(tint.opacity(0.18))
+                )
+                .help(help)
+        }
+    }
+
+    /// "90s" under two minutes, "2m" above. Seconds matter when the decision is
+    /// whether to type now; minutes are enough after that.
+    static func shortCountdown(_ seconds: TimeInterval) -> String {
+        let s = Int(seconds.rounded())
+        if s < 120 { return "\(s)s" }
+        return "\(s / 60)m"
+    }
+
     /// Row tooltip: where the session is, and which CLI is running it. The
     /// version comes from Claude Code's session registry, and it is the answer
     /// to "why does that session not show what this one shows".
@@ -257,6 +303,10 @@ struct SessionsList: View {
                             if state.showSandboxBadge {
                                 Self.sandboxTag(for: session)
                             }
+                            // Outside the sandbox-badge setting: that toggle is
+                            // about showing sandbox posture, and a cache warning
+                            // is a different thing that would vanish with it.
+                            Self.cacheTag(for: session)
                             if let badge = permissionModeBadge(session.permissionMode) {
                                 Text(badge.label)
                                     .font(.system(size: 8, weight: .bold, design: .rounded))

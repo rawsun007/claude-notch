@@ -1668,6 +1668,12 @@
 /* Card title suggesting a CLI instead of an MCP server. %@ is a command name */
 "This session is using an MCP server for something %@ does" = "This session is using an MCP server for something %@ does";
 
+/* Tooltip for a lapsed prompt cache. %@ is a token count */
+"This session's prompt cache has lapsed. The next message re-sends about %@ tokens to rebuild it. Uncached input is the expensive kind." = "This session's prompt cache has lapsed. The next message re-sends about %@ tokens to rebuild it. Uncached input is the expensive kind.";
+
+/* Tooltip for a prompt cache about to lapse. %1$@ is a countdown, %2$@ a token count */
+"This session's prompt cache lapses in %1$@. After that the next message re-sends about %2$@ tokens to rebuild it, so send now or run /compact before stepping away." = "This session's prompt cache lapses in %1$@. After that the next message re-sends about %2$@ tokens to rebuild it, so send now or run /compact before stepping away.";
+
 /* Spend submenu row: cost this week */
 "This week" = "This week";
 
@@ -1904,6 +1910,12 @@
 
 /* Hint next to Always Allow. %d is how many times this exact command was approved before */
 "allowed %d times" = "allowed %d times";
+
+/* Session badge: the prompt cache is about to lapse. %@ is time remaining, e.g. 1m */
+"cache %@" = "cache %@";
+
+/* Session badge: the prompt cache has lapsed. %@ is the token cost of rebuilding it */
+"cache cold %@" = "cache cold %@";
 
 /* Hint under the auto-allowed card */
 "click to dismiss" = "click to dismiss";

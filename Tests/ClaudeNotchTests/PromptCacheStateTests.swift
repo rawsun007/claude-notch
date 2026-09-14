@@ -98,3 +98,22 @@ final class PromptCacheStateTests: XCTestCase {
         XCTAssertFalse(s.isWorthReporting(now: now))
     }
 }
+
+/// The countdown on the badge. Short because the decision it supports is
+/// "type now or not", which is a seconds-scale question.
+@MainActor
+final class PromptCacheBadgeTests: XCTestCase {
+    func testSecondsBelowTwoMinutes() {
+        XCTAssertEqual(SessionsList.shortCountdown(9), "9s")
+        XCTAssertEqual(SessionsList.shortCountdown(119), "119s")
+    }
+
+    func testMinutesAboveThat() {
+        XCTAssertEqual(SessionsList.shortCountdown(120), "2m")
+        XCTAssertEqual(SessionsList.shortCountdown(605), "10m")
+    }
+
+    func testZeroIsNotNegative() {
+        XCTAssertEqual(SessionsList.shortCountdown(0), "0s")
+    }
+}
