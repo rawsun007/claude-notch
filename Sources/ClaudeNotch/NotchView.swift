@@ -357,6 +357,20 @@ struct NotchView: View {
             if req.budgetBlock != nil {
                 visible += 46   // two-line orange banner + gap
             }
+            // The "too late to answer here" banner. Every optional row in this
+            // card MUST be budgeted here: the height is the content size, so a
+            // row that is drawn without being counted pushes the button row
+            // past the bottom of the window. It still paints, because the panel
+            // is bigger than the card, so the button looks perfectly normal and
+            // simply does not respond to a click. That is exactly how this
+            // shipped in 0.36.0.
+            //
+            // Budgeted for four wrapped lines of body plus the heading and the
+            // padding. Over-budgeting costs a little dead space; under it costs
+            // a button nobody can press.
+            if req.hasExpired {
+                visible += 96
+            }
             if let p = req.preview {
                 switch p {
                 case .diff(let h):
