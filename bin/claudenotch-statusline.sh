@@ -2,8 +2,9 @@
 # claudenotch-statusline.sh — installed as Claude Code's `statusLine.command`.
 #
 # Claude Code feeds the status line command a rich JSON on stdin that includes
-# the AUTHORITATIVE context-window usage and the real 5-hour / weekly plan-limit
-# usage — the only local source of those numbers. This script:
+# the AUTHORITATIVE context-window usage, the real 5-hour / weekly plan-limit
+# usage, and the session's prompt-cache state — the only local source of any of
+# those numbers. This script:
 #   1. forwards them to the ClaudeNotch app (fire-and-forget), then
 #   2. re-emits the user's PREVIOUS status line so their terminal is unchanged
 #      (or prints a compact default line if they had none).
@@ -35,7 +36,19 @@ if command -v jq >/dev/null 2>&1 && nc -z 127.0.0.1 53127 2>/dev/null; then
         five_hour_pct: (.rate_limits.five_hour.used_percentage // null),
         seven_day_pct: (.rate_limits.seven_day.used_percentage // null),
         five_hour_resets_at: (.rate_limits.five_hour.resets_at // null),
-        seven_day_resets_at: (.rate_limits.seven_day.resets_at // null)
+        seven_day_resets_at: (.rate_limits.seven_day.resets_at // null),
+        # NOT `// null` here: the alternative operator in jq treats false as
+        # empty, so a cold cache (warm:false) would arrive as null and read as
+        # "no data" rather than as the one state worth reporting. A plain path
+        # yields null when absent and false when false, which is what we want.
+        # (No apostrophes in this comment: the jq program is single-quoted and
+        # one would end it, which is exactly how this line broke once.)
+        cache_warm:          (.prompt_cache.warm),
+        cache_expires_at:    (.prompt_cache.expires_at // null),
+        cache_ttl:           (.prompt_cache.ttl // ""),
+        cache_hit_ratio:     (.prompt_cache.hit_ratio // null),
+        cache_recache_tokens: (.prompt_cache.recache_tokens_if_cold // null),
+        cache_miss_causes:   ((.prompt_cache.last_miss_cause.causes // []) | join(","))
     }' 2>/dev/null | curl -s --max-time 1 -X POST \
         -H 'Content-Type: application/json' --data-binary @- \
         "http://127.0.0.1:53127/statusline$(
