@@ -154,6 +154,18 @@ back as the response.
   keys, settings hotkey, break timer. **BiometricAuth.swift**: Touch ID gate for
   dangerous actions. **NotificationBridge.swift**: mirror cards to Notification
   Center. **UpdateChecker.swift**: GitHub Releases version check (the app's own).
+- **PromptCacheState.swift**: a session's prompt-cache state, forwarded from the
+  status line's `prompt_cache` (CLI 2.1.251+). Decides when the notch says
+  anything: only when the cache is cold or about to be AND a rebuild cost is
+  known. `warm` is `Bool?` on purpose, absent (not yet reported) is not cold.
+- **ClockPreference.swift**: Claude Code's `timeFormat` / `timeZone` settings
+  (2.1.257), so the notch's clocks match the terminal's. Returns nil for "no
+  opinion" so callers keep their own formatter; strftime patterns are
+  translated to Unicode date fields, not passed through.
+- **ClaudeStatsCache.swift**: Claude Code's lifetime stats from
+  `~/.claude/stats-cache.json`, the file behind `/stats`. Better than ours for
+  lifetime totals; carries NO cost (every `costUSD` is 0) and lags by up to a
+  day, so today and money still come from the transcripts.
 - **ClaudeCLIUpdate.swift**: whether the Claude Code CLI itself is out of date.
   Installed version from `claude --version`, latest from the npm registry tag
   document, install method inferred from the binary path (native / npm /
