@@ -165,7 +165,8 @@ extension AppState {
                         linesAdded: Int? = nil, linesRemoved: Int? = nil,
                         contextPct: Double?, contextWindow: Int? = nil, contextTokens: Int? = nil,
                         fiveHourPct: Double?, sevenDayPct: Double?,
-                        fiveHourResetsAt: Date? = nil, sevenDayResetsAt: Date? = nil) {
+                        fiveHourResetsAt: Date? = nil, sevenDayResetsAt: Date? = nil,
+                        promptCache: PromptCacheState? = nil) {
         statusLineUpdateCount += 1
         // First, before anything this line carries is applied: drop any window
         // that has already reset. A line reporting a percentage but no reset
@@ -206,6 +207,11 @@ extension AppState {
         upsertSession(id: sessionId, cwd: currentCwd) { s in
             if let pct { s.contextPercent = pct }
             if !model.isEmpty { s.model = model }
+            // Only when this line actually carried cache data. Claude Code
+            // pushes a status line on every redraw and prompt_cache is absent
+            // until the first API response, so assigning unconditionally would
+            // wipe a known state back to unknown several times a second.
+            if let promptCache, !promptCache.isUnknown { s.promptCache = promptCache }
             if let w = contextWindow, w > 0 { s.contextWindow = w }
             if let t = contextTokens, t > 0 { s.contextTokens = t }
             if !sessionName.isEmpty { s.title = sessionName }

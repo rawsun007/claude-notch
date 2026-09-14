@@ -165,6 +165,9 @@ struct LiveSession: Identifiable, Equatable {
     // the paths arrive on a hook payload.
     var addedDirectories: [String] = []
     var model: String = ""           // most recent model id (e.g. claude-opus-4-8)
+    /// Prompt-cache state, from the status line. Default is "nothing reported",
+    /// which every session is in until its first API response.
+    var promptCache = PromptCacheState()
     var isCompacting: Bool = false   // true between PreCompact and the next event
     // Claude Code permission mode from hook payloads (default / plan /
     // acceptEdits / auto / dontAsk / bypassPermissions). Non-default modes get

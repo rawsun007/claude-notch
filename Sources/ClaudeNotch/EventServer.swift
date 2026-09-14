@@ -742,6 +742,16 @@ final class EventServer {
         // says whether you can wait it out.
         let fiveHourResetsAt = num("five_hour_resets_at").map { Date(timeIntervalSince1970: $0) }
         let sevenDayResetsAt = num("seven_day_resets_at").map { Date(timeIntervalSince1970: $0) }
+        // Prompt cache. `warm` is read as a Bool and NOT defaulted: absent means
+        // Claude Code has not reported yet, false means the cache is gone, and
+        // collapsing those loses the only state worth acting on.
+        var cache = PromptCacheState()
+        cache.warm = payload["cache_warm"] as? Bool
+        cache.expiresAt = num("cache_expires_at").map { Date(timeIntervalSince1970: $0) }
+        cache.ttl = (payload["cache_ttl"] as? String) ?? ""
+        cache.hitRatio = num("cache_hit_ratio")
+        cache.recacheTokens = num("cache_recache_tokens").map(Int.init)
+        cache.missCauses = (payload["cache_miss_causes"] as? String) ?? ""
         // Log a status line only when its numbers CHANGE. Claude Code pushes one
         // on every redraw, so logging them all buries the log; logging none left
         // us unable to tell a stale reading from a wrong one.
@@ -760,7 +770,8 @@ final class EventServer {
         // Nothing usable — don't churn the UI.
         guard contextPct != nil || fiveHourPct != nil || sevenDayPct != nil
                 || contextWindow != nil || !sessionName.isEmpty || !worktree.isEmpty
-                || prNumber != nil || !effort.isEmpty || costUSD != nil else { return }
+                || prNumber != nil || !effort.isEmpty || costUSD != nil
+                || !cache.isUnknown else { return }
         Task { @MainActor [weak state] in
             state?.noteStatusLine(sessionId: sessionId, model: model,
                                   sessionName: sessionName, worktree: worktree,
@@ -774,7 +785,8 @@ final class EventServer {
                                   fiveHourPct: fiveHourPct,
                                   sevenDayPct: sevenDayPct,
                                   fiveHourResetsAt: fiveHourResetsAt,
-                                  sevenDayResetsAt: sevenDayResetsAt)
+                                  sevenDayResetsAt: sevenDayResetsAt,
+                                  promptCache: cache)
         }
     }
 
