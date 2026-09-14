@@ -1642,6 +1642,9 @@ struct SettingsView: View {
     func demoNotification() {
         state.enqueuePermission(DemoCards.notification(), bypassRules: true)
     }
+    func demoExpired() {
+        state.enqueuePermission(DemoCards.expiredPermission(), bypassRules: true)
+    }
     func demoQuestion() {
         state.enqueueQuestion(DemoCards.question())
     }

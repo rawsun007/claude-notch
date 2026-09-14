@@ -254,7 +254,11 @@ final class PermissionRequest: Identifiable, Equatable {
     let toolName: String      // e.g. "Bash"
     let source: String        // e.g. "Claude Code"
     let cwd: String
-    let receivedAt = Date()
+    /// Injectable for the same reason as on QuestionRequest: without it nothing
+    /// can build a card that is already past its window, so the expired state
+    /// could only ever be reached by waiting five minutes for a real one. That
+    /// is how an unclickable Dismiss button shipped.
+    let receivedAt: Date
     let originatorBundleID: String?   // app that was frontmost when request came in
     let preview: ToolPreview?         // Edit diff / Write head / MultiEdit summary
 
@@ -292,7 +296,8 @@ final class PermissionRequest: Identifiable, Equatable {
     // visible before.
     var autoDenialReason: String? = nil
 
-    init(kind: Kind, title: String, detail: String, toolName: String, source: String, cwd: String, originatorBundleID: String? = nil, preview: ToolPreview? = nil, dangerReasons: [String] = [], resolver: @escaping (PermissionDecision, String?) -> Void) {
+    init(kind: Kind, title: String, detail: String, toolName: String, source: String, cwd: String, originatorBundleID: String? = nil, preview: ToolPreview? = nil, dangerReasons: [String] = [], receivedAt: Date = Date(), resolver: @escaping (PermissionDecision, String?) -> Void) {
+        self.receivedAt = receivedAt
         self.kind = kind
         self.title = title
         self.detail = detail

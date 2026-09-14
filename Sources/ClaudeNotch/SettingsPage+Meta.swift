@@ -23,6 +23,8 @@ extension SettingsView {
                     divider
                     actionRow(L("Question (plan-shaped)", comment: "Settings button"), "questionmark.bubble") { demoQuestion() }
                     divider
+                    actionRow(L("Expired card (too late to answer)", comment: "Settings button"), "clock.badge.exclamationmark") { demoExpired() }
+                    divider
                     actionRow(L("Task complete", comment: "Settings button"), "checkmark.seal") { demoCompleted() }
                     divider
                     // Built from the same list the menu bar reads, so the two

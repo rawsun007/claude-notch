@@ -69,6 +69,27 @@ enum DemoCards {
             source: source, cwd: "", resolver: { _, _ in })
     }
 
+    /// A destructive command whose window has already closed.
+    ///
+    /// Exists because the expired state could otherwise only be reached by
+    /// leaving a real card alone for five minutes, which is how a Dismiss
+    /// button that could not be clicked reached a release: the banner pushed
+    /// the button past the bottom of the window, where it still painted and no
+    /// longer responded. One click reproduces it now.
+    ///
+    /// Destructive on purpose, because that is the tallest the card gets and so
+    /// the worst case for the height arithmetic.
+    static func expiredPermission() -> PermissionRequest {
+        PermissionRequest(
+            kind: .toolUse,
+            title: "Run shell command",
+            detail: "git push --force origin main",
+            toolName: "Bash", source: source, cwd: NSHomeDirectory(),
+            dangerReasons: ["git push --force, can overwrite remote history"],
+            receivedAt: Date().addingTimeInterval(-EventServer.decisionWindow - 60),
+            resolver: { _, _ in })
+    }
+
     // MARK: - Questions
 
     /// A plan-shaped question card: several questions, options with
