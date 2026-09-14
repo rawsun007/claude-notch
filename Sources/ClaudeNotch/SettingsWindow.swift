@@ -1964,25 +1964,18 @@ struct SettingsView: View {
     /// Highlights for the current release, shown on the About page grouped by
     /// kind, the same way the website changelog groups them. Keep this in sync
     /// with the top changelog entry when cutting a release.
-    /// Highlights for the current release, shown on the About page grouped by
-    /// kind, the same way the website changelog groups them. Keep this in sync
-    /// with the top changelog entry when cutting a release.
     ///
     /// One group per kind, which WhatsNewTests enforces. Adding a second group
     /// of the same kind is the obvious way to write a patch's notes and it
     /// renders as two identical headings on the About page.
     static let whatsNew: [ChangeGroup] = [
-        ChangeGroup(kind: .fixed, items: [
-        "A question you answer late no longer disappears into nothing. Claude stops waiting after about five minutes and asks again wherever the session is running, and until now the card stayed on screen looking perfectly answerable. You picked your answers, pressed Send, and nothing happened, because there was no longer anything listening. The card now says so: it turns amber, explains that the question moved to your terminal or editor, and drops the Send button rather than pretending. Permission cards do the same, where a Deny that quietly did nothing was the more alarming of the two.",
-        "The activity log records a settings change once instead of twice. Every edit to a file that decides what an agent may do was being filed as two identical entries a fraction of a second apart.",
-        ]),
         ChangeGroup(kind: .added, items: [
-        "A question card can be put away and picked up again. Long ones, a plan with five questions of four options each, are taller than the screen and there was no way to set one aside and come back. The shrink button at its top right tucks it away without answering; the notch grows a small purple stub on its left to say one is still waiting, and clicking that opens it back up. The session keeps waiting the whole time. While a question is put away the notch will not open on hover either, so brushing the cursor past the top of the screen cannot bury the thing you still have to answer.",
-        "The notch says when a session changes model, and can optionally hold the switch. Off by default, in Settings under Privacy and permissions: with it on, a session moving up to a more expensive family raises a card and waits. Only upgrades, never a switch down or between versions of one family.",
-        "A sample question card in the demos, so the whole thing can be tried without a real session. Menu bar Demos, or Settings, Developer.",
+        "The notch warns you before a session's prompt cache goes cold. Claude Code keeps a cache of everything it has already read in a session, and it lapses after a few minutes of silence. Wake a session after that and the next message quietly re-sends the lot, which is the expensive kind of input. A session row now shows how long the cache has left, then how much waking it will cost once it has gone, so you can send the message now or run /compact before stepping away. Nothing is shown while a session is comfortably warm.",
+        "Claude Code's own lifetime statistics, on the Usage page. Sessions ever, total tokens, messages, active days, current and longest streak, most used model, longest session, busiest day, and the per-model token split. These are the numbers behind the CLI's own /stats screen, computed across your whole history rather than the recent window the app reads, so they reach back further than anything here could. They carry no cost figure, so the money on that page is still this app's estimate, and the CLI recomputes them about once a day, which the page says.",
+        "Clock times follow your Claude Code settings. If you have set timeFormat or timeZone, the times the notch shows now match the terminal underneath it instead of quietly disagreeing with it. Twelve-hour, twenty-four-hour, UTC and strftime patterns are all handled. Nothing changes if you have not set them.",
         ]),
-        ChangeGroup(kind: .changed, items: [
-        "Installing and updating are checked from the outside before a release is called done, and quitting from a script now actually quits. Both were silent failures: a mismatched checksum stops brew and Update Now with nothing visible on our side, and a quit that reported success without quitting is how a test build once ran for hours against code that had already moved on.",
+        ChangeGroup(kind: .fixed, items: [
+        "Quitting from a script actually quits. `tell application \"ClaudeNotch\" to quit` could report success and leave the app running, which is how a test build once ran for hours against code that had already moved on.",
         ]),
     ]
 }
