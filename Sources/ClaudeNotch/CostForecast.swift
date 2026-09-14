@@ -124,14 +124,20 @@ enum CostForecast {
     /// several times before it matters.
     static let worthWarningWithin: TimeInterval = 4 * 3600
 
+    /// `clock` is the user's Claude Code clock preference when they have set
+    /// one; nil keeps the system short time, which is what this always did.
     nonisolated static func warning(_ forecast: DayAgainstCap?, cap: Double,
-                                    asOf now: Date = Date()) -> String? {
+                                    asOf now: Date = Date(),
+                                    clock preferred: DateFormatter? = nil) -> String? {
         guard let crossesAt = forecast?.crossesAt else { return nil }
         let seconds = crossesAt.timeIntervalSince(now)
         guard seconds > 0, seconds <= worthWarningWithin else { return nil }
-        let clock = DateFormatter()
-        clock.dateStyle = .none
-        clock.timeStyle = .short
+        let clock = preferred ?? {
+            let f = DateFormatter()
+            f.dateStyle = .none
+            f.timeStyle = .short
+            return f
+        }()
         return String(format: L("At this rate you pass your %1$@ daily cap around %2$@.",
                                 comment: "Budget forecast warning. %1$@ is a money cap, %2$@ is a clock time"),
                       ClaudeUsageReader.fmtMoney(cap), clock.string(from: crossesAt))

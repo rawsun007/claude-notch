@@ -53,7 +53,8 @@ extension AppState {
     func warnBudgetForecastIfNeeded(cost: Double, today: String) {
         guard dailyWarnLevel == 0, dailyForecastWarnDate != today else { return }
         let forecast = CostForecast.today(spent: cost, cap: dailyCostCap)
-        guard let text = CostForecast.warning(forecast, cap: dailyCostCap) else { return }
+        guard let text = CostForecast.warning(forecast, cap: dailyCostCap,
+                                              clock: clockFormatter) else { return }
         dailyForecastWarnDate = today
         enqueuePermission(PermissionRequest(
             kind: .notification,

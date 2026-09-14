@@ -123,7 +123,10 @@ struct StatusBarRow: View {
             parts.append(String(format: L("resets in %1$@ (%2$@)",
                                           comment: "Limit tooltip fragment. %1$@ is a countdown, %2$@ is a clock time"),
                                 ClaudeUsageReader.resetCountdown(until: resetAt),
-                                Self.resetClockFormatter.string(from: resetAt)))
+                                // Through the user's Claude Code clock setting
+                                // where they have one, so this reads the same
+                                // as the terminal underneath it.
+                                state.clockString(resetAt, fallback: Self.resetClockFormatter)))
         }
         if let age = Self.readingAge(state.limitsUpdatedAt) {
             parts.append(String(format: L("last reported %@ ago",

@@ -58,6 +58,11 @@ extension AppState {
         // Managed settings are where the policy comes from, so re-read it.
         refreshPolicy()
 
+        // The clock settings live in these same files, so this hook is exactly
+        // when they can have changed. Off the main thread: it reads up to four
+        // files and this runs once per live session per edit.
+        refreshClockPreference()
+
         let title = Self.configChangeLabel(source: source)
         let detail = Self.configChangeDetail(source: source, filePath: filePath)
 
@@ -109,5 +114,20 @@ extension AppState {
         if !home.isEmpty, path.hasPrefix(home) { path = "~" + path.dropFirst(home.count) }
         guard path.count > 60 else { return path }
         return "…" + String(path.suffix(59))
+    }
+}
+
+
+extension AppState {
+    /// Re-read timeFormat / timeZone from the settings chain.
+    ///
+    /// Cheap enough to do on every ConfigChange and at launch, and there is no
+    /// other moment it could change: these are settings-file values, and
+    /// ConfigChange is the hook that reports a settings file changing.
+    func refreshClockPreference(cwd: String = "") {
+        Task.detached(priority: .utility) {
+            let next = ClockPreference.read(cwd: cwd)
+            await MainActor.run { [weak self] in self?.applyClockPreference(next) }
+        }
     }
 }

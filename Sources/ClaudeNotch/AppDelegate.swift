@@ -88,6 +88,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // machine, including whether it says sessions are monitored.
         state.refreshPolicy()
 
+        // How Claude Code has been told to show clock times, so the notch and
+        // the terminal under it agree. Refreshed again on ConfigChange.
+        state.refreshClockPreference()
+
         server = EventServer(port: 53127, state: state)
         do {
             // start() reports success itself, and retries a busy port rather

@@ -1077,6 +1077,31 @@ final class AppState: ObservableObject {
     // happened to publish.
     @Published var collapsedQuestionIDs: Set<UUID> = []
 
+    /// How Claude Code has been told to show clock times (timeFormat /
+    /// timeZone, 2.1.257). Read off the main thread at launch and refreshed on
+    /// ConfigChange, because settings files are exactly what that hook reports.
+    @Published var clockPreference = ClockPreference.Settings()
+
+    /// A formatter matching that preference, or nil when there is no opinion
+    /// and the caller should keep its own. Rebuilt only when the preference
+    /// changes: DateFormatter construction is not free and these are read
+    /// while drawing.
+    private(set) var clockFormatter: DateFormatter?
+
+    /// Apply a freshly read preference, rebuilding the formatter only on a real
+    /// change so a ConfigChange burst does not churn the UI.
+    func applyClockPreference(_ next: ClockPreference.Settings) {
+        guard next != clockPreference || (clockFormatter == nil && !next.isDefault) else { return }
+        clockPreference = next
+        clockFormatter = ClockPreference.timeFormatter(next)
+    }
+
+    /// Format a time of day the way the user asked Claude Code to, falling back
+    /// to `fallback` when they have expressed no preference.
+    func clockString(_ date: Date, fallback: DateFormatter) -> String {
+        (clockFormatter ?? fallback).string(from: date)
+    }
+
     // MARK: - Model switch state (logic lives in AppState+ModelSwitch.swift)
 
     // Last model switch announced, per session, so a switch reported twice
