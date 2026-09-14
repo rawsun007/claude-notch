@@ -41,7 +41,11 @@ for arg in "$@"; do
 done
 
 echo "→ Building"
-if ! env "${BUILD_ENV[@]}" ./build.sh >/dev/null; then
+# `"${BUILD_ENV[@]}"` on an EMPTY array is an unbound-variable error under
+# `set -u` in the bash macOS ships (3.2), so the universal path, which is the
+# default and the one that matters for a release, was the only one that could
+# not run. The `+` form expands to nothing at all when the array is unset.
+if ! env ${BUILD_ENV[@]+"${BUILD_ENV[@]}"} ./build.sh >/dev/null; then
     echo "build failed" >&2
     exit 1
 fi
