@@ -468,7 +468,18 @@ struct NotchView: View {
         // use the formula height.
         let displayHeight: CGFloat = {
             if collapsed || isScrollableMode { return card.height }
-            return compactHeight > 1 ? compactHeight : card.height
+            // The computed height is a FLOOR, not a suggestion the measurement
+            // may undercut. size(for:) budgets this card row by row; the
+            // measurement exists to add room when text wraps further than
+            // expected, never to take room away.
+            //
+            // Without the floor a stale measurement silently shrinks the
+            // window, and everything below it is clipped: a destructive Bash
+            // card arrived needing about 200pt, was drawn at whatever the
+            // previous card had measured, and lost its command box and both
+            // buttons below the cut. Nothing looked broken, there was simply
+            // no Allow button, and no way to reach the Touch ID confirm.
+            return max(card.height, compactHeight > 1 ? compactHeight : card.height)
         }()
         // The size we want the card to be. The Timer-driven `sizer`
         // interpolates toward it every frame (works in the background, unlike
