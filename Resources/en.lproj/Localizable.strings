@@ -201,6 +201,9 @@
 /* Card title when a git worktree is removed and its name is unknown */
 "A worktree was removed" = "A worktree was removed";
 
+/* Chip on a session row: a background agent is blocked waiting for you */
+"AGENT WAITING" = "AGENT WAITING";
+
 /* Settings row value: authenticated via ANTHROPIC_API_KEY */
 "API key (pay-as-you-go)" = "API key (pay-as-you-go)";
 
@@ -1634,6 +1637,9 @@
 
 /* Settings button */
 "Thinking pulse" = "Thinking pulse";
+
+/* Tooltip on the AGENT WAITING chip */
+"This background agent is blocked waiting for you" = "This background agent is blocked waiting for you";
 
 /* Heading of the danger banner */
 "This command is destructive" = "This command is destructive";

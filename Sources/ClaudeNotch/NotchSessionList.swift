@@ -252,23 +252,28 @@ struct SessionsList: View {
                                 if !session.title.isEmpty { return session.title }
                                 return "session"
                             }()
-                            if !session.backgroundAgentId.isEmpty {
-                                // A blocked agent is not just another running one:
-                                // it has stopped, it is waiting on you, and nothing
-                                // else on the machine will say so.
-                                let blocked = session.agentNeedsInput
-                                Text(blocked ? "AGENT WAITING" : "AGENT")
+                            // Only when it is BLOCKED. The plain "AGENT" chip and
+                            // the Attach button below appear under identical
+                            // conditions, so the row said "background agent"
+                            // twice, and on a busy row that cost the project name
+                            // its last few characters. Attach carries the fact and
+                            // is useful as well as informative.
+                            //
+                            // Waiting is different and stays: a blocked agent has
+                            // stopped and wants you, which Attach does not say and
+                            // nothing else on the machine will.
+                            if !session.backgroundAgentId.isEmpty, session.agentNeedsInput {
+                                Text(L("AGENT WAITING", comment: "Chip on a session row: a background agent is blocked waiting for you"))
                                     .font(.system(size: 8, weight: .bold, design: .rounded))
-                                    .foregroundColor((blocked ? Color.orange : .purple).opacity(0.95))
+                                    .foregroundColor(Color.orange.opacity(0.95))
                                     .padding(.horizontal, 4)
                                     .padding(.vertical, 1)
                                     .background(
                                         RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                            .fill((blocked ? Color.orange : Color.purple).opacity(0.18))
+                                            .fill(Color.orange.opacity(0.18))
                                     )
-                                    .help(blocked
-                                          ? "This background agent is blocked waiting for you"
-                                          : "Running in the background (claude --bg)")
+                                    .help(L("This background agent is blocked waiting for you",
+                                            comment: "Tooltip on the AGENT WAITING chip"))
                             }
                             // Which CLI this session belongs to. Claude is the
                             // default and stays untagged; other agents get a
