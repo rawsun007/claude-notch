@@ -673,6 +673,17 @@ struct NotchView: View {
         .onPreferenceChange(ContentHeightKey.self) { h in
             if h > 1 { compactHeight = h }
         }
+        // Forget the previous card's measurement the moment the card changes.
+        //
+        // compactHeight is one piece of state shared by every card, and it only
+        // ever moved when a preference fired. Between a card going away and the
+        // next one being measured, the new card was drawn at the old card's
+        // height, which clipped it whenever the new one was taller. Zeroing
+        // here means the formula height is used for that gap, which is the
+        // budget written for THIS card.
+        .onChange(of: state.mode) { _ in
+            compactHeight = 0
+        }
         .onChange(of: target) { newTarget in
             // expanding = growing toward a bigger card (overshoot for the
             // pop-out feel); collapsing eases in cleanly.
