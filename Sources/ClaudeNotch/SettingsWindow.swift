@@ -1978,6 +1978,7 @@ struct SettingsView: View {
         "Clock times follow your Claude Code settings. If you have set timeFormat or timeZone, the times the notch shows now match the terminal underneath it instead of quietly disagreeing with it. Twelve-hour, twenty-four-hour, UTC and strftime patterns are all handled. Nothing changes if you have not set them.",
         ]),
         ChangeGroup(kind: .fixed, items: [
+        "A card is never drawn shorter than what is in it. A prompt could arrive sized to whatever the previous card had measured, and anything past that height was cut off: a destructive command could appear with its warning and title and nothing else, no command, no Deny, no Allow, and so no way to reach the Touch ID confirm it needs. The card now treats its own content as a floor, so the worst case is a strip of empty space rather than a missing button.",
         "The Dismiss button works on a card that arrived too late to answer. The amber \"too late\" notice added last release pushed the button past the bottom edge of the card, where it still drew perfectly normally and quietly ignored every click. It was worst on a destructive command, which is the tallest the card gets.",
         "Quitting from a script actually quits. `tell application \"ClaudeNotch\" to quit` could report success and leave the app running, which is how a test build once ran for hours against code that had already moved on.",
         ]),
