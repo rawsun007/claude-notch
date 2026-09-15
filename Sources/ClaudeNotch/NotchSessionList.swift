@@ -158,16 +158,22 @@ struct SessionsList: View {
             let cold = cache.isCold(now: now)
             let tint: Color = cold ? .orange : .yellow
             let tokens = SettingsView.compactTokens(cache.recacheTokens ?? 0)
-            let label = cold
-                ? String(format: L("cache cold %@", comment: "Session badge: the prompt cache has lapsed. %@ is the token cost of rebuilding it"), tokens)
-                : String(format: L("cache %@", comment: "Session badge: the prompt cache is about to lapse. %@ is time remaining, e.g. 1m"),
-                         Self.shortCountdown(cache.secondsUntilExpiry(now: now) ?? 0))
+            // Two or three characters after the snowflake, because this shares
+            // one line with the project, the branch, the permission mode and
+            // whatever else the session has. "cache cold 45k" was wider than
+            // the space available and truncated to "cache cold…", losing the
+            // number, which was the only part worth reading. The word "cache"
+            // was the least informative thing in it and is now carried by the
+            // tooltip instead.
+            let label = cold ? "❄ \(tokens)"
+                             : "❄ \(Self.shortCountdown(cache.secondsUntilExpiry(now: now) ?? 0))"
             let help = cold
                 ? String(format: L("This session's prompt cache has lapsed. The next message re-sends about %@ tokens to rebuild it. Uncached input is the expensive kind.", comment: "Tooltip for a lapsed prompt cache. %@ is a token count"), tokens)
                 : String(format: L("This session's prompt cache lapses in %1$@. After that the next message re-sends about %2$@ tokens to rebuild it, so send now or run /compact before stepping away.", comment: "Tooltip for a prompt cache about to lapse. %1$@ is a countdown, %2$@ a token count"),
                          Self.shortCountdown(cache.secondsUntilExpiry(now: now) ?? 0), tokens)
             Text(label)
                 .font(.system(size: 8, weight: .bold, design: .rounded))
+                .fixedSize(horizontal: true, vertical: false)
                 .foregroundColor(tint.opacity(0.95))
                 .padding(.horizontal, 4)
                 .padding(.vertical, 1)

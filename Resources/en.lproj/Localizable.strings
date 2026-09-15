@@ -1914,12 +1914,6 @@
 /* Hint next to Always Allow. %d is how many times this exact command was approved before */
 "allowed %d times" = "allowed %d times";
 
-/* Session badge: the prompt cache is about to lapse. %@ is time remaining, e.g. 1m */
-"cache %@" = "cache %@";
-
-/* Session badge: the prompt cache has lapsed. %@ is the token cost of rebuilding it */
-"cache cold %@" = "cache cold %@";
-
 /* Hint under the auto-allowed card */
 "click to dismiss" = "click to dismiss";
 
