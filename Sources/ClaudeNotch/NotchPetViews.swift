@@ -84,9 +84,12 @@ enum PetCostume: Equatable {
 
     /// Does this suit have a light source in its chest?
     ///
-    /// Stark has one too. It is the same reactor, seen through a shirt rather
-    /// than set into armour, so it is drawn dimmer at the call site.
-    var hasReactor: Bool { self == .iron || self == .stark }
+    /// The armour does; the man does not. Drawing it through the shirt was my
+    /// idea rather than a requested one, and on the sprite it landed as a
+    /// bright dot in the middle of his chest with nothing to explain it: in the
+    /// armour the plate frames it, on a jumper it is just a light. The armour
+    /// is where that detail belongs.
+    var hasReactor: Bool { self == .iron }
 
     /// What the pet is wearing for a given act. Kept here rather than at the
     /// call site so a new guest appearance is one line in one place.
@@ -285,16 +288,8 @@ struct PetSprite: View {
                 // any higher tints the helmet and the light starts belonging to
                 // the face again, which was the whole complaint.
                 let cy = 8.2
-                // Through a shirt rather than set into armour: softer, dimmer,
-                // and with no hard core. A crisp bright disc on fabric looks
-                // like a badge pinned to his chest; the point is that it is
-                // underneath, so the edges have to stay vague.
-                let throughFabric = costume == .stark
-                let pulse = rig.reactorGlow * (throughFabric ? 0.55 : 1.0)
-                let rings: [(Double, Double)] = throughFabric
-                    ? [(1.35, 0.16), (0.95, 0.28), (0.6, 0.5)]
-                    : [(1.2, 0.18), (0.85, 0.40), (0.48, 1.0)]
-                for (radius, alpha) in rings {
+                let pulse = rig.reactorGlow
+                for (radius, alpha) in [(1.2, 0.18), (0.85, 0.40), (0.48, 1.0)] {
                     let r = radius * cell
                     let box = CGRect(x: cx * cell - r, y: cy * cell - r, width: r * 2, height: r * 2)
                     ctx.fill(Path(ellipseIn: box),

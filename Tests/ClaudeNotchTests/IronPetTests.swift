@@ -49,14 +49,14 @@ final class IronPetTests: XCTestCase {
         XCTAssertEqual(PetCostume.forActivity(.starkCameo), .stark)
     }
 
-    /// He keeps the reactor: it is the same light through a shirt. But he is
-    /// out of the suit, so nothing under him may fire.
-    func testStarkHasAReactorButNoRepulsors() {
-        XCTAssertTrue(PetCostume.stark.hasReactor)
+    /// No chest light and nothing firing. Out of the armour he is a man in a
+    /// jumper, and a glow in the middle of that has nothing to explain it.
+    func testStarkHasNoReactorAndNoRepulsors() {
+        XCTAssertFalse(PetCostume.stark.hasReactor)
+        XCTAssertTrue(PetCostume.iron.hasReactor, "the armour keeps it")
         for i in 0..<20 {
             let pose = PetEngine.pose(for: .starkCameo, progress: Double(i) / 20, stage: stage())
             XCTAssertEqual(pose.thrust, 0, accuracy: 0.0001, "he is not wearing boots that do that")
-            XCTAssertGreaterThan(pose.reactorGlow, 0.5, "the reactor is always on")
         }
     }
 
