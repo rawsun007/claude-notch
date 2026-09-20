@@ -35,6 +35,9 @@ enum PetCostume: Equatable {
     /// The slit eyes and the reactor are the same cold white-blue, because they
     /// are the same thing: light coming out of the suit.
     static let ironGlow = Color(red: 0.78, green: 0.94, blue: 1.0)
+    /// A darker red for the seams. Not black: a black line at this size cuts
+    /// the body in half rather than suggesting a panel edge.
+    static let ironShadow = Color(red: 0.36, green: 0.05, blue: 0.07)
 
     /// Body colour. Spidey is red on top, blue below the shoulders — arms red,
     /// legs blue — which is the read even at 16 pixels.
@@ -154,6 +157,33 @@ struct PetSprite: View {
                 ctx.fill(Path(rect(slab)), with: .color(costume.bodyColour(.torso)))
             }
 
+            // Armour plating, drawn over the flat torso.
+            //
+            // A single red rectangle with two slits is a red box, which is what
+            // it looked like. Real armour reads through a handful of hard edges,
+            // so this adds the three that survive at sixteen pixels: a gold
+            // faceplate around the eyes, gold shoulder caps, and a darker seam
+            // under the chest that separates torso from waist.
+            //
+            // Flat colour, no gradients. At this size a gradient is mud.
+            if costume == .iron {
+                // Faceplate: gold jaw and brow, leaving the middle red so the
+                // mask still reads as a mask rather than a gold block.
+                ctx.fill(Path(CGRect(x: 2 * cell, y: 3 * cell, width: 12 * cell, height: 0.9 * cell)),
+                         with: .color(PetCostume.ironGold))
+                ctx.fill(Path(CGRect(x: 2 * cell, y: 6.1 * cell, width: 12 * cell, height: 0.9 * cell)),
+                         with: .color(PetCostume.ironGold))
+                // Shoulder caps: the gold pauldrons, one cell in from each edge.
+                for x in [2.0, 11.0] {
+                    ctx.fill(Path(CGRect(x: x * cell, y: 7 * cell, width: 3 * cell, height: 1.1 * cell)),
+                             with: .color(PetCostume.ironGold))
+                }
+                // Waist seam: a darker line where the chest plate ends, which is
+                // what gives the torso a front rather than a flat face.
+                ctx.fill(Path(CGRect(x: 2 * cell, y: 9 * cell, width: 12 * cell, height: 0.5 * cell)),
+                         with: .color(PetCostume.ironShadow))
+            }
+
             // The chest reactor, drawn after the torso so it sits on the armour
             // rather than under it.
             //
@@ -168,9 +198,19 @@ struct PetSprite: View {
             // halo is what makes it read as glowing.
             if costume.hasReactor {
                 let cx = PetBody.grid / 2
-                let cy = 8.0
+                // Sits ON the chest slab (y 7..9) and stays inside it. The first
+                // version was centred here with an outer radius of 2.6 cells,
+                // which spilled from the bottom of the helmet to the middle of
+                // the belly: five cells of light on an eight-cell body, directly
+                // under the eyes. At that size it stops being something in the
+                // chest and becomes a face, which is precisely how it looked.
+                // Centre and radius chosen together so the OUTER halo starts at
+                // y7.0, the jawline. The eyes occupy y5..7, so a halo reaching
+                // any higher tints the helmet and the light starts belonging to
+                // the face again, which was the whole complaint.
+                let cy = 8.2
                 let pulse = rig.reactorGlow
-                for (radius, alpha) in [(2.6, 0.22), (1.7, 0.45), (1.0, 1.0)] {
+                for (radius, alpha) in [(1.2, 0.18), (0.85, 0.40), (0.48, 1.0)] {
                     let r = radius * cell
                     let box = CGRect(x: cx * cell - r, y: cy * cell - r, width: r * 2, height: r * 2)
                     ctx.fill(Path(ellipseIn: box),
