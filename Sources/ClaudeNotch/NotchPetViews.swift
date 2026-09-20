@@ -115,6 +115,30 @@ struct PetSprite: View {
                 ctx.fill(Path(rect(slab)), with: .color(costume.bodyColour(.torso)))
             }
 
+            // The chest reactor, drawn after the torso so it sits on the armour
+            // rather than under it.
+            //
+            // This is the whole costume at sixteen pixels. Red and gold alone
+            // reads as a colour scheme; a light in the middle of the chest reads
+            // as the suit. It goes on the shoulder slab (y 7..9), centred, which
+            // is where a chest is on this body: the "head" slab above it is the
+            // helmet and the belly below is the waist.
+            //
+            // Three passes, largest and faintest first, so the edges fall off
+            // instead of stopping. A single circle at this size is a dot; the
+            // halo is what makes it read as glowing.
+            if costume.hasReactor {
+                let cx = PetBody.grid / 2
+                let cy = 8.0
+                let pulse = rig.reactorGlow
+                for (radius, alpha) in [(2.6, 0.22), (1.7, 0.45), (1.0, 1.0)] {
+                    let r = radius * cell
+                    let box = CGRect(x: cx * cell - r, y: cy * cell - r, width: r * 2, height: r * 2)
+                    ctx.fill(Path(ellipseIn: box),
+                             with: .color(PetCostume.ironGlow.opacity(alpha * pulse)))
+                }
+            }
+
             // Eyes are painted solid dark, not punched through the body. A hole
             // only reads as an eye when the pet sits on black (the notch card);
             // on the transparent panel — where the rope pet hangs over your

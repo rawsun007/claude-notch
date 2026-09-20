@@ -49,6 +49,17 @@ struct PetRig: Equatable {
     /// Eye shift, in cells — the pupils are holes, so sliding them reads as
     /// looking. Positive = toward +x.
     var eyeShift: Double = 0
+    /// Brightness of the chest reactor and the repulsors, 0...1. Only the iron
+    /// costume draws anything with it.
+    ///
+    /// Defaults to full rather than nothing: a suit whose light is off looks
+    /// broken, and every still render (the settings preview, the menu row)
+    /// wants it lit.
+    var reactorGlow: Double = 1
+    /// Repulsor thrust under the palms and boots, 0...1, which is separate
+    /// from the reactor: the chest stays lit while standing, the repulsors only
+    /// fire when the suit is holding itself up.
+    var thrust: Double = 0
 }
 
 enum PetBody {
