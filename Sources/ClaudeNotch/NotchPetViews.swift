@@ -284,8 +284,16 @@ struct PetSprite: View {
                 // any higher tints the helmet and the light starts belonging to
                 // the face again, which was the whole complaint.
                 let cy = 8.2
-                let pulse = rig.reactorGlow
-                for (radius, alpha) in [(1.2, 0.18), (0.85, 0.40), (0.48, 1.0)] {
+                // Through a shirt rather than set into armour: softer, dimmer,
+                // and with no hard core. A crisp bright disc on fabric looks
+                // like a badge pinned to his chest; the point is that it is
+                // underneath, so the edges have to stay vague.
+                let throughFabric = costume == .stark
+                let pulse = rig.reactorGlow * (throughFabric ? 0.55 : 1.0)
+                let rings: [(Double, Double)] = throughFabric
+                    ? [(1.35, 0.16), (0.95, 0.28), (0.6, 0.5)]
+                    : [(1.2, 0.18), (0.85, 0.40), (0.48, 1.0)]
+                for (radius, alpha) in rings {
                     let r = radius * cell
                     let box = CGRect(x: cx * cell - r, y: cy * cell - r, width: r * 2, height: r * 2)
                     ctx.fill(Path(ellipseIn: box),
