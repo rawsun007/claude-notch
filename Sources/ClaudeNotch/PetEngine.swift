@@ -54,6 +54,7 @@ enum PetActivity: String, CaseIterable, Equatable {
     case watch        // Claude is working: the pet stays out and keeps it company
     case flinch       // something went wrong: a startled recoil, then a wary peek
     case spiderHang   // hangs upside-down off the notch on a web, in the suit
+    case ironHover    // hovers below the notch on repulsors, in the armour
     case fret         // slumps and cries: a plan limit is almost gone
 
     /// What to call this on screen. Not derived from the raw value: "hangLeft"
@@ -75,6 +76,7 @@ enum PetActivity: String, CaseIterable, Equatable {
         case .watch:      return "Watch Claude work"
         case .flinch:     return "Flinch (something broke)"
         case .spiderHang: return "Spider-Pet (hang upside-down)"
+        case .ironHover:  return "Iron-Pet (hover on repulsors)"
         case .fret:       return "Fret (limit almost up)"
         }
     }
@@ -102,6 +104,11 @@ enum PetActivity: String, CaseIterable, Equatable {
                 name: "Spider-Pet",
                 reference: "Spider-Man, upside-down on a web, with the theme to match",
                 addedOn: "2026-07-15")
+        case .ironHover:
+            return SpecialAppearance(
+                name: "Iron-Pet",
+                reference: "Iron Man, holding a hover on his repulsors, chest reactor lit",
+                addedOn: "2026-09-20")
         default:
             return nil
         }
@@ -201,6 +208,9 @@ enum PetActivity: String, CaseIterable, Equatable {
         case .hangLeft,
              .hangRight: return 40
         case .rope, .spiderHang: return 60   // room for the pendulum swing
+        // A hover drifts up and down about its rest rather than swinging from a
+        // point, so it needs room on both sides of it.
+        case .ironHover: return 46
         default:         return 28
         }
     }
@@ -266,6 +276,12 @@ struct PetPose: Equatable {
     var opacity: Double = 1
     var emote: PetEmote? = nil
     var emoteScale: Double = 1    // 0 while the emote pops in
+    /// Chest reactor brightness, 0...1. Only the iron costume draws it, and it
+    /// defaults to full so every still render shows a lit suit.
+    var reactorGlow: Double = 1
+    /// Repulsor thrust under the boots, 0...1. Nothing by default: the boots
+    /// stay dark unless an activity is holding the suit up.
+    var thrust: Double = 0
 }
 
 // MARK: - Engine
@@ -375,6 +391,8 @@ enum PetEngine {
         case .flinch:     return 2.0
         case .fret:       return 3.2
         case .spiderHang: return ropeDuration
+        // Long enough to read as holding a position rather than passing through.
+        case .ironHover:  return Double.random(in: 4.0...6.0, using: &rng)
         }
     }
 
@@ -783,6 +801,35 @@ enum PetEngine {
             let ropeStretch = clampMag(rope.radialRate * 0.0012, 0.18)
             pose.scaleY = 1 + ropeStretch
             pose.scaleX = 1 - ropeStretch * 0.7
+            pose.emote = stage.petting ? .heart : nil
+
+        case .ironHover:
+            // Holding a hover, not flying past. The whole act is the suit
+            // keeping itself in one place, which is harder to draw than motion
+            // and is the thing worth drawing: a hover is a controlled wobble.
+            //
+            // Two sine waves of different periods rather than one. A single
+            // wave is a bob, and a bob is a buoy; two that never line up read
+            // as constant small corrections, which is what holding a position
+            // actually looks like.
+            let slow = sin(t * 2 * .pi * 0.85)
+            let fast = sin(t * 2 * .pi * 2.3 + 1.1)
+            pose.y += (slow * 5.0 + fast * 1.4) * envelope
+
+            // Drifts toward the cursor and banks into the drift, the way
+            // anything with thrust has to lean to move sideways.
+            pose.x = lean * 1.3
+            pose.rotation = lean * 0.9 + fast * 1.6
+
+            // Thrust answers the vertical motion: rising costs more than
+            // settling. Taken from the derivative of the slow wave so the
+            // flare swells just before the pet comes up, which is the order
+            // cause and effect happen in.
+            let climb = cos(t * 2 * .pi * 0.85)
+            pose.thrust = (0.55 + 0.45 * climb) * envelope
+            // The reactor stays lit throughout, breathing a little. It is a
+            // power source, not an indicator, so it never goes out.
+            pose.reactorGlow = 0.82 + 0.18 * sin(t * 2 * .pi * 1.3)
             pose.emote = stage.petting ? .heart : nil
         }
 

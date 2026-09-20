@@ -243,6 +243,26 @@ enum PetRigging {
                 rig.legLift[i] = -0.25   // hanging: legs stretch down
             }
 
+        case .ironHover:
+            // The flight pose: arms down and angled out from the body, legs
+            // together and trailing. That shape is the silhouette everyone
+            // knows, and it is what puts the palms where thrust would come
+            // from if the suit had hands to fire it.
+            //
+            // The arms are NOT symmetrical moment to moment. A hover is held by
+            // correcting, so each arm breathes on its own period and the suit
+            // looks like it is balancing rather than posing.
+            rig.armLeftAngle = -34 + sin(t * 2 * .pi * 1.1) * 5
+            rig.armRightAngle = -34 + sin(t * 2 * .pi * 1.4 + 0.7) * 5
+            // Legs drawn together and slightly tucked, which reads as feet
+            // pointed rather than standing. Outer legs tuck a touch more so the
+            // pair narrows toward the boots.
+            for i in 0..<4 {
+                let outer = (i == 0 || i == 3)
+                rig.legTuck[i] = outer ? 0.55 : 0.3
+                rig.legSwing[i] = (outer ? 0.35 : 0.15) * (i < 2 ? 1 : -1)
+            }
+
         case .rope:
             // Both arms straight up, hands together on the rope; legs dangle
             // loose and lag behind the swing a touch, the way dangling feet do.

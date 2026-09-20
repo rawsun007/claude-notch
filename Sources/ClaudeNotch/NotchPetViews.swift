@@ -61,6 +61,16 @@ enum PetCostume: Equatable {
 
     /// Does this suit have a light source in its chest?
     var hasReactor: Bool { self == .iron }
+
+    /// What the pet is wearing for a given act. Kept here rather than at the
+    /// call site so a new guest appearance is one line in one place.
+    static func forActivity(_ activity: PetActivity) -> PetCostume {
+        switch activity {
+        case .spiderHang: return .spider
+        case .ironHover:  return .iron
+        default:          return .plain
+        }
+    }
 }
 
 struct PetSprite: View {
@@ -292,6 +302,23 @@ struct PetStageView: View {
     let stageWidth: CGFloat
     let notchInset: CGFloat
 
+    /// The rig, with the suit's lights filled in from the pose.
+    ///
+    /// The limbs come from PetRigging and the lights come from the POSE, since
+    /// thrust follows the activity's vertical motion rather than its joints.
+    /// Joined here, outside the view builder, because building and then
+    /// mutating a value inside one defeats SwiftUI's type inference: it fails
+    /// with "generic parameter 'Content' could not be inferred", which says
+    /// nothing at all about the actual cause.
+    static func litRig(activity: PetActivity, progress: Double, time: Double,
+                       cursorX: Double, pose: PetPose) -> PetRig {
+        var rig = PetRigging.rig(for: activity, progress: progress, time: time,
+                                 cursorX: cursorX)
+        rig.reactorGlow = pose.reactorGlow
+        rig.thrust = pose.thrust
+        return rig
+    }
+
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { tl in
             let activity = state.petActivity
@@ -304,8 +331,8 @@ struct PetStageView: View {
             let progress = state.petProgress(at: tl.date)
             let pose = PetEngine.pose(for: activity, progress: progress, stage: stage)
             let clock = tl.date.timeIntervalSinceReferenceDate
-            let rig = PetRigging.rig(for: activity, progress: progress, time: clock,
-                                     cursorX: state.petCursorX)
+            let rig = Self.litRig(activity: activity, progress: progress, time: clock,
+                                  cursorX: state.petCursorX, pose: pose)
             let sprite = CGFloat(activity.spriteSize)
             let anchor: UnitPoint = {
                 switch activity.pivot {
@@ -362,8 +389,7 @@ struct PetStageView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                PetSprite(size: sprite, rig: rig,
-                          costume: activity == .spiderHang ? .spider : .plain)
+                PetSprite(size: sprite, rig: rig, costume: PetCostume.forActivity(activity))
                     .shadow(color: .black.opacity(0.55), radius: 4, y: 1)
                     .scaleEffect(x: pose.flipped ? -pose.scaleX : pose.scaleX, y: pose.scaleY, anchor: anchor)
                     .rotationEffect(.degrees(pose.rotation), anchor: anchor)
