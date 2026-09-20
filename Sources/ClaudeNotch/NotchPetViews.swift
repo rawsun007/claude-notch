@@ -243,17 +243,21 @@ struct PetSprite: View {
                                      width: 10.8 * cell, height: 3.2 * cell)),
                          with: .color(PetCostume.starkSkin))
 
-                // Hair: the crown, plus a step down each side for the temples.
-                // Swept back and slightly taller on the left, because a flat
-                // even fringe reads as a bowl cut and his never is.
+                // Hair: crown, then sideburns down past the eyes.
+                //
+                // The crown is wider than the face and overhangs it slightly on
+                // both sides, which is what gives a head a hairline instead of
+                // a hat brim. The sideburns run to eye level, because his do,
+                // and because two dark verticals either side of the face frame
+                // it and stop the skin reading as a plain tan block.
                 ctx.fill(Path(CGRect(x: 2 * cell, y: 3 * cell,
-                                     width: 12 * cell, height: 1.6 * cell)),
+                                     width: 12 * cell, height: 1.7 * cell)),
                          with: .color(PetCostume.starkHair))
-                ctx.fill(Path(CGRect(x: 2 * cell, y: 4.6 * cell,
-                                     width: 1.4 * cell, height: 1.1 * cell)),
+                ctx.fill(Path(CGRect(x: 2.2 * cell, y: 4.7 * cell,
+                                     width: 1.0 * cell, height: 1.6 * cell)),
                          with: .color(PetCostume.starkHair))
-                ctx.fill(Path(CGRect(x: 12.6 * cell, y: 4.6 * cell,
-                                     width: 1.4 * cell, height: 1.1 * cell)),
+                ctx.fill(Path(CGRect(x: 12.8 * cell, y: 4.7 * cell,
+                                     width: 1.0 * cell, height: 1.6 * cell)),
                          with: .color(PetCostume.starkHair))
 
                 // The goatee, entirely BELOW the eyes now, on the chin. A clear
