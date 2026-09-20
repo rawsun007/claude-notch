@@ -55,15 +55,20 @@ final class PetEngineTests: XCTestCase {
         return (0..<count).map { _ in PetEngine.pickActivity(mood: mood, using: &rng) }
     }
 
+    // These two pin the seeded sequence, so adding an activity to a weight
+    // table shifts every pick after it and both fail. That is the test working:
+    // the rotation is a deliberate mix, and it should not be possible to change
+    // it without saying so. Updated here for Iron-Pet, which took a slot in the
+    // calm and curious tables.
     func testCalmActivitySequenceIsStable() {
         XCTAssertEqual(picks(.calm, seed: 42),
-                       [.stroll, .hangLeft, .hangRight, .spiderHang, .spiderHang,
+                       [.rope, .hangLeft, .hangRight, .ironHover, .spiderHang,
                         .peek, .lookAround, .stroll, .peek, .stroll])
     }
 
     func testCuriousActivitySequenceIsStable() {
         XCTAssertEqual(picks(.curious, seed: 7),
-                       [.peek, .peek, .spiderHang, .hangRight, .rope,
+                       [.stroll, .stroll, .ironHover, .hangRight, .rope,
                         .hangRight, .peek, .hangLeft, .hangLeft, .lookAround])
     }
 

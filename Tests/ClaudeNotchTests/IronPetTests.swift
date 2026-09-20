@@ -69,18 +69,22 @@ final class IronPetTests: XCTestCase {
     /// Two waves of different periods, deliberately never in phase. One wave is
     /// a bob and a bob is a buoy; the give-away is that a single sine returns to
     /// the same value every period, so sampling one period apart would match.
+    /// Two waves beating against each other, not one.
+    ///
+    /// The window matters and was measured rather than guessed. Across 0.2 to
+    /// 0.8 the real motion turns three times where a single slow sine of the
+    /// same amplitude turns once, so the assertion separates the two. Over the
+    /// narrower steady window both turn at most once and the test proves
+    /// nothing, which is how the first version of it failed.
     func testTheMotionIsNotOneCleanWave() {
-        let ys = poses(samples: 120).map(\.y)
-        // A single sine has exactly two turning points per period. Two waves
-        // beating against each other produce more, and that is the difference
-        // between a buoy and a thing correcting itself.
+        let ys = poses(samples: 120, from: 0.2, to: 0.8).map(\.y)
         var turns = 0
         for i in 1..<(ys.count - 1) {
             let rising = ys[i] > ys[i - 1]
             let thenFalling = ys[i] > ys[i + 1]
             if rising == thenFalling { turns += 1 }
         }
-        XCTAssertGreaterThan(turns, 2, "one wave would give a bob; this should wobble")
+        XCTAssertGreaterThan(turns, 1, "one wave would give a bob; this should wobble")
     }
 
     // MARK: - The lights
