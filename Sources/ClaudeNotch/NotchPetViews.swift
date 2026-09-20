@@ -17,12 +17,24 @@ import AppKit
 enum PetCostume: Equatable {
     case plain
     case spider
+    /// Red and gold armour with a lit chest reactor. Drawn from the same 16x16
+    /// grid as everything else rather than from artwork: it is a homage in the
+    /// app's own pixel style, the way the spider suit is, not a traced likeness.
+    case iron
 
     static let coral = Color(red: 217.0 / 255, green: 119.0 / 255, blue: 87.0 / 255)
     static let spiderRed = Color(red: 0.80, green: 0.11, blue: 0.13)
     static let spiderBlue = Color(red: 0.13, green: 0.20, blue: 0.55)
     static let darkEye = Color(red: 0.16, green: 0.09, blue: 0.06)
     static let spiderEye = Color(white: 0.96)
+    /// Hot-rod red for the torso, gold for the limbs. The armour is mostly red
+    /// with gold at the shoulders, forearms and shins, and at sixteen pixels
+    /// the only way to carry that is to give the limbs the gold outright.
+    static let ironRed = Color(red: 0.62, green: 0.09, blue: 0.11)
+    static let ironGold = Color(red: 0.85, green: 0.68, blue: 0.29)
+    /// The slit eyes and the reactor are the same cold white-blue, because they
+    /// are the same thing: light coming out of the suit.
+    static let ironGlow = Color(red: 0.78, green: 0.94, blue: 1.0)
 
     /// Body colour. Spidey is red on top, blue below the shoulders — arms red,
     /// legs blue — which is the read even at 16 pixels.
@@ -35,6 +47,7 @@ enum PetCostume: Equatable {
         switch self {
         case .plain:  return Self.coral
         case .spider: return part == .torso ? Self.spiderRed : Self.spiderBlue
+        case .iron:   return part == .torso ? Self.ironRed : Self.ironGold
         }
     }
 
@@ -42,8 +55,12 @@ enum PetCostume: Equatable {
         switch self {
         case .plain:  return Self.darkEye
         case .spider: return Self.spiderEye   // the big white mask lenses
+        case .iron:   return Self.ironGlow    // lit slits, not eyes
         }
     }
+
+    /// Does this suit have a light source in its chest?
+    var hasReactor: Bool { self == .iron }
 }
 
 struct PetSprite: View {
