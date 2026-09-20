@@ -94,6 +94,7 @@ enum PetCostume: Equatable {
         switch activity {
         case .spiderHang: return .spider
         case .ironHover:  return .iron
+        case .starkCameo: return .stark
         default:          return .plain
         }
     }

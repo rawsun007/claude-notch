@@ -243,6 +243,16 @@ enum PetRigging {
                 rig.legLift[i] = -0.25   // hanging: legs stretch down
             }
 
+        case .starkCameo:
+            // Arms down and easy, one a little lower than the other, with a
+            // slow shift of weight. Nothing symmetrical: the armour poses, the
+            // man slouches, and that contrast is the joke of having both.
+            rig.armLeftAngle = -12 + sin(t * 2 * .pi * 0.7) * 3
+            rig.armRightAngle = -18 + sin(t * 2 * .pi * 0.55 + 2.0) * 3
+            for i in 0..<4 {
+                rig.legSwing[i] = sin(t * 2 * .pi * 0.5 + Double(i)) * 0.12
+            }
+
         case .ironHover:
             // The flight pose: arms down and angled out from the body, legs
             // together and trailing. That shape is the silhouette everyone

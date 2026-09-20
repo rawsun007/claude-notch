@@ -55,6 +55,7 @@ enum PetActivity: String, CaseIterable, Equatable {
     case flinch       // something went wrong: a startled recoil, then a wary peek
     case spiderHang   // hangs upside-down off the notch on a web, in the suit
     case ironHover    // hovers below the notch on repulsors, in the armour
+    case starkCameo   // leans out as the man, not the armour: goatee, reactor
     case fret         // slumps and cries: a plan limit is almost gone
 
     /// What to call this on screen. Not derived from the raw value: "hangLeft"
@@ -77,6 +78,7 @@ enum PetActivity: String, CaseIterable, Equatable {
         case .flinch:     return "Flinch (something broke)"
         case .spiderHang: return "Spider-Pet (hang upside-down)"
         case .ironHover:  return "Iron-Pet (hover on repulsors)"
+        case .starkCameo: return "Stark-Pet (out of the armour)"
         case .fret:       return "Fret (limit almost up)"
         }
     }
@@ -108,6 +110,11 @@ enum PetActivity: String, CaseIterable, Equatable {
             return SpecialAppearance(
                 name: "Iron-Pet",
                 reference: "Iron Man, holding a hover on his repulsors, chest reactor lit",
+                addedOn: "2026-09-20")
+        case .starkCameo:
+            return SpecialAppearance(
+                name: "Stark-Pet",
+                reference: "Tony Stark out of the armour: the goatee, and the reactor through his shirt",
                 addedOn: "2026-09-20")
         default:
             return nil
@@ -339,9 +346,9 @@ enum PetEngine {
         // split that rarity rather than doubling it: seeing a costume should
         // still be uncommon.
         case .calm:
-            return [(.peek, 4), (.lookAround, 3), (.hangLeft, 2), (.hangRight, 2), (.stroll, 2), (.rope, 2), (.spiderHang, 1), (.ironHover, 1), (.sleep, 1)]
+            return [(.peek, 4), (.lookAround, 3), (.hangLeft, 2), (.hangRight, 2), (.stroll, 2), (.rope, 2), (.spiderHang, 1), (.ironHover, 1), (.starkCameo, 1), (.sleep, 1)]
         case .curious:
-            return [(.lookAround, 4), (.peek, 3), (.stroll, 3), (.rope, 3), (.spiderHang, 1), (.ironHover, 1), (.hangRight, 2), (.hangLeft, 2)]
+            return [(.lookAround, 4), (.peek, 3), (.stroll, 3), (.rope, 3), (.spiderHang, 1), (.ironHover, 1), (.starkCameo, 1), (.hangRight, 2), (.hangLeft, 2)]
         case .working:
             // Claude is working, so the pet works: it stays out and watches the
             // job instead of hiding for the whole run. This is the point of
@@ -397,6 +404,7 @@ enum PetEngine {
         case .spiderHang: return ropeDuration
         // Long enough to read as holding a position rather than passing through.
         case .ironHover:  return Double.random(in: 4.0...6.0, using: &rng)
+        case .starkCameo: return Double.random(in: 3.5...5.0, using: &rng)
         }
     }
 
@@ -806,6 +814,23 @@ enum PetEngine {
             pose.scaleY = 1 + ropeStretch
             pose.scaleX = 1 - ropeStretch * 0.7
             pose.emote = stage.petting ? .heart : nil
+
+        case .starkCameo:
+            // Out of the armour, so: no thrust, no hovering, feet on the lip.
+            // He leans out of the notch and looks at you, and the only light is
+            // the reactor under the shirt.
+            //
+            // Slower and smaller than the pet's own peek. The mascot bounces;
+            // a man leaning out of a doorway does not, and the difference in
+            // tempo is most of what separates the two acts.
+            pose.x = lean * 0.8
+            pose.y += sin(t * 2 * .pi * 1.1) * 1.3 * envelope
+            pose.rotation = lean * 0.35
+            pose.flipped = stage.cursorX < -4
+            // The reactor breathes slowly and never goes out. Under a shirt it
+            // is already dim, so a deep pulse would read as flickering.
+            pose.reactorGlow = 0.88 + 0.12 * sin(t * 2 * .pi * 0.9)
+            pose.emote = stage.petting ? .heart : (t > 0.5 && t < 0.72 ? .dots : nil)
 
         case .ironHover:
             // Holding a hover, not flying past. The whole act is the suit
