@@ -219,6 +219,46 @@ struct PetSprite: View {
                          with: .color(PetCostume.ironShadow))
             }
 
+            // Tony Stark's face, painted over the head half of the torso slab.
+            //
+            // Three features and no more. At sixteen pixels a face is carried
+            // by its silhouette, and every extra mark is noise: skin, the
+            // swept-back hair, and the goatee. The eyes are already there and
+            // are the pet's own, which is the point of doing the man instead of
+            // the helmet.
+            if costume == .stark {
+                // Skin first, covering the lower head. The eyes are drawn after
+                // everything here, so they land on the face rather than under
+                // it.
+                ctx.fill(Path(CGRect(x: 2 * cell, y: 4.6 * cell,
+                                     width: 12 * cell, height: 2.4 * cell)),
+                         with: .color(PetCostume.starkSkin))
+
+                // Hair: the crown, plus a step down each side for the temples.
+                // Swept back and slightly taller on the left, because a flat
+                // even fringe reads as a bowl cut and his never is.
+                ctx.fill(Path(CGRect(x: 2 * cell, y: 3 * cell,
+                                     width: 12 * cell, height: 1.6 * cell)),
+                         with: .color(PetCostume.starkHair))
+                ctx.fill(Path(CGRect(x: 2 * cell, y: 4.6 * cell,
+                                     width: 1.4 * cell, height: 1.1 * cell)),
+                         with: .color(PetCostume.starkHair))
+                ctx.fill(Path(CGRect(x: 12.6 * cell, y: 4.6 * cell,
+                                     width: 1.4 * cell, height: 1.1 * cell)),
+                         with: .color(PetCostume.starkHair))
+
+                // The goatee. This is the single most recognisable thing about
+                // him and the reason this costume can work at all: a moustache
+                // bar with a chin patch under it, sitting between the eyes
+                // where a mouth would be.
+                ctx.fill(Path(CGRect(x: 6.2 * cell, y: 6.0 * cell,
+                                     width: 3.6 * cell, height: 0.45 * cell)),
+                         with: .color(PetCostume.starkHair))
+                ctx.fill(Path(CGRect(x: 6.9 * cell, y: 6.45 * cell,
+                                     width: 2.2 * cell, height: 0.85 * cell)),
+                         with: .color(PetCostume.starkHair))
+            }
+
             // The chest reactor, drawn after the torso so it sits on the armour
             // rather than under it.
             //
