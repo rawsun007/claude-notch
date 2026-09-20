@@ -21,6 +21,9 @@ enum PetCostume: Equatable {
     /// grid as everything else rather than from artwork: it is a homage in the
     /// app's own pixel style, the way the spider suit is, not a traced likeness.
     case iron
+    /// The man rather than the armour: hair, goatee, burgundy zip-up, and the
+    /// reactor showing faintly through it.
+    case stark
 
     static let coral = Color(red: 217.0 / 255, green: 119.0 / 255, blue: 87.0 / 255)
     static let spiderRed = Color(red: 0.80, green: 0.11, blue: 0.13)
@@ -39,6 +42,19 @@ enum PetCostume: Equatable {
     /// the body in half rather than suggesting a panel edge.
     static let ironShadow = Color(red: 0.36, green: 0.05, blue: 0.07)
 
+    // Tony Stark, out of the armour. The pet's head is a wide flat slab with
+    // two eyes in it, which is a face; the helmet was fighting that shape and
+    // this works with it.
+    static let starkSkin = Color(red: 0.87, green: 0.69, blue: 0.55)
+    /// Swept-back dark brown, warm rather than black. Black hair at this size
+    /// merges with the notch behind it and the head loses its top edge.
+    static let starkHair = Color(red: 0.24, green: 0.16, blue: 0.12)
+    /// The burgundy zip-up, which is the thing he is actually wearing in half
+    /// the films and is far more distinctive than another grey t-shirt.
+    static let starkShirt = Color(red: 0.34, green: 0.13, blue: 0.16)
+    /// Trousers, a shade off the shirt so the legs do not merge into it.
+    static let starkTrousers = Color(red: 0.19, green: 0.19, blue: 0.22)
+
     /// Body colour. Spidey is red on top, blue below the shoulders — arms red,
     /// legs blue — which is the read even at 16 pixels.
     /// The suit is coloured by body PART, not by top/half. Spider-Man is a red
@@ -51,6 +67,9 @@ enum PetCostume: Equatable {
         case .plain:  return Self.coral
         case .spider: return part == .torso ? Self.spiderRed : Self.spiderBlue
         case .iron:   return part == .torso ? Self.ironRed : Self.ironGold
+        // The head is part of the torso slab, so the torso takes the shirt
+        // colour here and the face is painted over it afterwards.
+        case .stark:  return part == .leg ? Self.starkTrousers : Self.starkShirt
         }
     }
 
@@ -59,11 +78,15 @@ enum PetCostume: Equatable {
         case .plain:  return Self.darkEye
         case .spider: return Self.spiderEye   // the big white mask lenses
         case .iron:   return Self.ironGlow    // lit slits, not eyes
+        case .stark:  return Self.darkEye     // an actual pair of eyes
         }
     }
 
     /// Does this suit have a light source in its chest?
-    var hasReactor: Bool { self == .iron }
+    ///
+    /// Stark has one too. It is the same reactor, seen through a shirt rather
+    /// than set into armour, so it is drawn dimmer at the call site.
+    var hasReactor: Bool { self == .iron || self == .stark }
 
     /// What the pet is wearing for a given act. Kept here rather than at the
     /// call site so a new guest appearance is one line in one place.
