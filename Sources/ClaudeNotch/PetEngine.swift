@@ -334,10 +334,14 @@ enum PetEngine {
         switch mood {
         case .sleepy:
             return [(.sleep, 6), (.peek, 1), (.hangLeft, 1)]
+        // Guest appearances carry weight 1 against everyday acts at 2 to 4, so
+        // they stay rare enough to be a surprise. Two of them now, and they
+        // split that rarity rather than doubling it: seeing a costume should
+        // still be uncommon.
         case .calm:
-            return [(.peek, 4), (.lookAround, 3), (.hangLeft, 2), (.hangRight, 2), (.stroll, 2), (.rope, 2), (.spiderHang, 1), (.sleep, 1)]
+            return [(.peek, 4), (.lookAround, 3), (.hangLeft, 2), (.hangRight, 2), (.stroll, 2), (.rope, 2), (.spiderHang, 1), (.ironHover, 1), (.sleep, 1)]
         case .curious:
-            return [(.lookAround, 4), (.peek, 3), (.stroll, 3), (.rope, 3), (.spiderHang, 1), (.hangRight, 2), (.hangLeft, 2)]
+            return [(.lookAround, 4), (.peek, 3), (.stroll, 3), (.rope, 3), (.spiderHang, 1), (.ironHover, 1), (.hangRight, 2), (.hangLeft, 2)]
         case .working:
             // Claude is working, so the pet works: it stays out and watches the
             // job instead of hiding for the whole run. This is the point of
