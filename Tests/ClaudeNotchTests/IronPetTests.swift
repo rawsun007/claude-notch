@@ -1,12 +1,13 @@
 import XCTest
 @testable import ClaudeNotch
 
-/// Iron-Pet: the suit holding a hover below the notch.
+/// The two Stark-universe guest appearances: the armour holding a hover, and
+/// the man leaning out of the notch without it.
 ///
-/// The act is almost entirely motion, and motion is the part of this app that
-/// nothing else checks. These pin the handful of properties that make it read
-/// as a hover rather than a bob, because each of them is a line of arithmetic
-/// that would still compile if it were wrong.
+/// Both are almost entirely motion, and motion is the part of this app that
+/// nothing else checks. These pin the handful of properties that make each one
+/// read as what it is, because every one of them is a line of arithmetic that
+/// would still compile if it were wrong.
 final class IronPetTests: XCTestCase {
 
     private func stage() -> PetEngine.Stage {
@@ -34,6 +35,59 @@ final class IronPetTests: XCTestCase {
         XCTAssertEqual(iron.addedOn, "2026-09-20")
         XCTAssertFalse(iron.reference.isEmpty)
     }
+
+    // MARK: - Stark, out of the armour
+
+    func testStarkPetIsAGuestAppearanceWithADate() throws {
+        let stark = try XCTUnwrap(PetActivity.starkCameo.special)
+        XCTAssertEqual(stark.name, "Stark-Pet")
+        XCTAssertEqual(stark.addedOn, "2026-09-20")
+        XCTAssertFalse(stark.reference.isEmpty)
+    }
+
+    func testStarkWearsTheManNotTheArmour() {
+        XCTAssertEqual(PetCostume.forActivity(.starkCameo), .stark)
+    }
+
+    /// He keeps the reactor: it is the same light through a shirt. But he is
+    /// out of the suit, so nothing under him may fire.
+    func testStarkHasAReactorButNoRepulsors() {
+        XCTAssertTrue(PetCostume.stark.hasReactor)
+        for i in 0..<20 {
+            let pose = PetEngine.pose(for: .starkCameo, progress: Double(i) / 20, stage: stage())
+            XCTAssertEqual(pose.thrust, 0, accuracy: 0.0001, "he is not wearing boots that do that")
+            XCTAssertGreaterThan(pose.reactorGlow, 0.5, "the reactor is always on")
+        }
+    }
+
+    /// The eyes stay the pet's own dark dots. The whole reason this costume
+    /// works where the helmet struggled is that the head slab is already a
+    /// face; replacing the eyes with slits would throw that away.
+    func testStarkKeepsOrdinaryEyes() {
+        XCTAssertEqual(PetCostume.stark.eyeColour, PetCostume.darkEye)
+        XCTAssertEqual(PetCostume.iron.eyeColour, PetCostume.ironGlow)
+    }
+
+    /// Feet on the lip, not hovering. If this ever became a hanging activity
+    /// the renderer would draw a rope out of the notch and attach him to it.
+    func testStarkIsNotHangingOrHovering() {
+        XCTAssertFalse(PetEngine.isHanging(.starkCameo))
+        XCTAssertEqual(PetActivity.starkCameo.ropeLength, 0)
+    }
+
+    /// The man slouches where the armour poses: the two arms must not sit at
+    /// the same angle.
+    func testStarkArmsHangUnevenly() {
+        var sawDifference = false
+        for i in 0..<30 {
+            let rig = PetRigging.rig(for: .starkCameo, progress: Double(i) / 30,
+                                     time: Double(i) * 0.06, cursorX: 0)
+            if abs(rig.armLeftAngle - rig.armRightAngle) > 1 { sawDifference = true }
+        }
+        XCTAssertTrue(sawDifference)
+    }
+
+    // MARK: - Armour
 
     func testItWearsTheArmour() {
         XCTAssertEqual(PetCostume.forActivity(.ironHover), .iron)
