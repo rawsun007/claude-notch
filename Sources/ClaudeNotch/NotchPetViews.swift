@@ -234,8 +234,13 @@ struct PetSprite: View {
                 // Skin first, covering the lower head. The eyes are drawn after
                 // everything here, so they land on the face rather than under
                 // it.
-                ctx.fill(Path(CGRect(x: 2 * cell, y: 4.6 * cell,
-                                     width: 12 * cell, height: 2.4 * cell)),
+                // The face runs PAST the bottom of the head slab to give him a
+                // chin. The pet's eyes sit in the lowest rows of that slab, so
+                // without a chin there is nowhere below them for a beard, and a
+                // beard level with the eyes merges into one dark bar across the
+                // whole face. That bar is what the first version looked like.
+                ctx.fill(Path(CGRect(x: 2.6 * cell, y: 4.6 * cell,
+                                     width: 10.8 * cell, height: 3.2 * cell)),
                          with: .color(PetCostume.starkSkin))
 
                 // Hair: the crown, plus a step down each side for the temples.
@@ -251,15 +256,18 @@ struct PetSprite: View {
                                      width: 1.4 * cell, height: 1.1 * cell)),
                          with: .color(PetCostume.starkHair))
 
-                // The goatee. This is the single most recognisable thing about
-                // him and the reason this costume can work at all: a moustache
-                // bar with a chin patch under it, sitting between the eyes
-                // where a mouth would be.
-                ctx.fill(Path(CGRect(x: 6.2 * cell, y: 6.0 * cell,
-                                     width: 3.6 * cell, height: 0.45 * cell)),
+                // The goatee, entirely BELOW the eyes now, on the chin. A clear
+                // row of skin between the eyes and the beard is what makes a
+                // face read as a face rather than as stripes.
+                //
+                // Narrow, because his is: a moustache no wider than the mouth,
+                // and a chin patch narrower still. The first version was almost
+                // as wide as the head, which is a different man entirely.
+                ctx.fill(Path(CGRect(x: 6.5 * cell, y: 6.9 * cell,
+                                     width: 3.0 * cell, height: 0.38 * cell)),
                          with: .color(PetCostume.starkHair))
-                ctx.fill(Path(CGRect(x: 6.9 * cell, y: 6.45 * cell,
-                                     width: 2.2 * cell, height: 0.85 * cell)),
+                ctx.fill(Path(CGRect(x: 7.1 * cell, y: 7.28 * cell,
+                                     width: 1.8 * cell, height: 0.48 * cell)),
                          with: .color(PetCostume.starkHair))
             }
 
@@ -315,6 +323,18 @@ struct PetSprite: View {
                     lens.height = 2.6
                     lens.x = (i == 0 ? eye.x - 1.0 : eye.x - 0.2)   // fan outward
                     lens.y = eye.y - 0.3
+                } else if costume == .stark {
+                    // Shorter and slightly narrower than the mascot's own.
+                    //
+                    // The pet's eyes are a full two rows tall and sit in the
+                    // lowest rows of the head, which leaves nothing between
+                    // them and the chin. Trimming them to just over one row
+                    // opens a clear band of skin underneath, and that band is
+                    // what separates a face from a set of stripes. It also
+                    // suits him: the mascot has round surprised eyes and he
+                    // does not.
+                    lens.height = 1.2
+                    lens.y = eye.y - 0.1
                 } else if costume == .iron {
                     // Wide, shallow and angled inward: a visor slit, not an eye.
                     //
