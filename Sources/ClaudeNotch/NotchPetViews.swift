@@ -92,6 +92,35 @@ struct PetSprite: View {
                          with: .color(legColour))
             }
 
+            // Repulsor thrust under the boots, drawn BEFORE the torso and after
+            // the legs so the flare tucks under the foot rather than sitting on
+            // top of it.
+            //
+            // A cone, not a circle: a jet has a direction, and four round dots
+            // under a hovering figure read as wheels. Widening as it falls and
+            // fading out is what makes it thrust rather than a glow stick.
+            if costume.hasReactor, rig.thrust > 0.01 {
+                for (i, leg) in PetBody.legs.enumerated() {
+                    let lift = rig.legLift[i] + rig.legTuck[i]
+                    let footX = (leg.x + leg.width / 2 + rig.legSwing[i]) * cell
+                    let footY = (leg.y + leg.height - lift + rig.legTuck[i]) * cell
+                    let length = 3.2 * cell * rig.thrust
+                    let halfTop = 0.45 * cell
+                    let halfEnd = 1.15 * cell
+                    var cone = Path()
+                    cone.move(to: CGPoint(x: footX - halfTop, y: footY))
+                    cone.addLine(to: CGPoint(x: footX + halfTop, y: footY))
+                    cone.addLine(to: CGPoint(x: footX + halfEnd, y: footY + length))
+                    cone.addLine(to: CGPoint(x: footX - halfEnd, y: footY + length))
+                    cone.closeSubpath()
+                    ctx.fill(cone, with: .linearGradient(
+                        Gradient(colors: [PetCostume.ironGlow.opacity(0.85 * rig.thrust),
+                                          PetCostume.ironGlow.opacity(0)]),
+                        startPoint: CGPoint(x: footX, y: footY),
+                        endPoint: CGPoint(x: footX, y: footY + length)))
+                }
+            }
+
             // Arms pivot at the shoulder — a cell inside the torso, so no angle
             // can lever their inner corner out into the open.
             func arm(_ p: PetPart, pivotCell: PetPart, angle: Double) {
