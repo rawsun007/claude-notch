@@ -248,6 +248,17 @@ struct PetSprite: View {
                     lens.height = 2.6
                     lens.x = (i == 0 ? eye.x - 1.0 : eye.x - 0.2)   // fan outward
                     lens.y = eye.y - 0.3
+                } else if costume == .iron {
+                    // Wide, shallow and angled inward: a visor slit, not an eye.
+                    //
+                    // The pet's own eyes are tall 1x2 dots set far apart, which
+                    // is a face. The helmet reads the other way round, short and
+                    // wide and close together, and that shape is doing more of
+                    // the work here than the colours are.
+                    lens.width = 2.6
+                    lens.height = 0.9
+                    lens.x = (i == 0 ? eye.x - 0.6 : eye.x - 1.0)   // draw inward
+                    lens.y = eye.y + 0.3
                 }
                 var lid = lens
                 lid.height = lens.height * open
@@ -255,10 +266,11 @@ struct PetSprite: View {
                 // The mask lens has a black outline, like the real one. Draw a
                 // slightly larger dark lens first, then the white on top of it, so
                 // a thin black rim shows all the way round.
-                if spider {
+                if spider || costume == .iron {
                     var border = lid
-                    border.x -= 0.35; border.y -= 0.35
-                    border.width += 0.7; border.height += 0.7
+                    let inset = costume == .iron ? 0.22 : 0.35
+                    border.x -= inset; border.y -= inset
+                    border.width += inset * 2; border.height += inset * 2
                     ctx.fill(Path(rect(border, dx: rig.eyeShift, dy: dy)),
                              with: .color(PetCostume.darkEye))
                 }
