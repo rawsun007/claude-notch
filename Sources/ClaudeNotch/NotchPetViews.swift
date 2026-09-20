@@ -167,17 +167,29 @@ struct PetSprite: View {
             //
             // Flat colour, no gradients. At this size a gradient is mud.
             if costume == .iron {
-                // Faceplate: gold jaw and brow, leaving the middle red so the
-                // mask still reads as a mask rather than a gold block.
-                ctx.fill(Path(CGRect(x: 2 * cell, y: 3 * cell, width: 12 * cell, height: 0.9 * cell)),
+                // The faceplate is the GOLD, and the eyes are cut into it.
+                //
+                // The first version had this exactly inside out: a gold band
+                // across the crown, red through the middle where the eyes are,
+                // and a gold band under the chin. That is a red box with a gold
+                // lid, which is what it looked like. On the real helmet the
+                // crown and the sides are red and the faceplate is the gold
+                // part, with the slits in it, so the gold has to be the face
+                // rather than the frame.
+                //
+                // Two stacked rectangles, the lower one narrower, because the
+                // faceplate tapers toward the chin and a straight-sided gold
+                // block reads as a bucket. Two steps is all a taper can be at
+                // this size.
+                ctx.fill(Path(CGRect(x: 2.6 * cell, y: 4.5 * cell,
+                                     width: 10.8 * cell, height: 1.8 * cell)),
                          with: .color(PetCostume.ironGold))
-                ctx.fill(Path(CGRect(x: 2 * cell, y: 6.1 * cell, width: 12 * cell, height: 0.9 * cell)),
+                ctx.fill(Path(CGRect(x: 3.6 * cell, y: 6.3 * cell,
+                                     width: 8.8 * cell, height: 0.7 * cell)),
                          with: .color(PetCostume.ironGold))
-                // Shoulder caps: the gold pauldrons, one cell in from each edge.
-                for x in [2.0, 11.0] {
-                    ctx.fill(Path(CGRect(x: x * cell, y: 7 * cell, width: 3 * cell, height: 1.1 * cell)),
-                             with: .color(PetCostume.ironGold))
-                }
+                // No shoulder caps. The arms are already gold, so a gold block
+                // on each shoulder merged with them into one mass and read as
+                // epaulettes rather than armour.
                 // Waist seam: a darker line where the chest plate ends, which is
                 // what gives the torso a front rather than a flat face.
                 ctx.fill(Path(CGRect(x: 2 * cell, y: 9 * cell, width: 12 * cell, height: 0.5 * cell)),
