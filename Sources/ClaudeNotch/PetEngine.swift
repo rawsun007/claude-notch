@@ -114,7 +114,7 @@ enum PetActivity: String, CaseIterable, Equatable {
         case .starkCameo:
             return SpecialAppearance(
                 name: "Stark-Pet",
-                reference: "Tony Stark out of the armour: the goatee, and the reactor through his shirt",
+                reference: "Tony Stark out of the armour: the hair, the sideburns and the goatee",
                 addedOn: "2026-09-20")
         default:
             return nil
