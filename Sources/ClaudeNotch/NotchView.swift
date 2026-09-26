@@ -6,10 +6,42 @@ import UniformTypeIdentifiers
 /// body so the card frame can be an EXPLICIT (animatable) height that exactly
 /// matches the content — explicit so the spring interpolates it (grow-out-of-
 /// notch), measured so it never clips or leaves dead space.
+///
+/// The measurement carries the identity of the card it was taken from. A
+/// height is only ever applied to the card that produced it, so a stale one is
+/// inert instead of having to be cleared, and moving to a new card always
+/// changes the value (the key differs even when the height does not), which is
+/// what guarantees the new card gets measured at all.
+struct ContentMeasure: Equatable {
+    var key: String
+    var height: CGFloat
+}
+
 private struct ContentHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
+    static var defaultValue = ContentMeasure(key: "", height: 0)
+    static func reduce(value: inout ContentMeasure, nextValue: () -> ContentMeasure) {
+        let next = nextValue()
+        if next.height > value.height { value = next }
+    }
+}
+
+extension NotchMode {
+    /// Which card this is, for pairing a measured height with the card it was
+    /// measured on. Requests are reference types with a UUID, so a card keeps
+    /// its key while its contents change (it expires, a banner appears) and
+    /// two cards that happen to look identical still get different keys.
+    var measureKey: String {
+        switch self {
+        case .idle: return "idle"
+        case .thinking: return "thinking"
+        case .permission(let r): return "permission:\(r.id)"
+        case .completed(let t): return "completed:\(t.id)"
+        case .question(let q): return "question:\(q.id)"
+        case .compose: return "compose"
+        case .responseDetail: return "responseDetail"
+        case .history: return "history"
+        case .autoInfo(let r): return "autoInfo:\(r.id)"
+        }
     }
 }
 
@@ -86,7 +118,7 @@ struct NotchView: View {
     /// behavior). Non-nil = a per-screen mirror panel pinned to `screenOverride`,
     /// which must size to ITS OWN screen's notch/pill, not the primary's.
     var screenOverride: NSScreen? = nil
-    @State private var compactHeight: CGFloat = 0
+    @State private var measured = ContentMeasure(key: "", height: 0)
     @StateObject private var sizer = CardSizeAnimator()
 
     /// The screen to measure geometry against for this panel.
@@ -479,7 +511,17 @@ struct NotchView: View {
             // previous card had measured, and lost its command box and both
             // buttons below the cut. Nothing looked broken, there was simply
             // no Allow button, and no way to reach the Touch ID confirm.
-            return max(card.height, compactHeight > 1 ? compactHeight : card.height)
+            //
+            // And the measurement only counts for the card it was taken on. It
+            // used to be one bare number, zeroed whenever the mode changed, but
+            // SwiftUI does not order that onChange against onPreferenceChange:
+            // when the new card's measurement landed first, the reset wiped it,
+            // and since the value then never changed again it was never sent
+            // again. The card fell back to the formula and lost its button row
+            // whenever the formula ran short (a destructive Edit with a long
+            // diff, the Confirm to Allow button cut in half).
+            let fit = measured.key == state.mode.measureKey ? measured.height : 0
+            return max(card.height, fit > 1 ? fit : card.height)
         }()
         // The size we want the card to be. The Timer-driven `sizer`
         // interpolates toward it every frame (works in the background, unlike
@@ -590,7 +632,9 @@ struct NotchView: View {
                             GeometryReader { g in
                                 Color.clear.preference(
                                     key: ContentHeightKey.self,
-                                    value: isScrollableMode ? 0 : g.size.height
+                                    value: ContentMeasure(
+                                        key: state.mode.measureKey,
+                                        height: isScrollableMode ? 0 : g.size.height)
                                 )
                             }
                         )
@@ -670,19 +714,12 @@ struct NotchView: View {
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear { sizer.set(target) }
-        .onPreferenceChange(ContentHeightKey.self) { h in
-            if h > 1 { compactHeight = h }
-        }
-        // Forget the previous card's measurement the moment the card changes.
-        //
-        // compactHeight is one piece of state shared by every card, and it only
-        // ever moved when a preference fired. Between a card going away and the
-        // next one being measured, the new card was drawn at the old card's
-        // height, which clipped it whenever the new one was taller. Zeroing
-        // here means the formula height is used for that gap, which is the
-        // budget written for THIS card.
-        .onChange(of: state.mode) { _ in
-            compactHeight = 0
+        .onPreferenceChange(ContentHeightKey.self) { m in
+            // No reset on mode change any more: a measurement from the previous
+            // card carries that card's key, so displayHeight ignores it until
+            // this card's own measurement arrives. Between the two the formula
+            // is used, which is the budget written for THIS card.
+            if m.height > 1 { measured = m }
         }
         .onChange(of: target) { newTarget in
             // expanding = growing toward a bigger card (overshoot for the
