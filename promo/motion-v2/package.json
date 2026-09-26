@@ -1,0 +1,8 @@
+{
+  "name": "claudenotch-promo-v2",
+  "private": true,
+  "description": "Frame renderer for the v2 motion piece. See build.sh.",
+  "dependencies": {
+    "puppeteer-core": "25.12.0"
+  }
+}
