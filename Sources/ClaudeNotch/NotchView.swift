@@ -384,7 +384,11 @@ struct NotchView: View {
             var visible: CGFloat = 152
             if !req.dangerReasons.isEmpty {
                 // Banner: 14pt of v-padding + 14pt header + 13pt per reason.
-                visible += 28 + CGFloat(req.dangerReasons.count) * 14 + 8 // +8 gap
+                // It never drops below the 30pt pet badge it can carry plus
+                // that padding: with one reason the text is shorter than the
+                // pet, and the pet sets the height.
+                let text = 28 + CGFloat(req.dangerReasons.count) * 14
+                visible += max(text, 30 + 14) + 8 // +8 gap
             }
             if req.budgetBlock != nil {
                 visible += 46   // two-line orange banner + gap
@@ -404,15 +408,20 @@ struct NotchView: View {
                 visible += 96
             }
             if let p = req.preview {
+                // A diff row is an 11pt monospaced line (about 13pt tall) plus
+                // 1pt of padding above and below it: 15pt, budgeted as 16. It
+                // was 14, which ran a couple of points short on every row; over
+                // an eleven-line diff that is the height of the button row.
+                let diffRow: CGFloat = 16
                 switch p {
                 case .diff(let h):
                     let total = min(ToolPreviewParser.maxDiffLines, h.oldLines.count)
                               + min(ToolPreviewParser.maxDiffLines, h.newLines.count)
                               + (h.truncatedOld || h.truncatedNew ? 1 : 0)
-                    visible += CGFloat(total) * 14 + 16
+                    visible += CGFloat(total) * diffRow + 16
                 case .multiDiff(_, let h):
                     let total = min(8, h.oldLines.count) + min(8, h.newLines.count) + 1
-                    visible += CGFloat(total) * 14 + 28
+                    visible += CGFloat(total) * diffRow + 28
                 case .write(_, let total):
                     visible += CGFloat(min(ToolPreviewParser.maxWriteLines, total)) * 14 + 16
                 }
