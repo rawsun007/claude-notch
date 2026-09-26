@@ -74,7 +74,8 @@ while at < outro:
     at += step
 
 # outro pad: wide, bright, no sidechain, long tail
-t = tt(DUR - outro + 2.0)
+MAIN_END = SC['outro']['start'] + SC['outro']['dur']
+t = tt(MAIN_END - outro + 2.0)
 e = np.minimum(1, t / 0.08) * (0.55 + 0.45 * np.exp(-t * 1.2))  # hit, then sustain under the titles
 for j, m in enumerate(OUTRO_CH[1:]):
     f = midi(m)
@@ -244,9 +245,73 @@ def conv(x, h):
 rev = np.stack([conv(wet[:, 0], ir(1)), conv(wet[:, 1], ir(2))], 1)
 mix = dry + rev * 0.9
 
+# ---------- cut to black before the guest ----------
+mix = mix[: int(DUR * SR)].copy()
+a, b = int((MAIN_END - 0.45) * SR), int((MAIN_END + 0.05) * SR)
+mix[a:b] *= (np.linspace(1, 0, b - a) ** 2)[:, None]
+mix[b:] = 0
+
+# ---------- post-credits: a guest drops in ----------
+# Original cue, D major, same 120 bpm. Not anybody's theme: a bouncy major
+# arpeggio over pizzicato bass and short brass stabs, so it reads as a cameo
+# without quoting one.
+dry[:] = 0; wet[:] = 0; duck[:] = 0
+E = SC["egg"]["start"]
+CUES = {c["type"]: c for c in T["cues"]}
+def zip_(f0, f1, d):
+    t = tt(d); f = f0 * (f1 / f0) ** (t / d)
+    x = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.sin(np.pi * t / d)
+    n = rng.standard_normal(len(t)); n = (n - lp(n.copy(), 3000, 1)) * np.sin(np.pi * t / d) ** 2
+    return x * 0.6 + n * 0.5
+put(dry, zip_(1400, 3800, 0.14), CUES["egg_thwip"]["t"], 0.07, send=0.35)
+d = CUES["egg_fall"]["d"]; t = tt(d); f = 1100 * (300 / 1100) ** (t / d) * (1 + 0.03 * np.sin(2 * np.pi * 9 * t))
+put(dry, np.sin(2 * np.pi * np.cumsum(f) / SR) * np.minimum(1, t / 0.05) * (1 - t / d * 0.5), CUES["egg_fall"]["t"], 0.04, send=0.3)
+t = tt(0.6); f = 185 * (1 + 0.18 * np.sin(2 * np.pi * 13 * t) * np.exp(-t * 5))
+put(dry, np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 5), CUES["egg_boing"]["t"], 0.12, send=0.25)
+put(dry, lp(K.copy(), 300), CUES["egg_boing"]["t"], 0.3)
+
+def pizz(m, d=0.3):
+    t = tt(d); f = midi(m)
+    return (np.sin(2 * np.pi * f * t) + 0.5 * np.sin(2 * np.pi * 2 * f * t) * np.exp(-t * 25)) * np.exp(-t * 14) * np.minimum(1, t * 1500)
+def stab(ms, d=0.22):
+    t = tt(d); x = sum(saw(midi(m), t) for m in ms) / len(ms)
+    return lp(x, 2400, 1) * np.exp(-t * 11) * np.minimum(1, t * 300)
+def lead(m, d=0.26):
+    t = tt(d); f = midi(m)
+    sq = np.sign(np.sin(2 * np.pi * f * t)) * 0.35 + np.sin(2 * np.pi * f * t) * 0.65
+    return lp(sq, 4500, 1) * np.exp(-t * 6) * np.minimum(1, t * 900)
+m0 = E + 1.0; mend = CUES["egg_zip"]["t"]
+bass = [38, 45, 50, 45, 43, 50, 55, 50, 45, 52, 57, 52, 50, 45, 38, 45]
+chords = [[62, 66, 69], [62, 66, 69], [67, 71, 74], [69, 73, 76]]
+for i, m in enumerate(bass):
+    bt = m0 + i * BEAT / 2
+    if bt < mend: put(dry, pizz(m), bt, 0.22, pan=-0.1, send=0.2)
+for i in range(8):
+    bt = m0 + i * BEAT
+    if bt >= mend: break
+    put(dry, lp(K.copy(), 900), bt, 0.3)
+    if i % 2 == 1: put(dry, SN, bt, 0.08, send=0.3)
+    put(dry, stab(chords[min(3, i // 2)]), bt + BEAT / 2, 0.07, pan=0.2, send=0.35)
+    for s16 in (0, 1):
+        put(dry, H, bt + s16 * BEAT / 2, 0.025, pan=0.35)
+melody = [(0.0, 74), (0.25, 78), (0.5, 81), (1.0, 83), (1.25, 81), (1.5, 85), (1.75, 76), (2.0, 86), (2.5, 81), (2.75, 78)]
+for off, m in melody:
+    if m0 + off < mend: put(dry, lead(m, 0.45 if off in (2.0,) else 0.26), m0 + off, 0.06, pan=0.15, send=0.4)
+# a whoosh each time the swing passes the bottom, panned the way it is moving
+for k, sgn in enumerate([1, -1, 1]):
+    wt = CUES["egg_boing"]["t"] + k * np.pi / 2.5
+    if wt < mend: put(dry, whoosh(0.55), wt - 0.27, 0.06, pan=0.5 * sgn, send=0.3)
+for i, m in enumerate([93, 98]): put(dry, tick(m, 0.1), CUES["egg_wave"]["t"] + i * 0.11, 0.04, send=0.4)
+put(dry, zip_(500, 4200, 0.26), CUES["egg_zip"]["t"], 0.09, send=0.4)
+et = CUES["egg_end"]["t"]
+put(dry, stab([50, 57, 62, 66, 69], 0.5), et, 0.12, send=0.6)
+put(dry, bell(86, 1.6), et + 0.02, 0.06, send=0.8)
+put(dry, lp(K.copy(), 500), et, 0.25)
+rev2 = np.stack([conv(wet[:, 0], ir(3)), conv(wet[:, 1], ir(4))], 1)
+mix += (dry + rev2 * 0.9)[: len(mix)]
+
 # ---------- master ----------
-mix = mix[: int(DUR * SR)]
-f = int(1.5 * SR); mix[-f:] *= (np.linspace(1, 0, f) ** 2)[:, None]
+f = int(0.6 * SR); mix[-f:] *= (np.linspace(1, 0, f) ** 2)[:, None]
 mix -= mix.mean(0)
 mix = np.tanh(mix * 1.8) / np.tanh(1.8)
 mix /= np.abs(mix).max() / 0.9
