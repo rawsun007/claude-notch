@@ -1,0 +1,3 @@
+Claude Code keeps asking for permission in a terminal you are not looking at. ClaudeNotch puts the prompt in your MacBook notch: allow it, hold to confirm the risky ones, and see when it is done, without leaving your editor.
+
+Free for personal use: brew install --cask rawsun007/tap/claudenotch
