@@ -356,6 +356,8 @@ function ambient(t) {
   const a = t * 0.35;
   const set = (el, x, y, o) => { el.style.transform = `translate(${x}px, ${y}px)`; el.style.opacity = o; };
   const glow = 0.35 + 0.1 * Math.sin(t * 1.3);
+  const dip = t < 24.5 ? 1 : t < 25.2 ? lerp(1, 0.03, iO((t - 24.5) / 0.7)) : lerp(0.03, 0.55, oC((t - 25.2) / 0.8));
+  $('#amb').style.opacity = dip;
   set($('#b1'), 600 + Math.sin(a) * 260, 300 + Math.cos(a * 0.8) * 120, glow);
   set($('#b2'), 1100 + Math.cos(a * 0.7) * 300, 100 + Math.sin(a) * 160, 0.35);
   set($('#b3'), 200 + Math.sin(a * 0.6) * 200, 500 + Math.cos(a) * 100, 0.4);
@@ -632,6 +634,10 @@ function outro(t) {
   $('#obrewt').innerHTML = cmd.slice(0, n) + `<span style="opacity:${n < cmd.length || Math.floor(u * 2.2) % 2 ? 0.8 : 0}">▍</span>`;
   const mp = oC((u - 2.0) / 0.6), me = $('#ometa');
   me.style.opacity = mp; me.style.transform = `translateY(${(1 - mp) * 14}px)`;
+  // cut to black before the guest arrives
+  const fin = iC((u - 3.5) / 0.45);
+  el.style.opacity = 1 - fin;
+  el.style.filter = `blur(${fin * 10}px)`;
   const sk = $('#streak'), sp = (u + 0.05) / 0.9;
   sk.style.opacity = sp > 0 && sp < 1 ? Math.sin(sp * Math.PI) : 0;
   sk.style.transform = `scaleX(${0.4 + sp})`;
