@@ -1,0 +1,684 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ClaudeNotch motion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&display=block" rel="stylesheet">
+<style>
+  /* The rebuilt app UI uses the system face, because that is what the real
+     SwiftUI cards render in. Headlines use Inter Tight. */
+  @font-face { font-family: "UI"; src: url("file:///System/Library/Fonts/SFNS.ttf"); font-weight: 100 900; }
+  @font-face { font-family: "UIMono"; src: url("file:///System/Library/Fonts/SFNSMono.ttf"); font-weight: 100 900; }
+  :root {
+    --coral: #d97757; --coral-hi: #f0a283; --yellow: #ffd60a; --red: #ff453a; --red-soft: #ff6961;
+    --green: #30d158; --blue: #0a84ff; --orange: #ff9f0a; --purple: #bf5af2;
+    --g1: #8e8e93; --g2: #636366; --g3: #1c1c1e; --g4: #2c2c2e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #000; color: #fff; font-family: "Inter Tight", sans-serif; }
+  .layer { position: absolute; inset: 0; }
+  .blob { position: absolute; border-radius: 50%; filter: blur(110px); }
+
+  /* ---------- hook: windows in depth ---------- */
+  #hook { perspective: 1400px; perspective-origin: 50% 45%; }
+  #hookworld { position: absolute; inset: 0; transform-style: preserve-3d; }
+  .win {
+    position: absolute; left: 50%; top: 50%; border-radius: 16px; overflow: hidden;
+    background: rgba(28,28,30,0.92); border: 1px solid rgba(255,255,255,0.09);
+    box-shadow: 0 40px 90px -30px rgba(0,0,0,0.9);
+  }
+  .win .bar { height: 34px; background: rgba(255,255,255,0.04); display: flex; align-items: center; gap: 8px; padding: 0 14px; }
+  .win .bar i { width: 12px; height: 12px; border-radius: 50%; background: #3a3a3c; display: block; }
+  .win .sk { position: absolute; left: 24px; height: 12px; border-radius: 6px; background: rgba(255,255,255,0.08); }
+  .win .blk { position: absolute; border-radius: 10px; }
+  #term { font-family: "UIMono"; font-size: 22px; color: #d1d1d6; padding: 26px 30px; line-height: 1.75; }
+  #term .q { color: var(--coral-hi); }
+  #term .c { display: inline-block; width: 12px; height: 26px; background: #fff; vertical-align: -5px; margin-left: 4px; }
+
+  /* ---------- camera + the Mac's display ---------- */
+  #cam { overflow: hidden; }
+  #world { position: absolute; left: 0; top: 0; width: 1920px; height: 1200px; transform-origin: 0 0; }
+  .bezel {
+    position: absolute; left: -30px; top: -30px; width: 1980px; height: 1260px; border-radius: 58px;
+    background: #050506;
+    box-shadow: 0 0 0 2px #3a3a3c, 0 0 0 3.5px #1a1a1b, 0 80px 220px -40px rgba(217,119,87,0.35);
+  }
+  .screen { position: absolute; inset: 0; border-radius: 30px; overflow: hidden; background: #05060d; }
+  .screen .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.55) 70%, rgba(0,0,0,0.8)); }
+  .menubar { position: absolute; left: 0; right: 0; top: 0; height: 34px; background: rgba(255,255,255,0.05); }
+  .menubar i { position: absolute; top: 12px; height: 10px; border-radius: 5px; background: rgba(255,255,255,0.18); }
+
+  #shape {
+    position: absolute; top: 0; left: 50%; background: #000; overflow: hidden;
+    box-shadow: 0 30px 90px -20px rgba(0,0,0,0.8), inset 0 -1px 0 rgba(255,255,255,0.07);
+    font-family: "UI"; color: #fff;
+  }
+  #notchglow { position: absolute; top: -40px; left: 50%; width: 520px; height: 180px; transform: translateX(-50%); border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(217,119,87,0.75), rgba(217,119,87,0) 70%); filter: blur(18px); opacity: 0; }
+  .ct { position: absolute; left: 0; top: 0; right: 0; opacity: 0; }
+  .row { position: absolute; left: 26px; right: 26px; display: flex; align-items: center; }
+  .hdr { font-size: 15px; font-weight: 700; letter-spacing: 0.02em; gap: 10px; }
+  .hdr .dim { color: var(--g1); font-weight: 500; letter-spacing: 0; }
+  .hdr .cwd { margin-left: auto; color: var(--g2); font-weight: 500; font-size: 13px; letter-spacing: 0; }
+  .badge { width: 24px; height: 22px; border-radius: 6px; background: var(--yellow); color: #000; font-weight: 900; font-size: 15px; display: grid; place-items: center; }
+  .ttl { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; }
+  .code { position: absolute; left: 26px; right: 26px; height: 46px; border-radius: 11px; background: var(--g3);
+    font-family: "UIMono"; font-size: 17px; color: #e5e5ea; display: flex; align-items: center; padding: 0 16px; white-space: nowrap; overflow: hidden; }
+  .btns { gap: 14px; font-size: 15px; font-weight: 600; }
+  .pill { height: 38px; border-radius: 10px; display: flex; align-items: center; gap: 8px; padding: 0 16px; position: relative; overflow: hidden; }
+  .deny { background: #3a0e10; color: var(--red); }
+  .aa { color: var(--g1); font-weight: 500; }
+  .allow { margin-left: auto; background: #fff; color: #000; }
+  .kbd { opacity: 0.55; font-size: 13px; }
+  .warn { position: absolute; left: 26px; right: 26px; border-radius: 12px; background: rgba(255,69,58,0.10); border: 1px solid rgba(255,69,58,0.38); padding: 14px 18px; color: var(--red-soft); font-size: 15px; line-height: 1.55; }
+  .warn b { color: var(--red); font-size: 16.5px; display: flex; align-items: center; gap: 9px; margin-bottom: 4px; }
+  .warn div.l { opacity: 0; }
+  .holdbtn { margin-left: auto; background: #5c1410; color: #fff; min-width: 190px; justify-content: center; }
+  .holdbtn .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg, #d8322a, #ff5a4e); }
+  .holdbtn span, .holdbtn svg { position: relative; }
+  .diffbox { position: absolute; left: 26px; right: 26px; border-radius: 11px; background: #0d0d0e; overflow: hidden; padding: 8px 0; font-family: "UIMono"; font-size: 15.5px; }
+  .dl { height: 26px; line-height: 26px; padding: 0 16px; white-space: pre; opacity: 0; }
+  .dl.m { background: rgba(255,69,58,0.14); color: var(--red-soft); }
+  .dl.p { background: rgba(48,209,88,0.14); color: #4ee37a; }
+
+  /* sessions */
+  .shdr { font-size: 14px; font-weight: 800; letter-spacing: 0.1em; gap: 10px; }
+  .meter { display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 600; letter-spacing: 0; color: var(--g1); }
+  .meter .track { width: 130px; height: 6px; border-radius: 3px; background: var(--g4); overflow: hidden; }
+  .meter .track i { display: block; height: 100%; width: 0; border-radius: 3px; }
+  .tabs { gap: 8px; font-size: 14px; font-weight: 600; }
+  .tab { padding: 7px 16px; border-radius: 999px; color: var(--g1); }
+  .tab.on { background: #fff; color: #000; }
+  .srow { position: absolute; left: 20px; right: 20px; height: 84px; border-radius: 14px; background: rgba(255,255,255,0.035); opacity: 0; }
+  .srow .ic { position: absolute; left: 18px; top: 18px; width: 26px; height: 21px; border-radius: 4px; background: var(--blue); }
+  .srow .ic::before { content: ""; position: absolute; left: 0; top: -4px; width: 11px; height: 6px; border-radius: 3px 3px 0 0; background: var(--blue); }
+  .srow .nm { position: absolute; left: 60px; top: 14px; font-size: 18px; font-weight: 700; display: flex; gap: 10px; align-items: center; }
+  .chip { font-family: "UIMono"; font-size: 12.5px; font-weight: 500; color: #d1d1d6; background: var(--g4); padding: 3px 8px; border-radius: 6px; }
+  .srow .mt { position: absolute; left: 60px; top: 45px; font-size: 13.5px; color: var(--g1); font-variant-numeric: tabular-nums; }
+  .srow .st { position: absolute; right: 22px; top: 16px; font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+  .srow .st i { width: 8px; height: 8px; border-radius: 50%; display: block; }
+  .srow .ctx { position: absolute; right: 22px; top: 50px; width: 150px; height: 5px; border-radius: 3px; background: var(--g4); overflow: hidden; }
+  .srow .ctx i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--coral), var(--coral-hi)); }
+
+  #cursor { position: absolute; left: 0; top: 0; width: 34px; height: 44px; transform-origin: 3px 3px; opacity: 0; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.6)); }
+  #ripple { position: absolute; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.9); opacity: 0; }
+  #pet { position: absolute; width: 144px; height: 144px; left: 888px; top: 0; transform-origin: 50% 70%; }
+  .spark { position: absolute; width: 12px; height: 12px; background: var(--coral-hi); transform: rotate(45deg); opacity: 0; border-radius: 2px; }
+
+  /* ---------- type ---------- */
+  #scrim { background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,0.72) 80%, rgba(0,0,0,0.85)); opacity: 0; }
+  .hl { position: absolute; left: 0; right: 0; text-align: center; opacity: 0; }
+  .hl .main { font-weight: 800; font-size: 104px; letter-spacing: -0.045em; line-height: 1.02; }
+  .hl .sub { font-weight: 500; font-size: 36px; letter-spacing: -0.01em; color: #a1a1a6; margin-top: 18px; }
+  .hl .sub .m { font-family: "UIMono"; font-size: 0.86em; color: #d1d1d6; }
+  .mw { display: inline-block; overflow: hidden; vertical-align: bottom; padding: 0 0.04em 0.1em; margin-bottom: -0.1em; }
+  .mw > span { display: inline-block; }
+  .grad { background: linear-gradient(180deg, #ffffff 30%, #b9b9bf); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .gradc { background: linear-gradient(100deg, #ffb89d, #d97757 55%, #b85a3e); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  #lookup { top: 846px; }
+  #lookup .main { font-size: 168px; }
+  /* Gradient per character: background-clip:text on a parent does not
+     survive transformed children, it paints them as solid boxes. */
+  .ch { display: inline-block; background: linear-gradient(180deg, #ffffff 35%, #a9a9b0); -webkit-background-clip: text; background-clip: text; color: transparent; padding: 0 0.02em 0.12em; }
+
+  /* ---------- outro ---------- */
+  #outro { opacity: 0; }
+  #oicon { position: absolute; left: 50%; top: 190px; width: 230px; height: 230px; margin-left: -115px; border-radius: 52px; overflow: hidden;
+    box-shadow: 0 40px 120px -20px rgba(217,119,87,0.6), 0 0 0 1px rgba(255,255,255,0.08); }
+  #oicon img { width: 100%; height: 100%; display: block; }
+  #oicon .gloss { position: absolute; inset: 0; background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,0.35) 48%, transparent 60%); }
+  #oname { top: 462px; font-size: 156px; font-weight: 800; letter-spacing: -0.05em; line-height: 1; }
+  #oname span { background: linear-gradient(100deg, #fff 0%, #fff 40%, #ffc9b3 50%, #fff 60%, #fff 100%); background-size: 300% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #otag { top: 648px; font-size: 44px; font-weight: 600; letter-spacing: -0.02em; color: #a1a1a6; }
+  #otag .c { color: var(--coral-hi); }
+  #obrew { position: absolute; left: 50%; top: 748px; transform: translateX(-50%); font-family: "UIMono"; font-size: 28px; color: #e5e5ea;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 18px 30px; white-space: pre; opacity: 0; }
+  #obrew .p { color: var(--coral-hi); }
+  #ometa { top: 860px; font-size: 24px; font-weight: 500; color: #6e6e73; }
+  #streak { position: absolute; left: -200px; right: -200px; top: 520px; height: 4px; opacity: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,190,160,0.0) 20%, rgba(255,220,200,1) 50%, rgba(255,190,160,0) 80%, transparent); filter: blur(2px); }
+  #flash { background: #fff; opacity: 0; mix-blend-mode: screen; }
+
+  #grain { mix-blend-mode: overlay; opacity: 0.22; }
+  #vig { background: radial-gradient(ellipse at 50% 48%, transparent 55%, rgba(0,0,0,0.55) 100%); }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- ambient light behind everything -->
+  <div class="layer" id="amb">
+    <div class="blob" id="b1" style="width:900px;height:700px;background:#d97757;"></div>
+    <div class="blob" id="b2" style="width:800px;height:800px;background:#3b2fbf;"></div>
+    <div class="blob" id="b3" style="width:700px;height:500px;background:#0b3a8f;"></div>
+  </div>
+
+  <!-- 1. hook -->
+  <div class="layer" id="hook">
+    <div id="hookworld">
+      <div class="win" id="termwin" style="width:760px;height:300px;">
+        <div class="bar"><i></i><i></i><i></i></div>
+        <div id="term">
+          <div style="color:#8e8e93">● Bash(npm install)</div>
+          <div class="q">Do you want to proceed?</div>
+          <div>❯ 1. Yes<span class="c" id="tcur"></span></div>
+          <div style="color:#636366">  2. No, and tell Claude what to do</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2-7. the display -->
+  <div class="layer" id="cam">
+    <div id="world">
+      <div class="bezel"></div>
+      <div class="screen">
+        <div class="blob" id="w1" style="width:1100px;height:800px;background:#d97757;opacity:.55"></div>
+        <div class="blob" id="w2" style="width:1000px;height:900px;background:#4a3ad6;opacity:.6"></div>
+        <div class="blob" id="w3" style="width:900px;height:700px;background:#0a2c6e;opacity:.8"></div>
+        <div class="shade"></div>
+        <div class="menubar"><i style="left:40px;width:60px"></i><i style="left:120px;width:44px"></i><i style="left:182px;width:52px"></i><i style="right:40px;width:90px"></i><i style="right:150px;width:30px"></i></div>
+        <div id="notchglow"></div>
+        <canvas id="pet" width="144" height="144"></canvas>
+        <div id="shape">
+          <!-- permission -->
+          <div class="ct" id="c-allow">
+            <div class="row hdr" style="top:48px"><div class="badge">!</div><span style="color:var(--yellow)">DEMO</span><span class="dim">· Bash</span><span class="cwd">~/api-server</span></div>
+            <div class="row ttl" style="top:84px">Run shell command</div>
+            <div class="code" style="top:120px">npm install</div>
+            <div class="row btns" style="top:182px">
+              <div class="pill deny">Deny <span class="kbd">⌫</span></div>
+              <div class="aa">⌄&nbsp; Always Allow…</div>
+              <div class="pill allow" id="allowbtn">Allow <span class="kbd">⏎</span></div>
+            </div>
+          </div>
+          <!-- destructive -->
+          <div class="ct" id="c-guard">
+            <div class="row hdr" style="top:48px">
+              <svg width="24" height="22" viewBox="0 0 24 22"><path d="M12 1 L23 21 H1 Z" fill="#ff453a"/><rect x="11" y="7" width="2.4" height="7.5" rx="1.2" fill="#000"/><circle cx="12.2" cy="17.4" r="1.4" fill="#000"/></svg>
+              <span style="color:var(--red)">DEMO</span><span class="dim">· Bash</span><span class="cwd">~/api-server</span></div>
+            <div class="warn" style="top:84px">
+              <b><svg width="18" height="16" viewBox="0 0 24 22"><path d="M12 1 L23 21 H1 Z" fill="#ff453a"/><rect x="11" y="7" width="2.4" height="7.5" rx="1.2" fill="#2a0707"/><circle cx="12.2" cy="17.4" r="1.4" fill="#2a0707"/></svg>This command is destructive</b>
+              <div class="l">• rm -rf: deletes files recursively without prompting</div>
+              <div class="l">• sudo: runs with root privileges</div>
+              <div class="l">• chmod -R 777: makes files world-writable</div>
+            </div>
+            <div class="row ttl" style="top:240px">Run shell command</div>
+            <div class="code" style="top:276px;font-size:15.5px">rm -rf /tmp/cache &amp;&amp; sudo chmod -R 777 /Library/LaunchAgents</div>
+            <div class="row btns" style="top:340px">
+              <div class="pill deny">Deny <span class="kbd">⌫</span></div>
+              <div class="pill holdbtn" id="holdbtn"><div class="fill"></div>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><path d="M12 3a7 7 0 0 1 7 7v2"/><path d="M5 12v-2a7 7 0 0 1 3-5.7"/><path d="M12 7a3 3 0 0 1 3 3v3a8 8 0 0 1-1.5 5"/><path d="M9 10a3 3 0 0 1 .8-2"/><path d="M9 13.5v-3.5"/><path d="M12 11v3a11 11 0 0 1-2 6"/></svg>
+                <span id="holdtxt">Hold to Allow</span></div>
+            </div>
+          </div>
+          <!-- diff -->
+          <div class="ct" id="c-diff">
+            <div class="row hdr" style="top:48px"><div class="badge">!</div><span style="color:var(--yellow)">DEMO</span><span class="dim">· Edit</span><span class="cwd">~/api-server</span></div>
+            <div class="row ttl" style="top:84px">Edit file</div>
+            <div class="row" style="top:118px;font-family:UIMono;font-size:14.5px;color:var(--g1)">src/auth/middleware.ts</div>
+            <div class="diffbox" style="top:146px">
+              <div class="dl m">- const ttl = 60</div>
+              <div class="dl m">- if (!token) return next()</div>
+              <div class="dl m">- log("auth ok")</div>
+              <div class="dl p">+ const ttl = 15 * 60</div>
+              <div class="dl p">+ if (!token) return deny(res)</div>
+              <div class="dl p">+ audit.log("auth ok", user)</div>
+            </div>
+            <div class="row btns" style="top:328px">
+              <div class="pill deny">Deny <span class="kbd">⌫</span></div>
+              <div class="aa">⌄&nbsp; Always Allow…</div>
+              <div class="pill allow">Allow <span class="kbd">⏎</span></div>
+            </div>
+          </div>
+          <!-- sessions -->
+          <div class="ct" id="c-sessions">
+            <div class="row shdr" style="top:50px">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-width="1.6"><rect x="2" y="2" width="14" height="14" rx="3"/><path d="M2 7h14"/></svg>
+              SESSIONS <span style="color:var(--g1);font-weight:600;letter-spacing:0">4 running</span>
+              <div class="meter" style="margin-left:auto"><span>5h</span><div class="track"><i id="m5" style="background:#fff"></i></div><span id="m5t">0%</span></div>
+              <div class="meter" style="margin-left:22px"><span>Week</span><div class="track"><i id="mw" style="background:var(--coral)"></i></div><span id="mwt">0%</span></div>
+            </div>
+            <div class="row tabs" style="top:88px"><span class="tab on">Sessions</span><span class="tab">Projects</span><span class="tab">Events</span></div>
+            <div class="srow" style="top:140px"><div class="ic"></div><div class="nm">api-server <span class="chip">feat/oauth</span></div><div class="mt" data-cost="18.42" data-tok="241">⏱ 1h 52m · 0k tok · $0.00</div><div class="st" style="color:var(--green)"><i style="background:var(--green)"></i>running tests</div><div class="ctx"><i data-w="64"></i></div></div>
+            <div class="srow" style="top:232px"><div class="ic"></div><div class="nm">web-app <span class="chip">main</span></div><div class="mt" data-cost="6.10" data-tok="88">⏱ 38m · 0k tok · $0.00</div><div class="st" style="color:var(--orange)"><i style="background:var(--orange)" id="waitdot"></i>waiting for you</div><div class="ctx"><i data-w="31"></i></div></div>
+            <div class="srow" style="top:324px"><div class="ic"></div><div class="nm">ios-client <span class="chip">fix/race</span></div><div class="mt" data-cost="11.75" data-tok="163">⏱ 1h 05m · 0k tok · $0.00</div><div class="st" style="color:var(--purple)"><i style="background:var(--purple)"></i>compacting context…</div><div class="ctx"><i data-w="88"></i></div></div>
+            <div class="srow" style="top:416px"><div class="ic"></div><div class="nm">docs <span class="chip">main</span></div><div class="mt" data-cost="1.32" data-tok="19">⏱ 9m · 0k tok · $0.00</div><div class="st" style="color:var(--g1)"><i style="background:var(--g2)"></i>idle</div><div class="ctx"><i data-w="12"></i></div></div>
+          </div>
+        </div>
+        <div id="ripple"></div>
+        <svg id="cursor" viewBox="0 0 34 44"><path d="M3 3 L3 34 L11 26.5 L16.5 39 L22 36.6 L16.6 24.3 L27.5 24.3 Z" fill="#fff" stroke="#000" stroke-width="2" stroke-linejoin="round"/></svg>
+        <div id="sparks"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="layer" id="scrim"></div>
+
+  <!-- headlines -->
+  <div class="hl" id="lookup"><div class="main" data-chars>Look up.</div></div>
+  <div class="hl" id="h-hook" style="top:720px"><div class="main" data-mask>Claude is waiting.</div><div class="sub" data-mask>In a terminal you are not looking at.</div></div>
+  <div class="hl" id="h-allow" style="top:690px"><div class="main" data-mask><span class="gradc">Approve.</span></div><div class="sub" data-mask>From the notch. No app switching, no lost focus.</div></div>
+  <div class="hl" id="h-guard" style="top:760px"><div class="main" data-mask>Hold for the risky ones.</div><div class="sub" data-mask><span class="m">rm -rf</span>, <span class="m">sudo</span> and <span class="m">force-push</span> need a press-and-hold.</div></div>
+  <div class="hl" id="h-diff" style="top:760px"><div class="main" data-mask>See the diff first.</div><div class="sub" data-mask>Red and green, right inside the card.</div></div>
+  <div class="hl" id="h-sessions" style="top:770px"><div class="main" data-mask>Every session. One glance.</div><div class="sub" data-mask>Live spend, context left, and when your limits reset.</div></div>
+  <div class="hl" id="h-pet" style="top:720px"><div class="main" data-mask>Boop it.</div><div class="sub" data-mask>It backflips. Obviously.</div></div>
+
+  <!-- outro -->
+  <div class="layer" id="outro">
+    <div id="streak"></div>
+    <div id="oicon"><img src="icon.png" alt=""><div class="gloss"></div></div>
+    <div class="hl" id="oname"><span>ClaudeNotch</span></div>
+    <div class="hl" id="otag" data-mask>Claude Code, <span class="c">in your notch.</span></div>
+    <div id="obrew"><span class="p">$ </span><span id="obrewt"></span></div>
+    <div class="hl" id="ometa">Free for personal use · macOS 13+ · Apple Silicon and Intel</div>
+  </div>
+
+  <div class="layer" id="flash"></div>
+  <canvas class="layer" id="grain" width="960" height="540" style="width:1920px;height:1080px"></canvas>
+  <div class="layer" id="vig"></div>
+</div>
+
+<script>
+const TL = TIMELINE_JSON;
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, p) => a + (b - a) * p;
+const oC = x => 1 - Math.pow(1 - clamp(x), 3);
+const oQ = x => 1 - Math.pow(1 - clamp(x), 5);            // snappier ease-out
+const iO = x => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const iOq = x => { x = clamp(x); return x < 0.5 ? 16 * Math.pow(x, 5) : 1 - Math.pow(-2 * x + 2, 5) / 2; };
+const iC = x => Math.pow(clamp(x), 3);
+const spring = (x, k = 9, z = 0.55) => x <= 0 ? 0 : 1 - Math.exp(-z * k * x) * Math.cos(k * Math.sqrt(1 - z * z) * x);
+const S = Object.fromEntries(TL.scenes.map(s => [s.id, s]));
+const local = (id, t) => t - S[id].start;
+
+// ---------- text splitting: mask-up words, and single chars ----------
+function splitMask(el) {
+  const walk = node => {
+    [...node.childNodes].forEach(n => {
+      if (n.nodeType === 3) {
+        const f = document.createDocumentFragment();
+        n.textContent.split(/(\s+)/).forEach(p => {
+          if (!p) return;
+          if (/^\s+$/.test(p)) { f.appendChild(document.createTextNode(' ')); return; }
+          const o = document.createElement('span'); o.className = 'mw';
+          const i = document.createElement('span'); i.textContent = p; o.appendChild(i); f.appendChild(o);
+        });
+        n.replaceWith(f);
+      } else if (n.nodeType === 1) {
+        if (n.classList.contains('m') || n.classList.contains('gradc')) {
+          const o = document.createElement('span'); o.className = 'mw';
+          n.replaceWith(o); o.appendChild(n);
+        } else walk(n);
+      }
+    });
+  };
+  walk(el);
+  return $$('.mw > *', el);
+}
+const MASK = new Map();
+$$('[data-mask]').forEach(el => MASK.set(el, splitMask(el)));
+const CHARS = new Map();
+$$('[data-chars]').forEach(el => {
+  const txt = el.textContent; el.textContent = '';
+  CHARS.set(el, [...txt].map(c => { const s = document.createElement('span'); s.className = 'ch'; s.textContent = c === ' ' ? ' ' : c; el.appendChild(s); return s; }));
+});
+function maskIn(el, u, start, stagger = 0.06, dur = 0.7) {
+  MASK.get(el).forEach((w, i) => {
+    const p = oQ((u - start - i * stagger) / dur);
+    w.style.transform = `translateY(${(1 - p) * 110}%)`;
+    w.style.filter = `blur(${(1 - p) * 6}px)`;
+  });
+}
+function headline(id, t, inAt = 0.35, outDur = 0.35) {
+  const s = S[id.replace('h-', '')], el = $('#' + id), u = t - s.start;
+  const on = u > 0 && u < s.dur;
+  el.style.opacity = on ? 1 : 0;
+  if (!on) return;
+  const out = iC((u - (s.dur - outDur)) / outDur);
+  el.style.transform = `translateY(${-out * 40}px)`;
+  el.style.opacity = 1 - out;
+  el.style.filter = `blur(${out * 10}px)`;
+  const [main, sub] = el.children;
+  maskIn(main, u, inAt, 0.07);
+  if (sub) { maskIn(sub, u, inAt + 0.3, 0.035, 0.6); }
+}
+
+// ---------- ambient light ----------
+function ambient(t) {
+  const a = t * 0.35;
+  const set = (el, x, y, o) => { el.style.transform = `translate(${x}px, ${y}px)`; el.style.opacity = o; };
+  const glow = 0.35 + 0.1 * Math.sin(t * 1.3);
+  set($('#b1'), 600 + Math.sin(a) * 260, 300 + Math.cos(a * 0.8) * 120, glow);
+  set($('#b2'), 1100 + Math.cos(a * 0.7) * 300, 100 + Math.sin(a) * 160, 0.35);
+  set($('#b3'), 200 + Math.sin(a * 0.6) * 200, 500 + Math.cos(a) * 100, 0.4);
+  set($('#w1'), 300 + Math.sin(a * 1.1) * 300, 350 + Math.cos(a) * 150, 0.55);
+  set($('#w2'), 900 + Math.cos(a * 0.9) * 280, 150 + Math.sin(a * 0.7) * 200, 0.6);
+  set($('#w3'), 500 + Math.sin(a * 0.5) * 350, 500, 0.8);
+}
+
+// ---------- 1. hook: windows in depth, the terminal gets buried ----------
+const WINS = [
+  { w: 820, h: 520, x: -620, y: -160, z: 200, from: [-1800, 0], at: 0.55, hue: '#5e5ce6' },
+  { w: 700, h: 460, x: 560, y: -120, z: 260, from: [1800, -200], at: 0.7, hue: '#ff9f0a' },
+  { w: 900, h: 560, x: -120, y: 140, z: 420, from: [0, 1200], at: 0.85, hue: '#30d158' },
+  { w: 640, h: 420, x: 700, y: 260, z: 520, from: [1600, 600], at: 1.0, hue: '#0a84ff' },
+  { w: 760, h: 480, x: -760, y: 280, z: 600, from: [-1600, 700], at: 1.12, hue: '#bf5af2' },
+];
+const hookWorld = $('#hookworld');
+WINS.forEach((W, i) => {
+  const d = document.createElement('div'); d.className = 'win';
+  d.style.width = W.w + 'px'; d.style.height = W.h + 'px';
+  let html = '<div class="bar"><i></i><i></i><i></i></div>';
+  html += `<div class="blk" style="left:24px;top:58px;width:${W.w * 0.42}px;height:${W.h * 0.5}px;background:linear-gradient(135deg, ${W.hue}55, ${W.hue}11)"></div>`;
+  for (let k = 0; k < 7; k++) html += `<div class="sk" style="top:${70 + k * 30}px;left:${W.w * 0.5}px;width:${W.w * (0.38 - (k % 3) * 0.08)}px"></div>`;
+  for (let k = 0; k < 3; k++) html += `<div class="sk" style="top:${W.h * 0.62 + 30 + k * 28}px;width:${W.w * (0.8 - k * 0.2)}px"></div>`;
+  d.innerHTML = html; W.el = d; hookWorld.appendChild(d);
+});
+function hook(t) {
+  const s = S.hook, u = t;
+  const el = $('#hook');
+  const on = t < s.dur + 0.3;
+  el.style.opacity = on ? 1 : 0;
+  if (!on) return;
+  // whip out left at the end
+  const whip = iC((t - 2.72) / 0.28);
+  const pull = iO(u / 3.0);
+  hookWorld.style.transform = `translateX(${-whip * 2600}px) translateZ(${-pull * 380}px) rotateY(${lerp(-6, 5, pull)}deg) rotateX(${lerp(4, -2, pull)}deg)`;
+  const tw = $('#termwin');
+  const tIn = oQ(u / 0.6);
+  tw.style.transform = `translate(-50%, -60%) translateZ(${lerp(-200, 0, tIn)}px) scale(1.35)`;
+  tw.style.opacity = tIn;
+  tw.style.filter = `blur(${clamp((u - 1.0) / 1.2) * 5}px) brightness(${1 - clamp((u - 1.0) / 1.5) * 0.5})`;
+  $('#tcur').style.opacity = Math.floor(u * 2.4) % 2 ? 0.1 : 1;
+  WINS.forEach(W => {
+    const p = oQ((u - W.at) / 0.9);
+    const x = lerp(W.from[0], W.x, p), y = lerp(W.from[1], W.y, p);
+    W.el.style.transform = `translate(-50%, -50%) translate3d(${x}px, ${y}px, ${W.z}px) rotateY(${(1 - p) * (W.from[0] > 0 ? -25 : 25)}deg)`;
+    W.el.style.opacity = clamp(p * 1.6);
+    W.el.style.filter = `blur(${Math.max(0, (W.z - 300)) / 90 + (1 - p) * 8}px)`;
+  });
+}
+
+// ---------- camera over the display ----------
+// keys: [t, focusX, focusY, frameY, scale, rotX, rotY]
+const CAM = [
+  [3.0, 960, 600, 480, 0.47, 14, -14],
+  [5.15, 960, 600, 470, 0.56, 7, 3],
+  [5.72, 960, 190, 330, 1.55, 0, 0],
+  [14.95, 960, 190, 330, 1.58, 0, 0],
+  [15.65, 960, 275, 385, 1.2, 0, 0],
+  [18.3, 960, 275, 385, 1.22, 0, 0],
+  [18.9, 960, 150, 350, 1.95, 0, 0],
+  [20.8, 960, 150, 350, 2.0, 0, 0],
+];
+function camAt(t) {
+  let i = 0;
+  while (i < CAM.length - 2 && t > CAM[i + 1][0]) i++;
+  const a = CAM[i], b = CAM[i + 1];
+  const p = iOq((t - a[0]) / (b[0] - a[0]));
+  return a.map((v, k) => lerp(v, b[k], p));
+}
+function camera(t) {
+  const el = $('#cam');
+  const on = t >= 2.9 && t < 21.4;
+  el.style.opacity = on ? 1 : 0;
+  if (!on) return;
+  const [, fx, fy, frY, s, rx, ry] = camAt(t);
+  const drift = Math.sin(t * 0.9) * 1.2, driftX = Math.cos(t * 0.7) * 0.8;
+  const enter = 1 - oQ((t - 3.0) / 0.34);                        // whip in from the right
+  const leave = iC((t - 20.7) / 0.3);          // gone before the outro draws, no double exposure
+  $('#world').style.transform =
+    `translate(${960 + enter * 2400}px, ${frY - leave * 60}px) perspective(2200px) rotateX(${rx + driftX}deg) rotateY(${ry + drift}deg) scale(${s * (1 - leave * 0.35)}) translate(${-fx}px, ${-fy}px)`;
+  el.style.opacity = 1 - leave;
+  el.style.filter = `blur(${leave * 16}px)`;
+}
+
+// ---------- the notch shape: size + content per scene ----------
+const SIZES = { notch: [210, 36, 16], allow: [680, 240, 30], guard: [720, 404, 30], diff: [720, 390, 30], sessions: [880, 536, 34], pet: [250, 38, 18] };
+const TRANS = [ // [t, from, to]
+  [0, 'notch', 'notch'], [5.42, 'notch', 'allow'], [7.85, 'allow', 'notch'], [9.0, 'notch', 'guard'],
+  [12.5, 'guard', 'diff'], [15.0, 'diff', 'sessions'], [18.25, 'sessions', 'pet'],
+];
+function shapeState(t) {
+  let cur = TRANS[0];
+  for (const tr of TRANS) if (t >= tr[0]) cur = tr;
+  const u = t - cur[0];
+  const p = spring(u / 0.62 * 1.25, 8.5, 0.5);
+  const A = SIZES[cur[1]], B = SIZES[cur[2]];
+  return { w: lerp(A[0], B[0], p), h: lerp(A[1], B[1], p), r: lerp(A[2], B[2], clamp(p)), from: cur[1], to: cur[2], u };
+}
+function shape(t) {
+  const st = shapeState(t);
+  const sh = $('#shape');
+  sh.style.width = st.w + 'px'; sh.style.height = st.h + 'px';
+  sh.style.transform = 'translateX(-50%)';
+  sh.style.borderRadius = `0 0 ${st.r}px ${st.r}px`;
+  // content: old out fast, new in after the shape has mostly opened
+  for (const id of ['allow', 'guard', 'diff', 'sessions']) {
+    const c = $('#c-' + id);
+    let o = 0, y = 0;
+    if (st.to === id) { const p = oC((st.u - 0.2) / 0.35); o = p; y = (1 - p) * 14; }
+    else if (st.from === id) { const p = clamp(st.u / 0.14); o = 1 - p; y = -p * 8; }
+    c.style.opacity = o; c.style.transform = `translateY(${y}px)`;
+  }
+  // coral glow calls the eye to the notch before it opens
+  const g = Math.max(0, Math.sin(clamp((t - 4.0) / 1.5) * Math.PI)) * 0.9 + Math.max(0, 1 - Math.abs(t - 7.62) / 0.35) * 0.7 * (t > 7.62 ? 1 : 0.3);
+  $('#notchglow').style.opacity = g;
+}
+
+// ---------- cursor ----------
+// keys in screen coords: [t, x, y, opacity]
+const CUR = [
+  [6.3, 1460, 520, 0], [6.6, 1400, 470, 1], [7.45, 1238, 205, 1], [7.9, 1250, 230, 1], [8.3, 1330, 330, 0],
+  [10.0, 1500, 600, 0], [10.3, 1420, 540, 1], [10.85, 1215, 362, 1], [12.0, 1215, 362, 1], [12.3, 1300, 450, 0],
+  [18.9, 1260, 330, 0], [19.1, 1180, 280, 1], [19.58, 990, 104, 1], [19.9, 1060, 170, 1], [20.4, 1180, 260, 0],
+];
+function cursor(t) {
+  const c = $('#cursor');
+  let i = CUR.findIndex((k, j) => j < CUR.length - 1 && t >= k[0] && t < CUR[j + 1][0]);
+  if (i < 0) { c.style.opacity = 0; return; }
+  const a = CUR[i], b = CUR[i + 1];
+  if (b[0] - a[0] > 1.2 && a[3] === 0 && b[3] === 0) { c.style.opacity = 0; return; }
+  const p = iO((t - a[0]) / (b[0] - a[0]));
+  const press = [7.55, 10.9, 19.6].some(ct => t >= ct - 0.06 && t < ct + 0.12) || (t > 10.9 && t < 11.95);
+  c.style.opacity = lerp(a[3], b[3], p);
+  c.style.transform = `translate(${lerp(a[1], b[1], p)}px, ${lerp(a[2], b[2], p)}px) scale(${press ? 0.84 : 1})`;
+  // ripple on each click
+  const rp = $('#ripple');
+  const clicks = [[7.55, 1238, 205], [10.9, 1215, 362], [19.6, 990, 104]];
+  const cl = clicks.find(k => t >= k[0] && t < k[0] + 0.5);
+  if (cl) { const q = (t - cl[0]) / 0.5; rp.style.left = cl[1] + 'px'; rp.style.top = cl[2] + 'px'; rp.style.opacity = (1 - q) * 0.8; rp.style.transform = `scale(${0.3 + oC(q) * 1.1})`; }
+  else rp.style.opacity = 0;
+}
+
+// ---------- per-scene UI life ----------
+function uiLife(t) {
+  // allow: the button presses in, then the card snaps shut with a confirm
+  const ab = $('#allowbtn');
+  const ap = t >= 7.49 && t < 7.7;
+  ab.style.transform = `scale(${ap ? 0.93 : 1})`;
+  ab.style.background = t >= 7.55 ? '#30d158' : '#fff';
+  ab.innerHTML = t >= 7.55 ? 'Allowed <span class="kbd">✓</span>' : 'Allow <span class="kbd">⏎</span>';
+  // guard: warnings land one by one, then the hold fills
+  $$('#c-guard .warn .l').forEach((l, i) => {
+    const p = oQ((local('guard', t) - 0.45 - i * 0.14) / 0.45);
+    l.style.opacity = p; l.style.transform = `translateX(${(1 - p) * 24}px)`;
+  });
+  const hp = clamp((t - 10.9) / 1.0);
+  $('#holdbtn .fill').style.width = (iO(hp) * 100) + '%';
+  $('#holdtxt').textContent = hp >= 1 ? 'Allowed' : hp > 0 ? 'Hold…' : 'Hold to Allow';
+  const hb = $('#holdbtn');
+  hb.style.transform = `scale(${hp > 0 && hp < 1 ? 0.96 + Math.sin(t * 40) * 0.004 : hp >= 1 ? 1 + 0.06 * Math.max(0, 1 - (t - 11.9) / 0.25) : 1})`;
+  hb.style.boxShadow = hp > 0 ? `0 0 ${20 + hp * 40}px rgba(255,69,58,${0.25 + hp * 0.45})` : 'none';
+  // diff lines slide in
+  $$('#c-diff .dl').forEach((l, i) => {
+    const p = oQ((local('diff', t) - 0.35 - i * 0.09) / 0.4);
+    l.style.opacity = p; l.style.transform = `translateX(${(1 - p) * -40}px)`;
+  });
+  // sessions: rows cascade, meters fill, money ticks
+  const su = local('sessions', t);
+  $$('#c-sessions .srow').forEach((r, i) => {
+    const p = oQ((su - 0.6 - i * 0.12) / 0.5);
+    r.style.opacity = p; r.style.transform = `translateY(${(1 - p) * 30}px) scale(${0.97 + 0.03 * p})`;
+    const m = r.querySelector('.mt'); const k = oC((su - 0.7 - i * 0.12) / 1.6);
+    const cost = (+m.dataset.cost * k).toFixed(2), tok = Math.round(+m.dataset.tok * k);
+    m.textContent = m.textContent.replace(/· \d+k tok · \$[\d.]+/, `· ${tok}k tok · $${cost}`);
+    r.querySelector('.ctx i').style.width = (k * +r.querySelector('.ctx i').dataset.w) + '%';
+  });
+  const mk = oC((su - 0.5) / 1.4);
+  $('#m5').style.width = (mk * 38) + '%'; $('#m5t').textContent = Math.round(mk * 38) + '%';
+  $('#mw').style.width = (mk * 62) + '%'; $('#mwt').textContent = Math.round(mk * 62) + '%';
+  const wd = $('#waitdot'); wd.style.boxShadow = `0 0 0 ${3 + 3 * Math.abs(Math.sin(t * 5))}px rgba(255,159,10,0.25)`;
+}
+
+// ---------- the pet: PetRig.swift's 16x16 grid ----------
+const pg = $('#pet').getContext('2d');
+function drawPet({ dangle = 0, armR = 0, armL = 0, blink = 0 }) {
+  const c = 9; pg.clearRect(0, 0, 144, 144);
+  pg.fillStyle = '#d97757';
+  const R = (x, y, w, h) => pg.fillRect(x * c, y * c, w * c, h * c);
+  [[3, 0], [5, 1], [10, 0], [12, 1]].forEach(([x, k]) => R(x, 10, 1, 3 + (k ? dangle : dangle * 0.6)));
+  const arm = (px, dir, a) => { pg.save(); pg.translate(px * c, 8 * c); pg.rotate(a * dir); pg.fillRect(-2 * c, -c, 4 * c, 2 * c); pg.restore(); };
+  arm(2, 1, armL); arm(14, -1, armR);
+  R(2, 3, 12, 4); R(2, 7, 12, 2); R(2, 9, 12, 2);
+  pg.fillStyle = '#2b1a13';
+  const eh = 2 * (1 - blink);
+  R(4, 5 + (2 - eh), 1, Math.max(0.25, eh)); R(11, 5 + (2 - eh), 1, Math.max(0.25, eh));
+}
+const SPARKS = Array.from({ length: 10 }, (_, i) => { const d = document.createElement('div'); d.className = 'spark'; $('#sparks').appendChild(d); return { d, a: i / 10 * Math.PI * 2 + 0.3, v: 90 + (i % 3) * 40 }; });
+function pet(t) {
+  const el = $('#pet');
+  const u = local('pet', t) + 0.25;           // scene starts as the panel is closing
+  if (u < 0.35 || t > 21.3) { el.style.opacity = 0; SPARKS.forEach(s => s.d.style.opacity = 0); return; }
+  el.style.opacity = 1;
+  // emerges from behind the notch, then idles with a hop
+  let y = lerp(-110, 24, spring((u - 0.35) / 0.5, 9, 0.45));
+  let rot = 0, sx = 1, sy = 1, dangle = 0;
+  const flipT = 19.62, landT = 20.25;
+  if (t < flipT) {
+    y -= Math.max(0, Math.sin((u - 0.9) * Math.PI * 2.2)) * 10 * (u > 0.9 ? 1 : 0);
+  } else if (t < landT) {
+    const f = (t - flipT) / (landT - flipT);
+    y = 24 - Math.sin(f * Math.PI) * 120;
+    rot = -360 * iO(f);
+    dangle = 1;
+    sy = 1 + 0.08 * Math.sin(f * Math.PI); sx = 1 - 0.05 * Math.sin(f * Math.PI);
+  } else {
+    const b = t - landT, sq = Math.exp(-b * 12) * Math.cos(b * 28);
+    sy = 1 - 0.2 * sq; sx = 1 + 0.15 * sq;
+  }
+  el.style.transform = `translateY(${y}px) rotate(${rot}deg) scale(${sx}, ${sy})`;
+  const wave = t > 20.45 && t < 21.1 ? 0.8 + Math.sin((t - 20.45) * 18) * 0.5 : 0;
+  const blink = Math.max(0, 1 - Math.abs(t - 19.25) / 0.06);
+  drawPet({ dangle, armL: t >= flipT && t < landT ? 0.7 : 0, armR: t >= flipT && t < landT ? 0.7 : wave, blink });
+  // sparkle burst on landing
+  const sb = (t - landT) / 0.6;
+  SPARKS.forEach(s => {
+    if (sb < 0 || sb > 1) { s.d.style.opacity = 0; return; }
+    const r = oC(sb) * s.v;
+    s.d.style.left = (960 + Math.cos(s.a) * r * 1.3 - 6) + 'px';
+    s.d.style.top = (24 + 72 + Math.sin(s.a) * r * 0.8 - 6) + 'px';
+    s.d.style.opacity = 1 - sb;
+    s.d.style.transform = `rotate(45deg) scale(${1 - sb * 0.6})`;
+  });
+}
+
+// ---------- 2. "Look up." ----------
+function lookup(t) {
+  const el = $('#lookup'), u = local('lookup', t);
+  const on = u > 0 && u < S.lookup.dur;
+  el.style.opacity = on ? 1 : 0;
+  if (!on) return;
+  const out = iC((u - 2.05) / 0.35);
+  el.style.opacity = 1 - out;
+  el.style.transform = `translateY(${-out * 30}px) scale(${1 + out * 0.08})`;
+  el.style.filter = `blur(${out * 12}px)`;
+  CHARS.get(el.firstElementChild).forEach((c, i) => {
+    const p = oQ((u - 0.48 - i * 0.035) / 0.6);
+    c.style.opacity = p;
+    c.style.transform = `translateY(${(1 - p) * 60}px) scale(${1 + (1 - p) * 0.25})`;
+    c.style.filter = `blur(${(1 - p) * 14}px)`;
+  });
+}
+
+// ---------- 8. outro ----------
+function outro(t) {
+  const el = $('#outro'), u = local('outro', t);
+  el.style.opacity = u > -0.05 ? 1 : 0;
+  if (u < -0.05) return;
+  const ip = spring((u - 0.05) / 0.7 * 1.2, 8, 0.55);
+  const ic = $('#oicon');
+  ic.style.opacity = clamp(ip * 2);
+  ic.style.transform = `translateY(${(1 - clamp(ip)) * 40}px) scale(${0.6 + 0.4 * ip})`;
+  ic.style.filter = `blur(${(1 - clamp(ip * 1.5)) * 20}px)`;
+  $('#oicon .gloss').style.transform = `translateX(${lerp(-120, 140, iO((u - 0.5) / 1.1))}%)`;
+  const np = oQ((u - 0.35) / 0.8);
+  const nm = $('#oname');
+  nm.style.opacity = np; nm.style.transform = `translateY(${(1 - np) * 50}px)`; nm.style.filter = `blur(${(1 - np) * 18}px)`;
+  nm.firstElementChild.style.backgroundPosition = `${lerp(100, 0, iO((u - 0.7) / 1.4))}% 0`;
+  const tg = $('#otag'); tg.style.opacity = u > 0.8 ? 1 : 0; maskIn(tg, u, 0.85, 0.07);
+  const bp = oQ((u - 1.3) / 0.5), br = $('#obrew');
+  br.style.opacity = bp; br.style.transform = `translateX(-50%) translateY(${(1 - bp) * 20}px)`;
+  const cmd = 'brew install --cask rawsun007/tap/claudenotch';
+  const n = Math.floor(clamp((u - 1.45) / 0.85) * cmd.length);
+  $('#obrewt').innerHTML = cmd.slice(0, n) + `<span style="opacity:${n < cmd.length || Math.floor(u * 2.2) % 2 ? 0.8 : 0}">▍</span>`;
+  const mp = oC((u - 2.0) / 0.6), me = $('#ometa');
+  me.style.opacity = mp; me.style.transform = `translateY(${(1 - mp) * 14}px)`;
+  const sk = $('#streak'), sp = (u + 0.05) / 0.9;
+  sk.style.opacity = sp > 0 && sp < 1 ? Math.sin(sp * Math.PI) : 0;
+  sk.style.transform = `scaleX(${0.4 + sp})`;
+}
+
+// ---------- film grain + flashes ----------
+const GR = Array.from({ length: 6 }, (_, k) => {
+  const c = document.createElement('canvas'); c.width = 960; c.height = 540;
+  const g = c.getContext('2d'), im = g.createImageData(960, 540);
+  let seed = 1234 + k * 999;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < im.data.length; i += 4) { const v = rnd() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; }
+  g.putImageData(im, 0, 0); return c;
+});
+function finish(t) {
+  const f = Math.floor(t * 24) % GR.length;          // grain moves at film rate
+  $('#grain').getContext('2d').drawImage(GR[f], 0, 0);
+  const fl = [[3.5, 0.18], [5.55, 0.12], [21.0, 0.35]].reduce((m, [ft, a]) => Math.max(m, t >= ft && t < ft + 0.4 ? a * (1 - (t - ft) / 0.4) : 0), 0);
+  $('#flash').style.opacity = fl;
+  // scrim under headlines during the display scenes
+  const sc = t > 5.6 && t < 20.9 ? clamp((t - 5.6) / 0.4) * clamp((20.9 - t) / 0.3) : 0;
+  $('#scrim').style.opacity = sc;
+}
+
+window.render = function (t) {
+  ambient(t);
+  hook(t);
+  camera(t);
+  shape(t);
+  cursor(t);
+  uiLife(t);
+  pet(t);
+  lookup(t);
+  ['h-hook', 'h-allow', 'h-guard', 'h-diff', 'h-sessions', 'h-pet'].forEach(id => headline(id, t, id === 'h-hook' ? 0.8 : 0.35, id === 'h-hook' ? 0.3 : 0.35));
+  outro(t);
+  finish(t);
+};
+
+window.ready = (async () => {
+  await document.fonts.load('800 100px "Inter Tight"');
+  await document.fonts.load('600 20px UI');
+  await document.fonts.load('400 20px UIMono');
+  await document.fonts.ready;
+  await Promise.all([...document.images].map(i => i.decode()));
+  render(0);
+  return true;
+})();
+</script>
+</body>
+</html>
