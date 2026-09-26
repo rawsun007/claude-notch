@@ -144,6 +144,8 @@
     background: linear-gradient(90deg, transparent, rgba(255,190,160,0.0) 20%, rgba(255,220,200,1) 50%, rgba(255,190,160,0) 80%, transparent); filter: blur(2px); }
   #flash { background: #fff; opacity: 0; mix-blend-mode: screen; }
 
+  #eggnotch { position: absolute; left: 50%; top: 0; width: 250px; height: 40px; margin-left: -125px; background: #000; border-radius: 0 0 18px 18px;
+    box-shadow: 0 0 0 1.5px rgba(255,255,255,0.22), 0 0 0 4px rgba(255,255,255,0.04), 0 18px 70px -6px rgba(217,119,87,0.6); transform-origin: 50% 0; }
   #grain { mix-blend-mode: overlay; opacity: 0.22; }
   #vig { background: radial-gradient(ellipse at 50% 48%, transparent 55%, rgba(0,0,0,0.55) 100%); }
 </style>
@@ -277,6 +279,15 @@
     <div class="hl" id="otag" data-mask>Claude Code, <span class="c">in your notch.</span></div>
     <div id="obrew"><span class="p">$ </span><span id="obrewt"></span></div>
     <div class="hl" id="ometa">Free for personal use · macOS 13+ · Apple Silicon and Intel</div>
+  </div>
+
+  <!-- 9. post-credits: a guest drops in -->
+  <div class="layer" id="egg" style="opacity:0">
+    <!-- canvas first, notch on top: the guest climbs out from behind the notch -->
+    <canvas id="eggcv" width="1920" height="1080" style="position:absolute;inset:0"></canvas>
+    <div id="eggnotch"></div>
+    <div class="hl" id="eggpsst" style="top:790px"><div class="sub" style="color:var(--coral-hi);font-weight:600;margin:0">Psst.</div></div>
+    <div class="hl" id="eggcap" style="top:842px"><div class="main" style="font-size:84px" data-mask>Some days, a guest drops in.</div></div>
   </div>
 
   <div class="layer" id="flash"></div>
@@ -662,6 +673,88 @@ function finish(t) {
   $('#scrim').style.opacity = sc;
 }
 
+// ---------- 9. the guest: Spider-Pet, as the app draws it ----------
+// Colours and lens geometry from NotchPetViews.swift: red torso, blue arms and
+// legs, big white lenses with a dark rim, hanging head-down on a white web.
+const ec = $('#eggcv').getContext('2d');
+const SP = { red: '#cc1c21', blue: '#21338c', lens: '#f5f5f5', rim: '#141414' };
+function drawSpider(g, c, { armL = 0.9, armR = 0.9, blink = 0 }) {
+  const R = (x, y, w, h) => g.fillRect(x * c, y * c, w * c, h * c);
+  g.fillStyle = SP.blue;
+  [3, 5, 10, 12].forEach(x => R(x, 10, 1, 3));
+  const arm = (px, dir, a) => { g.save(); g.translate(px * c, 8 * c); g.rotate(a * dir); g.fillRect(-2 * c, -c, 4 * c, 2 * c); g.restore(); };
+  arm(2, 1, armL); arm(14, -1, armR);
+  g.fillStyle = SP.red;
+  R(2, 3, 12, 4); R(2, 7, 12, 2); R(2, 9, 12, 2);
+  const open = 1 - blink;
+  [[3.0, 4.7], [10.8, 4.7]].forEach(([x, y]) => {
+    const h = 2.6 * open; if (h < 0.05) return;
+    const dy = 2.6 - h;
+    g.fillStyle = SP.rim; R(x - 0.35, y + dy - 0.35, 2.2 + 0.7, h + 0.7);
+    g.fillStyle = SP.lens; R(x, y + dy, 2.2, h);
+  });
+}
+const EGG_SPARKS = Array.from({ length: 8 }, (_, i) => ({ a: -Math.PI / 2 + (i - 3.5) * 0.35, v: 70 + (i % 3) * 30 }));
+function egg(t) {
+  const el = $('#egg'), e = t - 25.0;
+  el.style.opacity = e >= 0 ? 1 - iC((e - 4.55) / 0.45) : 0;
+  if (e < 0) return;
+  // the notch arrives, and bumps when the guest zips back into it
+  const nn = $('#eggnotch');
+  const ni = oC((e - 0.2) / 0.3);
+  const bump = e > 4.08 ? Math.exp(-(e - 4.08) * 9) * Math.sin((e - 4.08) * 30) : 0;
+  nn.style.opacity = ni;
+  nn.style.transform = `translateY(${(1 - ni) * -40}px) scale(${1 + bump * 0.12}, ${1 - bump * 0.18})`;
+
+  ec.clearRect(0, 0, 1920, 1080);
+  const px = 960, py = 38, c = 16, L = 400;
+  // web length and swing angle over time
+  let web = 0, feet = 0, th = 0;
+  if (e < 0.5) feet = -300;
+  else if (e < 0.92) { const f = (e - 0.5) / 0.42; feet = lerp(-300, L, f * f); }   // falls down it
+  else if (e < 3.85) { const s = e - 0.92; feet = L + 26 * Math.exp(-s * 6) * Math.sin(s * 16); th = 0.34 * Math.exp(-s * 0.3) * Math.sin(s * 2.5); }
+  else { const f = iC((e - 3.85) / 0.25); th = 0.34 * Math.exp(-2.93 * 0.3) * Math.sin(2.93 * 2.5) * (1 - f); feet = lerp(L, -320, f); web = Math.max(0, feet); }
+  if (e >= 0.5 && e < 3.85) web = Math.max(0, feet);
+  if (e >= 4.1) web = 0;
+  // the strand
+  if (web > 1) {
+    const reach = Math.min(web, Math.max(feet, 0));
+    const tip = reach;
+    ec.save();
+    ec.strokeStyle = 'rgba(240,240,245,0.92)'; ec.lineWidth = 2.6; ec.lineCap = 'round';
+    ec.shadowColor = 'rgba(255,255,255,0.5)'; ec.shadowBlur = 8;
+    ec.beginPath(); ec.moveTo(px, py); ec.lineTo(px + Math.sin(th) * tip, py + Math.cos(th) * tip); ec.stroke();
+    ec.restore();
+  }
+  // the guest, head-down, feet on the strand
+  if (feet > -300 && e < 4.1) {
+    const wave = e > 3.05 && e < 3.8 ? Math.sin((e - 3.05) * 20) * 0.45 : 0;
+    const blink = Math.max(0, 1 - Math.abs(e - 2.55) / 0.06, 1 - Math.abs(e - 3.35) / 0.06);
+    ec.save();
+    ec.translate(px, py);
+    ec.rotate(-th);
+    ec.translate(0, feet);
+    ec.rotate(Math.PI);
+    ec.translate(-8 * c, -13 * c);
+    const sway = Math.sin(e * 5) * 0.08;
+    drawSpider(ec, c, { armL: 0.95 + sway + th * 0.8, armR: 0.95 - sway - th * 0.8 + wave, blink });
+    ec.restore();
+  }
+  // a little sparkle where it vanishes
+  const sb = (e - 4.08) / 0.55;
+  if (sb > 0 && sb < 1) {
+    ec.fillStyle = `rgba(240,162,131,${1 - sb})`;
+    EGG_SPARKS.forEach(k => { const r = oC(sb) * k.v; ec.save(); ec.translate(px + Math.cos(k.a) * r * 1.4, py + 30 + Math.sin(k.a) * -r * 0.5 + r * 0.9); ec.rotate(Math.PI / 4); ec.fillRect(-5, -5, 10, 10); ec.restore(); });
+  }
+  // captions
+  const ps = $('#eggpsst'), pp = oC((e - 1.55) / 0.35), pout = iC((e - 3.75) / 0.3);
+  ps.style.opacity = pp * (1 - pout); ps.style.transform = `translateY(${(1 - pp) * 12 - pout * 20}px)`;
+  const cap = $('#eggcap');
+  cap.style.opacity = e > 1.8 ? 1 - pout : 0;
+  cap.style.transform = `translateY(${-pout * 30}px)`; cap.style.filter = `blur(${pout * 10}px)`;
+  maskIn(cap.firstElementChild, e, 1.85, 0.07);
+}
+
 window.render = function (t) {
   ambient(t);
   hook(t);
@@ -673,6 +766,7 @@ window.render = function (t) {
   lookup(t);
   ['h-hook', 'h-allow', 'h-guard', 'h-diff', 'h-sessions', 'h-pet'].forEach(id => headline(id, t, id === 'h-hook' ? 0.8 : 0.35, id === 'h-hook' ? 0.3 : 0.35));
   outro(t);
+  egg(t);
   finish(t);
 };
 
