@@ -1,0 +1,22 @@
+{
+  "fps": 30,
+  "duration": 22.55,
+  "scenes": [
+    {"id": "hook",   "start": 0.0,   "dur": 3.6},
+    {"id": "reveal", "start": 3.6,   "dur": 3.0},
+    {"id": "allow",  "start": 6.6,   "dur": 4.0,  "clip": "a", "frames": 120},
+    {"id": "guard",  "start": 10.6,  "dur": 4.25, "clip": "b", "frames": 128},
+    {"id": "done",   "start": 14.85, "dur": 3.2,  "clip": "c", "frames": 96},
+    {"id": "outro",  "start": 18.05, "dur": 4.5}
+  ],
+  "cues": [
+    {"type": "card",  "t": 3.85},
+    {"type": "card",  "t": 7.17},
+    {"type": "click", "t": 9.93},
+    {"type": "card",  "t": 11.17},
+    {"type": "hold",  "t": 14.17, "d": 0.62},
+    {"type": "done",  "t": 15.40},
+    {"type": "land",  "t": 18.85},
+    {"type": "boop",  "t": 19.75}
+  ]
+}

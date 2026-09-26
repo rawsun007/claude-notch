@@ -1,0 +1,305 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ClaudeNotch brag</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=block" rel="stylesheet">
+<style>
+  /* The site's own tokens (app/globals.css). */
+  :root {
+    --canvas: #faf9f5; --card: #efe9de; --ink: #141413; --body: #3d3d3a;
+    --muted: #6c6a64; --hairline: #e6dfd8; --coral: #cc785c; --dark: #181715;
+    --pet: #d97757;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--canvas); }
+  #stage {
+    position: relative; width: 1920px; height: 1080px; overflow: hidden;
+    background:
+      radial-gradient(1100px 620px at 50% 38%, rgba(204,120,92,0.07), transparent 70%),
+      var(--canvas);
+    font-family: Inter, sans-serif; color: var(--ink);
+  }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+  .serif { font-family: Fraunces, serif; font-variation-settings: "opsz" 144; }
+  .mono { font-family: "JetBrains Mono", monospace; }
+  .coral { color: var(--coral); }
+  .w { display: inline-block; will-change: transform, opacity, filter; }
+  .center { position: absolute; left: 0; right: 0; text-align: center; }
+
+  /* 1: hook */
+  #term { top: 330px; font-size: 30px; color: var(--muted); line-height: 1.7; }
+  #term .dot { color: var(--coral); }
+  #cursor { display: inline-block; width: 16px; height: 34px; background: var(--ink); vertical-align: -6px; margin-left: 6px; }
+  #hookline { top: 520px; font-size: 120px; line-height: 1.08; letter-spacing: -0.015em; }
+
+  /* notch, shared by reveal and outro */
+  .notch {
+    position: absolute; top: 0; left: 50%; background: #000;
+    border-radius: 0 0 30px 30px; transform: translateX(-50%);
+    display: flex; align-items: center; justify-content: center; gap: 22px; overflow: hidden;
+  }
+  .notch img { width: 76px; height: 76px; border-radius: 18px; }
+  .notch span { color: #fff; font-weight: 600; font-size: 44px; letter-spacing: -0.01em; white-space: nowrap; }
+  #revealline { top: 520px; font-size: 138px; line-height: 1.05; letter-spacing: -0.02em; }
+
+  /* 3-5: footage */
+  .frame {
+    position: absolute; left: 240px; top: 60px; width: 1440px; height: 675px;
+    border-radius: 26px; overflow: hidden; background: #000;
+    box-shadow: 0 50px 100px -45px rgba(20,20,19,0.55), 0 0 0 1px rgba(20,20,19,0.08);
+  }
+  .frame canvas { width: 1440px; height: 675px; transform-origin: 50% 0; display: block; }
+  .eyebrow { top: 800px; font-size: 22px; font-weight: 600; letter-spacing: 0.18em; color: var(--coral); }
+  .caption { top: 842px; font-size: 68px; line-height: 1.12; letter-spacing: -0.01em; padding: 0 140px; }
+  .caption .mono { font-size: 0.82em; color: var(--coral); letter-spacing: -0.02em; }
+
+  /* 6: outro */
+  #pet { position: absolute; width: 192px; height: 192px; left: 0; top: 0; transform-origin: 50% 81%; }
+  #brand { position: absolute; top: 496px; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 34px; }
+  #brand img { width: 128px; height: 128px; border-radius: 30px; box-shadow: 0 24px 50px -24px rgba(20,20,19,0.5); }
+  #brand span { font-size: 116px; letter-spacing: -0.025em; line-height: 1; }
+  #meta { top: 668px; font-size: 28px; color: var(--muted); }
+  #brew {
+    position: absolute; top: 728px; left: 50%; transform: translateX(-50%);
+    background: var(--dark); color: #faf9f5; border-radius: 16px; padding: 20px 34px;
+    font-size: 30px; white-space: pre; box-shadow: 0 30px 60px -35px rgba(20,20,19,0.6);
+  }
+  #brew .p { color: var(--coral); }
+  #gh { top: 850px; font-size: 24px; color: var(--muted); letter-spacing: 0.01em; }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <section class="scene" id="s-hook">
+    <div id="term" class="center mono">
+      <div><span class="dot">●</span> Bash(npm install)</div>
+      <div>Do you want to proceed? <span style="color:var(--ink)">❯ 1. Yes</span><span id="cursor"></span></div>
+    </div>
+    <div id="hookline" class="center serif" data-words>The terminal is where<br>you are <i class="coral">not looking.</i></div>
+  </section>
+
+  <section class="scene" id="s-reveal">
+    <div class="notch" id="notch1"><img src="icon.png" alt=""><span>ClaudeNotch</span></div>
+    <div id="revealline" class="center serif" data-words>Claude Code,<br><span class="coral">in your notch.</span></div>
+  </section>
+
+  <section class="scene clip" id="s-allow">
+    <div class="frame"><canvas width="1280" height="600"></canvas></div>
+    <div class="eyebrow center">PERMISSIONS IN THE NOTCH</div>
+    <div class="caption center serif" data-words>Approve a command without leaving your editor.</div>
+  </section>
+
+  <section class="scene clip" id="s-guard">
+    <div class="frame"><canvas width="1280" height="600"></canvas></div>
+    <div class="eyebrow center">GUARDRAILS FOR RISKY COMMANDS</div>
+    <div class="caption center serif" data-words><span class="mono">rm&nbsp;-rf</span>, <span class="mono">sudo</span> and <span class="mono">force-push</span> need a press-and-hold.</div>
+  </section>
+
+  <section class="scene clip" id="s-done">
+    <div class="frame"><canvas width="1280" height="600"></canvas></div>
+    <div class="eyebrow center">WHEN CLAUDE FINISHES</div>
+    <div class="caption center serif" data-words>Know the moment it's done.</div>
+  </section>
+
+  <section class="scene" id="s-outro">
+    <canvas id="pet" width="192" height="192"></canvas>
+    <div class="notch" id="notch2"></div>
+    <div id="brand"><img src="icon.png" alt=""><span class="serif">ClaudeNotch</span></div>
+    <div id="meta" class="center">Free for personal use · macOS 13+ · Apple Silicon and Intel</div>
+    <div id="brew" class="mono"><span class="p">$ </span><span id="brewtext"></span></div>
+    <div id="gh" class="center">github.com/rawsun007/claude-notch</div>
+  </section>
+
+</div>
+<script>
+const TL = TIMELINE_JSON;
+const $ = (s, r = document) => r.querySelector(s);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const outCubic = x => 1 - Math.pow(1 - clamp(x), 3);
+const inOut = x => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+// Damped spring from 0 to 1, the way the app's cards drop open.
+const spring = (x, k = 9, z = 0.55) => x <= 0 ? 0 : 1 - Math.exp(-z * k * x) * Math.cos(k * Math.sqrt(1 - z * z) * x);
+
+// Split every [data-words] block into word spans, keeping inline markup.
+function splitWords(el) {
+  const walk = node => {
+    [...node.childNodes].forEach(n => {
+      if (n.nodeType === 3) {
+        const frag = document.createDocumentFragment();
+        n.textContent.split(/(\s+)/).forEach(part => {
+          if (!part) return;
+          if (/^\s+$/.test(part)) frag.appendChild(document.createTextNode(part));
+          else { const s = document.createElement('span'); s.className = 'w'; s.textContent = part; frag.appendChild(s); }
+        });
+        n.replaceWith(frag);
+      } else if (n.nodeType === 1 && n.tagName !== 'BR') {
+        if (n.classList.contains('mono')) n.classList.add('w'); else walk(n);
+      }
+    });
+  };
+  walk(el);
+  return [...el.querySelectorAll('.w')];
+}
+const WORDS = {};
+document.querySelectorAll('[data-words]').forEach(el => { WORDS[el.id || el.closest('.scene').id] = splitWords(el); });
+
+function revealWords(words, u, start, stagger, dur = 0.45) {
+  words.forEach((w, i) => {
+    const p = outCubic((u - start - i * stagger) / dur);
+    w.style.opacity = p;
+    w.style.transform = `translateY(${(1 - p) * 26}px)`;
+    w.style.filter = `blur(${(1 - p) * 8}px)`;
+  });
+}
+
+const SC = Object.fromEntries(TL.scenes.map(s => [s.id, s]));
+const clipFrames = {};
+
+// Scene envelope: in over 0.4s, out over the last 0.3s. The background never
+// changes, so every cut dips through cream instead of double-exposing.
+function envelope(s, t, inDur = 0.4, outDur = 0.3, holdEnd = false) {
+  const u = t - s.start;
+  const inP = outCubic(u / inDur);
+  const outP = holdEnd ? 0 : inOut((u - (s.dur - outDur)) / outDur);
+  return { u, inP, outP, on: u >= 0 && u < s.dur + (holdEnd ? 99 : 0) };
+}
+
+// ---- the pet, drawn from PetRig.swift's 16x16 grid ----------------------
+const petCtx = $('#pet').getContext('2d');
+function drawPet({ dangle = 0, armR = 0, armL = 0, blink = 0 }) {
+  const c = 12, g = petCtx;
+  g.clearRect(0, 0, 192, 192);
+  g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--pet');
+  const rect = (x, y, w, h) => g.fillRect(x * c, y * c, w * c, h * c);
+  // legs, behind the torso; alternate pairs dangle while airborne
+  [[3, 0], [5, 1], [10, 0], [12, 1]].forEach(([x, k]) => rect(x, 10, 1, 3 + (k ? dangle : dangle * 0.6)));
+  // arms rotate about the torso edge
+  const arm = (px, dir, a) => {
+    g.save(); g.translate(px * c, 8 * c); g.rotate(a * dir);
+    g.fillRect(dir > 0 ? -2 * c : -2 * c, -c, 4 * c, 2 * c); g.restore();
+  };
+  arm(2, 1, armL); arm(14, -1, armR);
+  rect(2, 3, 12, 4); rect(2, 7, 12, 2); rect(2, 9, 12, 2);
+  // eyes
+  g.fillStyle = '#2b1a13';
+  const eh = 2 * (1 - blink);
+  rect(4, 5 + (2 - eh), 1, Math.max(0.25, eh)); rect(11, 5 + (2 - eh), 1, Math.max(0.25, eh));
+}
+
+// ---- render: a pure function of time ------------------------------------
+window.render = function (t) {
+  // 1. hook
+  {
+    const s = SC.hook, e = envelope(s, t), el = $('#s-hook');
+    el.style.opacity = e.on ? (1 - e.outP) : 0;
+    if (e.on) {
+      const tp = outCubic((e.u - 0.05) / 0.4);
+      $('#term').style.opacity = tp * (1 - 0.55 * clamp((e.u - 1.4) / 0.8));
+      $('#term').style.transform = `translateY(${(1 - tp) * 14}px)`;
+      $('#cursor').style.opacity = (Math.floor(e.u * 2.2) % 2) ? 0.15 : 1;
+      revealWords(WORDS.hookline, e.u, 0.25, 0.06);
+      el.style.transform = `translateY(${-e.outP * 20}px)`;
+    }
+  }
+  // 2. reveal
+  {
+    const s = SC.reveal, e = envelope(s, t, 0.01), el = $('#s-reveal');
+    el.style.opacity = e.on ? (1 - e.outP) : 0;
+    if (e.on) {
+      const p = spring((e.u - 0.1) / 0.9 * 1.4, 7, 0.5);
+      const n = $('#notch1');
+      n.style.width = (230 + 610 * p) + 'px';
+      n.style.height = (42 + 128 * p) + 'px';
+      n.style.borderRadius = `0 0 ${22 + 22 * clamp(p)}px ${22 + 22 * clamp(p)}px`;
+      const ip = outCubic((e.u - 0.45) / 0.35);
+      [...n.children].forEach(c => { c.style.opacity = ip; c.style.transform = `translateY(${(1 - ip) * 10}px)`; });
+      revealWords(WORDS.revealline, e.u, 0.55, 0.09, 0.5);
+      el.style.transform = `translateY(${-e.outP * 20}px)`;
+    }
+  }
+  // 3-5. real footage
+  for (const id of ['allow', 'guard', 'done']) {
+    const s = SC[id], e = envelope(s, t, 0.45, 0.3), el = $('#s-' + id);
+    el.style.opacity = e.on ? 1 : 0;
+    if (!e.on) continue;
+    const fr = el.querySelector('.frame');
+    fr.style.opacity = e.inP * (1 - e.outP);
+    fr.style.transform = `translateY(${(1 - e.inP) * 44 - e.outP * 24}px) scale(${0.965 + 0.035 * e.inP})`;
+    const cv = fr.querySelector('canvas');
+    const i = clamp(Math.floor(e.u * TL.fps), 0, s.frames - 1);
+    cv.getContext('2d').drawImage(clipFrames[s.clip][i], 0, 0);
+    cv.style.transform = `scale(${1 + 0.04 * inOut(e.u / s.dur)})`;
+    const eb = el.querySelector('.eyebrow');
+    const ep = outCubic((e.u - 0.2) / 0.4);
+    eb.style.opacity = ep * (1 - e.outP); eb.style.transform = `translateY(${(1 - ep) * 12}px)`;
+    const cap = el.querySelector('.caption');
+    cap.style.opacity = 1 - e.outP; cap.style.transform = `translateY(${-e.outP * 16}px)`;
+    revealWords(WORDS['s-' + id], e.u, 0.3, 0.05);
+  }
+  // 6. outro, holds to the end
+  {
+    const s = SC.outro, e = envelope(s, t, 0.3, 0, true), el = $('#s-outro');
+    el.style.opacity = e.on ? 1 : 0;
+    if (e.on) {
+      const u = e.u;
+      const np = spring(u / 0.6 * 1.2, 8, 0.6);
+      const n = $('#notch2');
+      n.style.width = (240 + 60 * clamp(np)) + 'px'; n.style.height = (40 + 8 * np) + 'px';
+      n.style.borderRadius = '0 0 22px 22px';
+      n.style.transform = `translateX(-50%) translateY(${(1 - outCubic(u / 0.3)) * -48}px)`;
+
+      const bp = outCubic((u - 0.1) / 0.55);
+      const brand = $('#brand');
+      brand.style.opacity = bp; brand.style.transform = `translateY(${(1 - bp) * 30}px)`;
+      brand.querySelector('span').style.filter = `blur(${(1 - bp) * 8}px)`;
+
+      // The pet falls out of the notch and lands on the wordmark.
+      const pet = $('#pet');
+      const fallStart = 0.42, land = 0.8, groundTop = 346, x = 1030 - 96;
+      let y, sx = 1, sy = 1, dangle = 0;
+      if (u < fallStart) { y = -200; }
+      else if (u < land) { const f = (u - fallStart) / (land - fallStart); y = -200 + (groundTop + 200) * f * f; dangle = 1; }
+      else {
+        const b = u - land;
+        y = groundTop - Math.max(0, Math.sin(b * Math.PI / 0.36)) * 34 * (b < 0.36 ? 1 : 0);
+        const sq = Math.exp(-b * 14) * Math.cos(b * 30);
+        sy = 1 - 0.16 * sq; sx = 1 + 0.12 * sq;
+        dangle = b < 0.36 ? Math.max(0, Math.sin(b * Math.PI / 0.36)) : 0;
+      }
+      pet.style.transform = `translate(${x}px, ${y}px) scale(${sx}, ${sy})`;
+      const wave = u > 1.62 && u < 2.7 ? Math.sin((u - 1.62) * Math.PI * 4) * 0.55 + 0.75 : 0;
+      const blink = Math.max(0, 1 - Math.abs(u - 3.05) / 0.07);
+      drawPet({ dangle, armR: wave * clamp((u - 1.62) / 0.12) * clamp((2.7 - u) / 0.12), armL: u < land && u > fallStart ? 0.5 : 0, blink });
+
+      const mp = outCubic((u - 0.8) / 0.45);
+      $('#meta').style.opacity = mp; $('#meta').style.transform = `translateY(${(1 - mp) * 14}px)`;
+      const cmd = 'brew install --cask rawsun007/tap/claudenotch';
+      const wp = outCubic((u - 1.05) / 0.35);
+      $('#brew').style.opacity = wp; $('#brew').style.transform = `translateX(-50%) translateY(${(1 - wp) * 16}px)`;
+      const chars = Math.floor(clamp((u - 1.2) / 0.8) * cmd.length);
+      $('#brewtext').innerHTML = cmd.slice(0, chars) + (chars < cmd.length || Math.floor(u * 2.2) % 2 ? '<span style="opacity:.7">▍</span>' : '<span style="opacity:0">▍</span>');
+      const gp = outCubic((u - 1.6) / 0.45);
+      $('#gh').style.opacity = gp;
+    }
+  }
+};
+
+window.ready = (async () => {
+  await document.fonts.ready;
+  await Promise.all([...document.images].map(i => i.decode()));
+  for (const s of TL.scenes.filter(s => s.clip)) {
+    clipFrames[s.clip] = await Promise.all(Array.from({ length: s.frames }, (_, i) => {
+      const im = new Image(); im.src = `clips/${s.clip}/${String(i + 1).padStart(4, '0')}.jpg`;
+      return im.decode().then(() => im);
+    }));
+  }
+  render(0);
+  return true;
+})();
+</script>
+</body>
+</html>
