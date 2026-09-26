@@ -1,0 +1,3 @@
+Claude Code asks for permission in a terminal buried under everything else. ClaudeNotch moves the question to the one place you always look: the notch. Approve, hold for the risky ones, see the diff, watch every session. And boop the pet.
+
+brew install --cask rawsun007/tap/claudenotch
