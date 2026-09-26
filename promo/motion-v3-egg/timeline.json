@@ -1,41 +1,178 @@
 {
   "fps": 30,
   "renderFps": 120,
-  "duration": 25.0,
+  "duration": 30.0,
   "bpm": 120,
   "scenes": [
-    {"id": "hook",     "start": 0.0,  "dur": 3.0},
-    {"id": "lookup",   "start": 3.0,  "dur": 2.5},
-    {"id": "allow",    "start": 5.5,  "dur": 3.5},
-    {"id": "guard",    "start": 9.0,  "dur": 3.5},
-    {"id": "diff",     "start": 12.5, "dur": 2.5},
-    {"id": "sessions", "start": 15.0, "dur": 3.5},
-    {"id": "pet",      "start": 18.5, "dur": 2.5},
-    {"id": "outro",    "start": 21.0, "dur": 4.0}
+    {
+      "id": "hook",
+      "start": 0.0,
+      "dur": 3.0
+    },
+    {
+      "id": "lookup",
+      "start": 3.0,
+      "dur": 2.5
+    },
+    {
+      "id": "allow",
+      "start": 5.5,
+      "dur": 3.5
+    },
+    {
+      "id": "guard",
+      "start": 9.0,
+      "dur": 3.5
+    },
+    {
+      "id": "diff",
+      "start": 12.5,
+      "dur": 2.5
+    },
+    {
+      "id": "sessions",
+      "start": 15.0,
+      "dur": 3.5
+    },
+    {
+      "id": "pet",
+      "start": 18.5,
+      "dur": 2.5
+    },
+    {
+      "id": "outro",
+      "start": 21.0,
+      "dur": 4.0
+    },
+    {
+      "id": "egg",
+      "start": 25.0,
+      "dur": 5.0
+    }
   ],
   "cues": [
-    {"type": "whip",    "t": 2.85},
-    {"type": "boom",    "t": 3.5},
-    {"type": "riser",   "t": 4.5, "d": 0.85},
-    {"type": "morph",   "t": 5.5},
-    {"type": "click",   "t": 7.55},
-    {"type": "confirm", "t": 7.62},
-    {"type": "morph",   "t": 9.0},
-    {"type": "warn",    "t": 9.35},
-    {"type": "press",   "t": 10.9},
-    {"type": "hold",    "t": 10.9, "d": 1.0},
-    {"type": "morph",   "t": 12.5},
-    {"type": "diff",    "t": 12.85, "n": 6, "step": 0.09},
-    {"type": "whoosh",  "t": 14.8},
-    {"type": "morph",   "t": 15.0},
-    {"type": "rows",    "t": 15.6, "n": 4, "step": 0.12},
-    {"type": "whoosh",  "t": 18.3},
-    {"type": "pop",     "t": 18.75},
-    {"type": "click",   "t": 19.6},
-    {"type": "flip",    "t": 19.62},
-    {"type": "land",    "t": 20.25},
-    {"type": "whoosh",  "t": 20.8},
-    {"type": "boom",    "t": 21.0},
-    {"type": "shimmer", "t": 21.5}
+    {
+      "type": "whip",
+      "t": 2.85
+    },
+    {
+      "type": "boom",
+      "t": 3.5
+    },
+    {
+      "type": "riser",
+      "t": 4.5,
+      "d": 0.85
+    },
+    {
+      "type": "morph",
+      "t": 5.5
+    },
+    {
+      "type": "click",
+      "t": 7.55
+    },
+    {
+      "type": "confirm",
+      "t": 7.62
+    },
+    {
+      "type": "morph",
+      "t": 9.0
+    },
+    {
+      "type": "warn",
+      "t": 9.35
+    },
+    {
+      "type": "press",
+      "t": 10.9
+    },
+    {
+      "type": "hold",
+      "t": 10.9,
+      "d": 1.0
+    },
+    {
+      "type": "morph",
+      "t": 12.5
+    },
+    {
+      "type": "diff",
+      "t": 12.85,
+      "n": 6,
+      "step": 0.09
+    },
+    {
+      "type": "whoosh",
+      "t": 14.8
+    },
+    {
+      "type": "morph",
+      "t": 15.0
+    },
+    {
+      "type": "rows",
+      "t": 15.6,
+      "n": 4,
+      "step": 0.12
+    },
+    {
+      "type": "whoosh",
+      "t": 18.3
+    },
+    {
+      "type": "pop",
+      "t": 18.75
+    },
+    {
+      "type": "click",
+      "t": 19.6
+    },
+    {
+      "type": "flip",
+      "t": 19.62
+    },
+    {
+      "type": "land",
+      "t": 20.25
+    },
+    {
+      "type": "whoosh",
+      "t": 20.8
+    },
+    {
+      "type": "boom",
+      "t": 21.0
+    },
+    {
+      "type": "shimmer",
+      "t": 21.5
+    },
+    {
+      "type": "egg_thwip",
+      "t": 25.45
+    },
+    {
+      "type": "egg_fall",
+      "t": 25.5,
+      "d": 0.42
+    },
+    {
+      "type": "egg_boing",
+      "t": 25.92
+    },
+    {
+      "type": "egg_wave",
+      "t": 28.1
+    },
+    {
+      "type": "egg_zip",
+      "t": 28.85
+    },
+    {
+      "type": "egg_end",
+      "t": 29.1
+    }
   ]
 }
