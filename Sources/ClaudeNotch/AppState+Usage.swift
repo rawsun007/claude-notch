@@ -143,6 +143,15 @@ extension AppState {
     func setRequireTouchID(_ on: Bool) { requireTouchID = on; schedulePersist() }
     func setStrictMode(_ on: Bool) { strictMode = on; schedulePersist() }
     func setGateModelUpgrades(_ on: Bool) { gateModelUpgrades = on; schedulePersist() }
+    /// Turning the live reply on or off rewrites settings.json, adding or
+    /// removing the MessageDisplay hook, so nothing runs for it while it is off.
+    func setLiveReplyPreview(_ on: Bool) {
+        liveReplyPreview = on; schedulePersist()
+        HookInstaller.liveReplyEnabled = on
+        if !on { for k in sessions.keys { sessions[k]?.liveReply = "" } }
+        guard HookInstaller.isInstalled else { return }
+        DispatchQueue.global(qos: .utility).async { try? HookInstaller.install() }
+    }
 
     func setMirrorToNotificationCenter(_ on: Bool) {
         mirrorToNotificationCenter = on

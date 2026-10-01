@@ -1186,6 +1186,17 @@ final class EventServer {
         return (calls.count, parts.joined(separator: ", ") + more)
     }
 
+    /// MessageDisplay (opt-in): a batch of Claude's reply as it streams.
+    private func handleMessageDisplay(payload: [String: Any]) {
+        guard let delta = payload["delta"] as? String else { return }
+        let sessionId = (payload["session_id"] as? String) ?? ""
+        let cwd = (payload["cwd"] as? String) ?? ""
+        let messageId = (payload["message_id"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.noteReplyDelta(sessionId: sessionId, cwd: cwd, messageId: messageId, delta: delta)
+        }
+    }
+
     /// UserPromptExpansion (new in 2026): the user typed a slash command (a
     /// skill, a custom command, an MCP prompt) and it is expanding into a
     /// prompt. Logged so History shows what was run, not only what was said.
@@ -1864,6 +1875,11 @@ final class EventServer {
             // next request to the model, so the notch must never slow it down.
             sendOK(on: conn)
             handleToolBatch(payload: payload)
+        case "MessageDisplay":
+            // Answer first and with nothing: no displayContent means the
+            // terminal shows Claude's text exactly as it would without us.
+            sendOK(on: conn)
+            handleMessageDisplay(payload: payload)
         case "UserPromptExpansion":
             // Plain OK: no opinion. The notch logs which command was typed; it
             // does not block commands (that is a policy hook's job).

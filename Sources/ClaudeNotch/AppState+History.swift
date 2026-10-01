@@ -153,4 +153,24 @@ extension AppState {
             timestamp: Date(), kind: .notification, toolName: "SlashCommand",
             title: title, detail: detail, project: (cwd as NSString).lastPathComponent, outcome: .info))
     }
+
+    /// A batch of a streaming reply (MessageDisplay). Keeps only the tail, as
+    /// one line: the row has room for a glimpse, not the reply.
+    func noteReplyDelta(sessionId: String, cwd: String, messageId: String, delta: String) {
+        guard liveReplyPreview, !delta.isEmpty else { return }
+        upsertSession(id: sessionId, cwd: cwd) { s in
+            if s.liveReplyMessageId != messageId { s.liveReply = ""; s.liveReplyMessageId = messageId }
+            s.liveReply = Self.replyTail(s.liveReply + delta)
+            s.liveReplyAt = Date()
+        }
+    }
+
+    /// The last 240 characters of a reply with its line breaks and markdown
+    /// emphasis folded away, for a one-line glimpse. Pure, for tests.
+    nonisolated static func replyTail(_ text: String) -> String {
+        let flat = text.replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "`", with: "")
+            .replacingOccurrences(of: "  ", with: " ")
+        return String(flat.suffix(240))
+    }
 }

@@ -444,6 +444,16 @@ struct SessionsList: View {
                                     .lineLimit(1)
                             }
                         }
+                        if state.liveReplyPreview, !session.liveReply.isEmpty,
+                           let at = session.liveReplyAt, Date().timeIntervalSince(at) < 30 {
+                            // Claude's reply as it streams, the tail of it.
+                            Text("✎ " + session.liveReply)
+                                .font(.system(size: 9, design: .rounded))
+                                .foregroundColor(.white.opacity(0.6))
+                                .lineLimit(1).truncationMode(.head)
+                                .padding(.leading, 14)
+                                .help(L("Claude's reply as it streams (Settings > Privacy > Show the reply as it streams)", comment: "Tooltip on the live reply line"))
+                        }
                         if session.isCompacting {
                             Text(L("compacting context…", comment: "Status: Claude is compacting its context window"))
                                 .font(.system(size: 9, design: .rounded))

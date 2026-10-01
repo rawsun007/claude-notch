@@ -390,6 +390,13 @@ enum HookInstaller {
         appendHook(to: "TeammateIdle", in: &hooks, matcher: nil)
         appendHook(to: "PostToolBatch", in: &hooks, matcher: nil)
         appendHook(to: "UserPromptExpansion", in: &hooks, matcher: nil)
+        // Opt-in: Claude's reply streaming into the notch. Two seconds, not
+        // 290: Claude Code holds each batch of lines until this hook answers, so
+        // a slow or closed app must cost the terminal at most a blink. The
+        // notch always answers OK without displayContent, so what the terminal
+        // shows is never changed.
+        if liveReplyEnabled { appendHook(to: "MessageDisplay", in: &hooks, matcher: nil, timeout: 2) }
+        else { removeOurHook(from: "MessageDisplay", in: &hooks) }
         // Worktrees appearing and disappearing. Parallel checkouts are how
         // people run several agents at once, and which one a session is in is
         // otherwise only visible in its path.
@@ -523,7 +530,11 @@ enum HookInstaller {
     /// the user already has there. Idempotent: any previous ClaudeNotch entry
     /// (either legacy command hook or new HTTP hook) is removed first.
     /// Internal (not private) so the non-destructive merge is unit-testable.
-    static func appendHook(to eventName: String, in hooks: inout [String: Any], matcher: String?) {
+    /// Whether the opt-in MessageDisplay hook belongs in settings.json. Set by
+    /// AppState from the persisted setting; read by install().
+    nonisolated(unsafe) static var liveReplyEnabled = false
+
+    static func appendHook(to eventName: String, in hooks: inout [String: Any], matcher: String?, timeout: Int = 290) {
         // Must exceed the app's own decision-wait window (285s in EventServer,
         // matching the 3-minute "waiting-on-you" nudge) — otherwise Claude Code
         // gives up on the HTTP request and falls back to its own terminal
@@ -533,10 +544,18 @@ enum HookInstaller {
         // disagree.
         let token = HookToken.ensure()
         let url = token.map { "http://127.0.0.1:53127/hook?t=\($0)" } ?? "http://127.0.0.1:53127/hook"
-        let httpEntry: [String: Any] = ["type": "http", "url": url, "timeout": 290]
+        let httpEntry: [String: Any] = ["type": "http", "url": url, "timeout": timeout]
         var ourRule: [String: Any] = ["hooks": [httpEntry]]
         if let m = matcher { ourRule["matcher"] = m }
 
+        removeOurHook(from: eventName, in: &hooks)
+        var existingList = (hooks[eventName] as? [[String: Any]]) ?? []
+        existingList.append(ourRule)
+        hooks[eventName] = existingList
+    }
+
+    /// Drop ClaudeNotch's entry at one event, keeping the user's own.
+    static func removeOurHook(from eventName: String, in hooks: inout [String: Any]) {
         var existingList = (hooks[eventName] as? [[String: Any]]) ?? []
         existingList.removeAll { rule in
             let subHooks = (rule["hooks"] as? [[String: Any]]) ?? []
@@ -552,8 +571,7 @@ enum HookInstaller {
                 return false
             }
         }
-        existingList.append(ourRule)
-        hooks[eventName] = existingList
+        if existingList.isEmpty { hooks.removeValue(forKey: eventName) } else { hooks[eventName] = existingList }
     }
 
     /// Shell-quote a path for embedding in a settings.json command string.

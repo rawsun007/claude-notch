@@ -168,6 +168,11 @@ struct LiveSession: Identifiable, Equatable {
     /// Prompt-cache state, from the status line. Default is "nothing reported",
     /// which every session is in until its first API response.
     var promptCache = PromptCacheState()
+    /// The reply streaming right now (MessageDisplay, opt-in): its tail, the
+    /// message it belongs to, and when the last batch arrived.
+    var liveReply: String = ""
+    var liveReplyMessageId: String = ""
+    var liveReplyAt: Date? = nil
     var isCompacting: Bool = false   // true between PreCompact and the next event
     // Claude Code permission mode from hook payloads (default / plan /
     // acceptEdits / auto / dontAsk / bypassPermissions). Non-default modes get

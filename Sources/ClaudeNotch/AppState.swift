@@ -912,6 +912,8 @@ final class AppState: ObservableObject {
             self.requireTouchID = snapshot.requireTouchID ?? BiometricAuth.isAvailable
             self.strictMode = snapshot.strictMode ?? false
             self.gateModelUpgrades = snapshot.gateModelUpgrades ?? false
+            self.liveReplyPreview = snapshot.liveReplyPreview ?? false
+            HookInstaller.liveReplyEnabled = self.liveReplyPreview
             self.mirrorToNotificationCenter = snapshot.mirrorToNotificationCenter ?? true
             self.completionNotificationsEnabled = snapshot.completionNotificationsEnabled ?? false
             self.digestNotificationsEnabled = snapshot.digestNotificationsEnabled ?? false
@@ -1065,6 +1067,12 @@ final class AppState: ObservableObject {
     /// Worth having for anyone watching spend, wrong to impose on everyone.
     /// Persisted.
     @Published var gateModelUpgrades: Bool = false
+    /// Show Claude's reply in the notch as it streams, through the
+    /// MessageDisplay hook. Off by default and the hook is installed only while
+    /// it is on: Claude Code waits on that hook for every batch of lines it
+    /// renders, so it is the one hook whose cost the terminal can feel.
+    /// Persisted.
+    @Published var liveReplyPreview: Bool = false
 
     // Questions the user has put away without answering. They stay in
     // questionQueue, so the hook is still waiting and the card can come back;

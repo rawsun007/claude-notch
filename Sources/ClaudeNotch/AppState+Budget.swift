@@ -565,6 +565,7 @@ extension AppState {
             requireTouchID: requireTouchID,
             strictMode: strictMode,
             gateModelUpgrades: gateModelUpgrades,
+            liveReplyPreview: liveReplyPreview,
             mirrorToNotificationCenter: mirrorToNotificationCenter,
             completionNotificationsEnabled: completionNotificationsEnabled,
             digestNotificationsEnabled: digestNotificationsEnabled,

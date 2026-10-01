@@ -1184,6 +1184,10 @@ struct SettingsView: View {
                 row(L("Ask before switching to a pricier model", comment: "Settings toggle"),
                     L("Hold a session's /model change for your approval when it moves up to a more expensive family, such as sonnet to opus. Switching down, or between versions of the same family, is never held. Off by default: this is the one card that interrupts something you just did yourself, and the session waits in the terminal until you answer it.", comment: "Settings toggle explanation"),
                     bind(\.gateModelUpgrades, state.setGateModelUpgrades))
+                divider
+                row(L("Show the reply as it streams", comment: "Settings toggle"),
+                    L("Show the tail of Claude's reply in the session's row while it writes, through Claude Code's MessageDisplay hook. Off by default: Claude Code waits on that hook for each batch of lines, so it is installed only while this is on, with a two second limit, and the text in your terminal is never changed.", comment: "Settings toggle explanation"),
+                    bind(\.liveReplyPreview, state.setLiveReplyPreview))
             }
 
             sectionLabel(L("System permissions", comment: "Settings section heading"))

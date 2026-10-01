@@ -543,6 +543,9 @@
 /* Heading of the expanded reply card */
 "Claude's last reply" = "Claude's last reply";
 
+/* Tooltip on the live reply line */
+"Claude's reply as it streams (Settings > Privacy > Show the reply as it streams)" = "Claude's reply as it streams (Settings > Privacy > Show the reply as it streams)";
+
 /* Settings explanation */
 "ClaudeNotch" = "ClaudeNotch";
 
@@ -1483,7 +1486,13 @@
 "Show spend in the menu bar" = "Show spend in the menu bar";
 
 /* Settings toggle */
+"Show the reply as it streams" = "Show the reply as it streams";
+
+/* Settings toggle */
 "Show the sandbox badge" = "Show the sandbox badge";
+
+/* Settings toggle explanation */
+"Show the tail of Claude's reply in the session's row while it writes, through Claude Code's MessageDisplay hook. Off by default: Claude Code waits on that hook for each batch of lines, so it is installed only while this is on, with a two second limit, and the text in your terminal is never changed." = "Show the tail of Claude's reply in the session's row while it writes, through Claude Code's MessageDisplay hook. Off by default: Claude Code waits on that hook for each batch of lines, so it is installed only while this is on, with a two second limit, and the text in your terminal is never changed.";
 
 /* Settings toggle */
 "Show your plan in the menu bar" = "Show your plan in the menu bar";

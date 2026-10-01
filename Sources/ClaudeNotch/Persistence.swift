@@ -31,6 +31,7 @@ enum Persistence {
         var requireTouchID: Bool? = nil
         var strictMode: Bool? = nil
         var gateModelUpgrades: Bool? = nil
+        var liveReplyPreview: Bool? = nil
         var mirrorToNotificationCenter: Bool? = nil
         var completionNotificationsEnabled: Bool? = nil
         var digestNotificationsEnabled: Bool? = nil
@@ -186,6 +187,7 @@ extension Persistence.Snapshot {
             requireTouchID: try? c.decode(Bool.self, forKey: .requireTouchID),
             strictMode: try? c.decode(Bool.self, forKey: .strictMode),
             gateModelUpgrades: try? c.decode(Bool.self, forKey: .gateModelUpgrades),
+            liveReplyPreview: try? c.decode(Bool.self, forKey: .liveReplyPreview),
             mirrorToNotificationCenter: try? c.decode(Bool.self, forKey: .mirrorToNotificationCenter),
             completionNotificationsEnabled: try? c.decode(Bool.self, forKey: .completionNotificationsEnabled),
             digestNotificationsEnabled: try? c.decode(Bool.self, forKey: .digestNotificationsEnabled),
