@@ -109,8 +109,11 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         ("Workspace", [.general, .notch, .pet]),
         ("Session", [.session]),
         ("Alerts & Cost", [.alerts, .sounds, .budget, .plan]),
-        ("Permissions", [.rules]),
         ("Info", [.usage, .history, .privacy, .about]),
+        // Learned allow rules, moved down: since auto mode became the default
+        // (CLI 2.1.284) most sessions never show a permission card, so the
+        // rules are for the people still in default mode, not for everyone.
+        ("Permissions", [.rules]),
         ("Advanced", [.developer]),
     ]
 
