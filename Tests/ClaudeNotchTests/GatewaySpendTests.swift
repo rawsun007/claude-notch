@@ -7,8 +7,10 @@ final class GatewaySpendTests: XCTestCase {
     func testAmountsWithPeriod() {
         let s = GatewaySpend(percent: 0.628, resetsAt: nil, usedUSD: 271.4, limitUSD: 500, period: "month")
         let text = s.amountText ?? ""
-        XCTAssertTrue(text.contains("271.40"), text)
-        XCTAssertTrue(text.contains("500.00"), text)
+        // fmtMoney rounds amounts of $100 and up to whole dollars, as it does
+        // everywhere else in the app.
+        XCTAssertTrue(text.contains("$271"), text)
+        XCTAssertTrue(text.contains("$500"), text)
         XCTAssertTrue(text.hasSuffix(" this month"), text)
     }
 
