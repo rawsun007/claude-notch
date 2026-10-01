@@ -22,7 +22,11 @@ echo "hook-merge conformance"
 
 # event<space>matched, sorted, from each source.
 swift_events() {
+    # An opt-in hook (one that passes its own timeout, such as MessageDisplay,
+    # installed only while its setting is on) is not part of the fixed set the
+    # fallback installer must match, so it is left out of the comparison.
     grep -o 'appendHook(to: "[A-Za-z]*", in: &hooks, matcher: [^)]*)' Sources/ClaudeNotch/HookInstaller.swift \
+        | grep -v 'timeout:' \
         | sed 's/appendHook(to: "\([A-Za-z]*\)".*matcher: \(.*\))/\1 \2/' \
         | sed 's/ ".*"$/ true/; s/ nil$/ false/' \
         | sort
