@@ -742,6 +742,12 @@ final class EventServer {
         // says whether you can wait it out.
         let fiveHourResetsAt = num("five_hour_resets_at").map { Date(timeIntervalSince1970: $0) }
         let sevenDayResetsAt = num("seven_day_resets_at").map { Date(timeIntervalSince1970: $0) }
+        let gatewaySpend: GatewaySpend? = num("spend_pct").map { pct in
+            GatewaySpend(percent: min(1, max(0, pct / 100)),
+                         resetsAt: num("spend_resets_at").map { Date(timeIntervalSince1970: $0) },
+                         usedUSD: num("spend_used_usd"), limitUSD: num("spend_limit_usd"),
+                         period: (payload["spend_period"] as? String) ?? "")
+        }
         // Prompt cache. `warm` is read as a Bool and NOT defaulted: absent means
         // Claude Code has not reported yet, false means the cache is gone, and
         // collapsing those loses the only state worth acting on.
@@ -771,7 +777,7 @@ final class EventServer {
         guard contextPct != nil || fiveHourPct != nil || sevenDayPct != nil
                 || contextWindow != nil || !sessionName.isEmpty || !worktree.isEmpty
                 || prNumber != nil || !effort.isEmpty || costUSD != nil
-                || !cache.isUnknown else { return }
+                || !cache.isUnknown || gatewaySpend != nil else { return }
         Task { @MainActor [weak state] in
             state?.noteStatusLine(sessionId: sessionId, model: model,
                                   sessionName: sessionName, worktree: worktree,
@@ -786,7 +792,8 @@ final class EventServer {
                                   sevenDayPct: sevenDayPct,
                                   fiveHourResetsAt: fiveHourResetsAt,
                                   sevenDayResetsAt: sevenDayResetsAt,
-                                  promptCache: cache)
+                                  promptCache: cache,
+                                  gatewaySpend: gatewaySpend)
         }
     }
 

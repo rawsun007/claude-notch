@@ -167,7 +167,8 @@ extension AppState {
                         contextPct: Double?, contextWindow: Int? = nil, contextTokens: Int? = nil,
                         fiveHourPct: Double?, sevenDayPct: Double?,
                         fiveHourResetsAt: Date? = nil, sevenDayResetsAt: Date? = nil,
-                        promptCache: PromptCacheState? = nil) {
+                        promptCache: PromptCacheState? = nil,
+                        gatewaySpend: GatewaySpend? = nil) {
         statusLineUpdateCount += 1
         // First, before anything this line carries is applied: drop any window
         // that has already reset. A line reporting a percentage but no reset
@@ -186,6 +187,11 @@ extension AppState {
         // Warn before a plan limit runs out, so a lockout is not a surprise.
         if let p = fiveHourPct { checkRateLimit(name: "5-hour", pct: p / 100, resetAt: fiveHourResetAt, armed: &fiveHourWarned) }
         if let p = sevenDayPct { checkRateLimit(name: "weekly", pct: p / 100, resetAt: weeklyResetAt, armed: &weeklyWarned) }
+        // A company's gateway spend limit: the same warnings, in its own window.
+        if let gatewaySpend {
+            self.gatewaySpend = gatewaySpend
+            checkRateLimit(name: "spend", pct: gatewaySpend.percent, resetAt: gatewaySpend.resetsAt, armed: &spendWarned)
+        }
         if fiveHourPct != nil || sevenDayPct != nil {
             limitsUpdatedAt = Date()
             schedulePersist()

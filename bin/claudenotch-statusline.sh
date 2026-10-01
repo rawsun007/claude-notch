@@ -37,6 +37,13 @@ if command -v jq >/dev/null 2>&1 && nc -z 127.0.0.1 53127 2>/dev/null; then
         seven_day_pct: (.rate_limits.seven_day.used_percentage // null),
         five_hour_resets_at: (.rate_limits.five_hour.resets_at // null),
         seven_day_resets_at: (.rate_limits.seven_day.resets_at // null),
+        # Behind a Claude apps gateway with a spend limit (CLI 2.1.284 adds the
+        # dollar amounts and the period).
+        spend_pct:       (.rate_limits.spend_limit.used_percentage // null),
+        spend_resets_at: (.rate_limits.spend_limit.resets_at // null),
+        spend_used_usd:  (.rate_limits.spend_limit.used_usd // null),
+        spend_limit_usd: (.rate_limits.spend_limit.limit_usd // null),
+        spend_period:    (.rate_limits.spend_limit.period // ""),
         # NOT `// null` here: the alternative operator in jq treats false as
         # empty, so a cold cache (warm:false) would arrive as null and read as
         # "no data" rather than as the one state worth reporting. A plain path

@@ -260,7 +260,7 @@ extension SettingsView {
 
     var budget: some View {
         page(L("Budget", comment: "Settings page title")) {
-            if state.fiveHourLimitPercent >= 0 || state.weeklyLimitPercent >= 0 {
+            if state.fiveHourLimitPercent >= 0 || state.weeklyLimitPercent >= 0 || state.gatewaySpend != nil {
                 sectionLabel(L("Plan usage limits", comment: "Settings section heading"))
                 Text(L("Your Claude plan's rate limits, as Claude Code last reported them. These are usage limits, not dollar caps.", comment: "Settings explanation"))
                     .font(.callout).foregroundStyle(.secondary)
@@ -273,6 +273,15 @@ extension SettingsView {
                     if state.weeklyLimitPercent >= 0 {
                         limitRow("Weekly limit", pct: state.weeklyLimitPercent,
                                  resetAt: state.weeklyResetAt, window: 7 * 24 * 3600)
+                    }
+                }
+                if let spend = state.gatewaySpend {
+                    group {
+                        limitRow("Spend limit", pct: spend.percent, resetAt: spend.resetsAt, window: 30 * 24 * 3600)
+                    }
+                    if let amounts = spend.amountText {
+                        Text(String(format: L("Your organization's spend limit: %@.", comment: "Money page; %@ is e.g. $271.40 of $500.00 this month"), amounts))
+                            .font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 if let updated = state.limitsUpdatedAt {

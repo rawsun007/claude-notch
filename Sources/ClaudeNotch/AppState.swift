@@ -749,6 +749,7 @@ final class AppState: ObservableObject {
     /// that window's reset instant so a fresh window re-arms.
     var fiveHourWarned: (reset: Date?, level: Double) = (nil, 0)
     var weeklyWarned: (reset: Date?, level: Double) = (nil, 0)
+    var spendWarned: (reset: Date?, level: Double) = (nil, 0)
 
     func setRateLimitWarningsEnabled(_ on: Bool) {
         rateLimitWarningsEnabled = on
@@ -785,6 +786,9 @@ final class AppState: ObservableObject {
     /// were current is how the notch ended up disagreeing with `/usage`, so the
     /// age is kept and shown.
     @Published var limitsUpdatedAt: Date?
+    /// The Claude apps gateway spend limit, when the session runs behind one
+    /// that sets it. nil for everyone else, and then nothing about it shows.
+    @Published var gatewaySpend: GatewaySpend?
     // Hard-stop: when on, a tool request whose session/daily cap is already
     // exceeded is held for a decision (Deny / Allow once / Raise cap) instead
     // of being auto-allowed — even under an allow-rule or auto-approve. Off by

@@ -3,6 +3,9 @@
    change NSLocalizedString in Sources and run the script again.
    A translation is a sibling <lang>.lproj/Localizable.strings. */
 
+/* Spend-limit period suffix; %@ is a period such as month */
+" this %@" = " this %@";
+
 /* Status bar label for the session cost, a currency symbol */
 "$" = "$";
 
@@ -23,6 +26,9 @@
 
 /* Per-model token split. %1$@ input, %2$@ output, %3$@ cache read */
 "%1$@ in, %2$@ out, %3$@ cached" = "%1$@ in, %2$@ out, %3$@ cached";
+
+/* Spend limit: amount used of the limit */
+"%1$@ of %2$@" = "%1$@ of %2$@";
 
 /* Budget block detail. %1$@ is spend, %2$@ is the cap, %3$d is a percentage */
 "%1$@ of %2$@ cap (%3$d%%)" = "%1$@ of %2$@ cap (%3$d%%)";
@@ -1901,6 +1907,9 @@
 
 /* Card title when managed settings carry compliance labels but no notice text */
 "Your organisation has labelled these sessions" = "Your organisation has labelled these sessions";
+
+/* Money page; %@ is e.g. $271.40 of $500.00 this month */
+"Your organization's spend limit: %@." = "Your organization's spend limit: %@.";
 
 /* VoiceOver label for the free-text answer field */
 "Your own answer" = "Your own answer";
