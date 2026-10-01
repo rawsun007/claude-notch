@@ -138,4 +138,19 @@ extension AppState {
         archivedSessionKeys.removeAll()
         schedulePersist()
     }
+
+    /// A batch of parallel tool calls finished (PostToolBatch).
+    func noteToolBatch(count: Int, summary: String, cwd: String) {
+        appendHistory(HistoryEntry(
+            timestamp: Date(), kind: .notification, toolName: "ToolBatch",
+            title: String(format: L("Ran %d tools at once", comment: "History: a parallel batch of tool calls finished; %d is how many"), count),
+            detail: summary, project: (cwd as NSString).lastPathComponent, outcome: .info))
+    }
+
+    /// The user typed a slash command (UserPromptExpansion).
+    func noteSlashCommand(title: String, detail: String, cwd: String) {
+        appendHistory(HistoryEntry(
+            timestamp: Date(), kind: .notification, toolName: "SlashCommand",
+            title: title, detail: detail, project: (cwd as NSString).lastPathComponent, outcome: .info))
+    }
 }

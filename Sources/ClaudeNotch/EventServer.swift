@@ -1156,6 +1156,58 @@ final class EventServer {
     /// Answered with a plain OK. This event can carry a decision that keeps the
     /// teammate working, and the notch has no business making that call: it
     /// reports, it does not steer somebody else's agent.
+    /// PostToolBatch (new in 2026): one call after a whole batch of parallel
+    /// tool calls has resolved. Only a real batch, two or more, is worth a line
+    /// in History; PostToolUse already covers each tool on its own.
+    private func handleToolBatch(payload: [String: Any]) {
+        guard let batch = Self.toolBatchSummary(from: payload), batch.count >= 2 else { return }
+        let cwd = (payload["cwd"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.noteToolBatch(count: batch.count, summary: batch.summary, cwd: cwd)
+        }
+    }
+
+    /// "Read ×3, Grep ×2", most-used first, from a PostToolBatch payload's
+    /// `tool_calls`. Only the names are read: each call's input and output can
+    /// be large and are untrusted. Pure, for tests.
+    nonisolated static func toolBatchSummary(from payload: [String: Any]) -> (count: Int, summary: String)? {
+        guard let calls = payload["tool_calls"] as? [[String: Any]], !calls.isEmpty else { return nil }
+        var counts: [String: Int] = [:], order: [String] = []
+        for c in calls {
+            let name = String(((c["tool_name"] as? String) ?? "tool").prefix(40))
+            if counts[name] == nil { order.append(name) }
+            counts[name, default: 0] += 1
+        }
+        let ranked = order.enumerated().sorted { a, b in
+            counts[a.element]! != counts[b.element]! ? counts[a.element]! > counts[b.element]! : a.offset < b.offset
+        }.map(\.element)
+        let parts = ranked.prefix(4).map { counts[$0]! > 1 ? "\($0) ×\(counts[$0]!)" : $0 }
+        let more = ranked.count > 4 ? ", +\(ranked.count - 4) more" : ""
+        return (calls.count, parts.joined(separator: ", ") + more)
+    }
+
+    /// UserPromptExpansion (new in 2026): the user typed a slash command (a
+    /// skill, a custom command, an MCP prompt) and it is expanding into a
+    /// prompt. Logged so History shows what was run, not only what was said.
+    private func handlePromptExpansion(payload: [String: Any]) {
+        guard let line = Self.promptExpansionLine(from: payload) else { return }
+        let cwd = (payload["cwd"] as? String) ?? ""
+        Task { @MainActor [weak state] in
+            state?.noteSlashCommand(title: line.title, detail: line.detail, cwd: cwd)
+        }
+    }
+
+    /// The History line for a UserPromptExpansion payload: "/deploy" and its
+    /// arguments, capped, since both are typed text arriving in a payload.
+    nonisolated static func promptExpansionLine(from payload: [String: Any]) -> (title: String, detail: String)? {
+        let name = ((payload["command_name"] as? String) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return nil }
+        let shown = name.hasPrefix("/") ? name : "/" + name
+        let args = ((payload["command_args"] as? String) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let kind = (payload["expansion_type"] as? String) == "mcp_prompt" ? " (MCP prompt)" : ""
+        return (String(shown.prefix(80)) + kind, String(args.prefix(200)))
+    }
+
     private func handleTeammateIdle(payload: [String: Any]) {
         let name = (payload["teammate_name"] as? String) ?? ""
         let sessionId = (payload["session_id"] as? String) ?? ""
@@ -1807,6 +1859,16 @@ final class EventServer {
         case "TeammateIdle":
             handleTeammateIdle(payload: payload)
             sendOK(on: conn)
+        case "PostToolBatch":
+            // Plain OK, straight away: the CLI waits for this hook before its
+            // next request to the model, so the notch must never slow it down.
+            sendOK(on: conn)
+            handleToolBatch(payload: payload)
+        case "UserPromptExpansion":
+            // Plain OK: no opinion. The notch logs which command was typed; it
+            // does not block commands (that is a policy hook's job).
+            sendOK(on: conn)
+            handlePromptExpansion(payload: payload)
         case "WorktreeCreate":
             handleWorktreeCreate(payload: payload)
             sendOK(on: conn)

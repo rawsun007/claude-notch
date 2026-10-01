@@ -87,6 +87,7 @@ enum HookInstaller {
             && s.contains("\"TeammateIdle\"")
             && s.contains("\"WorktreeCreate\"") && s.contains("\"WorktreeRemove\"")
             && s.contains("\"PostModelSwitch\"") && s.contains("\"PreModelSwitch\"")
+            && s.contains("\"PostToolBatch\"") && s.contains("\"UserPromptExpansion\"")
     }
 
     /// `jq` is required by posttool.sh to forward payload fields to the
@@ -387,6 +388,8 @@ enum HookInstaller {
         // do not report agent status, so without this a team member can wait on
         // you for twenty minutes with nothing on screen saying so.
         appendHook(to: "TeammateIdle", in: &hooks, matcher: nil)
+        appendHook(to: "PostToolBatch", in: &hooks, matcher: nil)
+        appendHook(to: "UserPromptExpansion", in: &hooks, matcher: nil)
         // Worktrees appearing and disappearing. Parallel checkouts are how
         // people run several agents at once, and which one a session is in is
         // otherwise only visible in its path.

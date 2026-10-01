@@ -1317,6 +1317,9 @@
 /* Button: raise the spending cap. %@ is a money amount */
 "Raise to %@" = "Raise to %@";
 
+/* History: a parallel batch of tool calls finished; %d is how many */
+"Ran %d tools at once" = "Ran %d tools at once";
+
 /* Settings toggle */
 "Random antics" = "Random antics";
 

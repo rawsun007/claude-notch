@@ -151,6 +151,8 @@ jq --arg url "$NOTCH_URL" '
     .hooks.SubagentStart      = add_hook(.hooks.SubagentStart     ; false) |
     .hooks.SubagentStop       = add_hook(.hooks.SubagentStop      ; false) |
     .hooks.TeammateIdle       = add_hook(.hooks.TeammateIdle      ; false) |
+    .hooks.PostToolBatch      = add_hook(.hooks.PostToolBatch     ; false) |
+    .hooks.UserPromptExpansion = add_hook(.hooks.UserPromptExpansion ; false) |
     .hooks.WorktreeCreate     = add_hook(.hooks.WorktreeCreate    ; false) |
     .hooks.WorktreeRemove     = add_hook(.hooks.WorktreeRemove    ; false) |
     .hooks.DirectoryAdded     = add_hook(.hooks.DirectoryAdded    ; false) |
