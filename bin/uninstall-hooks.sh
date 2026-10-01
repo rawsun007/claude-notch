@@ -27,13 +27,11 @@ PRIOR_STATUSLINE=""
 [ -f "$INNER" ] && PRIOR_STATUSLINE=$(cat "$INNER")
 
 jq --arg prior "$PRIOR_STATUSLINE" '
+def ours:
+    ((.command // "") | (contains("claudenotch") or contains(".claudenotch")))
+    or ((.url // "") | contains("127.0.0.1:53127")) ;
 def strip_event(arr):
-    (arr // []) | map(
-        select(
-            ((.hooks // []) | map(.command // "") | join(" ")
-              | (contains("claudenotch") or contains(".claudenotch")) | not)
-        )
-    ) ;
+    (arr // []) | map(select(((.hooks // []) | any(ours)) | not)) ;
 
 # Restore (or remove) our statusLine forwarder first.
 ( if ((.statusLine.command // "") | contains("claudenotch-statusline.sh")) then
@@ -43,26 +41,11 @@ def strip_event(arr):
   else . end ) |
 
 .hooks = (.hooks // {}) |
-.hooks.PreToolUse       = strip_event(.hooks.PreToolUse) |
-.hooks.PermissionRequest = strip_event(.hooks.PermissionRequest) |
-.hooks.PostToolUse      = strip_event(.hooks.PostToolUse) |
-.hooks.UserPromptSubmit = strip_event(.hooks.UserPromptSubmit) |
-.hooks.Notification     = strip_event(.hooks.Notification) |
-.hooks.Stop             = strip_event(.hooks.Stop) |
-.hooks.SessionEnd       = strip_event(.hooks.SessionEnd) |
-.hooks.TaskCreated      = strip_event(.hooks.TaskCreated) |
-.hooks.TaskCompleted    = strip_event(.hooks.TaskCompleted) |
-.hooks.PreCompact       = strip_event(.hooks.PreCompact) |
-( if (.hooks.PreToolUse       | length) == 0 then del(.hooks.PreToolUse)       else . end ) |
-( if (.hooks.PermissionRequest | length) == 0 then del(.hooks.PermissionRequest) else . end ) |
-( if (.hooks.PostToolUse      | length) == 0 then del(.hooks.PostToolUse)      else . end ) |
-( if (.hooks.UserPromptSubmit | length) == 0 then del(.hooks.UserPromptSubmit) else . end ) |
-( if (.hooks.Notification     | length) == 0 then del(.hooks.Notification)     else . end ) |
-( if (.hooks.Stop             | length) == 0 then del(.hooks.Stop)             else . end ) |
-( if (.hooks.SessionEnd       | length) == 0 then del(.hooks.SessionEnd)       else . end ) |
-( if (.hooks.TaskCreated      | length) == 0 then del(.hooks.TaskCreated)      else . end ) |
-( if (.hooks.TaskCompleted    | length) == 0 then del(.hooks.TaskCompleted)    else . end ) |
-( if (.hooks.PreCompact       | length) == 0 then del(.hooks.PreCompact)       else . end ) |
+# Every event, not a list of them: the app registers new events as Claude Code
+# adds them, and a hard-coded list here left those, and every HTTP entry the
+# app writes (url 127.0.0.1:53127), behind after an uninstall.
+.hooks |= with_entries(.value = strip_event(.value)) |
+.hooks |= with_entries(select((.value | length) > 0)) |
 ( if (.hooks | length) == 0 then del(.hooks) else . end )
 ' "$SETTINGS" > "$SETTINGS.new"
 
