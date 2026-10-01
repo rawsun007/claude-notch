@@ -3,7 +3,9 @@ import Foundation
 // How much ran without anyone being asked.
 //
 // Since 14 August 2026 auto mode is the default permission mode on Pro, Max and
-// Team. A classifier reviews each action instead of the user, and it is
+// Team, and since CLI 2.1.284 (September 2026) every interactive terminal and
+// VS Code session starts in it when no mode is configured, on every plan and
+// provider. A classifier reviews each action instead of the user, and it is
 // genuinely better at this than people are: in Anthropic's own test, a
 // deliberately dangerous command was caught 89% of the time by the classifier
 // and 13.6% of the time by the humans it replaced. Arguing with that would be
