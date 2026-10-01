@@ -80,4 +80,29 @@ struct PromptCacheState: Equatable {
         guard (recacheTokens ?? 0) > 0 else { return false }
         return isCold(now: now) || isExpiringSoon(now: now)
     }
+
+    /// Why the cache last missed, as a sentence, from the cause names Claude
+    /// Code reports in `prompt_cache.last_miss_cause.causes` (CLI 2.1.260+).
+    /// Empty when nothing was diagnosed. Pure, for tests; an unknown cause is
+    /// shown with its underscores turned to spaces rather than dropped.
+    nonisolated static func causeText(_ csv: String) -> String {
+        let names = csv.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        guard !names.isEmpty else { return "" }
+        let phrases = names.map { name -> String in
+            switch name {
+            case "tools_changed":
+                return L("the tool list changed (an MCP server or plugin came or went)", comment: "Prompt cache miss cause")
+            case "system_prompt_changed":
+                return L("the system prompt changed (CLAUDE.md, an output style or settings were edited)", comment: "Prompt cache miss cause")
+            case "likely_server_side":
+                return L("probably the server's side, not anything in this session", comment: "Prompt cache miss cause")
+            case let n where n.hasPrefix("ttl_expired"):
+                let span = n.replacingOccurrences(of: "ttl_expired_", with: "")
+                return String(format: L("it sat idle past the cache's %@ lifetime", comment: "Prompt cache miss cause; %@ is a duration like 5m"), span.isEmpty ? "TTL" : span)
+            default:
+                return name.replacingOccurrences(of: "_", with: " ")
+            }
+        }
+        return String(format: L("Last miss: %@.", comment: "Prompt cache tooltip; %@ is one or more causes"), phrases.joined(separator: "; "))
+    }
 }

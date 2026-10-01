@@ -167,8 +167,10 @@ struct SessionsList: View {
             // tooltip instead.
             let label = cold ? "❄ \(tokens)"
                              : "❄ \(Self.shortCountdown(cache.secondsUntilExpiry(now: now) ?? 0))"
+            let why = PromptCacheState.causeText(cache.missCauses)
             let help = cold
                 ? String(format: L("This session's prompt cache has lapsed. The next message re-sends about %@ tokens to rebuild it. Uncached input is the expensive kind.", comment: "Tooltip for a lapsed prompt cache. %@ is a token count"), tokens)
+                  + (why.isEmpty ? "" : " " + why)
                 : String(format: L("This session's prompt cache lapses in %1$@. After that the next message re-sends about %2$@ tokens to rebuild it, so send now or run /compact before stepping away.", comment: "Tooltip for a prompt cache about to lapse. %1$@ is a countdown, %2$@ a token count"),
                          Self.shortCountdown(cache.secondsUntilExpiry(now: now) ?? 0), tokens)
             Text(label)

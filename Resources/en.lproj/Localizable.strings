@@ -972,6 +972,9 @@
 /* Card body when the instruction file is old. First %@ is a duration, second is a file name */
 "Last changed %@ ago (%@). If the codebase has moved since, the agent is being told something that is no longer true, which is worse than being told nothing." = "Last changed %@ ago (%@). If the codebase has moved since, the agent is being told something that is no longer true, which is worse than being told nothing.";
 
+/* Prompt cache tooltip; %@ is one or more causes */
+"Last miss: %@." = "Last miss: %@.";
+
 /* Dialog button: dismiss the update prompt */
 "Later" = "Later";
 
@@ -1941,6 +1944,9 @@
 /* Rules list subtitle for a tool-wide rule */
 "every call of this tool" = "every call of this tool";
 
+/* Prompt cache miss cause; %@ is a duration like 5m */
+"it sat idle past the cache's %@ lifetime" = "it sat idle past the cache's %@ lifetime";
+
 /* Limit tooltip fragment. %@ is how long ago the reading arrived */
 "last reported %@ ago" = "last reported %@ ago";
 
@@ -1959,6 +1965,9 @@
 /* Badge marking an onboarding step you can skip */
 "optional" = "optional";
 
+/* Prompt cache miss cause */
+"probably the server's side, not anything in this session" = "probably the server's side, not anything in this session";
+
 /* Limit tooltip fragment. %1$@ is a countdown, %2$@ is a clock time */
 "resets in %1$@ (%2$@)" = "resets in %1$@ (%2$@)";
 
@@ -1970,6 +1979,12 @@
 
 /* Part of the sandbox badge tooltip */
 "the agent may opt commands out of it" = "the agent may opt commands out of it";
+
+/* Prompt cache miss cause */
+"the system prompt changed (CLAUDE.md, an output style or settings were edited)" = "the system prompt changed (CLAUDE.md, an output style or settings were edited)";
+
+/* Prompt cache miss cause */
+"the tool list changed (an MCP server or plugin came or went)" = "the tool list changed (an MCP server or plugin came or went)";
 
 /* Unit label after a token cap field */
 "tokens" = "tokens";
