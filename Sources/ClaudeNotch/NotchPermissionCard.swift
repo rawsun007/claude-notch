@@ -37,7 +37,9 @@ struct PermissionCard: View {
                 Text(L("Too late to answer here", comment: "Banner title on a permission card whose session stopped waiting"))
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(.orange)
-                Text(L("Claude stopped waiting after about five minutes and asked again where the session is running: your terminal, the VS Code extension, or a cloud session. Allowing or denying here would not reach it.", comment: "Banner body on a permission card whose session stopped waiting"))
+                Text(request.cliDeadline != nil
+                     ? L("Claude Code denied this itself after two minutes, as it does for a dangerous rm in auto mode, and told Claude to find another way. Allowing here would not reach it.", comment: "Banner body on a dangerous rm card that the CLI denied on its own after two minutes")
+                     : L("Claude stopped waiting after about five minutes and asked again where the session is running: your terminal, the VS Code extension, or a cloud session. Allowing or denying here would not reach it.", comment: "Banner body on a permission card whose session stopped waiting"))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.white.opacity(0.7))
                     .fixedSize(horizontal: false, vertical: true)
@@ -54,6 +56,24 @@ struct PermissionCard: View {
                         .stroke(Color.orange.opacity(0.35), lineWidth: 1)
                 )
         )
+    }
+
+    /// The CLI's own clock on a dangerous rm: one line, counting down, so the
+    /// user knows the answer is wanted in two minutes, not five.
+    private var cliDeadlineLine: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            HStack(spacing: 6) {
+                Image(systemName: "timer")
+                    .foregroundColor(.orange)
+                    .font(.system(size: 11, weight: .semibold))
+                Text(String(format: L("Claude Code denies this itself in %@", comment: "Countdown on a dangerous rm card; the argument is m:ss"),
+                            DangerousRmTimeout.clock(request.secondsLeft)))
+                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                    .foregroundColor(.orange)
+                Spacer(minLength: 0)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     let request: PermissionRequest
@@ -197,7 +217,7 @@ struct PermissionCard: View {
                 PreviewBlock(preview: preview)
             }
 
-            if expired { expiredBanner }
+            if expired { expiredBanner } else if request.cliDeadline != nil { cliDeadlineLine }
 
             // No Spacer here — let the buttons sit directly under the
             // content. The window sizing in size(for:) is calibrated to

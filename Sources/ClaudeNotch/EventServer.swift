@@ -1873,10 +1873,14 @@ final class EventServer {
     /// whole window; see PendingAnswer for why that does not scale past the
     /// number of cards the app is willing to queue.
     private func decidePermission(toolName: String, toolInput: [String: Any],
-                                  cwd: String, on conn: HookConnection,
+                                  cwd: String, permissionMode: String = "", on conn: HookConnection,
                                   reply: @escaping (PermissionDecision, String?) -> String) {
+        // A dangerous `rm` in auto or bypass mode: the CLI denies it itself after
+        // two minutes, so the card and the held connection end then too.
+        let cliDeadline: TimeInterval? = DangerousRmTimeout.applies(
+            toolName: toolName, toolInput: toolInput, permissionMode: permissionMode) ? DangerousRmTimeout.window : nil
         let pending = PendingAnswer(conn: conn, queue: workQueue,
-                                    timeout: Self.decisionWindow) {
+                                    timeout: cliDeadline ?? Self.decisionWindow) {
             // Nobody answered: say nothing rather than deciding for them.
             reply(.ask, nil)
         }
@@ -1885,11 +1889,13 @@ final class EventServer {
                 pending.answer(reply(.ask, nil))
                 return
             }
-            state.enqueuePermission(self.makeToolPermissionRequest(
+            let req = self.makeToolPermissionRequest(
                 toolName: toolName, toolInput: toolInput, cwd: cwd
             ) { decision, reason in
                 pending.answer(reply(decision, reason))
-            })
+            }
+            req.cliDeadline = cliDeadline
+            state.enqueuePermission(req)
         }
     }
 
@@ -1898,7 +1904,8 @@ final class EventServer {
         let toolName  = (payload["tool_name"]  as? String)        ?? "tool"
         let toolInput = (payload["tool_input"] as? [String: Any]) ?? [:]
         let cwd       = (payload["cwd"]        as? String)        ?? ""
-        decidePermission(toolName: toolName, toolInput: toolInput, cwd: cwd, on: conn) { final, reason in
+        let mode      = (payload["permission_mode"] as? String)   ?? ""
+        decidePermission(toolName: toolName, toolInput: toolInput, cwd: cwd, permissionMode: mode, on: conn) { final, reason in
             var inner: [String: Any] = ["hookEventName": "PreToolUse", "permissionDecision": final.rawValue]
             if final == .deny, let r = reason, !r.isEmpty { inner["permissionDecisionReason"] = String(r.prefix(200)) }
             return Self.jsonBody(["hookSpecificOutput": inner])
@@ -1910,7 +1917,8 @@ final class EventServer {
         let toolName  = (payload["tool_name"]  as? String)        ?? "tool"
         let toolInput = (payload["tool_input"] as? [String: Any]) ?? [:]
         let cwd       = (payload["cwd"]        as? String)        ?? ""
-        decidePermission(toolName: toolName, toolInput: toolInput, cwd: cwd, on: conn) { final, _ in
+        let mode      = (payload["permission_mode"] as? String)   ?? ""
+        decidePermission(toolName: toolName, toolInput: toolInput, cwd: cwd, permissionMode: mode, on: conn) { final, _ in
             guard final != .ask else { return Self.okBody }
             let behavior = (final == .allow) ? "allow" : "deny"
             return Self.jsonBody(["hookSpecificOutput": [

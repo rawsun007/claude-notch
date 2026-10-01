@@ -480,6 +480,12 @@
 /* Result when the merge added nothing */
 "Claude Code already had all of them. A backup was saved anyway." = "Claude Code already had all of them. A backup was saved anyway.";
 
+/* Banner body on a dangerous rm card that the CLI denied on its own after two minutes */
+"Claude Code denied this itself after two minutes, as it does for a dangerous rm in auto mode, and told Claude to find another way. Allowing here would not reach it." = "Claude Code denied this itself after two minutes, as it does for a dangerous rm in auto mode, and told Claude to find another way. Allowing here would not reach it.";
+
+/* Countdown on a dangerous rm card; the argument is m:ss */
+"Claude Code denies this itself in %@" = "Claude Code denies this itself in %@";
+
 /* Onboarding step name for installing the hooks */
 "Claude Code hooks" = "Claude Code hooks";
 

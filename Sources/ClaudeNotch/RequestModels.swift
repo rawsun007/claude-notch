@@ -269,7 +269,13 @@ final class PermissionRequest: Identifiable, Equatable {
     ///
     /// Only meaningful for `.toolUse`. A `.notification` card is not blocking
     /// anything, so it never goes stale.
-    var expiresAt: Date { receivedAt.addingTimeInterval(EventServer.decisionWindow) }
+    var expiresAt: Date { receivedAt.addingTimeInterval(cliDeadline ?? EventServer.decisionWindow) }
+
+    /// Set when Claude Code itself gives up on this prompt sooner than the
+    /// notch's window: a dangerous `rm` in auto or bypass mode, which the CLI
+    /// denies on its own after `DangerousRmTimeout.window`. The card counts
+    /// that down and, when it runs out, says the CLI denied it.
+    var cliDeadline: TimeInterval? = nil
 
     /// Has the session stopped listening to this card?
     var hasExpired: Bool { kind == .toolUse && Date() >= expiresAt }
