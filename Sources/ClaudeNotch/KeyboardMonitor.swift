@@ -201,11 +201,14 @@ final class KeyboardMonitor {
         case 36, 76:                 // Return / Keypad Enter
             switch state.mode {
             case .permission(let req) where req.kind == .toolUse:
-                // Dangerous needs hold-to-confirm; a budget block needs an
-                // explicit choice (Deny / Allow once / Raise cap), so Enter
-                // must not auto-allow either.
-                if req.isDangerous || req.budgetBlock != nil { return }
-                if state.permissionQueue.count > 1 {
+                // Dangerous needs its confirmation gesture unless the user
+                // switched that off; a budget block needs an explicit choice
+                // (Deny / Allow once / Raise cap), so Enter never allows it.
+                guard DestructiveGate.returnAllows(isDangerous: req.isDangerous, budgetBlocked: req.budgetBlock != nil,
+                                                   skipConfirmation: state.skipDestructiveConfirm) else { return }
+                if req.isDangerous {
+                    state.resolveCurrentPermission(.allow)   // just this one: Allow All never takes a destructive command
+                } else if state.permissionQueue.count > 1 {
                     state.resolveAllPermissions(.allow)
                 } else {
                     state.resolveCurrentPermission(.allow)
