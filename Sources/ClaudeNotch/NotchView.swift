@@ -836,7 +836,9 @@ struct NotchView: View {
                     onDenyReason: {
                         state.beginDenyReason(for: req)
                     },
-                    useTouchID: state.requireTouchID && BiometricAuth.isAvailable,
+                    destructiveGate: DestructiveGate.gate(requireTouchID: state.requireTouchID,
+                                                          biometricsAvailable: BiometricAuth.isAvailable,
+                                                          skipConfirmation: state.skipDestructiveConfirm),
                     onRaiseCap: { state.raiseBudgetAndAllow() },
                     onDisableEnforce: { state.disableEnforcementAndAllow() },
                     raiseCapTarget: req.budgetBlock.map { state.raisedCapTarget(for: $0) } ?? 0,

@@ -81,7 +81,8 @@ struct PermissionCard: View {
     let onResolve: (PermissionDecision, AllowScope) -> Void
     var onResolveAll: ((PermissionDecision) -> Void)? = nil
     var onDenyReason: (() -> Void)? = nil
-    var useTouchID: Bool = false
+    /// What a destructive command asks for before Allow (`DestructiveGate`).
+    var destructiveGate: DestructiveGate = .hold
     var onRaiseCap: (() -> Void)? = nil
     var onDisableEnforce: (() -> Void)? = nil
     var raiseCapTarget: Double = 0
@@ -298,7 +299,15 @@ struct PermissionCard: View {
                 }
                 Spacer()
                 if request.isDangerous {
-                    if useTouchID {
+                    if destructiveGate == .none {
+                        // The user switched confirmation off (behind their own
+                        // Touch ID). Still red, still one deliberate press.
+                        NotchButton(label: L("Allow", comment: "Button: approve the permission request"), style: .destructive, shortcut: "⏎") {
+                            onResolve(.allow, .none)
+                        }
+                        .help("Confirmation for destructive commands is off in Settings")
+                        .accessibilityHint("This command is destructive. Confirmation is off, so this allows it at once")
+                    } else if destructiveGate == .biometric {
                         // Biometric confirm for destructive commands. The system
                         // sheet appears; only a successful auth allows it.
                         Button {
