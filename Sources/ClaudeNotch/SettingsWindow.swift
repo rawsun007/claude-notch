@@ -1991,17 +1991,7 @@ struct SettingsView: View {
     /// renders as two identical headings on the About page.
     static let whatsNew: [ChangeGroup] = [
         ChangeGroup(kind: .added, items: [
-        "Watch Claude write, from the notch. Turn on Show the reply as it streams in Settings, Privacy, and a session's row shows the end of Claude's reply as it comes in, so you can follow along without the terminal. It is off by default because it uses a hook Claude Code waits on for every few lines of text; it is installed only while the setting is on, it gives up after two seconds rather than ever holding your terminal up, and the text in your terminal is never changed.",
-        "The cold-cache warning says why the cache went cold. Claude Code now reports the likely cause of a prompt-cache miss, and the snowflake's tooltip ends with it in plain words: the tool list changed because an MCP server or plugin came or went, the system prompt changed because CLAUDE.md or a setting was edited, the session sat idle past the cache's lifetime, or it was probably the server's side.",
-        "A spend limit meter for companies on Anthropic's Claude apps gateway. If your organization sets a monthly spend limit, the Budget page shows how much of it is used, in dollars when Claude Code sends them, such as $271 of $500 this month, and the notch warns as it fills, the same way it warns about plan limits. Nobody else sees anything new.",
-        "History shows more of what happened. A batch of tools Claude ran at the same time becomes one line, such as Ran 5 tools at once: Read ×3, Grep ×2, and the slash commands you type, such as /deploy with its arguments, are logged too. Both come from hook events Claude Code added this year and answer instantly, so neither slows a session.",
-        ]),
-        ChangeGroup(kind: .changed, items: [
-        "Permissions has moved further down the Settings sidebar, below Info. Since Claude Code started every interactive session in auto mode, most people never see a permission card, so the learned allow rules are for the few still asking for every action. Everything on the page is unchanged.",
-        ]),
-        ChangeGroup(kind: .fixed, items: [
-        "A dangerous rm in auto mode no longer leaves a card that looks answerable after Claude Code has given up on it. In auto mode, and with permission checks skipped, Claude Code now waits two minutes for an answer to a recursive rm and then denies it by itself; the notch kept the card up for almost five. The card now counts down Claude Code's own two minutes, and when they run out it says the command was denied and why pressing Allow there would not reach it.",
-        "Uninstalling removes all of ClaudeNotch's hooks. The uninstaller, which the Homebrew cask also runs, only knew the oldest kind of hook entry and a short list of events, so it left most of the app's hooks behind in Claude Code's settings, pointing at an app that was no longer there. It now removes every one of them and leaves your own hooks exactly as they were.",
+        "Skip confirmation for destructive commands. If you would rather approve everything yourself with one click, turn this on in Settings, Privacy, and a destructive command's card gets a plain Allow button, which Return also presses, instead of Touch ID or press-and-hold. Turning it on asks for Touch ID or your Mac password every time, so nobody can switch it on from your unlocked Mac without you; turning it off never asks. The card still turns red and says Destructive, and Allow All, notifications and Auto-Approve still never allow a destructive command for you.",
         ]),
     ]
 }
