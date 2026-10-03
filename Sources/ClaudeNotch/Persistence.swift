@@ -30,6 +30,7 @@ enum Persistence {
         var weeklyCostCap: Double? = nil
         var requireTouchID: Bool? = nil
         var strictMode: Bool? = nil
+        var skipDestructiveConfirm: Bool? = nil
         var gateModelUpgrades: Bool? = nil
         var liveReplyPreview: Bool? = nil
         var mirrorToNotificationCenter: Bool? = nil
@@ -186,6 +187,7 @@ extension Persistence.Snapshot {
             weeklyCostCap: try? c.decode(Double.self, forKey: .weeklyCostCap),
             requireTouchID: try? c.decode(Bool.self, forKey: .requireTouchID),
             strictMode: try? c.decode(Bool.self, forKey: .strictMode),
+            skipDestructiveConfirm: try? c.decode(Bool.self, forKey: .skipDestructiveConfirm),
             gateModelUpgrades: try? c.decode(Bool.self, forKey: .gateModelUpgrades),
             liveReplyPreview: try? c.decode(Bool.self, forKey: .liveReplyPreview),
             mirrorToNotificationCenter: try? c.decode(Bool.self, forKey: .mirrorToNotificationCenter),

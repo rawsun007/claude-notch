@@ -441,6 +441,10 @@ final class AppState: ObservableObject {
     // Require Touch ID / Face ID to confirm a dangerous command (instead of
     // press-and-hold). Defaults on when the Mac has biometrics. Persisted.
     @Published var requireTouchID: Bool = false
+    /// Skip the Touch ID / hold gesture on destructive commands: their card
+    /// gets a plain Allow. Off by default; switching it on always asks for the
+    /// Mac owner's authentication (see `DestructiveGate`). Persisted.
+    @Published var skipDestructiveConfirm: Bool = false
     /// Strict Mode: only a command SafeCommand calls harmless may be approved
     /// on your behalf by Auto-Approve or by a tool-wide rule. Off by default,
     /// because it trades clicks for certainty and that is a choice.
@@ -911,6 +915,7 @@ final class AppState: ObservableObject {
             self.enforceBudget = snapshot.enforceBudget ?? false
             self.requireTouchID = snapshot.requireTouchID ?? BiometricAuth.isAvailable
             self.strictMode = snapshot.strictMode ?? false
+            self.skipDestructiveConfirm = snapshot.skipDestructiveConfirm ?? false
             self.gateModelUpgrades = snapshot.gateModelUpgrades ?? false
             self.liveReplyPreview = snapshot.liveReplyPreview ?? false
             HookInstaller.liveReplyEnabled = self.liveReplyPreview
