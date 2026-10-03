@@ -142,6 +142,20 @@ extension AppState {
 
     func setRequireTouchID(_ on: Bool) { requireTouchID = on; schedulePersist() }
     func setStrictMode(_ on: Bool) { strictMode = on; schedulePersist() }
+    /// Switching it off takes effect at once. Switching it on asks for the
+    /// Mac owner's authentication every time (Touch ID, or the password where
+    /// there is none), and stays off unless that succeeds.
+    func setSkipDestructiveConfirm(_ on: Bool) {
+        skipDestructiveConfirmMessage = nil
+        guard DestructiveGate.needsAuthentication(from: skipDestructiveConfirm, to: on) else {
+            skipDestructiveConfirm = on; schedulePersist(); return
+        }
+        BiometricAuth.confirm(reason: L("skip confirmation for destructive commands", comment: "Touch ID prompt reason, shown after the app name: switching off the confirmation step for destructive commands")) { [weak self] ok, message in
+            guard let self else { return }
+            if ok { self.skipDestructiveConfirm = true; self.schedulePersist() }
+            else { self.skipDestructiveConfirmMessage = message }
+        }
+    }
     func setGateModelUpgrades(_ on: Bool) { gateModelUpgrades = on; schedulePersist() }
     /// Turning the live reply on or off rewrites settings.json, adding or
     /// removing the MessageDisplay hook, so nothing runs for it while it is off.

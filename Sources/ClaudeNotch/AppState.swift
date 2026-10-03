@@ -445,6 +445,9 @@ final class AppState: ObservableObject {
     /// gets a plain Allow. Off by default; switching it on always asks for the
     /// Mac owner's authentication (see `DestructiveGate`). Persisted.
     @Published var skipDestructiveConfirm: Bool = false
+    /// Why the last attempt to switch it on did not go through, for Settings.
+    /// Nil when it did, or when the user simply cancelled. Not persisted.
+    @Published var skipDestructiveConfirmMessage: String?
     /// Strict Mode: only a command SafeCommand calls harmless may be approved
     /// on your behalf by Auto-Approve or by a tool-wide rule. Off by default,
     /// because it trades clicks for certainty and that is a choice.
