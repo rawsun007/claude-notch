@@ -864,6 +864,9 @@
 /* Tooltip on the worktree chip. %@ is the worktree name */
 "Git worktree: %@" = "Git worktree: %@";
 
+/* Settings toggle explanation */
+"Give destructive commands a plain Allow button, with no Touch ID and no press-and-hold. The card still turns red and says Destructive, and Allow All, notifications and Auto-Approve still never allow one for you. Turning this on asks for Touch ID or your Mac password every time; turning it off never does." = "Give destructive commands a plain Allow button, with no Touch ID and no press-and-hold. The card still turns red and says Destructive, and Allow All, notifications and Auto-Approve still never allow one for you. Turning this on asks for Touch ID or your Mac password every time; turning it off never does.";
+
 /* Settings section heading */
 "Give these to Claude Code" = "Give these to Claude Code";
 
@@ -1506,6 +1509,9 @@
 /* Card title: the installed skills changed */
 "Skills changed" = "Skills changed";
 
+/* Settings toggle */
+"Skip confirmation for destructive commands" = "Skip confirmation for destructive commands";
+
 /* Submenu: pause non-blocking cards */
 "Snooze" = "Snooze";
 
@@ -1997,6 +2003,9 @@
 
 /* Session row tooltip. %@ is a minimum Claude Code version such as 2.1.219 */
 "sandbox posture needs %@" = "sandbox posture needs %@";
+
+/* Touch ID prompt reason, shown after the app name: switching off the confirmation step for destructive commands */
+"skip confirmation for destructive commands" = "skip confirmation for destructive commands";
 
 /* Part of the sandbox badge tooltip */
 "the agent may opt commands out of it" = "the agent may opt commands out of it";
