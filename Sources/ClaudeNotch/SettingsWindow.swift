@@ -312,6 +312,7 @@ struct SettingsSearchItem: Identifiable {
 
         .init(title: "Hide from screen capture", keywords: "recording screenshot privacy", section: .privacy),
         .init(title: "Require Touch ID", keywords: "biometric fingerprint", section: .privacy),
+        .init(title: "Skip confirmation for destructive commands", keywords: "bypass touch id biometric hold dangerous destructive one click lock", section: .privacy),
         .init(title: "Accessibility permission", keywords: "system", section: .privacy),
         .init(title: "Input Monitoring permission", keywords: "system keys", section: .privacy),
         .init(title: "Always-allow rules", keywords: "allowlist regex", section: .privacy),
@@ -1179,6 +1180,16 @@ struct SettingsView: View {
                 row(L("Require Touch ID for permissions", comment: "Settings toggle"),
                     L("Ask for Touch ID before allowing a tool request from the notch.", comment: "Settings toggle explanation"),
                     bind(\.requireTouchID, state.setRequireTouchID))
+                divider
+                row(L("Skip confirmation for destructive commands", comment: "Settings toggle"),
+                    L("Give destructive commands a plain Allow button, with no Touch ID and no press-and-hold. The card still turns red and says Destructive, and Allow All, notifications and Auto-Approve still never allow one for you. Turning this on asks for Touch ID or your Mac password every time; turning it off never does.", comment: "Settings toggle explanation"),
+                    bind(\.skipDestructiveConfirm, state.setSkipDestructiveConfirm))
+                if let message = state.skipDestructiveConfirmMessage {
+                    Label(message, systemImage: "lock.fill")
+                        .font(.caption).foregroundStyle(.red)
+                        .padding(.horizontal, 14).padding(.bottom, 10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 divider
                 row(L("Strict mode", comment: "Settings toggle"),
                     L("Only let commands that read and change nothing be approved for you. Auto-Approve and tool-wide rules stop applying to everything else, so a build, a script, or anything reaching the network waits for a click. Rules you made for one exact command still work. The destructive-command check recognises patterns, and a pattern list is never finished; this is the setting for when that is not good enough.", comment: "Settings toggle explanation"),
