@@ -8,6 +8,17 @@ final class ModelDriftTests: XCTestCase {
 
     // MARK: - Ranking
 
+    /// Fable and Mythos sit above Opus: they cost twice as much, and Claude
+    /// Code falls back from them onto Opus.
+    func testFableRanksAboveOpus() {
+        XCTAssertEqual(ModelDrift.tier("claude-fable-5-1"), .fable)
+        XCTAssertEqual(ModelDrift.tier("claude-mythos-5-1"), .fable)
+        XCTAssertTrue(ModelDrift.tier("claude-fable-5-1") > ModelDrift.tier("claude-opus-5-5"))
+        XCTAssertEqual(ModelDrift.family("claude-fable-5-1"), "Fable")
+        XCTAssertEqual(ModelDrift.family("claude-mythos-5"), "Mythos")
+        XCTAssertNotNil(ModelDrift.change(from: "claude-fable-5-1", to: "claude-opus-5-5"))
+    }
+
     func testTheThreeFamiliesRank() {
         XCTAssertEqual(ModelDrift.tier("claude-opus-5"), .opus)
         XCTAssertEqual(ModelDrift.tier("claude-sonnet-5"), .sonnet)
@@ -26,7 +37,7 @@ final class ModelDriftTests: XCTestCase {
 
     /// Anything this app has not been taught is unranked, not bottom-ranked.
     func testUnknownModelsAreUnranked() {
-        XCTAssertEqual(ModelDrift.tier("claude-fable-5"), .unknown)
+        XCTAssertEqual(ModelDrift.tier("claude-zephyr-5"), .unknown)
         XCTAssertEqual(ModelDrift.tier("gpt-5"), .unknown)
         XCTAssertEqual(ModelDrift.tier("grok-4"), .unknown)
         XCTAssertEqual(ModelDrift.tier(""), .unknown)
@@ -58,12 +69,11 @@ final class ModelDriftTests: XCTestCase {
         XCTAssertNil(ModelDrift.change(from: "claude-haiku-4-5", to: "claude-sonnet-5"))
     }
 
-    /// A model that cannot be ranked cannot be called a downgrade. Fable in
-    /// particular is a real Claude model with no place in the tier order, and
-    /// guessing one would tell somebody they were downgraded onto it.
+    /// A model that cannot be ranked cannot be called a downgrade: guessing a
+    /// place for it would tell somebody they were downgraded onto it.
     func testAnUnrankedModelOnEitherSideIsSilent() {
-        XCTAssertNil(ModelDrift.change(from: "claude-opus-5", to: "claude-fable-5"))
-        XCTAssertNil(ModelDrift.change(from: "claude-fable-5", to: "claude-haiku-4-5"))
+        XCTAssertNil(ModelDrift.change(from: "claude-opus-5", to: "claude-zephyr-5"))
+        XCTAssertNil(ModelDrift.change(from: "claude-zephyr-5", to: "claude-haiku-4-5"))
         XCTAssertNil(ModelDrift.change(from: "claude-opus-5", to: "gpt-5"))
         XCTAssertNil(ModelDrift.change(from: "grok-4", to: "claude-haiku-4-5"))
     }
