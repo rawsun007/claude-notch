@@ -152,6 +152,9 @@ final class QuestionRequest: Identifiable, Equatable {
     /// somewhere other than this card — cancelled, or answered in the terminal
     /// after our hook timed out — and ElicitationResult reports that by id.
     let elicitationId: String
+    /// A sign-in page an MCP server wants the user to visit (URL-mode
+    /// elicitation). The card offers to open it; nil for every other question.
+    let link: URL?
     let resolver: ([[String]]?) -> Void   // nil = cancel; otherwise one [labels] per question
 
     /// When the hook waiting on this card gives up.
@@ -174,7 +177,7 @@ final class QuestionRequest: Identifiable, Equatable {
 
     init(questions: [AskQuestion], source: String, cwd: String,
          originatorBundleID: String? = nil, elicitationId: String = "",
-         receivedAt: Date = Date(),
+         link: URL? = nil, receivedAt: Date = Date(),
          resolver: @escaping ([[String]]?) -> Void) {
         self.questions = questions
         self.source = source
@@ -182,6 +185,7 @@ final class QuestionRequest: Identifiable, Equatable {
         self.receivedAt = receivedAt
         self.originatorBundleID = originatorBundleID
         self.elicitationId = elicitationId
+        self.link = link
         self.resolver = resolver
     }
 
