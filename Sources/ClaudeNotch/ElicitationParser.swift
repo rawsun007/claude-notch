@@ -99,8 +99,8 @@ enum ElicitationParser {
     /// cannot represent. Nil means "no opinion" — the caller replies with a
     /// bare OK and Claude Code asks in the terminal exactly as it would have.
     nonisolated static func form(from payload: [String: Any]) -> Form? {
-        // "url" mode sends the user to a browser to authenticate. There is
-        // nothing to pick, and the notch must not open a payload-supplied URL.
+        // "url" mode sends the user to a browser to authenticate: that is a
+        // sign-in card (`signIn(from:)`), not a form.
         let mode = (payload["mode"] as? String) ?? ""
         guard mode != "url" else { return nil }
 
@@ -180,6 +180,22 @@ enum ElicitationParser {
         /// What the card names, so the user sees where the link goes before
         /// opening it: an MCP server is free to name any site it likes.
         var host: String { url.host ?? url.absoluteString }
+    }
+
+    /// The card's two answers. Pressing Open is not an answer: the user still
+    /// has to finish in the browser, so the card stays up until they say so.
+    static let signedIn = "I've signed in"
+    static let declineSignIn = "Decline"
+
+    /// The reply for a sign-in card's answer: accept when they signed in,
+    /// decline when they refused. Nil (dismissed, expired) is no opinion, so
+    /// Claude Code asks in the terminal as it would have.
+    nonisolated static func signInAction(for answer: [[String]]?) -> String? {
+        switch answer?.first?.first {
+        case signedIn: return "accept"
+        case declineSignIn: return "decline"
+        default: return nil
+        }
     }
 
     /// A link longer than this is not a sign-in page anyone should be sent to.
