@@ -25,7 +25,14 @@ enum DangerousRmTimeout {
     nonisolated static func applies(toolName: String, toolInput: [String: Any], permissionMode: String) -> Bool {
         guard modes.contains(permissionMode), toolName == "Bash",
               let command = toolInput["command"] as? String else { return false }
-        return isRecursiveRm(command)
+        return isRecursiveRm(command) || ToolPreviewParser.nestedScripts(command).contains { isRecursiveRm($0) || nestedRecursiveRm($0) }
+    }
+
+    /// Since CLI 2.1.288 the same two-minute ask covers a recursive `rm` inside
+    /// a `bash -c` or `sh -c` script (and an `eval` or `ssh` one), which used
+    /// to run without asking. One level further down, for `bash -c "sh -c '…'"`.
+    private nonisolated static func nestedRecursiveRm(_ script: String) -> Bool {
+        ToolPreviewParser.nestedScripts(script).contains { isRecursiveRm($0) }
     }
 
     /// A recursive `rm` anywhere in the command: `rm -r`, `-rf`, `-fR`,
