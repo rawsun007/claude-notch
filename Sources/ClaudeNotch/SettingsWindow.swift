@@ -1429,6 +1429,12 @@ struct SettingsView: View {
                         NSPasteboard.copyString(cmd)
                         copiedSessionId = s.id
                     } label: { Label("Copy resume command", systemImage: "doc.on.doc") }
+                    if ClaudeDesktop.isInstalled, AgentKind.infer(fromModel: s.model) != .codex {
+                        Button {
+                            ClaudeDesktop.open(sessionId: s.id, in: s.cwd)
+                            window()?.close()
+                        } label: { Label(L("Open in Claude Desktop", comment: "Menu item: open this session in the Claude desktop app"), systemImage: "macwindow") }
+                    }
                     Button {
                         NSWorkspace.shared.activateFileViewerSelecting([s.fileURL])
                     } label: { Label("Reveal transcript in Finder", systemImage: "folder") }
