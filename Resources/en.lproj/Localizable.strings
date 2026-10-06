@@ -90,6 +90,9 @@
 /* Settings row. %@ is a token count such as 1.2M */
 "%@ tokens used today." = "%@ tokens used today.";
 
+/* Sign-in card question. First %@ is the MCP server, second the website */
+"%@ wants you to sign in on %@." = "%@ wants you to sign in on %@.";
+
 /* Dialog body when the login item could not be toggled. %@ is the system error */
 "%@\n\nMake sure ClaudeNotch is in /Applications, then try again." = "%@\n\nMake sure ClaudeNotch is in /Applications, then try again.";
 
@@ -1179,11 +1182,20 @@
 /* Button: bring the editor or terminal that started this session to the front */
 "Open IDE" = "Open IDE";
 
+/* Menu item: open the most recent session in the Claude desktop app */
+"Open Last Session in Claude Desktop" = "Open Last Session in Claude Desktop";
+
 /* Onboarding button: open the macOS settings pane for a permission */
 "Open Settings" = "Open Settings";
 
+/* Menu item: open this session in the Claude desktop app */
+"Open in Claude Desktop" = "Open in Claude Desktop";
+
 /* Menu label: start a new session in a chosen project */
 "Open in project" = "Open in project";
+
+/* Button on an MCP sign-in card. %@ is the website's host name */
+"Open sign-in page on %@" = "Open sign-in page on %@";
 
 /* Tooltip on the update badge */
 "Open the releases page to download the new version" = "Open the releases page to download the new version";
@@ -1374,6 +1386,9 @@
 /* Button: open a composer to send a follow-up message */
 "Reply" = "Reply";
 
+/* Compose card header when messaging a background agent */
+"Reply to background agent" = "Reply to background agent";
+
 /* Toggle. %@ is Touch ID or Face ID */
 "Require %@ for dangerous commands" = "Require %@ for dangerous commands";
 
@@ -1461,6 +1476,9 @@
 /* Settings button */
 "Send feedback" = "Send feedback";
 
+/* Tooltip on the background agent Reply button */
+"Send this background agent a message" = "Send this background agent a message";
+
 /* Settings page title */
 "Session" = "Session";
 
@@ -1502,6 +1520,9 @@
 
 /* Dialog body for setting the notch title */
 "Shown as the first part of the notch title (for example \"MyApp · ready\"). Leave blank to use \"Claude\"." = "Shown as the first part of the notch title (for example \"MyApp · ready\"). Leave blank to use \"Claude\".";
+
+/* Tag on an MCP sign-in card */
+"Sign in" = "Sign in";
 
 /* Settings toggle explanation */
 "Silence every notch sound." = "Silence every notch sound.";
@@ -1613,6 +1634,9 @@
 
 /* Settings hint title when the todo tools are unavailable on this model */
 "Task progress is off in Claude Code" = "Task progress is off in Claude Code";
+
+/* Sign-in card option description */
+"Tell the server no." = "Tell the server no.";
 
 /* Settings explanation */
 "Terminal:" = "Terminal:";
@@ -1901,6 +1925,9 @@
 
 /* Card title when a git worktree is removed. %@ is its name */
 "Worktree removed: %@" = "Worktree removed: %@";
+
+/* Sign-in card option description */
+"You finished in the browser; the tool call continues." = "You finished in the browser; the tool call continues.";
 
 /* VoiceOver form of the repeat-approval hint */
 "You have allowed this command %d times before" = "You have allowed this command %d times before";
