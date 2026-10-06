@@ -130,6 +130,10 @@ final class ClaudeUsageReaderTests: XCTestCase {
         XCTAssertEqual(ClaudeUsageReader.modelNameVersion("claude-sonnet-4-6").version, "4.6")
         XCTAssertEqual(ClaudeUsageReader.modelNameVersion("claude-opus-4-7").name, "Opus")
         XCTAssertEqual(ClaudeUsageReader.modelNameVersion("claude-opus-4-7").version, "4.7")
+        XCTAssertEqual(ClaudeUsageReader.modelNameVersion("claude-fable-5-1").name, "Fable")
+        XCTAssertEqual(ClaudeUsageReader.modelNameVersion("claude-fable-5-1").version, "5.1")
+        XCTAssertEqual(ClaudeUsageReader.modelNameVersion("claude-mythos-5").name, "Mythos")
+        XCTAssertEqual(ClaudeUsageReader.shortModel("claude-fable-5-1"), "fable 5.1")
     }
 
     func testModelNameVersionUnknownIsEmpty() {
