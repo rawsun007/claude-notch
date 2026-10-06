@@ -2018,9 +2018,13 @@ final class EventServer {
     ///
     /// A bare OK means "no opinion", and Claude Code then asks in the terminal
     /// exactly as it would have. That is the reply for everything this card
-    /// cannot answer faithfully: a URL flow, a free-text field, a dismissed
-    /// card, a timeout.
+    /// cannot answer faithfully: a free-text field, a dismissed card, a
+    /// timeout. A URL flow (sign in in a browser) gets its own card.
     private func handleElicitationHTTP(payload: [String: Any], on conn: HookConnection) {
+        if let signIn = ElicitationParser.signIn(from: payload) {
+            handleSignInElicitation(signIn, payload: payload, on: conn)
+            return
+        }
         guard let form = ElicitationParser.form(from: payload) else { sendOK(on: conn); return }
         let cwd = (payload["cwd"] as? String) ?? ""
         let questions = form.questions
@@ -2048,6 +2052,45 @@ final class EventServer {
                         "hookEventName": "Elicitation",
                         "action": "accept",
                         "content": content,
+                    ]]))
+                }
+            ))
+        }
+    }
+
+    /// A URL-mode elicitation (CLI 2.1.287+): an MCP server wants the user to
+    /// sign in in a browser. The card names the site, opens it only when asked,
+    /// and answers accept once the user says they signed in, or decline.
+    private func handleSignInElicitation(_ signIn: ElicitationParser.SignIn, payload: [String: Any], on conn: HookConnection) {
+        let cwd = (payload["cwd"] as? String) ?? ""
+        let pending = PendingAnswer(conn: conn, queue: workQueue,
+                                    timeout: Self.decisionWindow) { Self.okBody }
+        Task { @MainActor [weak state] in
+            guard let state else { pending.answer(Self.okBody); return }
+            let source = signIn.serverName.isEmpty ? "MCP server" : signIn.serverName
+            let text = signIn.message.isEmpty
+                ? String(format: L("%@ wants you to sign in on %@.", comment: "Sign-in card question. First %@ is the MCP server, second the website"), source, signIn.host)
+                : signIn.message
+            let question = AskQuestion(
+                header: L("Sign in", comment: "Tag on an MCP sign-in card"), text: text, multiSelect: false,
+                options: [AskOption(label: ElicitationParser.signedIn,
+                                    description: L("You finished in the browser; the tool call continues.", comment: "Sign-in card option description")),
+                          AskOption(label: ElicitationParser.declineSignIn,
+                                    description: L("Tell the server no.", comment: "Sign-in card option description"))],
+                allowsCustomAnswer: false)
+            state.enqueueQuestion(QuestionRequest(
+                questions: [question], source: source, cwd: cwd,
+                originatorBundleID: Self.capturedOriginator(state: state),
+                elicitationId: (payload["elicitation_id"] as? String) ?? "",
+                link: signIn.url,
+                resolver: { ans in
+                    guard let action = ElicitationParser.signInAction(for: ans) else {
+                        pending.answer(Self.okBody)
+                        return
+                    }
+                    pending.answer(Self.jsonBody(["hookSpecificOutput": [
+                        "hookEventName": "Elicitation",
+                        "action": action,
                     ]]))
                 }
             ))
