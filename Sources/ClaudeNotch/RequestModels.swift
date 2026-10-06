@@ -207,6 +207,9 @@ enum AllowScope {
 enum ComposePurpose: Equatable {
     case message
     case denyReason(PermissionRequest)
+    /// A message for a background agent (`claude --bg`), which has no
+    /// terminal to type into. Sent with `claude --resume <id> "message"`.
+    case backgroundReply(sessionId: String, cwd: String)
 }
 
 /// Set on a request that the budget hard-stop is holding back: the relevant
