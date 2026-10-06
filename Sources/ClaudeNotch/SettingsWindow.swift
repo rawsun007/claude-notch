@@ -1997,8 +1997,16 @@ struct SettingsView: View {
     /// renders as two identical headings on the About page.
     static let whatsNew: [ChangeGroup] = [
         ChangeGroup(kind: .added, items: [
-        "Skip confirmation for destructive commands. If you would rather approve everything yourself with one click, turn this on in Settings, Privacy, and a destructive command's card gets a plain Allow button, which Return also presses, instead of Touch ID or press-and-hold. Turning it on asks for Touch ID or your Mac password every time, so nobody can switch it on from your unlocked Mac without you; turning it off never asks. The card still turns red and says Destructive, and Allow All, notifications and Auto-Approve still never allow a destructive command for you.",
+        "Reply to a background agent from the notch. A background agent's row now has Reply next to Attach: type a message and it goes straight to the agent as its next turn, through Claude Code's own resume, which since 2.1.285 hands a message to a session that is still running instead of refusing.",
+        "Open in Claude Desktop. If you have the Claude desktop app, a session's menu in Settings and the menu bar offer to open it there instead of in a terminal, using Claude Code's new claude --desktop.",
+        "Sign-in requests from MCP servers get a card. When a server asks you to sign in through a link, the notch names the site, opens it only when you press Open, and tells the server once you say you have signed in, or that you declined. Close the card and Claude Code asks in the terminal as before.",
         ]),
+        ChangeGroup(kind: .fixed, items: [
+        "Cost estimates match current prices. Prices were set per model family, so Sonnet 5 and 5.5 showed about 50% too much and Opus 5.5 about 25% too much. Each model version now has its own price, and the one-hour prompt cache Claude Code writes is priced at its real rate, twice the input price rather than 1.25 times.",
+        "Fable and Mythos are recognised. They were priced like Sonnet at a fifth of their real cost, never counted as a pricier model for Ask before switching to a pricier model, and showed as a raw model id. They now have their own prices, rank above Opus, and show by name.",
+        "A recursive rm inside bash -c or sh -c gets the countdown. Since Claude Code 2.1.288 those ask for two minutes and then deny themselves, the same as a plain rm -rf, and the card now counts down the same clock.",
+        ]),
+    ]
     ]
 }
 
