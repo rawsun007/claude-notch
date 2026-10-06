@@ -356,8 +356,13 @@ struct SessionsList: View {
                                 // Or just tell it something: the message goes in
                                 // through claude --resume, no terminal needed first.
                                 Button {
-                                    let intent = state.backgroundAgents.first { $0.id == session.backgroundAgentId }?.intent ?? ""
-                                    state.beginBackgroundReply(sessionId: session.id, cwd: session.cwd,
+                                    // The roster's session id is the real one; a live
+                                    // session's id can be a cwd when a hook carried none.
+                                    let agent = state.backgroundAgents.first { $0.id == session.backgroundAgentId }
+                                    let intent = agent?.intent ?? ""
+                                    let sid = agent?.sessionId ?? session.id
+                                    guard !sid.isEmpty, !sid.contains("/") else { return }
+                                    state.beginBackgroundReply(sessionId: sid, cwd: session.cwd,
                                                                label: intent.isEmpty ? (session.cwd as NSString).lastPathComponent : intent)
                                 } label: {
                                     HStack(spacing: 2) {
