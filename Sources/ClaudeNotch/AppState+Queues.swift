@@ -39,6 +39,8 @@ extension AppState {
             // user needs to know where their typing is about to go.
             if case .denyReason = composePurpose {
                 Announcer.say("Deny with a reason. Type the reason for Claude, then Command Return to send.")
+            } else if case .backgroundReply = composePurpose {
+                Announcer.say("Reply to a background agent. Type a message, then Command Return to send it.")
             } else {
                 Announcer.say("Message composer. Type a message, then Command Return to send it to your session.")
             }
