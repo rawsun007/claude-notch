@@ -34,9 +34,17 @@ struct ComposeCard: View {
         if case .denyReason = state.composePurpose { return true }
         return false
     }
-    private var accent: Color { isDeny ? .red : .cyan }
-    private var headerIcon: String { isDeny ? "hand.raised.fill" : "paperplane.fill" }
-    private var headerLabel: String { isDeny ? "Deny with a reason" : "Send to Claude" }
+    private var isBackgroundReply: Bool {
+        if case .backgroundReply = state.composePurpose { return true }
+        return false
+    }
+    private var accent: Color { isDeny ? .red : isBackgroundReply ? .purple : .cyan }
+    private var headerIcon: String { isDeny ? "hand.raised.fill" : isBackgroundReply ? "arrowshape.turn.up.left.fill" : "paperplane.fill" }
+    private var headerLabel: String {
+        isDeny ? "Deny with a reason"
+            : isBackgroundReply ? L("Reply to background agent", comment: "Compose card header when messaging a background agent")
+            : "Send to Claude"
+    }
     private var placeholder: String {
         isDeny
             ? "tell Claude why, or what to do instead · ⌘↩ to deny, ⎋ to keep the prompt"
@@ -54,10 +62,20 @@ struct ComposeCard: View {
                     .foregroundColor(accent.opacity(0.9))
                     .textCase(.uppercase)
                 Spacer()
+                // A background agent's reply has one target, the agent: name it
+                // instead of offering terminals.
+                if isBackgroundReply, let label = state.composeContextLabel {
+                    Text(label)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.75))
+                        .lineLimit(1)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Capsule().fill(Color.white.opacity(0.1)))
+                }
                 // Target picker: active terminal, or open a fresh terminal in
                 // a recent project. Hidden when denying — there's no terminal
                 // target, the note goes back to the waiting tool call.
-                if !isDeny {
+                if !isDeny && !isBackgroundReply {
                 Menu {
                     Button("Active terminal (\(activeTerminalName))") {
                         state.setComposeProject(nil)
