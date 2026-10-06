@@ -66,16 +66,6 @@ enum ClaudeUsageReader {
         var topHours: [Int] { hourCounts.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }.prefix(3).map(\.key) }
     }
 
-    // Public per-million-token pricing (input, output, cacheWrite, cacheRead),
-    // used only to estimate cost. Opus 4.x is $5/$25, not the legacy $15/$75 —
-    // verified against Claude Code's own /usage totals.
-    private static func price(for model: String) -> (input: Double, output: Double, cacheWrite: Double, cacheRead: Double) {
-        let m = model.lowercased()
-        if m.contains("opus")  { return (5, 25, 6.25, 0.5) }
-        if m.contains("haiku") { return (1, 5, 1.25, 0.1) }
-        return (3, 15, 3.75, 0.3)   // default to Sonnet pricing
-    }
-
     /// True the first time this assistant *message* is seen, false for every
     /// later line that repeats it.
     ///
@@ -119,19 +109,18 @@ enum ClaudeUsageReader {
         return out
     }
 
-    private static func cost(input: Int, output: Int, cacheRead: Int, cacheCreation: Int, model: String) -> Double {
-        let p = price(for: model)
-        return Double(input) / 1_000_000 * p.input
-             + Double(output) / 1_000_000 * p.output
-             + Double(cacheCreation) / 1_000_000 * p.cacheWrite
-             + Double(cacheRead) / 1_000_000 * p.cacheRead
+    /// One message's estimated cost, priced per model version with each
+    /// cache write at the lifetime it was written with (`ModelPricing`).
+    private static func cost(usage u: [String: Any], input: Int, output: Int, cacheRead: Int, model: String) -> Double {
+        let writes = ModelPricing.cacheWrites(u)
+        return ModelPricing.cost(input: input, output: output, cacheRead: cacheRead,
+                                 cacheWrite5m: writes.fiveMinute, cacheWrite1h: writes.oneHour, model: model)
     }
 
     /// What the cache-read tokens would have cost at the fresh input price,
     /// minus what they actually cost — i.e. money saved by prompt caching.
     private static func cacheSavings(cacheRead: Int, model: String) -> Double {
-        let p = price(for: model)
-        return Double(cacheRead) / 1_000_000 * (p.input - p.cacheRead)
+        ModelPricing.cacheSavings(cacheRead: cacheRead, model: model)
     }
 
     /// How long until a rate-limit window resets, as a glanceable string.
@@ -398,7 +387,7 @@ enum ClaudeUsageReader {
             let output = (u["output_tokens"] as? Int) ?? 0
             let cacheRead = (u["cache_read_input_tokens"] as? Int) ?? 0
             let cacheCreation = (u["cache_creation_input_tokens"] as? Int) ?? 0
-            let c = cost(input: input, output: output, cacheRead: cacheRead, cacheCreation: cacheCreation, model: model)
+            let c = cost(usage: u, input: input, output: output, cacheRead: cacheRead, model: model)
             out.append(UsageRecord(
                 ts: ts,
                 model: model,
@@ -624,8 +613,8 @@ enum ClaudeUsageReader {
             // Charged once per message, not once per line: one API response is
             // written out as several lines that all repeat the same usage.
             if isFirstLine(of: msg, seen: &billed) {
-                meter.costUSD += cost(input: input, output: output,
-                                      cacheRead: cacheRead, cacheCreation: cacheCreation, model: model)
+                meter.costUSD += cost(usage: u, input: input, output: output,
+                                      cacheRead: cacheRead, model: model)
             }
 
             // But subagents run in their own small, fresh context (shared in the
