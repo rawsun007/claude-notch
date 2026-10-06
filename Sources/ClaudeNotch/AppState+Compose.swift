@@ -61,6 +61,20 @@ extension AppState {
         recompute()
     }
 
+    /// Open the composer to message a background agent. It has no terminal
+    /// to type into, so the message goes through `claude --resume`.
+    func beginBackgroundReply(sessionId: String, cwd: String, label: String) {
+        guard !sessionId.isEmpty else { return }
+        composeText = ""
+        composeError = nil
+        composeProjectCwd = nil
+        composeTarget = nil
+        composeContextLabel = label.isEmpty ? nil : label
+        composePurpose = .backgroundReply(sessionId: sessionId, cwd: cwd)
+        isComposing = true
+        recompute()
+    }
+
     func setComposeProject(_ cwd: String?) {
         composeProjectCwd = cwd
         composeError = nil
@@ -81,6 +95,18 @@ extension AppState {
 
         let text = composeText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { cancelCompose(); return }
+
+        // A background agent: hand it the message, which also answers it.
+        if case .backgroundReply(let sessionId, let cwd) = composePurpose {
+            for (key, var session) in sessions where session.id == sessionId {
+                session.agentNeedsInput = false
+                sessions[key] = session
+            }
+            TerminalAutomator.resumeWithMessage(sessionId: sessionId, message: text, in: cwd)
+            play(.messageSent)
+            cancelCompose()
+            return
+        }
 
         // Project mode: open a fresh terminal in that folder with the message
         // as Claude's first prompt. No Accessibility needed.
@@ -137,7 +163,8 @@ extension AppState {
 
     func cancelCompose() {
         let target = composeTarget
-        let wasDeny = composePurpose != .message
+        var wasDeny = false
+        if case .denyReason = composePurpose { wasDeny = true }
         composeText = ""
         isComposing = false
         composePurpose = .message
