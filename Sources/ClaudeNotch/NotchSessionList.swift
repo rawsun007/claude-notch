@@ -353,6 +353,24 @@ struct SessionsList: View {
                                              session.backgroundAgentId))
                                 .accessibilityLabel(L("Attach to background agent", comment: "VoiceOver label for the Attach button"))
                                 .accessibilityHint(L("Opens it in a terminal", comment: "VoiceOver hint for the Attach button"))
+                                // Or just tell it something: the message goes in
+                                // through claude --resume, no terminal needed first.
+                                Button {
+                                    let intent = state.backgroundAgents.first { $0.id == session.backgroundAgentId }?.intent ?? ""
+                                    state.beginBackgroundReply(sessionId: session.id, cwd: session.cwd,
+                                                               label: intent.isEmpty ? (session.cwd as NSString).lastPathComponent : intent)
+                                } label: {
+                                    HStack(spacing: 2) {
+                                        Image(systemName: "arrowshape.turn.up.left")
+                                            .font(.system(size: 7, weight: .semibold))
+                                        Text(L("Reply", comment: "Button: send a message to a background agent"))
+                                            .font(.system(size: 9, weight: .medium, design: .rounded))
+                                    }
+                                    .foregroundColor(.purple.opacity(0.9))
+                                }
+                                .buttonStyle(.plain)
+                                .help(L("Send this background agent a message", comment: "Tooltip on the background agent Reply button"))
+                                .accessibilityLabel(L("Reply to background agent", comment: "VoiceOver label for the background agent Reply button"))
                             }
                             // The open PR for this branch. Claude Code resolves it,
                             // so the notch can link straight to it instead of the
