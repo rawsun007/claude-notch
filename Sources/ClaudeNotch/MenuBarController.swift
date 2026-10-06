@@ -15,6 +15,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     private var inputMonitoringItem: NSMenuItem!
     private var recentProjectsItem: NSMenuItem!
     private var resumeLastItem: NSMenuItem!
+    /// Only on Macs with Claude Desktop, and only for a Claude session.
+    private var desktopLastItem: NSMenuItem?
     private var crashLogsItem: NSMenuItem!
     // Cached most-recent session so the menu handler doesn't have to re-scan
     // disk on click; refreshed off-main in menuWillOpen.
@@ -130,6 +132,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                                     action: #selector(resumeLast), keyEquivalent: "")
         resumeLastItem.target = self
         menu.addItem(resumeLastItem)
+        if ClaudeDesktop.isInstalled {
+            let di = NSMenuItem(title: L("Open Last Session in Claude Desktop", comment: "Menu item: open the most recent session in the Claude desktop app"),
+                                action: #selector(openLastInDesktop), keyEquivalent: "")
+            di.target = self
+            di.isEnabled = false
+            menu.addItem(di)
+            desktopLastItem = di
+        }
 
         // One-click standup: copy today's "what I shipped" to the clipboard,
         // built from finished sessions + git commits, ready to paste.
@@ -537,7 +547,9 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                     self.resumeLastItem.title = String(format: L("Resume Last Session: %@", comment: "Menu item naming the session that would be resumed. %@ is the project"),
                                                        recent.project)
                     self.resumeLastItem.isEnabled = true
+                    self.desktopLastItem?.isEnabled = AgentKind.infer(fromModel: recent.model) != .codex
                 } else {
+                    self.desktopLastItem?.isEnabled = false
                     self.resumeLastItem.title = L("Resume Last Session", comment: "Menu item: reopen the most recent session")
                     self.resumeLastItem.isEnabled = false
                 }
@@ -556,6 +568,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     @objc private func resumeLast() {
         guard let s = lastResumable else { return }
         TerminalAutomator.resume(model: s.model, sessionId: s.id, in: s.cwd)
+    }
+
+    @objc private func openLastInDesktop() {
+        guard let s = lastResumable, AgentKind.infer(fromModel: s.model) != .codex else { return }
+        ClaudeDesktop.open(sessionId: s.id, in: s.cwd)
     }
 
     /// Also reachable from `claudenotch://standup`, hence not private.
