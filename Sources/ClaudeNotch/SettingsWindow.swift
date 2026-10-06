@@ -2007,7 +2007,6 @@ struct SettingsView: View {
         "A recursive rm inside bash -c or sh -c gets the countdown. Since Claude Code 2.1.288 those ask for two minutes and then deny themselves, the same as a plain rm -rf, and the card now counts down the same clock.",
         ]),
     ]
-    ]
 }
 
 /// One group of release notes, matching the website changelog's shape so the
