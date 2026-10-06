@@ -235,7 +235,9 @@ enum ClaudeUsageReader {
     static func shortModel(_ model: String) -> String {
         let m = model.lowercased()
         let family: String
-        if m.contains("opus")        { family = "opus" }
+        if m.contains("fable")       { family = "fable" }
+        else if m.contains("mythos") { family = "mythos" }
+        else if m.contains("opus")   { family = "opus" }
         else if m.contains("sonnet") { family = "sonnet" }
         else if m.contains("haiku")  { family = "haiku" }
         else { return model }
@@ -248,7 +250,9 @@ enum ClaudeUsageReader {
     static func modelNameVersion(_ model: String) -> (name: String, version: String) {
         let m = model.lowercased()
         let name: String
-        if m.contains("opus")        { name = "Opus" }
+        if m.contains("fable")       { name = "Fable" }
+        else if m.contains("mythos") { name = "Mythos" }
+        else if m.contains("opus")   { name = "Opus" }
         else if m.contains("sonnet") { name = "Sonnet" }
         else if m.contains("haiku")  { name = "Haiku" }
         else if !model.isEmpty       { name = model }
