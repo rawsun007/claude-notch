@@ -82,6 +82,16 @@ final class ModelSwitchTests: XCTestCase {
                           AppState.modelCostRank("claude-sonnet-4-6"))
         XCTAssertLessThan(AppState.modelCostRank("claude-sonnet-4-6"),
                           AppState.modelCostRank("claude-opus-5"))
+        XCTAssertLessThan(AppState.modelCostRank("claude-opus-5-5"),
+                          AppState.modelCostRank("claude-fable-5-1"))
+        XCTAssertEqual(AppState.modelCostRank("claude-mythos-5-1"), AppState.modelCostRank("claude-fable-5-1"))
+    }
+
+    /// Fable costs five times Sonnet, so moving to it is the switch the gate
+    /// exists for; moving off it is never held.
+    func testSwitchingToFableIsAnUpgrade() {
+        XCTAssertTrue(AppState.modelSwitchIsUpgrade(from: "claude-opus-5-5", to: "claude-fable-5-1"))
+        XCTAssertFalse(AppState.modelSwitchIsUpgrade(from: "claude-fable-5-1", to: "claude-opus-5-5"))
     }
 
     // MARK: - What the gate answers the CLI
