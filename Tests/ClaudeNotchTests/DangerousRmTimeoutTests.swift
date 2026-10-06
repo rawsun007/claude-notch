@@ -30,6 +30,18 @@ final class DangerousRmTimeoutTests: XCTestCase {
         XCTAssertFalse(DangerousRmTimeout.applies(toolName: "Edit", toolInput: input, permissionMode: "auto"))
     }
 
+    /// CLI 2.1.288 put the same two-minute ask on a recursive rm inside a
+    /// `bash -c` or `sh -c` script, so the card needs the same clock.
+    func testRmInsideAShellScript() {
+        for cmd in [#"bash -c "rm -rf build""#, "sh -c 'cd app && rm -r dist'", #"/bin/zsh -lc "rm -rf ~/tmp/x""#,
+                    #"bash -c "sh -c 'rm -rf out'""#, "eval 'rm -rf cache'"] {
+            XCTAssertTrue(DangerousRmTimeout.applies(toolName: "Bash", toolInput: ["command": cmd], permissionMode: "bypassPermissions"), cmd)
+        }
+        for cmd in [#"bash -c "echo rm -rf""#, #"bash -c "ls -r""#, #"git commit -m "drop the rm -rf helper""#] {
+            XCTAssertFalse(DangerousRmTimeout.applies(toolName: "Bash", toolInput: ["command": cmd], permissionMode: "auto"), cmd)
+        }
+    }
+
     func testCardExpiresOnTheCLIClock() {
         let req = PermissionRequest(kind: .toolUse, title: "Run shell command", detail: "rm -rf build", toolName: "Bash",
                                     source: "Claude Code", cwd: "/tmp", receivedAt: Date().addingTimeInterval(-121)) { _, _ in }
