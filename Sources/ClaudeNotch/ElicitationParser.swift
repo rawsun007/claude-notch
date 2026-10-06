@@ -167,4 +167,39 @@ enum ElicitationParser {
         }
         return nil
     }
+
+    // MARK: - Sign-in links (URL mode)
+
+    /// A URL-mode elicitation: the server wants the user to finish something
+    /// in a browser, usually signing in. Claude Code 2.1.287 added these for
+    /// servers on the 2025-11-25 MCP protocol.
+    struct SignIn: Equatable {
+        let serverName: String
+        let message: String
+        let url: URL
+        /// What the card names, so the user sees where the link goes before
+        /// opening it: an MCP server is free to name any site it likes.
+        var host: String { url.host ?? url.absoluteString }
+    }
+
+    /// A link longer than this is not a sign-in page anyone should be sent to.
+    static let maxURL = 2048
+
+    /// The sign-in request in a URL-mode payload, or nil.
+    ///
+    /// The link comes from a third-party server, so it is only ever an
+    /// http(s) address with a host, and the card opens it only when the user
+    /// presses Open. Anything else (a file: path, a custom scheme, no host)
+    /// leaves the prompt to Claude Code's own dialog.
+    nonisolated static func signIn(from payload: [String: Any]) -> SignIn? {
+        guard (payload["mode"] as? String) == "url",
+              let raw = payload["url"] as? String, raw.count <= maxURL,
+              let url = URL(string: raw), let scheme = url.scheme?.lowercased(),
+              scheme == "https" || scheme == "http",
+              let host = url.host, !host.isEmpty
+        else { return nil }
+        let message = ((payload["message"] as? String) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard message.count <= maxMessage else { return nil }
+        return SignIn(serverName: (payload["mcp_server_name"] as? String) ?? "", message: message, url: url)
+    }
 }
