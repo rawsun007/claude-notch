@@ -119,6 +119,26 @@ enum TerminalAutomator {
                       label: "attach \(id)")
     }
 
+    /// Send a message to a background agent and open it in a terminal.
+    ///
+    /// Since CLI 2.1.285, `claude --resume <id> "message"` on a session that is
+    /// running in the background opens that session and hands it the message
+    /// as its next turn, instead of refusing because the session is busy.
+    static func resumeWithMessage(sessionId: String, message: String, in directory: String) {
+        let claude = resolveClaudePath() ?? "claude"
+        runInTerminal(dir: directory,
+                      exec: resumeWithMessageCommand(claude: claude, sessionId: sessionId, message: message),
+                      label: "reply \(sessionId)")
+    }
+
+    /// The command line for `resumeWithMessage`. Both values are quoted; a
+    /// message that starts with a dash gets a leading space so the CLI reads
+    /// it as the prompt, not as an option.
+    nonisolated static func resumeWithMessageCommand(claude: String, sessionId: String, message: String) -> String {
+        let prompt = message.hasPrefix("-") ? " " + message : message
+        return "\(shellQuote(claude)) --resume \(shellQuote(sessionId)) \(shellQuote(prompt))"
+    }
+
     /// cd into a directory and `exec` a command in a fresh terminal window. The
     /// cd / clear / exec skeleton is identical for every launcher (start/resume,
     /// Claude/Codex, attach); centralising it is how they stop drifting apart.
