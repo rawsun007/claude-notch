@@ -36,6 +36,8 @@ enum ModelDrift {
         case haiku = 1
         case sonnet = 2
         case opus = 3
+        /// Fable and Mythos, priced above Opus.
+        case fable = 4
 
         static func < (a: Tier, b: Tier) -> Bool { a.rawValue < b.rawValue }
     }
@@ -46,6 +48,7 @@ enum ModelDrift {
     /// (`claude-opus-4-5` -> `claude-opus-5`) resolve to the same tier.
     nonisolated static func tier(_ model: String) -> Tier {
         let m = model.lowercased()
+        if m.contains("fable") || m.contains("mythos") { return .fable }
         if m.contains("opus") { return .opus }
         if m.contains("sonnet") { return .sonnet }
         if m.contains("haiku") { return .haiku }
@@ -55,6 +58,7 @@ enum ModelDrift {
     /// The family word itself, for wording the card. Empty when unknown.
     nonisolated static func family(_ model: String) -> String {
         switch tier(model) {
+        case .fable:  return model.lowercased().contains("mythos") ? "Mythos" : "Fable"
         case .opus:   return "Opus"
         case .sonnet: return "Sonnet"
         case .haiku:  return "Haiku"
