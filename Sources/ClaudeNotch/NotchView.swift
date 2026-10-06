@@ -454,7 +454,8 @@ struct NotchView: View {
                 let custom: CGFloat = question.allowsCustomAnswer ? 44 : 0
                 return total + 26 + 6 + options + custom
             }
-            let want = 104 + questionsHeight
+            // A sign-in card has its Open row above the question.
+            let want = 104 + questionsHeight + (q.link == nil ? 0 : 44)
             // Don't blow past the screen — leave at least 15% headroom so the
             // card stays usable on small displays. Only at that cap will the
             // inner scroll kick in.

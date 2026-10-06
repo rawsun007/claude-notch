@@ -439,6 +439,28 @@ struct QuestionCard: View {
                 }
             }
 
+            // An MCP server asking the user to sign in. The site is named on
+            // the button, because the server chose the link, and nothing is
+            // opened until it is pressed.
+            if let link = request.link, !expired {
+                Button {
+                    NSWorkspace.shared.open(link)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "safari")
+                        Text(String(format: L("Open sign-in page on %@", comment: "Button on an MCP sign-in card. %@ is the website's host name"),
+                                    link.host ?? link.absoluteString))
+                            .lineLimit(1)
+                    }
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .background(Capsule(style: .continuous).fill(Color.purple.opacity(0.7)))
+                }
+                .buttonStyle(.plain)
+                .help(link.absoluteString)
+            }
+
             // Let the option list fill whatever vertical space the window
             // gives us — the panel size in NotchView.size() already accounts
             // for every option, so a ScrollView only kicks in on extreme
