@@ -22,7 +22,8 @@ extension AppState {
     /// second switch back and forth is news.
     nonisolated static let modelSwitchCardGrace: TimeInterval = 5
 
-    /// Rough cost order of the model families: haiku < sonnet < opus.
+    /// Rough cost order of the model families: haiku < sonnet < opus <
+    /// fable (Fable and Mythos, at five times Sonnet's price).
     ///
     /// Zero means "not a family we know", which is not the same as cheap. Every
     /// caller has to treat 0 as unknown and decline to act, because the whole
@@ -38,6 +39,7 @@ extension AppState {
         if m.contains("haiku")  { return 1 }
         if m.contains("sonnet") { return 2 }
         if m.contains("opus")   { return 3 }
+        if m.contains("fable") || m.contains("mythos") { return 4 }
         return 0
     }
 
