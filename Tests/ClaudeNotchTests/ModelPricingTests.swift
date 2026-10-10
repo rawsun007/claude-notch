@@ -63,4 +63,39 @@ final class ModelPricingTests: XCTestCase {
     func testSavings() {
         XCTAssertEqual(ModelPricing.cacheSavings(cacheRead: 1_000_000, model: "claude-fable-5-1"), 9.75, accuracy: 1e-9)
     }
+
+    // MARK: - Haiku 5.5 (CLI 2.1.293) and Sonnet 5.5 cache reads (CLI 2.1.296)
+
+    func testHaiku55IsATenthOfHaiku45() {
+        XCTAssertEqual(ModelPricing.price(for: "claude-haiku-5-5"),
+                       ModelPrice(input: 0.1, output: 0.5, cacheWrite5m: 0.125, cacheWrite1h: 0.2, cacheRead: 0.01))
+        XCTAssertEqual(ModelPricing.price(for: "claude-haiku-4-5-20251001").input, 1)
+    }
+
+    /// The long-context price is per request and counts the whole prompt,
+    /// cache reads and writes included, the way Anthropic bills it.
+    func testHaiku55LongPromptPricing() {
+        XCTAssertEqual(ModelPricing.price(for: "claude-haiku-5-5", promptTokens: 100_000).input, 0.1)
+        XCTAssertEqual(ModelPricing.price(for: "claude-haiku-5-5", promptTokens: 100_001),
+                       ModelPrice(input: 0.5, output: 2.5, cacheWrite5m: 0.625, cacheWrite1h: 1, cacheRead: 0.05))
+        // 2K fresh input over a 120K cached prompt: the cache read tips it over
+        let long = ModelPricing.cost(input: 2_000, output: 1_000_000, cacheRead: 120_000, cacheWrite5m: 0, cacheWrite1h: 0, model: "claude-haiku-5-5")
+        XCTAssertEqual(long, (2_000 * 0.5 + 1_000_000 * 2.5 + 120_000 * 0.05) / 1_000_000, accuracy: 1e-9)
+        let short = ModelPricing.cost(input: 2_000, output: 1_000_000, cacheRead: 50_000, cacheWrite5m: 0, cacheWrite1h: 0, model: "claude-haiku-5-5")
+        XCTAssertEqual(short, (2_000 * 0.1 + 1_000_000 * 0.5 + 50_000 * 0.01) / 1_000_000, accuracy: 1e-9)
+    }
+
+    /// Only Haiku 5.5 has a long-context price; a big prompt on any other
+    /// model costs the same per token.
+    func testOtherModelsIgnorePromptLength() {
+        for m in ["claude-opus-5-5", "claude-sonnet-5", "claude-fable-5-1", "claude-haiku-4-5"] {
+            XCTAssertEqual(ModelPricing.price(for: m, promptTokens: 900_000), ModelPricing.price(for: m), m)
+        }
+    }
+
+    func testSonnet55CacheReads() {
+        XCTAssertEqual(ModelPricing.price(for: "claude-sonnet-5-5").cacheRead, 0.1)
+        XCTAssertEqual(ModelPricing.price(for: "claude-sonnet-5").cacheRead, 0.2)
+        XCTAssertEqual(ModelPricing.price(for: "claude-sonnet-5-5").input, 2)
+    }
 }
