@@ -1996,15 +1996,10 @@ struct SettingsView: View {
     /// of the same kind is the obvious way to write a patch's notes and it
     /// renders as two identical headings on the About page.
     static let whatsNew: [ChangeGroup] = [
-        ChangeGroup(kind: .added, items: [
-        "Reply to a background agent from the notch. A background agent's row now has Reply next to Attach: type a message and it goes straight to the agent as its next turn, through Claude Code's own resume, which since 2.1.285 hands a message to a session that is still running instead of refusing.",
-        "Open in Claude Desktop. If you have the Claude desktop app, a session's menu in Settings and the menu bar offer to open it there instead of in a terminal, using Claude Code's new claude --desktop.",
-        "Sign-in requests from MCP servers get a card. When a server asks you to sign in through a link, the notch names the site, opens it only when you press Open, and tells the server once you say you have signed in, or that you declined. Close the card and Claude Code asks in the terminal as before.",
-        ]),
         ChangeGroup(kind: .fixed, items: [
-        "Cost estimates match current prices. Prices were set per model family, so Sonnet 5 and 5.5 showed about 50% too much and Opus 5.5 about 25% too much. Each model version now has its own price, and the one-hour prompt cache Claude Code writes is priced at its real rate, twice the input price rather than 1.25 times.",
-        "Fable and Mythos are recognised. They were priced like Sonnet at a fifth of their real cost, never counted as a pricier model for Ask before switching to a pricier model, and showed as a raw model id. They now have their own prices, rank above Opus, and show by name.",
-        "A recursive rm inside bash -c or sh -c gets the countdown. Since Claude Code 2.1.288 those ask for two minutes and then deny themselves, the same as a plain rm -rf, and the card now counts down the same clock.",
+        "Haiku 5.5 costs what it really costs. Claude Code 2.1.293 added Claude Haiku 5.5, a tenth of the price of Haiku 4.5, and the notch was pricing it as Haiku 4.5, ten times too high. It now has its own price, including the higher one Anthropic charges for a prompt over 100,000 tokens, counted per message the way it is billed.",
+        "Haiku 5.5's context bar is no longer five times too full. It has a 1 million token context window, and the meter was measuring it against the 200,000 of earlier Haiku models.",
+        "Sonnet 5.5 cache reads are priced at $0.10 per million tokens, half what the notch charged, matching Anthropic's new price and Claude Code 2.1.296's own status line.",
         ]),
     ]
 }
