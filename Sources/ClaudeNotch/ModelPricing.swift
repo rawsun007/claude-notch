@@ -21,10 +21,17 @@ struct ModelPrice: Equatable {
 }
 
 enum ModelPricing {
+    /// Over this many prompt tokens, a Haiku 5.5 request is priced as long context.
+    static let haikuLongPrompt = 100_000
+
     /// The price of a model id, by family and version. A version newer than
     /// any listed here takes the newest listed price for its family; an id we
     /// cannot place at all is priced as the current Sonnet.
-    nonisolated static func price(for model: String) -> ModelPrice {
+    ///
+    /// `promptTokens` is one request's whole prompt (input plus cache reads
+    /// and writes). Only Haiku 5.5 uses it: a prompt over 100K tokens pays five
+    /// times the price for that request, cached part included.
+    nonisolated static func price(for model: String, promptTokens: Int = 0) -> ModelPrice {
         let m = model.lowercased()
         let v = ClaudeUsageReader.modelVersion(m) ?? 0
         if m.contains("fable") || m.contains("mythos") {
@@ -38,7 +45,11 @@ enum ModelPricing {
         }
         if m.contains("haiku") {
             // Haiku 5.5: a tenth of Haiku 4.5's price for a prompt up to 100K tokens
-            if v >= 5.5 { return ModelPrice(input: 0.1, output: 0.5, cacheWrite5m: 0.125, cacheWrite1h: 0.2, cacheRead: 0.01) }
+            if v >= 5.5 {
+                return promptTokens > haikuLongPrompt
+                    ? ModelPrice(input: 0.5, output: 2.5, cacheWrite5m: 0.625, cacheWrite1h: 1, cacheRead: 0.05)
+                    : ModelPrice(input: 0.1, output: 0.5, cacheWrite5m: 0.125, cacheWrite1h: 0.2, cacheRead: 0.01)
+            }
             if v > 0 && v < 4.5 { return ModelPrice(input: 0.8, output: 4, cacheWrite5m: 1, cacheWrite1h: 1.6, cacheRead: 0.08) }
             return ModelPrice(input: 1, output: 5, cacheWrite5m: 1.25, cacheWrite1h: 2, cacheRead: 0.1)
         }
@@ -50,7 +61,7 @@ enum ModelPricing {
 
     /// Estimated cost in dollars of one message's usage.
     nonisolated static func cost(input: Int, output: Int, cacheRead: Int, cacheWrite5m: Int, cacheWrite1h: Int, model: String) -> Double {
-        let p = price(for: model)
+        let p = price(for: model, promptTokens: input + cacheRead + cacheWrite5m + cacheWrite1h)
         return (Double(input) * p.input + Double(output) * p.output + Double(cacheRead) * p.cacheRead
               + Double(cacheWrite5m) * p.cacheWrite5m + Double(cacheWrite1h) * p.cacheWrite1h) / 1_000_000
     }
