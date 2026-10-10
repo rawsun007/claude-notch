@@ -519,8 +519,8 @@ enum ClaudeUsageReader {
     /// even a model this rule guesses wrong about corrects itself in use.
     static func modelHas1MWindow(_ model: String) -> Bool {
         let m = model.lowercased()
-        // Haiku is the small, fast model and stays on 200k however new it gets.
-        if m.contains("haiku") { return false }
+        // Haiku stayed on 200k until Haiku 5.5, the first with the 1M window.
+        if m.contains("haiku") { return (modelVersion(m) ?? 0) >= 5.5 }
         // Everything else frontier, from the 4.6 generation on, carries 1M — and
         // that includes families that did not exist when this was written, which
         // is the whole point. A model id we can't read a version out of keeps the
