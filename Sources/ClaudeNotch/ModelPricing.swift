@@ -37,6 +37,8 @@ enum ModelPricing {
             return ModelPrice(input: 15, output: 75, cacheWrite5m: 18.75, cacheWrite1h: 30, cacheRead: 1.5)
         }
         if m.contains("haiku") {
+            // Haiku 5.5: a tenth of Haiku 4.5's price for a prompt up to 100K tokens
+            if v >= 5.5 { return ModelPrice(input: 0.1, output: 0.5, cacheWrite5m: 0.125, cacheWrite1h: 0.2, cacheRead: 0.01) }
             if v > 0 && v < 4.5 { return ModelPrice(input: 0.8, output: 4, cacheWrite5m: 1, cacheWrite1h: 1.6, cacheRead: 0.08) }
             return ModelPrice(input: 1, output: 5, cacheWrite5m: 1.25, cacheWrite1h: 2, cacheRead: 0.1)
         }
