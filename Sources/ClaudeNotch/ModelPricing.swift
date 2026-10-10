@@ -1,7 +1,7 @@
 import Foundation
 
 /// Anthropic's public per-million-token prices, used to estimate what a
-/// session cost. Source: the Claude pricing page (October 2026).
+/// session cost. Source: the Claude pricing page (checked 10 October 2026).
 ///
 /// Prices are per model version, not per family. They used to be per family,
 /// which was right while every Opus cost the same; then Opus 5.5 came in
@@ -56,7 +56,8 @@ enum ModelPricing {
         if m.contains("sonnet"), v > 0, v < 5 {
             return ModelPrice(input: 3, output: 15, cacheWrite5m: 3.75, cacheWrite1h: 6, cacheRead: 0.3)
         }
-        return ModelPrice(input: 2, output: 10, cacheWrite5m: 2.5, cacheWrite1h: 4, cacheRead: 0.2)   // Sonnet 5 and later
+        // Sonnet 5 and later; cache hits on 5.5 are 5% of input, not 10%
+        return ModelPrice(input: 2, output: 10, cacheWrite5m: 2.5, cacheWrite1h: 4, cacheRead: m.contains("sonnet") && v >= 5.5 ? 0.1 : 0.2)
     }
 
     /// Estimated cost in dollars of one message's usage.
