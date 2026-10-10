@@ -91,8 +91,11 @@ final class ClaudeUsageReaderTests: XCTestCase {
         XCTAssertTrue(ClaudeUsageReader.modelHas1MWindow("claude-sonnet-5"))
         // Including families that did not exist when the rule was written.
         XCTAssertTrue(ClaudeUsageReader.modelHas1MWindow("claude-fable-5"))
-        // Haiku stays small however new it is.
+        // Haiku stayed small until 5.5, the first Haiku with the 1M window.
         XCTAssertFalse(ClaudeUsageReader.modelHas1MWindow("claude-haiku-5"))
+        XCTAssertTrue(ClaudeUsageReader.modelHas1MWindow("claude-haiku-5-5"))
+        XCTAssertEqual(ClaudeUsageReader.contextWindow(forModel: "claude-haiku-5-5", tokens: 150_000, mode: .auto),
+                       ClaudeUsageReader.contextWindow1M)
         // And an unreadable id keeps the conservative denominator.
         XCTAssertFalse(ClaudeUsageReader.modelHas1MWindow("some-other-model"))
     }
