@@ -19,7 +19,7 @@ import Foundation
 /// Supported forms (host or first path segment carries the verb):
 ///
 ///     claudenotch://open
-///     claudenotch://settings
+///     claudenotch://settings           claudenotch://settings/skills
 ///     claudenotch://history
 ///     claudenotch://standup
 ///     claudenotch://compose            claudenotch://compose/myproject
@@ -29,6 +29,8 @@ enum NotchURLAction: Equatable {
     /// Bring the notch card up, as hovering it would.
     case open
     case settings
+    /// Settings, opened on one page (a sidebar section, lowercased).
+    case settingsPage(String)
     case history
     /// Copy today's standup to the clipboard.
     case standup
@@ -71,7 +73,12 @@ enum NotchURL {
 
         switch verb.lowercased() {
         case "open":     return .open
-        case "settings": return .settings
+        case "settings":
+            // A page name the sidebar knows; anything else just opens Settings.
+            if let page = name?.lowercased(), SettingsSection.allCases.contains(where: { $0.rawValue.lowercased() == page }) {
+                return .settingsPage(page)
+            }
+            return .settings
         case "history":  return .history
         case "standup":  return .standup
         case "compose":  return .compose(project: name)
