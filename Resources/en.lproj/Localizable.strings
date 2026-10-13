@@ -78,6 +78,9 @@
 /* Accessibility label for the menu bar icon when the hook server is down */
 "%@ is not receiving prompts" = "%@ is not receiving prompts";
 
+/* Error when a settings file cannot be parsed. %@ is the path */
+"%@ is not valid JSON, so ClaudeNotch left it alone." = "%@ is not valid JSON, so ClaudeNotch left it alone.";
+
 /* Card title when a named teammate agent has gone idle. %@ is the teammate's name */
 "%@ is waiting on you" = "%@ is waiting on you";
 
@@ -137,6 +140,15 @@
 
 /* Count of sessions being summarised */
 "%d sessions" = "%d sessions";
+
+/* Count of skills */
+"%d skills" = "%d skills";
+
+/* Skill suggestion headline. %d is a count */
+"%d skills haven't run since ClaudeNotch started watching" = "%d skills haven't run since ClaudeNotch started watching";
+
+/* Plugin row. %d is a count */
+"%d skills, on or off together with the plugin" = "%d skills, on or off together with the plugin";
 
 /* Limit tooltip fragment. %d is a percentage */
 "%d%% used" = "%d%% used";
@@ -204,6 +216,9 @@
 /* Card body explaining what a worktree does and does not isolate */
 "A session working here is isolated from your other checkouts by file, but not by port, database, or environment." = "A session working here is isolated from your other checkouts by file, but not by port, database, or environment.";
 
+/* Error restoring a skill. %@ is a path */
+"A skill is already at %@, so it was not overwritten." = "A skill is already at %@, so it was not overwritten.";
+
 /* Card title when an unnamed teammate agent has gone idle */
 "A teammate is waiting on you" = "A teammate is waiting on you";
 
@@ -221,6 +236,9 @@
 
 /* Settings page title */
 "About" = "About";
+
+/* Skills budget headline. %@ is a number */
+"About %@ tokens of skills in every turn" = "About %@ tokens of skills in every turn";
 
 /* Onboarding step name for the accessibility permission */
 "Accessibility" = "Accessibility";
@@ -495,6 +513,9 @@
 /* Countdown on a dangerous rm card; the argument is m:ss */
 "Claude Code denies this itself in %@" = "Claude Code denies this itself in %@";
 
+/* Skills budget explanation. Two numbers */
+"Claude Code gives the skill listing about 1%% of the context window: %@ tokens on a 1M-token model, %@ on a 200K one. Past that it cuts descriptions, starting with the skills used least." = "Claude Code gives the skill listing about 1%% of the context window: %@ tokens on a 1M-token model, %@ on a 200K one. Past that it cuts descriptions, starting with the skills used least.";
+
 /* Onboarding step name for installing the hooks */
 "Claude Code hooks" = "Claude Code hooks";
 
@@ -512,6 +533,9 @@
 
 /* Note under the CLI statistics. %@ is a date */
 "Claude Code last recomputed these on %@, so today is not included yet." = "Claude Code last recomputed these on %@, so today is not included yet.";
+
+/* Settings explanation */
+"Claude Code lists the name and description of every skill to Claude on every turn, used or not. Turn down the ones you don't need to give that context back. Changes apply to new sessions." = "Claude Code lists the name and description of every skill to Claude on every turn, used or not. Turn down the ones you don't need to give that context back. Changes apply to new sessions.";
 
 /* Limit tooltip fragment explaining why a reading can be stale */
 "Claude Code only reports usage while a session is running" = "Claude Code only reports usage while a session is running";
@@ -533,6 +557,12 @@
 
 /* Submenu: token usage read from the transcripts */
 "Claude Usage" = "Claude Usage";
+
+/* Skill state explanation */
+"Claude sees its name and description and can use it on its own." = "Claude sees its name and description and can use it on its own.";
+
+/* Skill state explanation */
+"Claude sees only its name: much less context, but it may be picked less often." = "Claude sees only its name: much less context, but it may be picked less often.";
 
 /* Banner body on a permission card whose session stopped waiting */
 "Claude stopped waiting after about five minutes and asked again where the session is running: your terminal, the VS Code extension, or a cloud session. Allowing or denying here would not reach it." = "Claude stopped waiting after about five minutes and asked again where the session is running: your terminal, the VS Code extension, or a cloud session. Allowing or denying here would not reach it.";
@@ -720,6 +750,9 @@
 /* Settings row: mean spend per completed day */
 "Daily average" = "Daily average";
 
+/* Skill trash entry. %d days */
+"Deleted for good in %d days" = "Deleted for good in %d days";
+
 /* History filter: only rejected requests */
 "Denied" = "Denied";
 
@@ -855,6 +888,9 @@
 /* Tooltip on the FORK chip */
 "Forked from another session: its own copy of that conversation, in its own worktree." = "Forked from another session: its own copy of that conversation, in its own worktree.";
 
+/* Skill group */
+"From claude.ai" = "From claude.ai";
+
 /* Spend submenu row linking to the settings window */
 "Full usage in Settings…" = "Full usage in Settings…";
 
@@ -891,6 +927,12 @@
 /* Settings toggle */
 "Hard-stop at the cap" = "Hard-stop at the cap";
 
+/* Skill state explanation */
+"Hidden from Claude and from the slash menu." = "Hidden from Claude and from the slash menu.";
+
+/* Skill state explanation */
+"Hidden from Claude. You can still run it by typing its slash command." = "Hidden from Claude. You can still run it by typing its slash command.";
+
 /* Toggle: keep the notch out of screen shares */
 "Hide from Screen Recordings" = "Hide from Screen Recordings";
 
@@ -920,6 +962,9 @@
 
 /* Card body when too many lines are marked important */
 "If several lines are marked important, none of them stands out. One line can carry the emphasis." = "If several lines are marked important, none of them stands out. One line can carry the emphasis.";
+
+/* Skill trash entry with no date */
+"In the trash" = "In the trash";
 
 /* Settings sidebar group */
 "Info" = "Info";
@@ -953,6 +998,9 @@
 
 /* Settings section heading */
 "Integrations (beta)" = "Integrations (beta)";
+
+/* Confirm deleting a skill, explanation */
+"It goes to Claude Code's skills trash and can be restored from this page for 30 days." = "It goes to Claude Code's skills trash and can be restored from this page for 30 days.";
 
 /* Card body explaining that a teammate agent is idle in a separate terminal pane */
 "It has stopped and is idle in its own pane." = "It has stopped and is idle in its own pane.";
@@ -1041,6 +1089,9 @@
 /* Stat label: longest run of consecutive active days */
 "Longest streak" = "Longest streak";
 
+/* Skills page while scanning */
+"Looking for skills..." = "Looking for skills...";
+
 /* Button opening the Anthropic usage settings page */
 "Manage on claude.ai" = "Manage on claude.ai";
 
@@ -1077,8 +1128,20 @@
 /* Stat label: the model with the most tokens */
 "Most used model" = "Most used model";
 
+/* Confirm deleting a skill. %@ is its name */
+"Move %@ to the trash?" = "Move %@ to the trash?";
+
+/* Button */
+"Move to Trash" = "Move to Trash";
+
+/* Skill menu */
+"Move to Trash..." = "Move to Trash...";
+
 /* Settings toggle */
 "Mute all sounds" = "Mute all sounds";
+
+/* Button: set suggested skills to name only */
+"Name only" = "Name only";
 
 /* Onboarding step name for the custom notch title */
 "Name the notch" = "Name the notch";
@@ -1118,6 +1181,9 @@
 
 /* Empty search result. %@ is what was typed */
 "No sessions match “%@”." = "No sessions match “%@”.";
+
+/* Skills page empty state */
+"No skills found." = "No skills found.";
 
 /* Card body explaining why an unverified session is worth a second look */
 "No tests, no build, nothing that could have failed. An agent stops when the work looks done, so without a check it can run, looking done is the only signal it had." = "No tests, no build, nothing that could have failed. An agent stops when the work looks done, so without a check it can run, looking done is the only signal it had.";
@@ -1179,11 +1245,17 @@
 /* Settings toggle explanation */
 "Only let commands that read and change nothing be approved for you. Auto-Approve and tool-wide rules stop applying to everything else, so a build, a script, or anything reaching the network waits for a click. Rules you made for one exact command still work. The destructive-command check recognises patterns, and a pattern list is never finished; this is the setting for when that is not good enough." = "Only let commands that read and change nothing be approved for you. Auto-Approve and tool-wide rules stop applying to everything else, so a build, a script, or anything reaching the network waits for a click. Rules you made for one exact command still work. The destructive-command check recognises patterns, and a pattern list is never finished; this is the setting for when that is not good enough.";
 
+/* Skill state: hidden from Claude, still available as a slash command */
+"Only when I type it" = "Only when I type it";
+
 /* Button: bring the editor or terminal that started this session to the front */
 "Open IDE" = "Open IDE";
 
 /* Menu item: open the most recent session in the Claude desktop app */
 "Open Last Session in Claude Desktop" = "Open Last Session in Claude Desktop";
+
+/* Skill menu */
+"Open SKILL.md" = "Open SKILL.md";
 
 /* Onboarding button: open the macOS settings pane for a permission */
 "Open Settings" = "Open Settings";
@@ -1221,6 +1293,9 @@
 /* Card title when a session paused on a usage limit and needs a human to continue it */
 "Out of usage, waiting for you" = "Out of usage, waiting for you";
 
+/* Skills budget warning */
+"Over the budget of a 200K-token model: on those, some descriptions are being cut." = "Over the budget of a 200K-token model: on those, some descriptions are being cut.";
+
 /* Budget block. %@ is a scope such as daily or weekly */
 "Over your %@ budget" = "Over your %@ budget";
 
@@ -1251,6 +1326,9 @@
 /* Toggle: keep the notch card open */
 "Persistent Notch Display" = "Persistent Notch Display";
 
+/* Skill source */
+"Personal" = "Personal";
+
 /* Settings sidebar section */
 "Pet" = "Pet";
 
@@ -1278,6 +1356,18 @@
 /* Settings button */
 "Play all" = "Play all";
 
+/* Skill source */
+"Plugin" = "Plugin";
+
+/* Toggle for a plugin */
+"Plugin enabled" = "Plugin enabled";
+
+/* Skills page footnote */
+"Plugin skills turn off with their plugin. Skills from claude.ai come back if deleted here, so they can only be hidden. Usage counts start from when ClaudeNotch began watching." = "Plugin skills turn off with their plugin. Skills from claude.ai come back if deleted here, so they can only be hidden. Usage counts start from when ClaudeNotch began watching.";
+
+/* Skill group. %@ is the plugin id */
+"Plugin: %@" = "Plugin: %@";
+
 /* Card detail for a taken hook port. %d is the port number, twice */
 "Port %d is taken, so permission prompts are going to whatever is on it and this app will show nothing. That may be an old copy of ClaudeNotch, or it may not. Check with: lsof -nP -iTCP:%d -sTCP:LISTEN" = "Port %d is taken, so permission prompts are going to whatever is on it and this app will show nothing. That may be an old copy of ClaudeNotch, or it may not. Check with: lsof -nP -iTCP:%d -sTCP:LISTEN";
 
@@ -1287,11 +1377,17 @@
 /* Settings sidebar section */
 "Privacy" = "Privacy";
 
+/* Skill source */
+"Project" = "Project";
+
 /* Settings explanation */
 "Project name" = "Project name";
 
 /* Card title: the project's .claude/settings.json was edited */
 "Project settings changed" = "Project settings changed";
+
+/* Skill group. %@ is the project folder name */
+"Project: %@" = "Project: %@";
 
 /* Caveat under the spend projection. %1$d is days measured, %2$d is days remaining */
 "Projected from %1$d day(s) of spend, with %2$d still to go. Estimated at public API prices, not your subscription bill." = "Projected from %1$d day(s) of spend, with %2$d still to go. Estimated at public API prices, not your subscription bill.";
@@ -1398,6 +1494,9 @@
 /* Plan limits. %@ is a relative time such as \"in 2 hours\" */
 "Resets %@." = "Resets %@.";
 
+/* Button: restore a skill from the trash */
+"Restore" = "Restore";
+
 /* Button: start the agent again in this project */
 "Resume" = "Resume";
 
@@ -1415,6 +1514,9 @@
 
 /* Menu item: show the crash report files in Finder */
 "Reveal Crash Logs…" = "Reveal Crash Logs…";
+
+/* Skill menu */
+"Reveal in Finder" = "Reveal in Finder";
 
 /* History filter: only requests flagged as dangerous */
 "Risky" = "Risky";
@@ -1446,6 +1548,9 @@
 /* Dialog button: keep the entered value */
 "Save" = "Save";
 
+/* Tooltip: rescan skills */
+"Scan again" = "Scan again";
+
 /* VoiceOver label for the activity search field */
 "Search history" = "Search history";
 
@@ -1454,6 +1559,9 @@
 
 /* Placeholder in the project search field */
 "Search project…" = "Search project…";
+
+/* Search field placeholder */
+"Search skills" = "Search skills";
 
 /* Placeholder in the activity search field */
 "Search tool, command, project…" = "Search tool, command, project…";
@@ -1491,6 +1599,9 @@
 /* Card body listing compliance labels. %@ is a list of labels */
 "Sessions on this Mac carry: %@" = "Sessions on this Mac carry: %@";
 
+/* Skill suggestion detail. First %@ is tokens, second the skill names */
+"Set them to Name only and get back about %@ tokens every turn: %@" = "Set them to Name only and get back about %@ tokens every turn: %@";
+
 /* Menu item: open the settings window */
 "Settings…" = "Settings…";
 
@@ -1526,6 +1637,9 @@
 
 /* Settings toggle explanation */
 "Silence every notch sound." = "Silence every notch sound.";
+
+/* Settings page title */
+"Skills" = "Skills";
 
 /* Card title: the installed skills changed */
 "Skills changed" = "Skills changed";
@@ -1640,6 +1754,9 @@
 
 /* Settings explanation */
 "Terminal:" = "Terminal:";
+
+/* Error moving a skill to the trash */
+"That folder is not a skill ClaudeNotch can move." = "That folder is not a skill ClaudeNotch can move.";
 
 /* Note shown when a typed rule is a duplicate */
 "That rule is already in the list." = "That rule is already in the list.";
@@ -1778,6 +1895,9 @@
 
 /* Stat label: lifetime token count */
 "Total tokens" = "Total tokens";
+
+/* Skills trash heading */
+"Trash" = "Trash";
 
 /* Onboarding button: switch auto-approval off */
 "Turn Off" = "Turn Off";
@@ -1983,6 +2103,9 @@
 /* Hint next to Always Allow. %d is how many times this exact command was approved before */
 "allowed %d times" = "allowed %d times";
 
+/* Skill source */
+"claude.ai" = "claude.ai";
+
 /* Hint under the auto-allowed card */
 "click to dismiss" = "click to dismiss";
 
@@ -2016,11 +2139,17 @@
 /* Placeholder when a session has reported no token usage */
 "no usage yet" = "no usage yet";
 
+/* Skill usage: none recorded */
+"not seen running" = "not seen running";
+
 /* Badge marking an onboarding step you can skip */
 "optional" = "optional";
 
 /* Prompt cache miss cause */
 "probably the server's side, not anything in this session" = "probably the server's side, not anything in this session";
+
+/* Skill usage. %d count, %@ relative time */
+"ran %d times, last %@" = "ran %d times, last %@";
 
 /* Limit tooltip fragment. %1$@ is a countdown, %2$@ is a clock time */
 "resets in %1$@ (%2$@)" = "resets in %1$@ (%2$@)";
@@ -2045,6 +2174,9 @@
 
 /* Unit label after a token cap field */
 "tokens" = "tokens";
+
+/* Skill context cost */
+"~%d tokens per turn" = "~%d tokens per turn";
 
 /* Staleness marker beside a usage reading. %@ is an age such as 12 min */
 "· %@ old" = "· %@ old";
