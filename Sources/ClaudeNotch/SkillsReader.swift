@@ -198,3 +198,39 @@ enum SkillsReader {
         }
     }
 }
+
+/// How often a skill has run, as ClaudeNotch has seen it through the hooks:
+/// Claude invoking it (the Skill tool) or you typing it as a slash command.
+/// Only counts from when ClaudeNotch started watching, so "never" means
+/// "not since then".
+struct SkillUse: Codable, Equatable {
+    var count: Int
+    var last: Date
+
+    /// Usage is kept for this many skill names at most.
+    static let cap = 300
+
+    /// The skill a Skill tool call ran, from its input: `{"skill": "pdf"}`.
+    /// Leading slash dropped, trimmed, capped (it is payload text).
+    nonisolated static func name(fromToolInput input: [String: Any]) -> String? {
+        normalize(input["skill"] as? String)
+    }
+
+    nonisolated static func normalize(_ raw: String?) -> String? {
+        guard var s = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return nil }
+        if s.hasPrefix("/") { s.removeFirst() }
+        if let space = s.firstIndex(of: " ") { s = String(s[..<space]) }
+        return s.isEmpty ? nil : String(s.prefix(120))
+    }
+
+    /// The usage record for a skill, by its full name or, for a synced or
+    /// plugin skill, the short name after the colon (both can be typed).
+    nonisolated static func lookup(_ usage: [String: SkillUse], name: String) -> SkillUse? {
+        let short = name.split(separator: ":").last.map(String.init) ?? name
+        let a = usage[name], b = name == short ? nil : usage[short]
+        switch (a, b) {
+        case let (x?, y?): return SkillUse(count: x.count + y.count, last: max(x.last, y.last))
+        default: return a ?? b
+        }
+    }
+}
