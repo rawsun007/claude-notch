@@ -123,15 +123,31 @@ enum SkillsReader {
             syncedSkills += skills(in: (synced as NSString).appendingPathComponent(account), source: .synced, prefix: "anthropic-skills:", reserved: false)
         }
         out += dedupeNewest(syncedSkills)
-        var seen = Set<String>()
-        for p in projects where seen.insert(p).inserted {
-            out += skills(in: (p as NSString).appendingPathComponent(".claude/skills"), source: .project, project: p)
+        // A recent project can be the home folder, whose .claude/skills IS the
+        // personal folder: listing it again as a project made every personal
+        // skill appear twice (and crashed the page that keyed them by path).
+        var seen = Set<String>([standard(personalDir)])
+        for p in projects {
+            let dir = standard((p as NSString).appendingPathComponent(".claude/skills"))
+            guard seen.insert(dir).inserted else { continue }
+            out += skills(in: dir, source: .project, project: p)
         }
         for (id, root) in installedPlugins() {
             let pluginName = String(id.split(separator: "@").first ?? Substring(id))
             out += skills(in: (root as NSString).appendingPathComponent("skills"), source: .plugin, plugin: id, prefix: pluginName + ":", reserved: false)
         }
-        return out
+        return uniqueByPath(out)
+    }
+
+    /// A path with symlinks resolved and `..`, `.` and trailing slashes gone.
+    nonisolated static func standard(_ path: String) -> String {
+        URL(fileURLWithPath: path).standardizedFileURL.resolvingSymlinksInPath().path
+    }
+
+    /// One entry per skill folder: the first one found wins.
+    nonisolated static func uniqueByPath(_ skills: [SkillInfo]) -> [SkillInfo] {
+        var seen = Set<String>()
+        return skills.filter { seen.insert($0.path).inserted }
     }
 
     private static func children(_ dir: String) -> [String] {
