@@ -54,7 +54,9 @@ extension AppState {
     func skillVisibility(_ skill: SkillInfo) -> SkillSettings.Visibility {
         Self.visibility(of: skill, user: skillOverridesUser, project: skill.project.flatMap { skillOverridesProject[$0] }, pluginEnabled: pluginEnabled)
     }
-    var skillStates: [String: SkillSettings.Visibility] { Dictionary(uniqueKeysWithValues: skills.map { ($0.id, skillVisibility($0)) }) }
+    /// Keyed by skill folder. Built with a merge, never `uniqueKeysWithValues`:
+    /// a duplicate there is a trap that takes the whole app down.
+    var skillStates: [String: SkillSettings.Visibility] { Dictionary(skills.map { ($0.id, skillVisibility($0)) }, uniquingKeysWith: { a, _ in a }) }
     var skillsListedTokens: Int { skills.reduce(0) { $0 + (Self.listedChars($1, skillVisibility($1)) + 3) / 4 } }
     var skillSuggestions: [SkillInfo] { Self.suggestions(skills, states: skillStates, usage: skillUsage) }
 
