@@ -565,6 +565,7 @@ extension AppState {
             requireTouchID: requireTouchID,
             strictMode: strictMode,
             skipDestructiveConfirm: skipDestructiveConfirm,
+            skillUsage: skillUsage,
             gateModelUpgrades: gateModelUpgrades,
             liveReplyPreview: liveReplyPreview,
             mirrorToNotificationCenter: mirrorToNotificationCenter,

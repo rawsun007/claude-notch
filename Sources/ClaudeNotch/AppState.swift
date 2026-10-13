@@ -448,6 +448,19 @@ final class AppState: ObservableObject {
     /// Why the last attempt to switch it on did not go through, for Settings.
     /// Nil when it did, or when the user simply cancelled. Not persisted.
     @Published var skipDestructiveConfirmMessage: String?
+
+    // Skills (Settings > Skills; AppState+Skills.swift). Scanned from disk on
+    // demand, never persisted, except how often each one has run.
+    @Published var skills: [SkillInfo] = []
+    @Published var skillTrash: [SkillTrash.Entry] = []
+    @Published var skillOverridesUser: [String: SkillSettings.Visibility] = [:]
+    /// Per project folder: the overrides in its `.claude/settings.local.json`.
+    @Published var skillOverridesProject: [String: [String: SkillSettings.Visibility]] = [:]
+    @Published var pluginEnabled: [String: Bool] = [:]
+    @Published var skillsScanning = false
+    @Published var skillsMessage: String?
+    /// Runs seen through the hooks, by skill name. Persisted, capped.
+    @Published var skillUsage: [String: SkillUse] = [:]
     /// Strict Mode: only a command SafeCommand calls harmless may be approved
     /// on your behalf by Auto-Approve or by a tool-wide rule. Off by default,
     /// because it trades clicks for certainty and that is a choice.
@@ -919,6 +932,7 @@ final class AppState: ObservableObject {
             self.requireTouchID = snapshot.requireTouchID ?? BiometricAuth.isAvailable
             self.strictMode = snapshot.strictMode ?? false
             self.skipDestructiveConfirm = snapshot.skipDestructiveConfirm ?? false
+            self.skillUsage = snapshot.skillUsage ?? [:]
             self.gateModelUpgrades = snapshot.gateModelUpgrades ?? false
             self.liveReplyPreview = snapshot.liveReplyPreview ?? false
             HookInstaller.liveReplyEnabled = self.liveReplyPreview
