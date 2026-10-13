@@ -78,6 +78,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case budget = "Budget"
     case plan = "Plan"
     case rules = "Rules"
+    case skills = "Skills"
     case privacy = "Privacy"
     case usage = "Usage"
     case history = "History"
@@ -96,6 +97,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .budget: return "dollarsign.circle"
         case .plan: return "creditcard"
         case .rules: return "checkmark.shield"
+        case .skills: return "wand.and.stars"
         case .privacy: return "lock.shield"
         case .usage: return "chart.bar"
         case .history: return "clock.arrow.circlepath"
@@ -107,7 +109,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     /// Grouped sidebar layout for easy navigation.
     static let nav: [(title: String, items: [SettingsSection])] = [
         ("Workspace", [.general, .notch, .pet]),
-        ("Session", [.session]),
+        ("Session", [.session, .skills]),
         ("Alerts & Cost", [.alerts, .sounds, .budget, .plan]),
         ("Info", [.usage, .history, .privacy, .about]),
         // Learned allow rules, moved down: since auto mode became the default
@@ -147,6 +149,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         L("Budget", comment: "Settings sidebar section"),
         L("Plan", comment: "Settings sidebar section"),
         L("Rules", comment: "Settings sidebar section"),
+        L("Skills", comment: "Settings sidebar section"),
         L("Privacy", comment: "Settings sidebar section"),
         L("Usage", comment: "Settings sidebar section"),
         L("History", comment: "Settings sidebar section"),
@@ -307,6 +310,8 @@ struct SettingsSearchItem: Identifiable {
         .init(title: "Usage credits", keywords: "extra usage credits overage balance auto reload spend limit monthly", section: .plan),
 
         .init(title: "Always-allow rules", keywords: "allowlist permissions approved automatically whitelist rule audit", section: .rules),
+        .init(title: "Skills", keywords: "skill skills slash command plugin claude.ai context listing tokens disable enable off trash delete restore", section: .skills),
+        .init(title: "Free up skill context", keywords: "skills unused name only tokens budget listing", section: .skills),
         .init(title: "Add an allow rule", keywords: "rule tool command bash exact new", section: .rules),
         .init(title: "Export rules to Claude Code", keywords: "settings json permissions allow merge copy export", section: .rules),
 
@@ -346,6 +351,10 @@ struct SettingsView: View {
     @State var sessionSearch = ""
     // Free-text filter over the archived session digest history.
     @State var historySearch = ""
+    // Skills page
+    @State var skillQuery = ""
+    @State var skillFilter: SkillInfo.Source? = nil
+    @State var skillPendingTrash: SkillInfo?
     // Generated "what I shipped" standup text + the day-window it covers.
     @State private var standupText = ""
     @State private var standupDays = 1
@@ -518,6 +527,7 @@ struct SettingsView: View {
         case .budget:    budget
         case .plan:      plan
         case .rules:     rules
+        case .skills:    skillsPage
         case .privacy:   privacy
         case .usage:     usage
         case .history:   history
