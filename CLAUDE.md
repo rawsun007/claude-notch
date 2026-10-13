@@ -154,6 +154,16 @@ back as the response.
   keys, settings hotkey, break timer. **BiometricAuth.swift**: Touch ID gate for
   dangerous actions. **NotificationBridge.swift**: mirror cards to Notification
   Center. **UpdateChecker.swift**: GitHub Releases version check (the app's own).
+- **Skills (Settings > Skills)**: **SkillsReader.swift** scans personal,
+  project, claude.ai-synced and plugin skills (frontmatter, disk size, the
+  listing's context cost, `SkillUse` run counts); **SkillSettings.swift**
+  merges `skillOverrides` / `enabledPlugins` into settings.json without
+  touching other keys and never over an unparseable file; **SkillTrash.swift**
+  moves skills into Claude Code's own `~/.claude/skills/.trash/` (same entry
+  names, so its 30-day sweep applies) and restores them; rules and glue in
+  **AppState+Skills.swift**, page in **SettingsPage+Skills.swift**. Usage is
+  counted from PostToolUse (tool `Skill`) and UserPromptExpansion.
+  `claudenotch://settings/<page>` opens any Settings page.
 - **PromptCacheState.swift**: a session's prompt-cache state, forwarded from the
   status line's `prompt_cache` (CLI 2.1.251+). Decides when the notch says
   anything: only when the cache is cold or about to be AND a rebuild cost is
