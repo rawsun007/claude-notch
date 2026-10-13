@@ -68,11 +68,11 @@ extension AppState {
             let user = SkillSettings.overrides(at: SkillSettings.userSettingsPath)
             var perProject: [String: [String: SkillSettings.Visibility]] = [:]
             for p in Set(found.compactMap(\.project)) { perProject[p] = SkillSettings.overrides(at: SkillSettings.projectLocalPath(p)) }
-            let plugins = SkillSettings.enabledPlugins()
+            let plugins = SkillSettings.enabledPlugins(), projectOverrides = perProject
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 self.skills = found; self.skillTrash = trash
-                self.skillOverridesUser = user; self.skillOverridesProject = perProject
+                self.skillOverridesUser = user; self.skillOverridesProject = projectOverrides
                 self.pluginEnabled = plugins; self.skillsScanning = false
             }
         }
