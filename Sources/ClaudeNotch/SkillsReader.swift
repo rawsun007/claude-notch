@@ -114,10 +114,15 @@ enum SkillsReader {
     static func scan(projects: [String]) -> [SkillInfo] {
         var out: [SkillInfo] = []
         out += skills(in: personalDir, source: .personal)
+        // One folder per claude.ai account that has synced here; the session
+        // loads one skill per name, so a name in two accounts counts once
+        // (the copy synced most recently).
         let synced = (personalDir as NSString).appendingPathComponent("synced")
+        var syncedSkills: [SkillInfo] = []
         for account in children(synced) where !account.hasPrefix(".") {
-            out += skills(in: (synced as NSString).appendingPathComponent(account), source: .synced, prefix: "anthropic-skills:", reserved: false)
+            syncedSkills += skills(in: (synced as NSString).appendingPathComponent(account), source: .synced, prefix: "anthropic-skills:", reserved: false)
         }
+        out += dedupeNewest(syncedSkills)
         var seen = Set<String>()
         for p in projects where seen.insert(p).inserted {
             out += skills(in: (p as NSString).appendingPathComponent(".claude/skills"), source: .project, project: p)
@@ -152,9 +157,21 @@ enum SkillsReader {
         return out
     }
 
-    /// Bytes on disk under a folder, following no symlinks out of it.
+    /// One skill per name, the most recently modified copy.
+    nonisolated static func dedupeNewest(_ skills: [SkillInfo]) -> [SkillInfo] {
+        var best: [String: SkillInfo] = [:]
+        for s in skills {
+            if let b = best[s.name], (b.modified ?? .distantPast) >= (s.modified ?? .distantPast) { continue }
+            best[s.name] = s
+        }
+        return skills.filter { best[$0.name]?.path == $0.path }
+    }
+
+    /// Bytes on disk under a skill folder. A skill folder may itself be a
+    /// symlink (Claude Code allows it), so that one link is resolved first.
     static func folderSize(_ path: String) -> Int {
-        guard let e = FileManager.default.enumerator(at: URL(fileURLWithPath: path), includingPropertiesForKeys: [.totalFileAllocatedSizeKey, .isRegularFileKey]) else { return 0 }
+        let root = URL(fileURLWithPath: path).resolvingSymlinksInPath()
+        guard let e = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.totalFileAllocatedSizeKey, .isRegularFileKey]) else { return 0 }
         var total = 0
         for case let url as URL in e {
             let v = try? url.resourceValues(forKeys: [.totalFileAllocatedSizeKey, .isRegularFileKey])
