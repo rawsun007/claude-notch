@@ -1203,9 +1203,21 @@ final class EventServer {
     private func handlePromptExpansion(payload: [String: Any]) {
         guard let line = Self.promptExpansionLine(from: payload) else { return }
         let cwd = (payload["cwd"] as? String) ?? ""
+        // A typed slash command may be a skill: count it toward its usage.
+        // Non-skill commands are counted too and simply never match a skill.
+        let command = (payload["expansion_type"] as? String) == "mcp_prompt" ? nil : payload["command_name"] as? String
         Task { @MainActor [weak state] in
             state?.noteSlashCommand(title: line.title, detail: line.detail, cwd: cwd)
+            state?.recordSkillUse(command)
         }
+    }
+
+    /// Claude ran a skill (the Skill tool finished). Counted after it ran,
+    /// once, so a denied or failed call is not a use.
+    private func handleSkillRun(payload: [String: Any]) {
+        guard (payload["tool_name"] as? String) == "Skill",
+              let name = SkillUse.name(fromToolInput: (payload["tool_input"] as? [String: Any]) ?? [:]) else { return }
+        Task { @MainActor [weak state] in state?.recordSkillUse(name) }
     }
 
     /// The History line for a UserPromptExpansion payload: "/deploy" and its
@@ -1837,6 +1849,7 @@ final class EventServer {
             handleToolFailure(payload: payload)
             sendOK(on: conn)
         case "PostToolUse":
+            handleSkillRun(payload: payload)
             handleToolSucceeded(payload: payload)
             handleActivity(payload: payload)
             handlePostToolThinking(payload: payload)
