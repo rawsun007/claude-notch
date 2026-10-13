@@ -452,6 +452,8 @@ final class AppState: ObservableObject {
     // Skills (Settings > Skills; AppState+Skills.swift). Scanned from disk on
     // demand, never persisted, except how often each one has run.
     @Published var skills: [SkillInfo] = []
+    /// A page a `claudenotch://settings/<page>` link asked Settings to show.
+    @Published var requestedSettingsPage: SettingsSection?
     @Published var skillTrash: [SkillTrash.Entry] = []
     @Published var skillOverridesUser: [String: SkillSettings.Visibility] = [:]
     /// Per project folder: the overrides in its `.claude/settings.local.json`.

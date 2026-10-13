@@ -460,7 +460,13 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
             }
         }
-        .onAppear { installArrowKeyNavigation(selection: $section) }
+        .onAppear {
+            installArrowKeyNavigation(selection: $section)
+            if let p = state.requestedSettingsPage { section = p; state.requestedSettingsPage = nil }
+        }
+        .onChange(of: state.requestedSettingsPage) { p in
+            if let p { section = p; state.requestedSettingsPage = nil }
+        }
         .onDisappear { removeArrowKeyNavigation() }
     }
 

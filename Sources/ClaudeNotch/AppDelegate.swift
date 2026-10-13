@@ -275,6 +275,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             notch?.window.makeKey()
         case .settings:
             settings.show()
+        case .settingsPage(let page):
+            settings.show()
+            state.requestedSettingsPage = SettingsSection.allCases.first { $0.rawValue.lowercased() == page }
         case .history:
             state.openHistory()
         case .standup:
