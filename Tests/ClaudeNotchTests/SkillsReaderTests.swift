@@ -64,6 +64,14 @@ final class SkillsReaderTests: XCTestCase {
         XCTAssertEqual(SkillsReader.dedupeNewest([old, new, other]).map(\.path), ["/b/pdf", "/a/xlsx"])
     }
 
+    /// The crash this guards: a recent project at the home folder has the same
+    /// .claude/skills as the personal folder, so its skills came back twice.
+    func testUniqueByPathAndStandardPaths() {
+        let a = skill(name: "a", path: "/x/a"), dup = skill(name: "a", path: "/x/a"), b = skill(name: "b", path: "/x/b")
+        XCTAssertEqual(SkillsReader.uniqueByPath([a, dup, b]).map(\.path), ["/x/a", "/x/b"])
+        XCTAssertEqual(SkillsReader.standard("/tmp/../tmp/./skills/"), SkillsReader.standard("/tmp/skills"))
+    }
+
     func testInstalledPlugins() {
         let json = #"{"version":2,"plugins":{"caveman@caveman":[{"installPath":"/p/old"},{"installPath":"/p/new"}],"bad@x":[{}]}}"#
         let list = SkillsReader.installedPlugins(json: Data(json.utf8))
