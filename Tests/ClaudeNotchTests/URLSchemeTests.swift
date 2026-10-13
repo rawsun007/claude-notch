@@ -22,6 +22,15 @@ final class URLSchemeTests: XCTestCase {
         XCTAssertEqual(parse("claudenotch://compose"), .compose(project: nil))
     }
 
+    /// settings/<page> opens a page the sidebar has; an unknown page, or one
+    /// that tries to be a path, just opens Settings or is refused.
+    func testSettingsPage() {
+        XCTAssertEqual(parse("claudenotch://settings/skills"), .settingsPage("skills"))
+        XCTAssertEqual(parse("claudenotch://settings/Rules"), .settingsPage("rules"))
+        XCTAssertEqual(parse("claudenotch://settings/nowhere"), .settings)
+        XCTAssertNil(parse("claudenotch://settings/..%2F..%2Fetc"))
+    }
+
     /// A URL scheme is case-insensitive, so a link typed by hand still works.
     func testTheSchemeAndVerbAreCaseInsensitive() {
         XCTAssertEqual(parse("ClaudeNotch://Settings"), .settings)
