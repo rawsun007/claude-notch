@@ -1,0 +1,8 @@
+{
+  "name": "notch-pop",
+  "private": true,
+  "description": "Frame capture for the NOTCH POP promo.",
+  "dependencies": {
+    "puppeteer-core": "25.12.0"
+  }
+}
