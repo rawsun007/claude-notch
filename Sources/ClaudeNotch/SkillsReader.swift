@@ -196,6 +196,24 @@ enum SkillsReader {
         return total
     }
 
+    /// What each installed plugin says it is (`.claude-plugin/plugin.json`'s
+    /// `description`), so a row can say "Build and deploy web apps" instead of
+    /// just "vercel". Capped: it is text from a third party.
+    static func pluginDescriptions() -> [String: String] {
+        var out: [String: String] = [:]
+        for (id, root) in installedPlugins() {
+            let f = (root as NSString).appendingPathComponent(".claude-plugin/plugin.json")
+            if let d = pluginDescription(json: FileManager.default.contents(atPath: f)) { out[id] = d }
+        }
+        return out
+    }
+
+    nonisolated static func pluginDescription(json data: Data?) -> String? {
+        guard let data, let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let d = (root["description"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !d.isEmpty else { return nil }
+        return String(d.prefix(160))
+    }
+
     /// Installed plugins and where each lives, from `~/.claude/plugins/installed_plugins.json`.
     static func installedPlugins() -> [(id: String, path: String)] {
         let file = (home as NSString).appendingPathComponent(".claude/plugins/installed_plugins.json")
