@@ -310,6 +310,7 @@ struct SettingsSearchItem: Identifiable {
         .init(title: "Usage credits", keywords: "extra usage credits overage balance auto reload spend limit monthly", section: .plan),
 
         .init(title: "Always-allow rules", keywords: "allowlist permissions approved automatically whitelist rule audit", section: .rules),
+        .init(title: "Compact long sessions while away", keywords: "idle compaction compact cache claude code settings", section: .session),
         .init(title: "Skills", keywords: "skill skills slash command plugin claude.ai context listing tokens disable enable off trash delete restore", section: .skills),
         .init(title: "Free up skill context", keywords: "skills unused name only tokens budget listing", section: .skills),
         .init(title: "Add an allow rule", keywords: "rule tool command bash exact new", section: .rules),
