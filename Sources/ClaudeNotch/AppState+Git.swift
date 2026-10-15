@@ -338,6 +338,7 @@ extension AppState {
     /// can show a "compacting" cue; cleared when PostCompact says it is over.
     func noteCompacting(sessionId: String = "") {
         upsertSession(id: sessionId, cwd: currentCwd) { s in
+            s.compactingWhileIdle = !Self.sessionIsBusy(s.status)
             s.isCompacting = true
             // The pre-compact occupancy is about to be wrong (context shrinks).
             // Drop it now so the bar doesn't sit stale-high until the next turn.
@@ -346,6 +347,23 @@ extension AppState {
         }
         let isCurrent = currentSessionId.isEmpty || sessionId == currentSessionId
         if isCurrent { currentContextPercent = 0; currentContextTokens = 0 }
+    }
+
+    /// Statuses that mean a turn is running. Claude Code only auto-compacts in
+    /// the middle of a turn, except for idle compaction (CLI 2.1.299): a long
+    /// conversation left alone for about 54 minutes is compacted just before
+    /// its one-hour prompt cache expires, so the next message stays cheap.
+    nonisolated static func sessionIsBusy(_ status: String) -> Bool {
+        ["thinking", "replying", "running", "working", "tool"].contains(status.lowercased())
+    }
+
+    enum CompactionKind: Equatable { case manual, full, idle }
+
+    /// What kind of compaction a PostCompact was. Its `trigger` says only
+    /// manual or auto, and idle compaction reports as auto.
+    nonisolated static func compactionKind(trigger: String, startedWhileIdle: Bool) -> CompactionKind {
+        if trigger == "manual" { return .manual }
+        return startedWhileIdle ? .idle : .full
     }
 
     /// PostCompact: compaction is over and the summary exists.
@@ -357,8 +375,11 @@ extension AppState {
     func noteCompacted(sessionId: String = "", cwd: String = "",
                        trigger: String = "", summary: String = "") {
         let dir = cwd.isEmpty ? currentCwd : cwd
+        let key = sessionId.isEmpty ? dir : sessionId
+        let kind = Self.compactionKind(trigger: trigger, startedWhileIdle: sessions[key]?.compactingWhileIdle ?? false)
         upsertSession(id: sessionId, cwd: dir) { s in
             s.isCompacting = false
+            s.compactingWhileIdle = false
             // New window, so the advice starts over.
             s.compactAdviceGiven = ""
         }
@@ -369,9 +390,13 @@ extension AppState {
             timestamp: Date(),
             kind: .notification,
             toolName: "Compact",
-            title: trigger == "manual"
-                ? L("Context compacted with /compact", comment: "History row: the user compacted the context by hand")
-                : L("Context compacted automatically", comment: "History row: the context filled up and Claude Code compacted it"),
+            title: {
+                switch kind {
+                case .manual: return L("Context compacted with /compact", comment: "History row: the user compacted the context by hand")
+                case .full: return L("Context compacted automatically", comment: "History row: the context filled up and Claude Code compacted it")
+                case .idle: return L("Compacted while you were away, so your next message stays cheap", comment: "History row: Claude Code compacted an idle conversation before its prompt cache expired")
+                }
+            }(),
             detail: detail,
             project: (dir as NSString).lastPathComponent,
             outcome: .info))
