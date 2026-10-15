@@ -459,6 +459,7 @@ final class AppState: ObservableObject {
     /// Per project folder: the overrides in its `.claude/settings.local.json`.
     @Published var skillOverridesProject: [String: [String: SkillSettings.Visibility]] = [:]
     @Published var pluginEnabled: [String: Bool] = [:]
+    @Published var pluginDescriptions: [String: String] = [:]
     @Published var skillsScanning = false
     @Published var skillsMessage: String?
     /// Runs seen through the hooks, by skill name. Persisted, capped.

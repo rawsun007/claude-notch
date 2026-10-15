@@ -49,6 +49,46 @@ extension AppState {
         }.sorted { $0.listingTokens > $1.listingTokens }
     }
 
+    /// One source of skills, summarised as a single row: a plugin, a
+    /// project, your personal folder, or claude.ai. The page shows these and
+    /// keeps the individual skills folded away until asked.
+    struct SkillGroupSummary: Identifiable, Equatable {
+        enum Kind: Equatable { case personal, project(String), synced, plugin(String) }
+        let id: String
+        let kind: Kind
+        let title: String
+        let subtitle: String
+        let items: [SkillInfo]
+        /// Tokens the group puts in every turn as things stand.
+        let tokens: Int
+        /// The state every skill in it shares, or nil when they differ.
+        let state: SkillSettings.Visibility?
+    }
+
+    nonisolated static func skillGroups(_ skills: [SkillInfo], states: [String: SkillSettings.Visibility],
+                                        pluginDescriptions: [String: String]) -> [SkillGroupSummary] {
+        func summary(_ id: String, _ kind: SkillGroupSummary.Kind, _ title: String, _ subtitle: String, _ items: [SkillInfo]) -> SkillGroupSummary {
+            let vs = items.map { states[$0.id] ?? .on }
+            let tokens = zip(items, vs).reduce(0) { $0 + (listedChars($1.0, $1.1) + 3) / 4 }
+            return SkillGroupSummary(id: id, kind: kind, title: title, subtitle: subtitle, items: items, tokens: tokens,
+                                     state: Set(vs).count == 1 ? vs.first : nil)
+        }
+        var out: [SkillGroupSummary] = []
+        let personal = skills.filter { $0.source == .personal }
+        if !personal.isEmpty { out.append(summary("personal", .personal, L("Your skills", comment: "Skill group"), L("Skills you added to ~/.claude/skills", comment: "Skill group subtitle"), personal)) }
+        let synced = skills.filter { $0.source == .synced }
+        if !synced.isEmpty { out.append(summary("synced", .synced, L("From claude.ai", comment: "Skill group"), L("Synced from your claude.ai account", comment: "Skill group subtitle"), synced)) }
+        for p in Array(Set(skills.compactMap(\.project))).sorted() {
+            out.append(summary("project:" + p, .project(p), (p as NSString).lastPathComponent, L("Skills in this project's .claude/skills", comment: "Skill group subtitle"), skills.filter { $0.project == p }))
+        }
+        for id in Array(Set(skills.compactMap(\.plugin))).sorted() {
+            let name = String(id.split(separator: "@").first ?? Substring(id))
+            out.append(summary("plugin:" + id, .plugin(id), name.prefix(1).uppercased() + name.dropFirst(),
+                               pluginDescriptions[id] ?? L("A plugin you installed", comment: "Skill group subtitle"), skills.filter { $0.plugin == id }))
+        }
+        return out.sorted { $0.tokens != $1.tokens ? $0.tokens > $1.tokens : $0.title < $1.title }
+    }
+
     // MARK: - State
 
     func skillVisibility(_ skill: SkillInfo) -> SkillSettings.Visibility {
@@ -59,6 +99,7 @@ extension AppState {
     var skillStates: [String: SkillSettings.Visibility] { Dictionary(skills.map { ($0.id, skillVisibility($0)) }, uniquingKeysWith: { a, _ in a }) }
     var skillsListedTokens: Int { skills.reduce(0) { $0 + (Self.listedChars($1, skillVisibility($1)) + 3) / 4 } }
     var skillSuggestions: [SkillInfo] { Self.suggestions(skills, states: skillStates, usage: skillUsage) }
+    var skillGroupSummaries: [SkillGroupSummary] { Self.skillGroups(skills, states: skillStates, pluginDescriptions: pluginDescriptions) }
 
     /// Read everything again, off the main thread.
     func refreshSkills() {
@@ -70,12 +111,12 @@ extension AppState {
             let user = SkillSettings.overrides(at: SkillSettings.userSettingsPath)
             var perProject: [String: [String: SkillSettings.Visibility]] = [:]
             for p in Set(found.compactMap(\.project)) { perProject[p] = SkillSettings.overrides(at: SkillSettings.projectLocalPath(p)) }
-            let plugins = SkillSettings.enabledPlugins(), projectOverrides = perProject
+            let plugins = SkillSettings.enabledPlugins(), projectOverrides = perProject, descriptions = SkillsReader.pluginDescriptions()
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 self.skills = found; self.skillTrash = trash
                 self.skillOverridesUser = user; self.skillOverridesProject = projectOverrides
-                self.pluginEnabled = plugins; self.skillsScanning = false
+                self.pluginEnabled = plugins; self.pluginDescriptions = descriptions; self.skillsScanning = false
             }
         }
     }
