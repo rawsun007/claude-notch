@@ -2013,10 +2013,12 @@ struct SettingsView: View {
     /// of the same kind is the obvious way to write a patch's notes and it
     /// renders as two identical headings on the About page.
     static let whatsNew: [ChangeGroup] = [
-        ChangeGroup(kind: .fixed, items: [
-        "Haiku 5.5 costs what it really costs. Claude Code 2.1.293 added Claude Haiku 5.5, a tenth of the price of Haiku 4.5, and the notch was pricing it as Haiku 4.5, ten times too high. It now has its own price, including the higher one Anthropic charges for a prompt over 100,000 tokens, counted per message the way it is billed.",
-        "Haiku 5.5's context bar is no longer five times too full. It has a 1 million token context window, and the meter was measuring it against the 200,000 of earlier Haiku models.",
-        "Sonnet 5.5 cache reads are priced at $0.10 per million tokens, half what the notch charged, matching Anthropic's new price and Claude Code 2.1.296's own status line.",
+        ChangeGroup(kind: .added, items: [
+        "A Skills page in Settings. Every skill you have adds a little to each Claude turn, even the ones you never use, and this shows how much: one row per source (a plugin like Vercel, your claude.ai skills, your own, each project) with what it costs and a single switch for the whole group. Open a row to see each skill on one line with its cost and whether it has run.",
+        "Turn skills down without editing files. Each skill can be On, Name only (much cheaper), Only when I type it, or Off, written to the same setting Claude Code's own /skills menu uses. A plugin's skills go on and off with the plugin. Free up, at the top, sets every skill that has never run to Name only in one click.",
+        "Delete skills safely. Move to Trash puts a skill in Claude Code's own skills trash, where it stays for 30 days, and the Trash row brings it back, even to the project it came from.",
+        "ClaudeNotch now counts how often each skill runs, whether Claude picks it or you type it, so you can see which ones you actually use.",
+        "claudenotch://settings/skills, and the same for any page, opens Settings straight on that page.",
         ]),
     ]
 }
