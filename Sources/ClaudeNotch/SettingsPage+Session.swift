@@ -45,6 +45,14 @@ extension SettingsView {
                             set: { state.setCompletionAuditEnabled($0) }))
             }
 
+            sectionLabel(L("Claude Code", comment: "Settings section heading"))
+            group {
+                row(L("Compact long sessions while I'm away", comment: "Settings toggle"),
+                    L("Claude Code compacts a conversation over 200K tokens left idle for about 54 minutes, just before its one-hour prompt cache expires, so your next message doesn't pay to rebuild it. Turn this off to keep the full history instead. Writes idleCompaction to ~/.claude/settings.json; needs Claude Code 2.1.299 or later.", comment: "Settings toggle explanation"),
+                    Binding(get: { state.idleCompactionEnabled }, set: { state.setIdleCompaction($0) }))
+            }
+            .onAppear { state.refreshClaudeCodeSettings() }
+
             sectionLabel(L("Auto-approve for a while", comment: "Settings section heading"))
             Text(L("Turn on auto-approve for a set time and it switches itself back off, or keep it on until you turn it off.", comment: "Settings explanation"))
                 .font(.callout).foregroundStyle(.secondary)
