@@ -1,0 +1,373 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>NOTCH POP studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=block" rel="stylesheet">
+<style>html, body { margin: 0; background: #0b0614; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// NOTCH POP: ClaudeNotch in daylight colours. Every scene pours out of the
+// notch: a flood of colour from the top of the screen on the downbeat, then
+// a card drops out of the notch and does the thing the app does. The cards
+// are rebuilt from the real ones (PermissionCard, the session list, the
+// Skills page); names and numbers on them are illustrative. Every frame is a
+// pure function of t.
+const CFG = CONFIG_JSON;
+const W = CFG.width, H = CFG.height, BEAT = 60 / CFG.bpm, BAR = 4 * BEAT, D0 = CFG.downbeat, DROP = CFG.drop, DURATION = CFG.duration;
+window.DURATION = DURATION;
+const cv = document.getElementById("c"); cv.width = W; cv.height = H;
+const g = cv.getContext("2d");
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, p) => a + (b - a) * p;
+const io = (x) => { x = clamp(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const outX = (x) => { x = clamp(x); return x >= 1 ? 1 : 1 - Math.pow(2, -10 * x); };
+function spring(tau, f = 3, z = 0.5) { if (tau <= 0) return 0; const w = 2 * Math.PI * f, wd = w * Math.sqrt(1 - z * z); return 1 - Math.exp(-z * w * tau) * (Math.cos(wd * tau) + (z * w / wd) * Math.sin(wd * tau)); }
+function rng(seed) { return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const bar = (n) => D0 + n * BAR;
+
+// ---------- scenes, all on bars ----------
+const SCENES = [
+  { id: "hook", t0: 0, pal: ["#0b0614", "#3b1270", "#ff2e88", "#7b2cff"] },
+  { id: "title", t0: bar(0), pal: ["#ff2e88", "#7b2cff", "#ff8a00", "#ffd60a"] },
+  { id: "allow", t0: bar(2), pal: ["#2f6bff", "#00d4ff", "#b6ff3b", "#7b2cff"] },
+  { id: "guard", t0: bar(4), pal: ["#ff3b30", "#ff2e88", "#ffd60a", "#ff8a00"] },
+  { id: "live", t0: bar(6), pal: ["#00c2a8", "#3a5bff", "#c6ff00", "#00d4ff"] },
+  { id: "build", t0: bar(8), pal: ["#1a0b3d", "#7b2cff", "#ff2e88", "#00d4ff"] },
+  { id: "skills", t0: DROP, pal: ["#c6ff00", "#ff2e88", "#00d4ff", "#ffd60a"] },
+  { id: "stickers", t0: DROP + 2 * BAR, pal: ["#7b2cff", "#ff2e88", "#00d4ff", "#ffd60a"] },
+  { id: "outro", t0: DROP + 4 * BAR, pal: ["#ff2e88", "#ff8a00", "#7b2cff", "#ffd60a"] },
+];
+const sceneAt = (t) => { let k = 0; SCENES.forEach((s, i) => { if (t >= s.t0) k = i; }); return k; };
+const NOTCH = { x: 0, y: 0 };   // set per frame: where floods pour from
+
+// ---------- background: big colour blobs + grain ----------
+let GRAIN;
+function blobs(pal, t, seed) {
+  g.fillStyle = pal[0]; g.fillRect(0, 0, W, H);
+  const r = rng(seed);
+  // "screen", not "lighter": overlapping blobs stay saturated instead of
+  // adding up to white, which is where white headlines disappeared
+  g.save(); g.globalCompositeOperation = "screen";
+  for (let i = 0; i < 6; i++) {
+    const c = pal[1 + (i % 3)], ph = r() * 7, sp = 0.25 + r() * 0.35;
+    const x = W * (0.5 + 0.42 * Math.sin(t * sp + ph)), y = H * (0.5 + 0.38 * Math.cos(t * sp * 0.8 + ph * 1.3)), rad = 380 + 260 * r();
+    const gr = g.createRadialGradient(x, y, 0, x, y, rad);
+    gr.addColorStop(0, c + "cc"); gr.addColorStop(0.6, c + "33"); gr.addColorStop(1, c + "00");
+    g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  }
+  g.restore();
+}
+function grain(t) { g.save(); g.globalAlpha = 0.07; g.translate((t * 977) % 128 - 128, (t * 613) % 128 - 128); g.fillStyle = GRAIN; g.fillRect(0, 0, W + 256, H + 256); g.restore(); }
+
+// ---------- type ----------
+function hl(text, x, y, size, { color = "#fff", align = "left", weight = 800, shadow = true, alpha = 1, rot = 0, sc = 1 } = {}) {
+  if (alpha <= 0.003 || sc <= 0.003) return;
+  g.save(); g.globalAlpha *= alpha; g.translate(x, y); g.rotate(rot); g.scale(sc, sc);
+  g.font = `${weight} ${size}px "Bricolage Grotesque"`; g.textAlign = align; g.textBaseline = "alphabetic";
+  if (shadow) { g.fillStyle = "rgba(20,0,40,0.35)"; g.fillText(text, size * 0.04, size * 0.06); }
+  g.fillStyle = color; g.fillText(text, 0, 0); g.restore();
+}
+// words that punch in on beats: [[word, color], ...]
+function punchLine(words, x, y, size, t, t0, step = BEAT / 2) {
+  g.font = `800 ${size}px "Bricolage Grotesque"`;
+  let xx = x;
+  words.forEach(([w, c], i) => {
+    const at = t0 + i * step, s = spring(t - at, 4, 0.45);
+    const ww = g.measureText(w + " ").width;
+    if (s > 0.003) hl(w, xx + g.measureText(w).width / 2, y, size, { color: c || "#fff", align: "center", sc: s, rot: (i % 2 ? 0.02 : -0.02) * (1 - clamp((t - at) / 0.4)) });
+    g.font = `800 ${size}px "Bricolage Grotesque"`;
+    xx += ww;
+  });
+}
+function ui(size, w = 600) { return `${w} ${size}px "Inter"`; }
+function mono(size, w = 500) { return `${w} ${size}px "JetBrains Mono"`; }
+function rr(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
+
+// ---------- the screen and the notch ----------
+// A wide slice of a MacBook display: bezel, wallpaper, menu bar, the notch.
+function screen(x, y, w, h, pal, t) {
+  g.save();
+  g.shadowColor = "rgba(20,0,40,0.45)"; g.shadowBlur = 60; g.shadowOffsetY = 30;
+  g.fillStyle = "#0b0b0f"; rr(x, y, w, h, 36); g.fill(); g.restore();
+  g.save(); rr(x + 16, y + 16, w - 32, h - 32, 22); g.clip();
+  const gr = g.createLinearGradient(x, y, x + w, y + h); gr.addColorStop(0, pal[1]); gr.addColorStop(0.55, pal[2]); gr.addColorStop(1, pal[3]);
+  g.fillStyle = gr; g.fillRect(x, y, w, h);
+  // soft diagonal light across the wallpaper
+  for (let i = 0; i < 3; i++) {
+    const sx = x + w * (0.15 + i * 0.33) + 40 * Math.sin(t * 0.6 + i), lg = g.createLinearGradient(sx - 160, 0, sx + 160, 0);
+    lg.addColorStop(0, "rgba(255,255,255,0)"); lg.addColorStop(0.5, "rgba(255,255,255,0.16)"); lg.addColorStop(1, "rgba(255,255,255,0)");
+    g.save(); g.translate(sx, y + h / 2); g.rotate(-0.35); g.translate(-sx, -(y + h / 2)); g.fillStyle = lg; g.fillRect(sx - 160, y - h, 320, h * 3); g.restore();
+  }
+  g.fillStyle = "rgba(255,255,255,0.28)"; g.fillRect(x + 16, y + 16, w - 32, 38);
+  g.fillStyle = "rgba(20,10,30,0.8)"; g.font = ui(17, 700); g.textAlign = "left"; g.fillText("", x + 40, y + 42); g.font = ui(16, 600); g.fillText("Terminal   File   Edit   View", x + 72, y + 42);
+  g.restore();
+  NOTCH.x = x + w / 2; NOTCH.y = y + 16;
+}
+// The notch, opened to `w` x `h` (closed is 230 x 40). Content draws inside.
+function notch(open, w, h, glow, content) {
+  const cw = lerp(230, w, open), ch = lerp(40, h, open), x = NOTCH.x - cw / 2, y = NOTCH.y;
+  g.save();
+  if (glow) { g.shadowColor = glow; g.shadowBlur = 50 * (0.4 + open); }
+  g.fillStyle = "#000"; g.beginPath();
+  g.moveTo(x, y); g.lineTo(x + cw, y); g.lineTo(x + cw, y + ch - 34); g.quadraticCurveTo(x + cw, y + ch, x + cw - 34, y + ch);
+  g.lineTo(x + 34, y + ch); g.quadraticCurveTo(x, y + ch, x, y + ch - 34); g.closePath(); g.fill();
+  g.restore();
+  if (open > 0.6 && content) { g.save(); g.globalAlpha = clamp((open - 0.6) / 0.4); g.translate(x, y); content(cw, ch); g.restore(); }
+}
+function button(x, y, w, label, { fill = "rgba(255,255,255,0.14)", color = "#fff", h = 46, icon = null } = {}) {
+  g.fillStyle = fill; rr(x, y, w, h, h / 2); g.fill();
+  g.fillStyle = color; g.font = ui(19, 700); g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(label, x + w / 2 + (icon ? 14 : 0), y + h / 2 + 1);
+  if (icon) icon(x + w / 2 - g.measureText(label).width / 2 - 8, y + h / 2);
+  g.textBaseline = "alphabetic";
+}
+function cursor(x, y, press) {
+  g.save(); g.translate(x, y); g.scale(1.6 - 0.15 * press, 1.6 - 0.15 * press);
+  g.fillStyle = "#fff"; g.strokeStyle = "#111"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, 22); g.lineTo(6, 17); g.lineTo(10, 26); g.lineTo(13, 25); g.lineTo(9, 16); g.lineTo(16, 16); g.closePath(); g.fill(); g.stroke(); g.restore();
+}
+function fingerprint(cx, cy, r, p, color) {
+  g.save(); g.strokeStyle = color; g.lineWidth = 3; g.lineCap = "round";
+  for (let i = 0; i < 5; i++) { const rad = r * (0.25 + i * 0.18); g.globalAlpha = p > i / 5 ? 1 : 0.35; g.beginPath(); g.arc(cx, cy + r * 0.1, rad, Math.PI * 1.1, Math.PI * 1.9 + (i % 2) * 0.3); g.stroke(); }
+  g.restore();
+}
+
+// ---------- confetti ----------
+function confetti(t, t0, n = 90, seed = 3) {
+  const u = t - t0; if (u < 0 || u > 2.2) return;
+  const r = rng(seed), cols = ["#ff2e88", "#00d4ff", "#c6ff00", "#ffd60a", "#7b2cff", "#ff8a00", "#fff"];
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + (r() - 0.5) * 2.6, v = 900 + r() * 900, x = NOTCH.x + Math.cos(a) * v * u, y = NOTCH.y + 40 + Math.sin(a) * v * u + 900 * u * u;
+    g.save(); g.translate(x, y); g.rotate(u * (6 + r() * 10)); g.globalAlpha = 1 - clamp((u - 1.4) / 0.8);
+    g.fillStyle = cols[i % cols.length]; g.fillRect(-9, -5, 18, 10); g.restore();
+  }
+}
+
+// ---------- the scenes ----------
+const pal = (k) => SCENES[k].pal;
+function hook(t) {
+  g.fillStyle = "#07040d"; g.fillRect(0, 0, W, H);
+  NOTCH.x = W / 2; NOTCH.y = 0;
+  const pulse = 0.5 + 0.5 * Math.sin(t * 5.5);
+  notch(0, 0, 0, `rgba(255,46,136,${0.5 + 0.5 * pulse})`);
+  const msg = "Claude is waiting for you…", n = Math.floor(clamp((t - 0.35) / 1.3) * msg.length);
+  g.font = mono(40, 500); g.textAlign = "center"; g.fillStyle = "#f6e9ff"; g.fillText(msg.slice(0, n) + (Math.floor(t * 3) % 2 ? "▍" : " "), W / 2, H / 2 + 14);
+  g.font = mono(22, 500); g.fillStyle = "rgba(246,233,255,0.45)"; g.fillText("in a terminal you are not looking at", W / 2, H / 2 + 70 * clamp((t - 1.5) / 0.3));
+}
+function title(t, u) {
+  blobs(pal(1), t, 11);
+  const sy = lerp(H + 100, 330, outX((u - BAR) / 0.9));
+  screen(210, sy, 1500, 860, pal(1), t);
+  notch(0, 0, 0, "#ff2e88");
+  punchLine([["Your", "#fff"], ["notch", "#ffd60a"], ["just", "#fff"], ["got", "#fff"], ["a", "#fff"], ["job.", "#00d4ff"]], 210, 250 - 120 * outX((u - BAR) / 0.9), 140, t, SCENES[1].t0 + 0.02, BEAT / 2);
+}
+// headline: two lines of [word, colour]; sub: two lines of text. The left
+// column stops at x = 780, clear of the screen.
+function featureLayout(k, t, u, headline, sub, card) {
+  blobs(pal(k), t, 20 + k);
+  // a soft shade behind the text column, so white type never lands on a white bloom
+  const sc = g.createLinearGradient(0, 0, 900, 0); sc.addColorStop(0, "rgba(16,4,40,0.34)"); sc.addColorStop(1, "rgba(16,4,40,0)");
+  g.fillStyle = sc; g.fillRect(0, 0, 900, H);
+  const hx = 90;
+  punchLine(headline[0], hx, 330, 96, t, SCENES[k].t0 + 0.05, BEAT / 2);
+  punchLine(headline[1], hx, 430, 96, t, SCENES[k].t0 + 0.05 + headline[0].length * BEAT / 2, BEAT / 2);
+  sub.forEach((line, i) => hl(line, hx, 510 + i * 44, 32, { weight: 600, alpha: clamp((u - 1.0 - i * 0.1) / 0.3), shadow: false, color: "rgba(255,255,255,0.94)" }));
+  const enter = outX(u / 0.6);
+  screen(860, lerp(H, 120, enter), 1000, 860, pal(k), t);
+  card(u);
+  g.font = ui(15, 600); g.textAlign = "right"; g.fillStyle = "rgba(255,255,255,0.55)"; g.fillText("Illustrative UI", W - 40, H - 30);
+}
+function allow(t, u) {
+  featureLayout(2, t, u, [[["Answer", "#fff"], ["Claude", "#b6ff3b"]], [["from", "#fff"], ["the", "#fff"], ["notch.", "#fff"]]], ["Permission prompts drop out", "of the notch. One click."], (u) => {
+    const open = spring(u - 0.7, 2.6, 0.6) * (1 - io((u - 3.4) / 0.4)), clickAt = 2.15, done = u > clickAt;
+    notch(open, 820, 330, done ? "#34c759" : "#00d4ff", (cw) => {
+      g.fillStyle = "#fff"; g.font = ui(26, 700); g.textAlign = "left"; g.fillText("Bash", 40, 92);
+      g.fillStyle = "rgba(255,255,255,0.5)"; g.font = ui(19, 600); g.fillText("notch-app · main", 120, 92);
+      g.fillStyle = "rgba(255,255,255,0.08)"; rr(36, 116, cw - 72, 70, 14); g.fill();
+      g.fillStyle = "#b6ff3b"; g.font = mono(26, 500); g.fillText("$ npm test", 60, 161);
+      button(36, 222, 130, "Deny");
+      button(180, 222, 200, "Always Allow…");
+      if (done) button(cw - 236, 222, 200, "Allowed ✓", { fill: "#34c759" });
+      else button(cw - 236, 222, 200, "Allow  ⏎", { fill: "#fff", color: "#000" });
+    });
+    // the cursor comes in and clicks Allow on the beat
+    const cx = lerp(1720, NOTCH.x + 410 - 236 + 120, io((u - 1.2) / 0.8)), cy = lerp(900, NOTCH.y + 222 + 26, io((u - 1.2) / 0.8));
+    if (u > 1.1 && u < 3.3) cursor(cx, cy, clamp(1 - Math.abs(u - clickAt) / 0.12));
+    if (done) confetti(t, SCENES[2].t0 + clickAt, 50, 7);
+  });
+}
+function guard(t, u) {
+  featureLayout(3, t, u, [[["Touch", "#fff"], ["ID", "#ffd60a"], ["for", "#fff"]], [["the", "#fff"], ["scary", "#fff"], ["stuff.", "#fff"]]], ["Destructive commands wait", "for your fingerprint."], (u) => {
+    const open = spring(u - 0.6, 2.6, 0.6) * (1 - io((u - 3.4) / 0.4)), scan = clamp((u - 1.7) / 0.9), ok = scan >= 1;
+    notch(open, 820, 370, ok ? "#34c759" : "#ff3b30", (cw) => {
+      g.fillStyle = "#ff453a"; g.font = ui(26, 700); g.textAlign = "left"; g.fillText("⚠  Destructive · Bash", 40, 92);
+      g.fillStyle = "rgba(255,59,48,0.16)"; rr(36, 116, cw - 72, 70, 14); g.fill();
+      g.fillStyle = "#ff8a80"; g.font = mono(26, 700); g.fillText("$ rm -rf build/", 60, 161);
+      g.fillStyle = "rgba(255,255,255,0.6)"; g.font = ui(19, 600); g.fillText("rm -rf, deletes files recursively without prompting", 40, 222);
+      button(36, 262, 130, "Deny");
+      button(cw - 296, 262, 260, ok ? "Allowed ✓" : "Confirm to Allow", { fill: ok ? "#34c759" : "#ff3b30", icon: ok ? null : (ix, iy) => fingerprint(ix - 6, iy, 16, scan, "#fff") });
+    });
+    // a big fingerprint scan beside the screen
+    if (u > 1.4 && u < 3.4) { const a = clamp((u - 1.4) / 0.2) * (1 - clamp((u - 3.0) / 0.4)); g.save(); g.globalAlpha = a; fingerprint(NOTCH.x, 640, 120, scan, ok ? "#34c759" : "#fff"); g.restore(); }
+  });
+}
+function live(t, u) {
+  featureLayout(4, t, u, [[["Every", "#fff"], ["session,", "#fff"]], [["live.", "#c6ff00"]]], ["Status, replies, spend and", "context, at a glance."], (u) => {
+    const open = spring(u - 0.6, 2.6, 0.6) * (1 - io((u - 3.5) / 0.4));
+    notch(open, 860, 470, "#00d4ff", (cw) => {
+      g.textAlign = "left";
+      g.fillStyle = "rgba(255,255,255,0.55)"; g.font = ui(18, 600); g.fillText("3 sessions", 40, 84);
+      const spend = (4.12 * outX((u - 1.0) / 1.6)).toFixed(2);
+      g.textAlign = "right"; g.fillStyle = "#c6ff00"; g.font = ui(20, 700); g.fillText(`$${spend} today`, cw - 40, 84); g.textAlign = "left";
+      const rows = [["notch-app", "Editing NotchView.swift", 0.38, "#34c759"], ["api", "Running tests", 0.62, "#ffd60a"], ["site", "Waiting for you", 0.21, "#ff2e88"]];
+      rows.forEach(([name, act, ctx, dot], i) => {
+        const y = 118 + i * 100, s = clamp((u - 0.95 - i * BEAT / 2) / 0.25);
+        if (s <= 0) return;
+        g.save(); g.globalAlpha = s; g.translate(0, (1 - s) * 20);
+        g.fillStyle = "rgba(255,255,255,0.07)"; rr(30, y, cw - 60, 84, 16); g.fill();
+        g.fillStyle = dot; g.beginPath(); g.arc(58, y + 30, 8, 0, 7); g.fill();
+        g.fillStyle = "#fff"; g.font = ui(22, 700); g.fillText(name, 78, y + 37);
+        g.fillStyle = "rgba(255,255,255,0.6)"; g.font = ui(18, 500); g.fillText(act, 78, y + 66);
+        g.fillStyle = "rgba(255,255,255,0.15)"; rr(cw - 250, y + 52, 190, 8, 4); g.fill();
+        g.fillStyle = "#00d4ff"; rr(cw - 250, y + 52, 190 * ctx * outX((u - 1.1 - i * 0.2) / 0.8), 8, 4); g.fill();
+        g.fillStyle = "rgba(255,255,255,0.6)"; g.font = ui(16, 600); g.textAlign = "right"; g.fillText(`${Math.round(ctx * 100)}% context`, cw - 60, y + 40); g.textAlign = "left";
+        g.restore();
+      });
+      // a reply streaming in under the first row
+      const reply = "Done: the notch now closes on Esc, and the tests pass.", n = Math.floor(clamp((u - 2.0) / 1.2) * reply.length);
+      g.fillStyle = "rgba(255,255,255,0.9)"; g.font = ui(19, 500); g.fillText(reply.slice(0, n), 40, 440);
+    });
+  });
+}
+function build(t, u) {
+  const k = 5; blobs(pal(k), t, 51);
+  const words = [["And", "#fff"], ["now", "#ff2e88"], ["for", "#fff"], ["your", "#00d4ff"], ["context…", "#c6ff00"]];
+  const i = Math.min(words.length - 1, Math.floor(u / (BEAT / 2)));
+  const silent = t > DROP - 0.45;
+  if (silent) { g.fillStyle = "#000"; g.fillRect(0, 0, W, H); }
+  const [w, c] = words[i], s = spring(u - i * BEAT / 2, 5, 0.4);
+  hl(w, W / 2, H / 2 + 70, silent ? 240 : 220, { color: silent ? "#fff" : c, align: "center", sc: s });
+  NOTCH.x = W / 2; NOTCH.y = 0;
+}
+function skills(t, u) {
+  blobs(pal(6), t, 61);
+  NOTCH.x = W / 2; NOTCH.y = 0;
+  confetti(t, DROP, 140, 9);
+  punchLine([["Skills,", "#1a0b3d"], ["under", "#1a0b3d"], ["control.", "#ff2e88"]], 90, 200, 112, t, DROP + 0.02, BEAT / 2);
+  // the Skills page, compact, as v0.42 ships it
+  const e = outX((u - 0.2) / 0.6), x = 520, y = lerp(H, 270, e), w = 1300, h = 720;
+  g.save(); g.shadowColor = "rgba(20,0,40,0.4)"; g.shadowBlur = 60; g.shadowOffsetY = 26; g.fillStyle = "#fbfbfd"; rr(x, y, w, h, 28); g.fill(); g.restore();
+  g.fillStyle = "#ecebf2"; g.beginPath(); g.roundRect(x, y, w, 52, [28, 28, 0, 0]); g.fill();
+  ["#ff5f57", "#febc2e", "#28c840"].forEach((c, i) => { g.fillStyle = c; g.beginPath(); g.arc(x + 32 + i * 26, y + 26, 8, 0, 7); g.fill(); });
+  g.fillStyle = "#1b1530"; g.font = ui(34, 700); g.textAlign = "left"; g.fillText("Skills", x + 50, y + 112);
+  const offAt = 1.5 * BEAT * 2, off = clamp((u - offAt) / 0.5);
+  const vercel = Math.round(2945 * (1 - io(off))), total = 6390 - (2945 - vercel);
+  g.font = ui(26, 700); g.fillText(`~${total.toLocaleString()} tokens per turn`, x + 50, y + 168);
+  g.fillStyle = "#8a85a0"; g.font = ui(20, 500); g.fillText("from 64 skills", x + 400, y + 168);
+  g.fillStyle = "#e7e5ef"; rr(x + 50, y + 190, w - 100, 14, 7); g.fill();
+  g.fillStyle = total > 5000 ? "#ff8a00" : "#28c840"; rr(x + 50, y + 190, (w - 100) * total / 10000, 14, 7); g.fill();
+  const rows = [["Vercel", "Build and deploy web apps and agents", "37 skills", vercel, "plugin"], ["From claude.ai", "Synced from your claude.ai account", "15 skills", 2582, "menu"],
+                ["Caveman", "Ultra-compressed communication mode", "7 skills", 643, "plugin"], ["Your skills", "Skills you added to ~/.claude/skills", "4 skills", 156, "menu"]];
+  rows.forEach(([name, sub, n, tok, kind], i) => {
+    const ry = y + 236 + i * 112, s = clamp((u - 0.5 - i * BEAT / 2) / 0.25);
+    if (s <= 0) return;
+    g.save(); g.globalAlpha = s;
+    if (i > 0) { g.fillStyle = "#ecebf2"; g.fillRect(x + 50, ry, w - 100, 2); }
+    g.fillStyle = "#1b1530"; g.font = ui(26, 700); g.fillText(name, x + 70, ry + 52);
+    const nameW = g.measureText(name).width;          // measured at the name's own size
+    g.fillStyle = "#8a85a0"; g.font = ui(18, 500); g.fillText(n, x + 70 + nameW + 14, ry + 52);
+    g.fillText(sub, x + 70, ry + 84);
+    g.textAlign = "right"; g.fillStyle = tok ? "#5b5670" : "#b9b5c8"; g.font = mono(22, 700); g.fillText(`~${tok.toLocaleString()} tok`, x + w - 220, ry + 64); g.textAlign = "left";
+    if (kind === "plugin") {
+      const on = !(i === 0 && off > 0.5), sw = x + w - 170, cy = ry + 44;
+      g.fillStyle = on ? "#28c840" : "#d9d6e3"; rr(sw, cy, 92, 50, 25); g.fill();
+      g.fillStyle = "#fff"; g.beginPath(); g.arc(sw + (on ? 67 : 25) + (i === 0 ? -42 * io(off) + 42 * 0 : 0) * 0, cy + 25, 21, 0, 7); g.fill();
+    } else {
+      g.fillStyle = "#5b5670"; g.font = ui(20, 600); g.fillText("On  ⌄", x + w - 160, ry + 64);
+    }
+    g.restore();
+  });
+  if (off > 0) hl(`−${(2945 - vercel).toLocaleString()} tokens every turn`, x + w - 60, y - 40, 54, { color: "#ff2e88", align: "right", sc: spring(u - offAt, 4, 0.45), shadow: false });
+}
+const STICKERS = [["Reply to background agents", "#ff2e88"], ["Open in Claude Desktop", "#00d4ff"], ["MCP sign-in cards", "#c6ff00"], ["Haiku 5.5 pricing", "#ffd60a"],
+                  ["Live replies in the notch", "#ff8a00"], ["Spend limits", "#7b2cff"], ["Idle compaction switch", "#00e0a0"], ["A pet that backflips", "#ff2e88"]];
+function stickers(t, u) {
+  blobs(pal(7), t, 71);
+  NOTCH.x = W / 2; NOTCH.y = 0;
+  punchLine([["And", "#fff"], ["so", "#fff"], ["much", "#fff"], ["more.", "#ffd60a"]], 90, 190, 110, t, SCENES[7].t0 + 0.02, BEAT / 2);
+  const r = rng(5);
+  // each row laid out by measured width, centred, with a fixed gap
+  g.font = ui(30, 700);
+  const widths = STICKERS.map(([text]) => g.measureText(text).width + 70), gap = 34, xs = [];
+  for (let row = 0; row < 2; row++) {
+    const ws = widths.slice(row * 4, row * 4 + 4), total = ws.reduce((a, b) => a + b, 0) + gap * 3;
+    let x = W / 2 - total / 2;
+    ws.forEach((w) => { xs.push(x + w / 2); x += w + gap; });
+  }
+  STICKERS.forEach(([text, col], i) => {
+    const at = 0.4 + i * BEAT / 2, s = spring(u - at, 3.6, 0.42);
+    const cx = xs[i], cy = 470 + Math.floor(i / 4) * 230 + (i % 2 ? 26 : -10), rot = (r() - 0.5) * 0.16;
+    if (s <= 0.003) return;
+    g.save(); g.translate(cx, cy); g.rotate(rot); g.scale(s, s);
+    g.font = ui(30, 700); const tw = g.measureText(text).width + 70;
+    g.fillStyle = "rgba(20,0,40,0.4)"; rr(-tw / 2 + 8, -38 + 10, tw, 76, 38); g.fill();
+    g.fillStyle = col; rr(-tw / 2, -38, tw, 76, 38); g.fill();
+    g.lineWidth = 4; g.strokeStyle = "#fff"; g.stroke();
+    g.fillStyle = col === "#ffd60a" || col === "#c6ff00" || col === "#00e0a0" ? "#1a0b3d" : "#fff"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(text, 0, 2); g.textBaseline = "alphabetic";
+    g.restore();
+  });
+}
+let ICON;
+function outro(t, u) {
+  blobs(pal(8), t, 81);
+  NOTCH.x = W / 2; NOTCH.y = 0;
+  const s = spring(u - 0.05, 2.4, 0.5);
+  g.save(); g.translate(W / 2, 330); g.scale(s, s); g.rotate((1 - s) * 0.6);
+  g.shadowColor = "rgba(20,0,40,0.5)"; g.shadowBlur = 50; g.shadowOffsetY = 20;
+  if (ICON) g.drawImage(ICON, -150, -150, 300, 300);
+  g.restore();
+  hl("ClaudeNotch", W / 2, 640, 150, { align: "center", sc: spring(u - 0.35, 3, 0.5) });
+  hl("Claude Code, right in your notch.", W / 2, 715, 44, { align: "center", weight: 600, alpha: clamp((u - 0.8) / 0.3), shadow: false });
+  const cmd = "brew install --cask rawsun007/tap/claudenotch", n = Math.floor(clamp((u - 1.2) / 1.1) * cmd.length);
+  if (u > 1.1) { g.font = mono(30, 700); const tw = g.measureText(cmd).width + 70; g.fillStyle = "rgba(10,4,20,0.75)"; rr(W / 2 - tw / 2, 780, tw, 66, 33); g.fill();
+    g.fillStyle = "#c6ff00"; g.textAlign = "center"; g.fillText(cmd.slice(0, n) + (n < cmd.length && Math.floor(t * 4) % 2 ? "▍" : ""), W / 2, 824); }
+  hl("Free · macOS 13+", W / 2, 920, 34, { align: "center", weight: 600, alpha: clamp((u - 2.4) / 0.3), shadow: false });
+}
+const DRAW = [hook, title, allow, guard, live, build, skills, stickers, outro];
+
+window.paint = (t) => {
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1;
+  const k = sceneAt(t), u = t - SCENES[k].t0;
+  // a punch on every beat once the groove starts, a bigger one on the bar
+  let z = 1;
+  if (t >= D0) { const b = (t - D0) % BEAT, onBar = ((t - D0) % BAR) < BEAT; z = 1 + (onBar ? 0.028 : 0.014) * Math.exp(-b / 0.1); }
+  if (t > DROP - 0.45 && t < DROP) z = 1;
+  g.setTransform(z, 0, 0, z, W / 2 * (1 - z), H / 2 * (1 - z));
+  // the new scene pours out of the notch over the old one
+  const flood = 0.32;
+  if (k > 0 && u < flood && SCENES[k].id !== "skills") {
+    DRAW[k - 1](t, t - SCENES[k - 1].t0);
+    const from = { x: NOTCH.x, y: NOTCH.y }, r = Math.hypot(W, H) * io(u / flood);
+    g.save(); g.beginPath(); g.arc(from.x, from.y, r, 0, 7); g.clip(); DRAW[k](t, u); g.restore();
+  } else DRAW[k](t, u);
+  // the drop: a white slam
+  if (t >= DROP && t < DROP + 0.3) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = `rgba(255,255,255,${0.9 * Math.exp(-(t - DROP) / 0.07)})`; g.fillRect(0, 0, W, H); }
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  grain(t);
+  const fo = io((t - (DURATION - 0.6)) / 0.6); if (fo > 0) { g.fillStyle = `rgba(10,4,20,${fo})`; g.fillRect(0, 0, W, H); }
+};
+window.SCALES = {};
+window.studioReady = (async () => {
+  for (const f of ['800 100px "Bricolage Grotesque"', '600 40px "Bricolage Grotesque"', '700 20px "Inter"', '500 20px "Inter"', '600 20px "Inter"', '700 20px "JetBrains Mono"', '500 20px "JetBrains Mono"']) await document.fonts.load(f);
+  await document.fonts.ready;
+  const gc = document.createElement("canvas"); gc.width = gc.height = 128; const gx = gc.getContext("2d"), d = gx.createImageData(128, 128), r = rng(1);
+  for (let i = 0; i < 128 * 128; i++) { const v = r() * 255; d.data.set([v, v, v, 255], i * 4); } gx.putImageData(d, 0, 0); GRAIN = g.createPattern(gc, "repeat");
+  ICON = await new Promise((ok) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => ok(null); im.src = "icon.png"; });
+  window.paint(0);
+})();
+</script>
+</body>
+</html>
