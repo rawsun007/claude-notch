@@ -2015,11 +2015,12 @@ struct SettingsView: View {
     /// renders as two identical headings on the About page.
     static let whatsNew: [ChangeGroup] = [
         ChangeGroup(kind: .added, items: [
-        "A Skills page in Settings. Every skill you have adds a little to each Claude turn, even the ones you never use, and this shows how much: one row per source (a plugin like Vercel, your claude.ai skills, your own, each project) with what it costs and a single switch for the whole group. Open a row to see each skill on one line with its cost and whether it has run.",
-        "Turn skills down without editing files. Each skill can be On, Name only (much cheaper), Only when I type it, or Off, written to the same setting Claude Code's own /skills menu uses. A plugin's skills go on and off with the plugin. Free up, at the top, sets every skill that has never run to Name only in one click.",
-        "Delete skills safely. Move to Trash puts a skill in Claude Code's own skills trash, where it stays for 30 days, and the Trash row brings it back, even to the project it came from.",
-        "ClaudeNotch now counts how often each skill runs, whether Claude picks it or you type it, so you can see which ones you actually use.",
-        "claudenotch://settings/skills, and the same for any page, opens Settings straight on that page.",
+        "A switch for Claude Code's idle compaction, in Settings, Session. Since Claude Code 2.1.299, a conversation over 200K tokens left idle for about 54 minutes is compacted just before its prompt cache expires, so your next message doesn't pay to rebuild it. Turn it off to keep the full history instead.",
+        "The Skills page says how to apply a change to a session that is already running: run /reload-skills there.",
+        ]),
+        ChangeGroup(kind: .fixed, items: [
+        "History names idle compaction for what it is. It said the context had filled up; it now says the conversation was compacted while you were away, so your next message stays cheap.",
+        "Skills Claude Code won't load are marked. Since 2.1.299, a skill whose folder name has < or >, or a hidden or unusual character, is skipped until it is renamed. The Skills page now shows Won't load on it, counts it as costing nothing, and says how to fix it.",
         ]),
     ]
 }
