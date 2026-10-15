@@ -11,6 +11,8 @@ extension SettingsView {
         page(L("Skills", comment: "Settings page title")) {
             Text(L("Every skill adds a little to each Claude turn, even unused ones. Turn off what you don't need.", comment: "Skills page one-line explanation"))
                 .font(.callout).foregroundStyle(.secondary)
+            Text(L("Changes apply to new sessions, or run /reload-skills in one that's already running.", comment: "Skills page: when changes take effect"))
+                .font(.caption).foregroundStyle(.secondary)
 
             skillSummaryBar
 
