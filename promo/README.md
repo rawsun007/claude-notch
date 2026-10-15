@@ -9,6 +9,7 @@ rebuilds one finished video with a single command.
 | `launch-v1-cream/` | v1 | 22.6s | The site's cream editorial look, real `demo.mp4` footage |
 | `motion-v2/` | v2 | 25.0s | Dark keynote-style motion piece, app UI rebuilt and animated, 120fps motion blur |
 | `motion-v3-egg/` | v3 | 30.0s | v2 plus a post-credits Spider-Pet scene |
+| `notch-pop/` | NOTCH POP | 33.6s | Daylight pop: colour floods out of the notch on every bar, cards rebuilt from the real UI, the Skills page on the drop, Mixkit groove |
 
 ## Rebuild
 
