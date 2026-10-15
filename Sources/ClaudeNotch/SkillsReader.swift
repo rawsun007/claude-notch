@@ -39,12 +39,16 @@ struct SkillInfo: Identifiable, Equatable {
     let path: String
     let bytes: Int
     let modified: Date?
+    /// Claude Code refuses to load it: its folder name has a character
+    /// SkillsReader.isRefusedName rejects (CLI 2.1.299). It costs nothing and
+    /// does nothing until the folder is renamed.
+    var refused: Bool = false
 
     /// Characters this skill adds to the listing Claude reads every turn when
     /// it is fully on: its name plus its description and when-to-use text,
     /// the latter capped at 1,536 characters as Claude Code caps them.
     var listingChars: Int {
-        guard !modelInvocationDisabled else { return 0 }
+        guard !modelInvocationDisabled, !refused else { return 0 }
         let text = [description, whenToUse].filter { !$0.isEmpty }.joined(separator: " ")
         return name.count + 4 + min(SkillsReader.maxEntryChars, text.count)
     }
@@ -102,6 +106,23 @@ enum SkillsReader {
 
     static var home: String { NSHomeDirectory() }
     static var personalDir: String { (home as NSString).appendingPathComponent(".claude/skills") }
+
+    /// Names Claude Code 2.1.299+ will not load a skill under: `<` or `>`, or a
+    /// character that is hidden (format and control characters, zero-width
+    /// and direction-changing marks) or only looks blank (unusual spaces and
+    /// fillers). A skill whose folder name has one is not offered until it is
+    /// renamed; a `name:` line with one is ignored.
+    nonisolated static func isRefusedName(_ name: String) -> Bool {
+        let blankLike: Set<UInt32> = [0x00A0, 0x115F, 0x1160, 0x180E, 0x2800, 0x3164, 0xFFA0, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000]
+        return name.unicodeScalars.contains { u in
+            if u == "<" || u == ">" { return true }
+            switch u.properties.generalCategory {
+            case .format, .control, .lineSeparator, .paragraphSeparator: return true
+            case .spaceSeparator: return u != " "
+            default: return blankLike.contains(u.value) || (0x2000...0x200F).contains(u.value)
+            }
+        }
+    }
 
     /// Folder names Claude Code reserves or uses for itself inside a skills folder.
     nonisolated static func isReserved(_ folder: String) -> Bool {
@@ -165,10 +186,13 @@ enum SkillsReader {
                   let text = String(data: data.prefix(64 * 1024), encoding: .utf8) else { continue }
             let fm = frontmatter(text)
             let attrs = try? FileManager.default.attributesOfItem(atPath: md)
-            out.append(SkillInfo(name: prefix + (fm.name ?? folder), source: source, project: project, plugin: plugin,
+            // A refused `name:` is ignored and the folder name stands in for it.
+            let name = fm.name.flatMap { isRefusedName($0) ? nil : $0 } ?? folder
+            out.append(SkillInfo(name: prefix + name, source: source, project: project, plugin: plugin,
                                  description: fm.description, whenToUse: fm.whenToUse,
                                  modelInvocationDisabled: fm.disableModelInvocation,
-                                 path: path, bytes: folderSize(path), modified: attrs?[.modificationDate] as? Date))
+                                 path: path, bytes: folderSize(path), modified: attrs?[.modificationDate] as? Date,
+                                 refused: isRefusedName(folder)))
         }
         return out
     }
