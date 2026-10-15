@@ -121,10 +121,22 @@ jobs:
         run: |
           set -euo pipefail
           KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          # Stapling fetches the ticket from Apple's CloudKit, and a runner can
+          # drop that connection (v0.42.0 failed on NSURLError -1005 after the
+          # submission was already Accepted). Retry with a growing wait rather
+          # than fail a release over one lost connection.
+          staple() {
+            for attempt in 1 2 3 4 5; do
+              xcrun stapler staple "$1" && return 0
+              echo "staple attempt $attempt failed, retrying in $((attempt * 15))s"
+              sleep $((attempt * 15))
+            done
+            return 1
+          }
           /usr/bin/ditto -c -k --keepParent ClaudeNotch.app "$RUNNER_TEMP/app.zip"
           xcrun notarytool submit "$RUNNER_TEMP/app.zip" \
               --keychain-profile "claudenotch-ci" --keychain "$KEYCHAIN" --wait
-          xcrun stapler staple ClaudeNotch.app
+          staple ClaudeNotch.app
 
           # Repackage WITHOUT rebuilding: build.sh would replace the bundle and
           # throw away the ticket just attached, leaving a DMG that looks
@@ -132,7 +144,7 @@ jobs:
           CLAUDENOTCH_SKIP_BUILD=1 ./tools/build-dmg.sh
           xcrun notarytool submit dist/ClaudeNotch.dmg \
               --keychain-profile "claudenotch-ci" --keychain "$KEYCHAIN" --wait
-          xcrun stapler staple dist/ClaudeNotch.dmg
+          staple dist/ClaudeNotch.dmg
 
       # Ask Gatekeeper rather than assuming the submission worked. A ticket can
       # be issued and still not satisfy assessment if the bundle was modified
