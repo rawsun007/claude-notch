@@ -153,8 +153,15 @@ extension SettingsView {
             Circle().fill(use == nil ? Color.secondary.opacity(0.3) : Color.green).frame(width: 6, height: 6)
                 .help(use.map { String(format: L("Ran %d times, last %@", comment: "Skill usage. %d count, %@ relative time"), $0.count, $0.last.formatted(.relative(presentation: .named))) }
                       ?? L("Not seen running yet", comment: "Skill usage: none recorded"))
-            Text(shown).lineLimit(1).foregroundStyle(vis == .off ? .secondary : .primary)
+            Text(shown).lineLimit(1).foregroundStyle(vis == .off || s.refused ? .secondary : .primary)
                 .help(s.description.isEmpty ? s.name : s.description)
+            if s.refused {
+                Text(L("Won't load", comment: "Badge: Claude Code refuses this skill's folder name"))
+                    .font(.caption2.weight(.semibold)).foregroundStyle(.orange)
+                    .padding(.horizontal, 6).padding(.vertical, 1)
+                    .background(Capsule().fill(Color.orange.opacity(0.15)))
+                    .help(L("Claude Code skips this skill because its folder name has a hidden or unusual character, or < or >. Rename the folder to use it.", comment: "Tooltip on the Won't load badge"))
+            }
             Spacer(minLength: 8)
             Text(String(format: L("~%@ tok", comment: "Tokens, short. %@ is a number"), ((AppState.listedChars(s, vis) + 3) / 4).formatted()))
                 .font(.caption.monospacedDigit()).foregroundStyle(.tertiary)
