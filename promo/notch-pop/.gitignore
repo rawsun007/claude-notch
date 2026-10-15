@@ -1,0 +1,10 @@
+# Rebuilt by master.sh; the Mixkit track is downloaded there, not committed.
+node_modules
+segs/
+proofs/
+mix.wav
+raw.wav
+*.built.html
+*.mp3
+out/
+icon.png
