@@ -72,6 +72,24 @@ final class SkillsReaderTests: XCTestCase {
         XCTAssertEqual(SkillsReader.standard("/tmp/../tmp/./skills/"), SkillsReader.standard("/tmp/skills"))
     }
 
+    /// CLI 2.1.299 refuses skill names with < or >, or hidden, direction-
+    /// changing or blank-looking characters.
+    func testRefusedNames() {
+        for ok in ["deploy", "design-lusion-co", "pdf_tools 2", "日本語スキル", "café"] {
+            XCTAssertFalse(SkillsReader.isRefusedName(ok), ok)
+        }
+        for bad in ["a<b", "x>", "zero\u{200B}width", "rtl\u{202E}name", "fill\u{3164}er", "nb\u{00A0}sp", "tab\tname", "bom\u{FEFF}"] {
+            XCTAssertTrue(SkillsReader.isRefusedName(bad), bad)
+        }
+    }
+
+    /// A refused skill costs nothing in the listing: Claude Code never lists it.
+    func testRefusedSkillCostsNothing() {
+        var s = skill(desc: "abc")
+        s.refused = true
+        XCTAssertEqual(s.listingChars, 0)
+    }
+
     func testInstalledPlugins() {
         let json = #"{"version":2,"plugins":{"caveman@caveman":[{"installPath":"/p/old"},{"installPath":"/p/new"}],"bad@x":[{}]}}"#
         let list = SkillsReader.installedPlugins(json: Data(json.utf8))
