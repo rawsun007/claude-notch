@@ -471,6 +471,9 @@
 /* Changelog group heading */
 "Changed" = "Changed";
 
+/* Skills page: when changes take effect */
+"Changes apply to new sessions, or run /reload-skills in one that's already running." = "Changes apply to new sessions, or run /reload-skills in one that's already running.";
+
 /* Settings button: re-check the Claude Code version */
 "Check" = "Check";
 
@@ -504,6 +507,9 @@
 /* Result when the merge added nothing */
 "Claude Code already had all of them. A backup was saved anyway." = "Claude Code already had all of them. A backup was saved anyway.";
 
+/* Settings toggle explanation */
+"Claude Code compacts a conversation over 200K tokens left idle for about 54 minutes, just before its one-hour prompt cache expires, so your next message doesn't pay to rebuild it. Turn this off to keep the full history instead. Writes idleCompaction to ~/.claude/settings.json; needs Claude Code 2.1.299 or later." = "Claude Code compacts a conversation over 200K tokens left idle for about 54 minutes, just before its one-hour prompt cache expires, so your next message doesn't pay to rebuild it. Turn this off to keep the full history instead. Writes idleCompaction to ~/.claude/settings.json; needs Claude Code 2.1.299 or later.";
+
 /* Banner body on a dangerous rm card that the CLI denied on its own after two minutes */
 "Claude Code denied this itself after two minutes, as it does for a dangerous rm in auto mode, and told Claude to find another way. Allowing here would not reach it." = "Claude Code denied this itself after two minutes, as it does for a dangerous rm in auto mode, and told Claude to find another way. Allowing here would not reach it.";
 
@@ -533,6 +539,9 @@
 
 /* Limit tooltip fragment explaining why a reading can be stale */
 "Claude Code only reports usage while a session is running" = "Claude Code only reports usage while a session is running";
+
+/* Tooltip on the Won't load badge */
+"Claude Code skips this skill because its folder name has a hidden or unusual character, or < or >. Rename the folder to use it." = "Claude Code skips this skill because its folder name has a hidden or unusual character, or < or >. Rename the folder to use it.";
 
 /* Settings: the Claude Code CLI could not be located */
 "Claude Code was not found on this Mac." = "Claude Code was not found on this Mac.";
@@ -629,6 +638,12 @@
 
 /* Settings section heading */
 "Codex usage (tokens)" = "Codex usage (tokens)";
+
+/* Settings toggle */
+"Compact long sessions while I'm away" = "Compact long sessions while I'm away";
+
+/* History row: Claude Code compacted an idle conversation before its prompt cache expired */
+"Compacted while you were away, so your next message stays cheap" = "Compacted while you were away, so your next message stays cheap";
 
 /* Card body suggesting a deliberate compaction */
 "Compacting now writes the summary while the conversation still has its shape. Left alone, Claude Code will do it on its own schedule, which tends to be in the middle of the next thing you ask for." = "Compacting now writes the summary while the conversation still has its shape. Left alone, Claude Code will do it on its own schedule, which tends to be in the middle of the next thing you ask for.";
@@ -2024,6 +2039,9 @@
 
 /* Settings explanation */
 "With per-tool sounds on, each kind of pop-up plays its own sound. Change any of them; the default is shown when you have not." = "With per-tool sounds on, each kind of pop-up plays its own sound. Change any of them; the default is shown when you have not.";
+
+/* Badge: Claude Code refuses this skill's folder name */
+"Won't load" = "Won't load";
 
 /* The API key was accepted by Anthropic */
 "Working" = "Working";
