@@ -353,7 +353,8 @@ struct SettingsView: View {
     @State var historySearch = ""
     // Skills page
     @State var skillQuery = ""
-    @State var skillFilter: SkillInfo.Source? = nil
+    @State var expandedSkillGroups: Set<String> = []
+    @State var showSkillTrash = false
     @State var skillPendingTrash: SkillInfo?
     // Generated "what I shipped" standup text + the day-window it covers.
     @State private var standupText = ""
