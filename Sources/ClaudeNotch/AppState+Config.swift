@@ -130,4 +130,23 @@ extension AppState {
             await MainActor.run { [weak self] in self?.applyClockPreference(next) }
         }
     }
+
+    // MARK: - Claude Code settings ClaudeNotch can switch
+
+    /// Read the Claude Code settings this app offers a switch for.
+    func refreshClaudeCodeSettings() {
+        idleCompactionEnabled = ClaudeCodeSettings.bool(ClaudeCodeSettings.idleCompactionKey) ?? true
+    }
+
+    /// Turn Claude Code's idle compaction on or off. On is written as no key
+    /// at all, Claude Code's own default, so the file ends as it began.
+    func setIdleCompaction(_ on: Bool) {
+        do {
+            try ClaudeCodeSettings.set(ClaudeCodeSettings.idleCompactionKey, on ? nil : false)
+            idleCompactionEnabled = on
+            skillsMessage = nil
+        } catch {
+            skillsMessage = error.localizedDescription
+        }
+    }
 }

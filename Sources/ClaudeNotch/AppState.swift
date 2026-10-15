@@ -462,6 +462,8 @@ final class AppState: ObservableObject {
     @Published var pluginDescriptions: [String: String] = [:]
     @Published var skillsScanning = false
     @Published var skillsMessage: String?
+    /// Claude Code's `idleCompaction` setting, as last read (absent means on).
+    @Published var idleCompactionEnabled = true
     /// Runs seen through the hooks, by skill name. Persisted, capped.
     @Published var skillUsage: [String: SkillUse] = [:]
     /// Strict Mode: only a command SafeCommand calls harmless may be approved
