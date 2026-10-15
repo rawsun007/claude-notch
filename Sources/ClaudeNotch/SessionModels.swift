@@ -174,6 +174,9 @@ struct LiveSession: Identifiable, Equatable {
     var liveReplyMessageId: String = ""
     var liveReplyAt: Date? = nil
     var isCompacting: Bool = false   // true between PreCompact and the next event
+    /// The compaction under way started while the session was not working:
+    /// Claude Code's idle compaction (CLI 2.1.299), not a full window.
+    var compactingWhileIdle: Bool = false
     // Claude Code permission mode from hook payloads (default / plan /
     // acceptEdits / auto / dontAsk / bypassPermissions). Non-default modes get
     // a badge in the notch so a bypass session is never invisible.
