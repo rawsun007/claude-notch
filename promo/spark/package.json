@@ -1,0 +1,8 @@
+{
+  "name": "spark",
+  "private": true,
+  "description": "Frame capture for the LOOK UP promo.",
+  "dependencies": {
+    "puppeteer-core": "25.12.0"
+  }
+}
