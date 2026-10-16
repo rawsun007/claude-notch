@@ -1,0 +1,13 @@
+# Rebuilt by prep.py / master.sh: stock clips, tracking, the downloaded track.
+node_modules
+clips/
+track.json
+segs/
+proofs/
+mix.wav
+raw.wav
+*.built.html
+*.mp3
+*.log
+look-up.mp4
+icon.png
