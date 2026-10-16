@@ -11,6 +11,7 @@ rebuilds one finished video with a single command.
 | `motion-v3-egg/` | v3 | 30.0s | v2 plus a post-credits Spider-Pet scene |
 | `notch-pop/` | NOTCH POP | 33.6s | Daylight pop: colour floods out of the notch on every bar, cards rebuilt from the real UI, the Skills page on the drop, Mixkit groove |
 | `look-up/` | LOOK UP | 36.4s | Claude's ivory, clay and sage: stock footage, a keyed green-screen laptop with the notch tracked onto it, slow eases, no bounce |
+| `spark/` | SPARK | 38.1s | Ink and ivory cut on every beat of a 130 bpm house track, duotone stock footage, the notch floods the frame on the drop |
 
 ## Rebuild
 
