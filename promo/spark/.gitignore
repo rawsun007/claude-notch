@@ -1,0 +1,12 @@
+# Rebuilt by prep.py / master.sh: stock clips, the downloaded track, render output.
+node_modules
+clips/
+segs/
+proofs/
+mix.wav
+raw.wav
+*.built.html
+*.mp3
+*.log
+spark.mp4
+icon.png
