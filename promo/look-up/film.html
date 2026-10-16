@@ -1,0 +1,427 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>LOOK UP studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=block" rel="stylesheet">
+<style>html, body { margin: 0; background: #f1ece3; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// LOOK UP: ClaudeNotch as a quiet, warm film. Real footage of someone who
+// stepped away, a terminal left waiting, then the notch on a real laptop
+// (a green screen, keyed and warped onto the tracked corners of the screen
+// in WebGL) asking the question, and the app's cards, crisp, on ivory paper.
+// No springs, no bounce: long eases and masked reveals only. Every frame is
+// a pure function of t; footage is seeked to the exact frame.
+const CFG = CONFIG_JSON, TRACK = TRACK_JSON;
+const W = CFG.width, H = CFG.height, BEAT = 60 / CFG.bpm, BAR = 4 * BEAT, LIFT = CFG.lift, DURATION = CFG.duration;
+window.DURATION = DURATION;
+const cv = document.getElementById("c"); cv.width = W; cv.height = H;
+const g = cv.getContext("2d");
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, p) => a + (b - a) * p;
+const io = (x) => { x = clamp(x); return x * x * x * (x * (6 * x - 15) + 10); };
+const oE = (x) => { x = clamp(x); return 1 - Math.pow(1 - x, 4); };
+function rng(seed) { return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
+// Claude's palette: ivory paper, ink, clay, and a sage green for good news
+const PAPER = "#f1ece3", PAPER2 = "#e9e2d5", INK = "#1d1b17", INK2 = "#5c564b", CLAY = "#d97757", SAGE = "#5f8a63", CARD = "#161512";
+const SERIF = (s, it = false, w = 400) => `${it ? "italic " : ""}${w} ${s}px "Newsreader"`;
+const SANS = (s, w = 500) => `${w} ${s}px "Inter"`;
+const MONO = (s, w = 500) => `${w} ${s}px "JetBrains Mono"`;
+
+// ---------- timeline ----------
+const S = [];
+{ const add = (id, t1, o = {}) => S.push({ id, t0: S.length ? S[S.length - 1].t1 : 0, t1, ...o });
+  add("work", BAR); add("latte", 2 * BAR); add("sofa", 3 * BAR); add("waiting", 4 * BAR, { wipe: true });
+  add("lookup", LIFT, { wipe: true }); add("hero", LIFT + 4 * BAR); add("touch", LIFT + 6 * BAR, { wipe: true });
+  add("live", LIFT + 8 * BAR, { wipe: true }); add("skills", LIFT + 10 * BAR, { wipe: true }); add("more", LIFT + 12 * BAR, { wipe: true });
+  add("end", DURATION, { wipe: true }); }
+const sceneAt = (t) => { let k = 0; S.forEach((s, i) => { if (t >= s.t0) k = i; }); return k; };
+
+// ---------- footage ----------
+const VIDS = {};
+function loadVid(id) {
+  return new Promise((ok, no) => { const v = document.createElement("video"); v.muted = true; v.preload = "auto"; v.playsInline = true;
+    v.addEventListener("loadeddata", () => { VIDS[id] = v; ok(); }, { once: true }); v.addEventListener("error", () => no(new Error("clip " + id)), { once: true }); v.src = `clips/${id}.mp4`; });
+}
+async function seek(id, t) {
+  const v = VIDS[id], ft = clamp((Math.floor(t * 24) + 0.5) / 24, 0, v.duration - 1 / 48);
+  if (v._ft === ft) return v; v._ft = ft;
+  await new Promise((ok) => { v.addEventListener("seeked", ok, { once: true }); v.currentTime = ft; });
+  return v;
+}
+const GRADE = "saturate(0.8) sepia(0.16) contrast(0.94) brightness(1.04)";
+function cover(img, iw, ih, x, y, w, h, s = 1) {
+  const k = Math.max(w / iw, h / ih) * s, dw = iw * k, dh = ih * k;
+  g.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+}
+async function footage(id, at, u, dur, { push = 0.05 } = {}) {
+  const v = await seek(id, at + u);
+  g.save(); g.filter = GRADE; cover(v, v.videoWidth, v.videoHeight, 0, 0, W, H, 1 + push * (u / dur)); g.restore();
+  g.fillStyle = "rgba(241,226,204,0.10)"; g.fillRect(0, 0, W, H);                     // a warm wash
+  const vg = g.createRadialGradient(W / 2, H / 2, H * 0.4, W / 2, H / 2, H); vg.addColorStop(0, "rgba(30,20,10,0)"); vg.addColorStop(1, "rgba(30,20,10,0.32)");
+  g.fillStyle = vg; g.fillRect(0, 0, W, H);
+}
+
+// ---------- paper ----------
+let CLOUDS, GRAIN;
+function paper(t) {
+  g.fillStyle = PAPER; g.fillRect(0, 0, W, H);
+  g.save(); g.globalAlpha = 0.9; g.drawImage(CLOUDS, -80 + 30 * Math.sin(t * 0.07), -60 + 20 * Math.cos(t * 0.05), W + 160, H + 120); g.restore();
+}
+function makeClouds() {
+  const c = document.createElement("canvas"); c.width = W + 160; c.height = H + 120; const x = c.getContext("2d"), r = rng(17);
+  for (let i = 0; i < 26; i++) {
+    const px = r() * c.width, py = r() * c.height, rad = 160 + r() * 420, warm = r() < 0.35;
+    const gr = x.createRadialGradient(px, py, 0, px, py, rad);
+    gr.addColorStop(0, warm ? "rgba(236,214,190,0.45)" : "rgba(255,253,248,0.75)"); gr.addColorStop(1, "rgba(255,253,248,0)");
+    x.fillStyle = gr; x.fillRect(px - rad, py - rad, rad * 2, rad * 2);
+  }
+  return c;
+}
+function grain(t) { g.save(); g.globalAlpha = 0.05; g.translate(-((t * 911) % 128), -((t * 577) % 128)); g.fillStyle = GRAIN; g.fillRect(0, 0, W + 256, H + 256); g.restore(); }
+
+// ---------- type: rises out of a line, never springs ----------
+function rise(text, x, y, font, color, t, at, { dur = 0.7, align = "left", track = 0 } = {}) {
+  if (t < at) return;
+  const p = oE((t - at) / dur);
+  g.save(); g.font = font; g.textAlign = align; g.letterSpacing = track + "px";
+  const m = g.measureText(text), h = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent + 8, w = m.width;
+  const x0 = align === "left" ? x : align === "center" ? x - w / 2 : x - w;
+  g.beginPath(); g.rect(x0 - 20, y - m.actualBoundingBoxAscent - 6, w + 40, h + 6); g.clip();
+  g.globalAlpha = clamp(p * 1.4); g.fillStyle = color; g.fillText(text, x, y + (1 - p) * h); g.restore();
+}
+// a line of [text, colour, italic] runs, each rising a little after the last
+function riseRuns(runs, x, y, size, t, at, step = 0.09) {
+  let xx = x;
+  runs.forEach(([txt, col, it], i) => {
+    g.font = SERIF(size, it); const w = g.measureText(txt).width;
+    rise(txt, xx, y, SERIF(size, it), col, t, at + i * step, { dur: 0.8 });
+    g.font = SERIF(size, it); xx += w + g.measureText(" ").width;
+  });
+}
+function label(text, x, y, t, at, color = CLAY) { rise(text.toUpperCase(), x, y, SANS(18, 700), color, t, at, { track: 3 }); }
+function caption(text, t, at, y = H - 110) {   // on footage: cream, centred, soft shadow
+  g.save(); g.shadowColor = "rgba(20,12,4,0.55)"; g.shadowBlur = 24;
+  rise(text, W / 2, y, SERIF(58, true), "#fbf6ee", t, at, { align: "center", dur: 0.9 }); g.restore();
+}
+function rr(x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r); }
+
+// ---------- UI pieces, drawn into any context ----------
+function pill(c, x, y, w, h, fill, text, color, font) {
+  c.fillStyle = fill; c.beginPath(); c.roundRect(x, y, w, h, h / 2); c.fill();
+  c.fillStyle = color; c.font = font; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(text, x + w / 2, y + h / 2 + 1); c.textBaseline = "alphabetic"; c.textAlign = "left";
+}
+function fingerprint(c, cx, cy, r, p, color) {
+  c.save(); c.strokeStyle = color; c.lineWidth = Math.max(2, r * 0.06); c.lineCap = "round";
+  for (let i = 0; i < 5; i++) { const rad = r * (0.25 + i * 0.18); c.globalAlpha = 0.28 + 0.72 * clamp(p * 5 - i); c.beginPath(); c.arc(cx, cy + r * 0.1, rad, Math.PI * 1.08, Math.PI * 1.92 + (i % 2) * 0.28); c.stroke(); }
+  c.restore();
+}
+// the notch, hanging from y=top at centre x, opened by `open` to w x h
+function notchShape(c, x, top, open, w, h, s = 1) {
+  const cw = lerp(200 * s, w, open), ch = lerp(34 * s, h, open), r = Math.min(30 * s, ch / 2);
+  c.fillStyle = CARD; c.beginPath(); c.moveTo(x - cw / 2, top); c.lineTo(x + cw / 2, top); c.lineTo(x + cw / 2, top + ch - r);
+  c.quadraticCurveTo(x + cw / 2, top + ch, x + cw / 2 - r, top + ch); c.lineTo(x - cw / 2 + r, top + ch); c.quadraticCurveTo(x - cw / 2, top + ch, x - cw / 2, top + ch - r); c.closePath(); c.fill();
+  return { x: x - cw / 2, y: top, w: cw, h: ch };
+}
+
+// ---------- the laptop screen (drawn to an offscreen canvas, keyed onto footage) ----------
+const SCR = document.createElement("canvas"); SCR.width = 1600; SCR.height = 1000; const sc = SCR.getContext("2d");
+function screenUI(u) {
+  const c = sc, w = SCR.width, h = SCR.height;
+  const bg = c.createLinearGradient(0, 0, w, h); bg.addColorStop(0, "#f4eee4"); bg.addColorStop(1, "#e7ddcc"); c.fillStyle = bg; c.fillRect(0, 0, w, h);
+  c.globalAlpha = 0.7; c.drawImage(CLOUDS, 0, 0, w, h); c.globalAlpha = 1;
+  c.fillStyle = "rgba(255,255,255,0.55)"; c.fillRect(0, 0, w, 44);
+  c.fillStyle = INK; c.font = SANS(22, 600); c.fillText("Terminal", 70, 30); c.font = SANS(22, 500); c.fillStyle = INK2; c.fillText("Shell   Edit   View   Window", 190, 30);
+  // a light terminal with Claude Code mid-task
+  c.save(); c.shadowColor = "rgba(40,30,20,0.18)"; c.shadowBlur = 40; c.shadowOffsetY = 16; c.fillStyle = "#fbf8f2"; c.beginPath(); c.roundRect(170, 190, 1260, 700, 18); c.fill(); c.restore();
+  ["#e5847a", "#e7c36a", "#8cbf86"].forEach((col, i) => { c.fillStyle = col; c.beginPath(); c.arc(206 + i * 30, 222, 9, 0, 7); c.fill(); });
+  c.font = MONO(26, 500); c.fillStyle = INK2; c.fillText("~/notch-app  claude", 220, 300);
+  c.fillStyle = CLAY; c.fillText("●", 220, 360); c.fillStyle = INK; c.fillText("Bash(npm test)", 254, 360);
+  if (u < 2.6) { c.fillStyle = INK2; c.fillText("Do you want to proceed?", 254, 410); c.fillText("❯ 1. Yes    2. No", 254, 455); }
+  else { const n = Math.floor(clamp((u - 2.8) / 1.6) * 5);
+    ["PASS  notch.test.ts", "PASS  cards.test.ts", "PASS  pet.test.ts", "Tests: 48 passed", ""].slice(0, n).forEach((l, i) => { c.fillStyle = i < 3 ? SAGE : INK; c.fillText(l, 254, 410 + i * 46); }); }
+  // the notch drops the same question, then says it's done
+  const open1 = oE((u - 1.0) / 0.7) * (1 - io((u - 3.6) / 0.5)), allowed = u > 2.6;
+  const box = notchShape(c, w / 2, 0, open1, 1240, 420, 1.3);
+  if (open1 > 0.6) {
+    c.save(); c.globalAlpha = clamp((open1 - 0.6) / 0.4); c.translate(box.x, 0);
+    c.fillStyle = "#fff"; c.font = SANS(54, 700); c.fillText("Bash", 64, 118); c.fillStyle = "rgba(255,255,255,0.5)"; c.font = SANS(38, 500); c.fillText("notch-app", 222, 118);
+    c.fillStyle = "rgba(255,255,255,0.08)"; c.beginPath(); c.roundRect(56, 156, box.w - 112, 110, 20); c.fill();
+    c.fillStyle = "#e9dcc6"; c.font = MONO(50, 500); c.fillText("$ npm test", 96, 228);
+    pill(c, 56, 302, 230, 84, "rgba(255,255,255,0.14)", "Deny", "#fff", SANS(38, 600));
+    if (allowed) pill(c, box.w - 376, 302, 320, 84, SAGE, "Allowed", "#fff", SANS(38, 700));
+    else pill(c, box.w - 376, 302, 320, 84, u > 2.35 ? "#e8e2d6" : "#fff", "Allow", INK, SANS(38, 700));
+    c.restore();
+  }
+  const open2 = oE((u - 4.3) / 0.6) * (1 - io((u - 7.0) / 0.4));
+  const b2 = notchShape(c, w / 2, 0, open2, 900, 170, 1.3);
+  if (open2 > 0.6) {
+    c.save(); c.globalAlpha = clamp((open2 - 0.6) / 0.4); c.translate(b2.x, 0);
+    c.fillStyle = SAGE; c.beginPath(); c.arc(78, 100, 16, 0, 7); c.fill();
+    c.fillStyle = "#fff"; c.font = SANS(42, 700); c.fillText("Done", 116, 114); c.fillStyle = "rgba(255,255,255,0.6)"; c.font = SANS(34, 500); c.fillText("Tests passed  ·  2m 14s", 242, 114);
+    c.restore();
+  }
+}
+
+// ---------- green screen key, in WebGL ----------
+const GL = document.createElement("canvas"); GL.width = 1280; GL.height = 720;
+const gl = GL.getContext("webgl", { preserveDrawingBuffer: true, premultipliedAlpha: false });
+let prog, U = {}, texV, texS;
+function initGL() {
+  const vs = `attribute vec2 p; varying vec2 v; void main(){ v = vec2(p.x*.5+.5, .5-p.y*.5); gl_Position = vec4(p,0.,1.); }`;
+  const fs = `precision highp float; varying vec2 v; uniform sampler2D vid, scr; uniform mat3 Hinv; uniform vec2 size;
+    void main(){
+      vec4 c = texture2D(vid, v);
+      float green = c.g - max(c.r, c.b);
+      float key = smoothstep(0.10, 0.24, green);
+      vec3 px = Hinv * vec3(v * size, 1.0); vec2 uv = px.xy / px.z;
+      vec3 ui = texture2D(scr, clamp(uv, 0.0, 1.0)).rgb;
+      vec3 base = c.rgb; base.g = min(base.g, max(base.r, base.b) + 0.02);   // spill suppression on the bezel edge
+      // the screen glows a touch, as a real one does in a bright room
+      ui = mix(ui, ui * 0.94 + 0.05, 0.4);
+      gl_FragColor = vec4(mix(base, ui, key), 1.0);
+    }`;
+  const sh = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+  prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(prog); gl.useProgram(prog);
+  const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  for (const n of ["vid", "scr", "Hinv", "size"]) U[n] = gl.getUniformLocation(prog, n);
+  const mk = (unit) => { const t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); return t; };
+  texV = mk(0); texS = mk(1); gl.uniform1i(U.vid, 0); gl.uniform1i(U.scr, 1);
+}
+// homography taking the unit square to the four tracked corners, inverted
+function homography(q) {
+  const [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = q;   // TL, TR, BR, BL
+  const dx1 = x1 - x2, dx2 = x3 - x2, dy1 = y1 - y2, dy2 = y3 - y2, sx = x0 - x1 + x2 - x3, sy = y0 - y1 + y2 - y3;
+  const den = dx1 * dy2 - dx2 * dy1, gg = (sx * dy2 - dx2 * sy) / den, hh = (dx1 * sy - sx * dy1) / den;
+  const a = x1 - x0 + gg * x1, b = x3 - x0 + hh * x3, c = x0, d = y1 - y0 + gg * y1, e = y3 - y0 + hh * y3, f = y0;
+  const m = [a, b, c, d, e, f, gg, hh, 1];
+  const A = m[4] * m[8] - m[5] * m[7], B = m[5] * m[6] - m[3] * m[8], C = m[3] * m[7] - m[4] * m[6];
+  const det = m[0] * A + m[1] * B + m[2] * C;
+  const inv = [A, m[2] * m[7] - m[1] * m[8], m[1] * m[5] - m[2] * m[4], B, m[0] * m[8] - m[2] * m[6], m[2] * m[3] - m[0] * m[5], C, m[1] * m[6] - m[0] * m[7], m[0] * m[4] - m[1] * m[3]].map((v) => v / det);
+  return [inv[0], inv[3], inv[6], inv[1], inv[4], inv[7], inv[2], inv[5], inv[8]];   // column-major for GLSL
+}
+async function keyedLaptop(u) {
+  const v = await seek("14601", u);
+  const fi = clamp(Math.floor(u * TRACK.fps), 0, TRACK.corners.length - 1);
+  screenUI(u);
+  gl.viewport(0, 0, GL.width, GL.height); gl.useProgram(prog);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texV); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, v);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texS); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, SCR);
+  gl.uniformMatrix3fv(U.Hinv, false, homography(TRACK.corners[fi])); gl.uniform2f(U.size, GL.width, GL.height);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  return GL;
+}
+
+// ---------- crisp app cards, full frame ----------
+// the frame's top edge is the screen's: cards hang from a notch at (NX, 0)
+const NX = 1290;
+function headline(lines, t, at, x = 120, y = 430, size = 92) {
+  lines.forEach((runs, i) => riseRuns(runs, x, y + i * size * 1.12, size, t, at + i * 0.18));
+}
+function touchCard(u) {
+  const open = oE((u - 0.25) / 0.7), scan = clamp((u - 1.4) / 1.1), ok = scan >= 1;
+  g.save(); g.shadowColor = "rgba(40,28,14,0.28)"; g.shadowBlur = 60; g.shadowOffsetY = 24;
+  const b = notchShape(g, NX, 0, open, 900, 470, 1.4); g.restore();
+  notchShape(g, NX, 0, open, 900, 470, 1.4);
+  if (open < 0.6) return;
+  g.save(); g.globalAlpha = clamp((open - 0.6) / 0.4); g.translate(b.x, 0);
+  g.fillStyle = "#e39a83"; g.font = SANS(30, 700); g.fillText("Destructive  ·  Bash", 56, 104);
+  g.fillStyle = "rgba(217,119,87,0.16)"; rr(50, 134, b.w - 100, 92, 18); g.fill();
+  g.fillStyle = "#f3d9cc"; g.font = MONO(40, 500); g.fillText("$ rm -rf build/", 84, 194);
+  g.fillStyle = "rgba(255,255,255,0.55)"; g.font = SANS(26, 500); g.fillText("Deletes files recursively, without asking", 56, 280);
+  pill(g, 50, 330, 180, 72, "rgba(255,255,255,0.12)", "Deny", "#fff", SANS(30, 600));
+  pill(g, b.w - 380, 330, 330, 72, ok ? SAGE : CLAY, ok ? "Allowed" : "Confirm with Touch ID", "#fff", SANS(28, 700));
+  g.restore();
+  // the fingerprint, large, under the card
+  const a = clamp((u - 1.1) / 0.3) * (1 - clamp((u - 3.0) / 0.5));
+  if (a > 0) { g.save(); g.globalAlpha = a; fingerprint(g, NX, 700, 130, scan, ok ? SAGE : INK); g.restore(); }
+}
+function liveCard(u) {
+  const open = oE((u - 0.25) / 0.7);
+  g.save(); g.shadowColor = "rgba(40,28,14,0.28)"; g.shadowBlur = 60; g.shadowOffsetY = 24; const b = notchShape(g, NX, 0, open, 920, 640, 1.4); g.restore();
+  notchShape(g, NX, 0, open, 920, 640, 1.4);
+  if (open < 0.6) return;
+  g.save(); g.globalAlpha = clamp((open - 0.6) / 0.4); g.translate(b.x, 0);
+  g.fillStyle = "rgba(255,255,255,0.5)"; g.font = SANS(24, 600); g.fillText("3 sessions", 56, 92);
+  g.textAlign = "right"; g.fillStyle = "#e9dcc6"; g.font = SANS(26, 700); g.fillText(`$${(4.12 * oE((u - 0.9) / 1.6)).toFixed(2)} today`, b.w - 56, 92); g.textAlign = "left";
+  [["notch-app", "Editing NotchView.swift", 0.38, SAGE], ["api", "Running the test suite", 0.62, "#d9b45a"], ["site", "Waiting for you", 0.21, CLAY]].forEach(([n, a, ctx, dot], i) => {
+    const y = 124 + i * 134, p = oE((u - 0.8 - i * 0.18) / 0.6); if (p <= 0) return;
+    g.save(); g.globalAlpha = p; g.translate(0, (1 - p) * 24);
+    g.fillStyle = "rgba(255,255,255,0.06)"; rr(44, y, b.w - 88, 116, 20); g.fill();
+    g.fillStyle = dot; g.beginPath(); g.arc(84, y + 42, 10, 0, 7); g.fill();
+    g.fillStyle = "#fff"; g.font = SANS(30, 700); g.fillText(n, 110, y + 52);
+    g.fillStyle = "rgba(255,255,255,0.58)"; g.font = SANS(24, 500); g.fillText(a, 110, y + 90);
+    g.fillStyle = "rgba(255,255,255,0.14)"; rr(b.w - 330, y + 76, 250, 10, 5); g.fill();
+    g.fillStyle = "#e9dcc6"; rr(b.w - 330, y + 76, 250 * ctx * oE((u - 1.0 - i * 0.18) / 0.9), 10, 5); g.fill();
+    g.textAlign = "right"; g.fillStyle = "rgba(255,255,255,0.55)"; g.font = SANS(22, 600); g.fillText(`${Math.round(ctx * 100)}% context`, b.w - 80, y + 54); g.textAlign = "left";
+    g.restore();
+  });
+  const reply = "Done: the notch closes on Esc, and every test passes.", n = Math.floor(clamp((u - 1.8) / 1.3) * reply.length);
+  g.fillStyle = "rgba(255,255,255,0.88)"; g.font = SANS(26, 500); g.fillText(reply.slice(0, n), 56, 580);
+  g.restore();
+}
+function skillsWindow(u) {
+  const e = oE((u - 0.15) / 0.8), x = 900, y = lerp(H + 40, 170, e), w = 900, h = 760;
+  g.save(); g.shadowColor = "rgba(40,28,14,0.22)"; g.shadowBlur = 70; g.shadowOffsetY = 30; g.fillStyle = "#fdfbf7"; rr(x, y, w, h, 26); g.fill(); g.restore();
+  g.fillStyle = "#efe9de"; g.beginPath(); g.roundRect(x, y, w, 56, [26, 26, 0, 0]); g.fill();
+  ["#e5847a", "#e7c36a", "#8cbf86"].forEach((c, i) => { g.fillStyle = c; g.beginPath(); g.arc(x + 34 + i * 26, y + 28, 8, 0, 7); g.fill(); });
+  g.fillStyle = INK; g.font = SERIF(46, false, 500); g.fillText("Skills", x + 50, y + 124);
+  const offAt = 1.5, off = io((u - offAt) / 0.7), vercel = Math.round(2945 * (1 - off)), total = 6390 - (2945 - vercel);
+  g.font = SANS(28, 600); g.fillText(`~${total.toLocaleString()} tokens per turn`, x + 50, y + 180);
+  g.fillStyle = "#e7e0d3"; rr(x + 50, y + 204, w - 100, 12, 6); g.fill();
+  g.fillStyle = total > 5000 ? CLAY : SAGE; rr(x + 50, y + 204, (w - 100) * total / 10000, 12, 6); g.fill();
+  [["Vercel", "Build and deploy web apps", vercel, true], ["From claude.ai", "Synced from your account", 2582, false], ["Caveman", "Compressed replies", 643, true], ["Your skills", "In ~/.claude/skills", 156, false]].forEach(([n, s, tok, plug], i) => {
+    const ry = y + 250 + i * 120, p = oE((u - 0.5 - i * 0.12) / 0.6); if (p <= 0) return;
+    g.save(); g.globalAlpha = p;
+    if (i) { g.fillStyle = "#ece6da"; g.fillRect(x + 50, ry, w - 100, 2); }
+    g.fillStyle = INK; g.font = SANS(30, 600); g.fillText(n, x + 66, ry + 56);
+    g.fillStyle = INK2; g.font = SANS(22, 500); g.fillText(s, x + 66, ry + 90);
+    g.textAlign = "right"; g.font = MONO(24, 500); g.fillStyle = tok ? INK2 : "#b9b1a2"; g.fillText(`~${tok.toLocaleString()} tok`, x + w - 190, ry + 70); g.textAlign = "left";
+    if (plug) {
+      const on = i === 0 ? 1 - off : 1, sx = x + w - 150, sy = ry + 44;
+      g.fillStyle = on > 0.5 ? SAGE : "#d6cfc2"; rr(sx, sy, 88, 48, 24); g.fill();
+      g.fillStyle = "#fff"; g.beginPath(); g.arc(sx + lerp(24, 64, on), sy + 24, 19, 0, 7); g.fill();
+    } else { g.fillStyle = INK2; g.font = SANS(22, 600); g.fillText("On", x + w - 120, ry + 70); }
+    g.restore();
+  });
+  if (off > 0) { rise(`${(2945 - vercel).toLocaleString()} fewer tokens, every turn`, x + w, y - 34, SERIF(40, true), CLAY, u, offAt + 0.2, { align: "right" }); }
+}
+const MORE = ["Reply to a background agent", "Open a session in Claude Desktop", "Sign-in cards for MCP servers", "Touch ID, or one click: your choice", "Spend limits and live replies", "A pet that backflips"];
+
+// ---------- scenes ----------
+const DRAW = {
+  async work(t, u, s) { await footage("1746", 3.0, u, s.t1 - s.t0); caption("Claude is working.", t, s.t0 + 0.25); },
+  async latte(t, u, s) { await footage("41859", 3.5, u, s.t1 - s.t0, { push: 0.04 }); caption("You step away for a minute.", t, s.t0 + 0.2); },
+  async sofa(t, u, s) { await footage("50766", 1.0, u, s.t1 - s.t0, { push: 0.04 }); caption("Meanwhile, it has a question.", t, s.t0 + 0.2); },
+  async waiting(t, u, s) {
+    paper(t);
+    const x = 360, y = 230, w = 1200, h = 560;
+    g.save(); g.shadowColor = "rgba(40,28,14,0.18)"; g.shadowBlur = 60; g.shadowOffsetY = 24; g.fillStyle = "#fbf8f2"; rr(x, y, w, h, 22); g.fill(); g.restore();
+    ["#e5847a", "#e7c36a", "#8cbf86"].forEach((c, i) => { g.fillStyle = c; g.beginPath(); g.arc(x + 40 + i * 30, y + 38, 10, 0, 7); g.fill(); });
+    g.font = MONO(34, 500);
+    g.fillStyle = CLAY; g.fillText("●", x + 70, y + 160); g.fillStyle = INK; g.fillText("Bash(rm -rf dist && npm run build)", x + 112, y + 160);
+    g.fillStyle = INK2; g.fillText("Do you want to proceed?", x + 112, y + 240); g.fillText("❯ 1. Yes      2. No", x + 112, y + 300);
+    if (Math.floor(t * 2.2) % 2) { g.fillStyle = INK; g.fillRect(x + 112, y + 340, 18, 38); }
+    const secs = Math.floor(lerp(4, 252, io(u / 1.7))), clock = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+    g.textAlign = "right"; g.fillStyle = CLAY; g.font = MONO(30, 700); g.fillText(`waiting ${clock}`, x + w - 50, y + 46); g.textAlign = "left";
+    rise("It waits in a terminal you aren't looking at.", W / 2, 930, SERIF(52, true), INK, t, s.t0 + 0.3, { align: "center" });
+  },
+  async lookup(t, u, s) {
+    paper(t);
+    rise("Look up.", W / 2, 600, SERIF(230, false, 500), INK, t, s.t0 + 0.1, { align: "center", dur: 0.9 });
+    const p = io((u - 0.7) / 0.7); if (p > 0) { g.fillStyle = CLAY; g.fillRect(W / 2 - 330 * p, 660, 660 * p, 8); }
+  },
+  async hero(t, u, s) {
+    paper(t);
+    // the laptop rises in, the card drops on its screen, then the camera
+    // pushes into the screen and hands over to the same UI, drawn crisp
+    const zp = io((u - 3.7) / 0.9), R = { x: 312, y: 80, w: 1296, h: 810 };
+    if (zp < 1) {
+      const e = oE(u / 1.0), cw = 1280, ch = 720, x = (W - cw) / 2, y = lerp(H, 150, e);
+      const img = await keyedLaptop(u);
+      const q = TRACK.corners[clamp(Math.floor(u * TRACK.fps), 0, TRACK.corners.length - 1)];
+      const qx0 = Math.min(q[0][0], q[3][0]), qx1 = Math.max(q[1][0], q[2][0]), qy0 = Math.min(q[0][1], q[1][1]);
+      const k = R.w / (qx1 - qx0), sc_ = lerp(1, k, zp), dx = lerp(x, R.x - qx0 * k, zp), dy = lerp(y, R.y - qy0 * k, zp);
+      const cx = lerp(x, R.x, zp), cy = lerp(y, R.y, zp), cww = lerp(cw, R.w, zp), chh = lerp(ch, R.h, zp);
+      g.save(); g.globalAlpha = 1 - zp * 0.4; label("ClaudeNotch", W / 2 - 640, 112, t, s.t0 + 0.2); g.restore();
+      g.save(); g.shadowColor = "rgba(40,28,14,0.3)"; g.shadowBlur = 70; g.shadowOffsetY = 30; g.fillStyle = PAPER2; rr(cx, cy, cww, chh, 26); g.fill(); g.restore();
+      g.save(); rr(cx, cy, cww, chh, 26); g.clip(); g.filter = "saturate(0.88) sepia(0.08) brightness(1.03)"; g.drawImage(img, dx, dy, cw * sc_, ch * sc_); g.restore();
+    } else screenUI(u);
+    const crisp = clamp((zp - 0.55) / 0.45);
+    if (crisp > 0) {
+      g.save(); g.globalAlpha = crisp; if (zp >= 1) { g.shadowColor = "rgba(40,28,14,0.3)"; g.shadowBlur = 70; g.shadowOffsetY = 30; }
+      rr(R.x, R.y, R.w, R.h, 26); g.fillStyle = PAPER2; g.fill(); g.restore();
+      g.save(); g.globalAlpha = crisp; rr(R.x, R.y, R.w, R.h, 26); g.clip(); g.drawImage(SCR, R.x, R.y, R.w, R.h); g.restore();
+    }
+    if (u < 3.7) rise("The question comes to the notch.", W / 2, 960, SERIF(52, true), INK, t, s.t0 + 1.2, { align: "center" });
+    else rise("And the answer, when it's done.", W / 2, 975, SERIF(52, true), INK, t, s.t0 + 4.5, { align: "center" });
+  },
+  async touch(t, u, s) {
+    paper(t);
+    label("Guardrails", 120, 330, t, s.t0 + 0.1);
+    headline([[["The scary ones", INK]], [["wait for your", INK]], [["fingerprint.", CLAY, true]]], t, s.t0 + 0.15);
+    touchCard(u);
+  },
+  async live(t, u, s) {
+    paper(t);
+    label("At a glance", 120, 330, t, s.t0 + 0.1);
+    headline([[["Every session,", INK]], [["its spend,", INK]], [["its context.", SAGE, true]]], t, s.t0 + 0.15);
+    liveCard(u);
+  },
+  async skills(t, u, s) {
+    paper(t);
+    label("New in 0.42", 120, 330, t, s.t0 + 0.1);
+    headline([[["Skills, without", INK]], [["the clutter.", SAGE, true]]], t, s.t0 + 0.15);
+    rise("Turn a whole plugin off, get the context back.", 120, 640, SANS(30, 500), INK2, t, s.t0 + 0.7);
+    skillsWindow(u);
+  },
+  async more(t, u, s) {
+    paper(t);
+    const fx = 120, fy = 230, fw = 760, fh = 620;
+    const v = await seek("43263", 2.0 + u);
+    g.save(); g.shadowColor = "rgba(40,28,14,0.25)"; g.shadowBlur = 60; g.shadowOffsetY = 24; g.fillStyle = PAPER2; rr(fx, fy, fw, fh, 24); g.fill(); g.restore();
+    g.save(); rr(fx, fy, fw, fh, 24); g.clip(); g.filter = GRADE; cover(v, v.videoWidth, v.videoHeight, fx, fy, fw, fh, 1.02 + 0.04 * (u / 3.7)); g.restore();
+    label("Also in the notch", 980, 250, t, s.t0 + 0.1);
+    MORE.forEach((m, i) => {
+      const at = s.t0 + 0.25 + i * BEAT / 2, y = 340 + i * 92, p = oE((t - at) / 0.6);
+      if (p > 0) { g.save(); g.globalAlpha = p; g.strokeStyle = SAGE; g.lineWidth = 5; g.lineCap = "round"; g.beginPath(); g.moveTo(985, y - 16); g.lineTo(985 + 12 * p, y - 4); g.lineTo(985 + 34 * p, y - 32 * p); g.stroke(); g.restore(); }
+      rise(m, 1040, y, SERIF(46), INK, t, at);
+    });
+  },
+  async end(t, u, s) {
+    paper(t);
+    const p = oE((u - 0.1) / 1.0);
+    if (ICON) { g.save(); g.globalAlpha = p; g.shadowColor = "rgba(40,28,14,0.3)"; g.shadowBlur = 50; g.shadowOffsetY = 20; const sz = 230 * (0.96 + 0.04 * p); g.drawImage(ICON, W / 2 - sz / 2, 250 + (1 - p) * 30, sz, sz); g.restore(); }
+    rise("ClaudeNotch", W / 2, 650, SERIF(140, false, 500), INK, t, s.t0 + 0.45, { align: "center", dur: 0.9 });
+    rise("Claude Code, right in your notch.", W / 2, 720, SANS(34, 500), INK2, t, s.t0 + 0.8, { align: "center" });
+    const cmd = "brew install --cask rawsun007/tap/claudenotch", q = oE((u - 1.3) / 0.6);
+    if (q > 0) { g.save(); g.globalAlpha = q; g.font = MONO(28, 500); const tw = g.measureText(cmd).width + 72; g.fillStyle = INK; rr(W / 2 - tw / 2, 780, tw, 64, 32); g.fill(); g.fillStyle = "#efe6d6"; g.textAlign = "center"; g.fillText(cmd, W / 2, 822); g.restore(); }
+    rise("Free  ·  macOS 13 or later", W / 2, 910, SANS(26, 600), CLAY, t, s.t0 + 1.8, { align: "center", track: 2 });
+  },
+};
+
+window.paint = async (t) => {
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.filter = "none";
+  const k = sceneAt(t), s = S[k], u = t - s.t0;
+  // a clay band sweeps across between paper scenes, revealing the next one
+  const WIPE = 0.55;
+  if (s.wipe && k > 0 && u < WIPE) {
+    const prev = S[k - 1]; await DRAW[prev.id](t, t - prev.t0, prev);
+    const p = io(u / WIPE), edge = p * (W + 260) - 130;
+    g.save(); g.beginPath(); g.rect(0, 0, Math.max(0, edge - 60), H); g.clip(); g.filter = "none"; await DRAW[s.id](t, u, s); g.restore();
+    g.fillStyle = CLAY; g.fillRect(edge - 60, 0, 60, H); g.fillStyle = "rgba(217,119,87,0.35)"; g.fillRect(edge, 0, 70, H);
+  } else if (!s.wipe && k > 0 && u < 0.2) {
+    // footage to footage: a short dissolve, not a cut that jars against the music
+    const prev = S[k - 1]; await DRAW[prev.id](t, t - prev.t0, prev);
+    g.save(); g.globalAlpha = io(u / 0.2); await DRAW[s.id](t, u, s); g.restore();
+  } else await DRAW[s.id](t, u, s);
+  g.setTransform(1, 0, 0, 1, 0, 0); g.filter = "none"; g.globalAlpha = 1;
+  grain(t);
+  const fi = 1 - io(t / 0.6); if (fi > 0) { g.fillStyle = `rgba(241,236,227,${fi})`; g.fillRect(0, 0, W, H); }
+  const fo = io((t - (DURATION - 0.8)) / 0.8); if (fo > 0) { g.fillStyle = `rgba(241,236,227,${fo})`; g.fillRect(0, 0, W, H); }
+};
+let ICON;
+window.SCALES = {};
+window.studioReady = (async () => {
+  for (const f of ['400 100px "Newsreader"', '500 100px "Newsreader"', 'italic 400 100px "Newsreader"', '500 30px "Inter"', '600 30px "Inter"', '700 30px "Inter"', '500 30px "JetBrains Mono"', '700 30px "JetBrains Mono"']) await document.fonts.load(f);
+  await document.fonts.ready;
+  CLOUDS = makeClouds();
+  const gc = document.createElement("canvas"); gc.width = gc.height = 128; const gx = gc.getContext("2d"), d = gx.createImageData(128, 128), r = rng(2);
+  for (let i = 0; i < 128 * 128; i++) { const v = r() * 255; d.data.set([v, v, v, 255], i * 4); } gx.putImageData(d, 0, 0); GRAIN = g.createPattern(gc, "repeat");
+  initGL();
+  await Promise.all(["1746", "41859", "50766", "14601", "43263"].map(loadVid));
+  ICON = await new Promise((ok) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => ok(null); im.src = "icon.png"; });
+  await window.paint(0);
+})();
+</script>
+</body>
+</html>
