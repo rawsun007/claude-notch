@@ -220,12 +220,25 @@ extension AppState {
     /// `lastHookAt` — the registry says a session EXISTS, not that it just did
     /// something, and the newest hook is what decides which session the header
     /// follows.
-    private func adopt(_ entry: SessionRegistry.Entry) {
+    func adopt(_ entry: SessionRegistry.Entry) {
         // A session that reached us without a session_id is filed under its
         // cwd. Adopting the registry entry under its real id would list the
         // same session twice, once per key.
         let cwdKeyed = sessions.values.first { $0.id == entry.cwd && !entry.cwd.isEmpty }
         let key = cwdKeyed?.id ?? entry.sessionId
+
+        // One process is one session. A pid that now reports a different
+        // session id (a resume or clear in place that no hook told us about)
+        // replaces its old row instead of standing next to it.
+        let superseded = sessions.values
+            .filter { $0.pid == entry.pid && $0.id != key }
+            .map(\.id)
+        for id in superseded {
+            if let old = sessions[id] { archiveSession(old) }
+            sessions.removeValue(forKey: id)
+        }
+        if !superseded.isEmpty { resyncCurrentSession() }
+
         let known = sessions[key] != nil
 
         upsertSession(id: key, cwd: entry.cwd, create: true, stampHook: false) { s in
