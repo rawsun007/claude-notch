@@ -2014,13 +2014,9 @@ struct SettingsView: View {
     /// of the same kind is the obvious way to write a patch's notes and it
     /// renders as two identical headings on the About page.
     static let whatsNew: [ChangeGroup] = [
-        ChangeGroup(kind: .added, items: [
-        "A switch for Claude Code's idle compaction, in Settings, Session. Since Claude Code 2.1.299, a conversation over 200K tokens left idle for about 54 minutes is compacted just before its prompt cache expires, so your next message doesn't pay to rebuild it. Turn it off to keep the full history instead.",
-        "The Skills page says how to apply a change to a session that is already running: run /reload-skills there.",
-        ]),
         ChangeGroup(kind: .fixed, items: [
-        "History names idle compaction for what it is. It said the context had filled up; it now says the conversation was compacted while you were away, so your next message stays cheap.",
-        "Skills Claude Code won't load are marked. Since 2.1.299, a skill whose folder name has < or >, or a hidden or unusual character, is skipped until it is renamed. The Skills page now shows Won't load on it, counts it as costing nothing, and says how to fix it.",
+        "The session list no longer fills with copies of one project. Claude Code keeps spare background processes warm in each project, and each one was listed as a session that said ready. Spares, parked jobs and the background daemon are skipped now, so every row is a session you are actually in.",
+        "A session resumed or cleared in place shows as one row, not one per session id it has had.",
         ]),
     ]
 }
