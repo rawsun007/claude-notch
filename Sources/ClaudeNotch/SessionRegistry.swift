@@ -36,8 +36,31 @@ enum SessionRegistry {
         /// What `/rename` set, or the name the CLI derived.
         let name: String
         let updatedAt: Date?
+        /// A pre-warmed background process waiting to be handed a job. Claude
+        /// Code keeps a pool of these per project, each with its own pid file
+        /// and session id, and drops the flag the moment one is claimed.
+        var spare: Bool = false
+        /// Set while a background job is parked on this process: the process
+        /// is alive but the session it last ran is not.
+        var parkedJobId: String = ""
 
         var isBusy: Bool { status == "busy" }
+
+        /// Whether this entry is a session someone is working in, rather than
+        /// plumbing that happens to register itself.
+        ///
+        /// Spares, parked processes and the daemon all write pid files, and
+        /// none of them is a session: listing them is how one project came to
+        /// fill the notch with a dozen identical "ready" rows. Claude Code's
+        /// own peer list skips exactly these. An allowlist rather than a
+        /// denylist, so a kind added by a future release stays out until it is
+        /// known to be a session. Empty is accepted: older CLIs wrote no kind.
+        var isUserSession: Bool {
+            guard !spare, parkedJobId.isEmpty else { return false }
+            return Self.sessionKinds.contains(kind)
+        }
+
+        static let sessionKinds: Set<String> = ["interactive", "bg", ""]
     }
 
     static let directory: String = {
@@ -68,7 +91,9 @@ enum SessionRegistry {
             kind: (obj["kind"] as? String) ?? "",
             status: (obj["status"] as? String) ?? "",
             name: (obj["name"] as? String) ?? "",
-            updatedAt: millisDate(obj["updatedAt"]) ?? millisDate(obj["startedAt"]))
+            updatedAt: millisDate(obj["updatedAt"]) ?? millisDate(obj["startedAt"]),
+            spare: (obj["spare"] as? Bool) == true,
+            parkedJobId: (obj["parkedJobId"] as? String) ?? "")
     }
 
     /// Whether a registry entry describes something still running.
@@ -92,7 +117,9 @@ enum SessionRegistry {
         return errno == EPERM
     }
 
-    /// Every live session in the registry, newest update first.
+    /// Every live session in the registry, newest update first. Only real
+    /// sessions (see `Entry.isUserSession`): a spare that is claimed later
+    /// shows up on the next read, under the session id it was claimed with.
     nonisolated static func read(directory dir: String = directory,
                                  now: Date = Date()) -> [Entry] {
         let fm = FileManager.default
@@ -102,6 +129,7 @@ enum SessionRegistry {
             let path = (dir as NSString).appendingPathComponent(name)
             guard let data = fm.contents(atPath: path),
                   let entry = parse(data),
+                  entry.isUserSession,
                   isCurrent(entry, now: now) else { continue }
             out.append(entry)
         }
