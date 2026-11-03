@@ -153,6 +153,63 @@ final class SessionRegistryTests: XCTestCase {
                        ["newer", "older"])
     }
 
+    // MARK: - What counts as a session
+
+    /// Claude Code keeps a pool of pre-warmed background processes per
+    /// project. Each writes a pid file with its own session id, so listing
+    /// them filled the notch with a dozen identical "ready" rows for one
+    /// project. Shape from Claude Code 2.1.317.
+    func testASpareIsNotASession() throws {
+        let json = #"{"pid": 42, "sessionId": "s1", "cwd": "/a", "kind": "bg", "spare": true, "status": "idle"}"#
+        let e = try XCTUnwrap(SessionRegistry.parse(Data(json.utf8)))
+        XCTAssertTrue(e.spare)
+        XCTAssertFalse(e.isUserSession)
+    }
+
+    /// Once a spare is handed a job the CLI drops the flag, and from then on it
+    /// is a background agent like any other.
+    func testAClaimedBackgroundAgentIsASession() throws {
+        let json = #"{"pid": 42, "sessionId": "s1", "cwd": "/a", "kind": "bg", "status": "busy"}"#
+        let e = try XCTUnwrap(SessionRegistry.parse(Data(json.utf8)))
+        XCTAssertFalse(e.spare)
+        XCTAssertTrue(e.isUserSession)
+    }
+
+    func testAParkedProcessIsNotASession() throws {
+        let json = #"{"pid": 42, "sessionId": "s1", "kind": "bg", "parkedJobId": "job-7"}"#
+        let e = try XCTUnwrap(SessionRegistry.parse(Data(json.utf8)))
+        XCTAssertEqual(e.parkedJobId, "job-7")
+        XCTAssertFalse(e.isUserSession)
+    }
+
+    /// The daemon and its workers register too. Neither is a session anyone
+    /// is in, and a kind this build has never heard of stays out until it is
+    /// known to be one.
+    func testOnlySessionKindsCount() throws {
+        for (kind, expected) in [("interactive", true), ("bg", true), ("", true),
+                                 ("daemon", false), ("daemon-worker", false), ("something-new", false)] {
+            let json = #"{"pid": 42, "sessionId": "s1", "kind": "\#(kind)"}"#
+            let e = try XCTUnwrap(SessionRegistry.parse(Data(json.utf8)))
+            XCTAssertEqual(e.isUserSession, expected, kind)
+        }
+        // Older CLIs wrote no kind at all.
+        let bare = try XCTUnwrap(SessionRegistry.parse(Data(#"{"pid": 42, "sessionId": "s1"}"#.utf8)))
+        XCTAssertTrue(bare.isUserSession)
+    }
+
+    /// The golden case from the bug report: one interactive session and a pool
+    /// of spares in the same project read back as exactly one session.
+    func testReadListsOneSessionNotItsSparePool() throws {
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let now = Int(Date().timeIntervalSince1970 * 1000)
+        try write("1.json", #"{"pid": \#(pid), "sessionId": "real", "cwd": "/w/bench-16", "kind": "interactive", "updatedAt": \#(now)}"#)
+        for i in 0..<11 {
+            try write("\(100 + i).json", #"{"pid": \#(pid), "sessionId": "spare-\#(i)", "cwd": "/w/bench-16", "kind": "bg", "spare": true, "updatedAt": \#(now)}"#)
+        }
+        try write("200.json", #"{"pid": \#(pid), "sessionId": "d", "cwd": "/w/bench-16", "kind": "daemon", "updatedAt": \#(now)}"#)
+        XCTAssertEqual(SessionRegistry.read(directory: root.path).map(\.sessionId), ["real"])
+    }
+
     // MARK: - Status vocabulary
 
     /// Golden: the registry's words in the notch's own.
