@@ -74,7 +74,7 @@ system, and shows no Dock icon, just a small bell in your menu bar.
 |---|---|
 | 🛡️ **Permissions in the notch** | When Claude wants to run a command or edit a file, the notch unfurls with **Allow**, **Deny**, and **Always Allow**. Resolve it and your keyboard jumps straight back to the terminal. |
 | 🟥🟩 **See the diff first** | Edit and Write requests show a red/green diff right inside the card, so you know exactly what's about to change. |
-| ⚠️ **Guardrails for risky commands** | Dangerous ones like `rm -rf`, `sudo`, and force-push get a red warning. Confirm them with **Touch ID** (or Face ID), or a **press-and-hold** button when Touch ID is off, so nothing irreversible slips through by accident. |
+| ⚠️ **Guardrails for risky commands** | Dangerous ones like `rm -rf`, `sudo`, and force-push get a red warning. Confirm them with **Touch ID** (or Face ID), or a **press-and-hold** button when Touch ID is off, so nothing irreversible slips through by accident. In auto mode a recursive `rm` gets Claude Code's two-minute countdown on the card. If you would rather confirm with a plain **Allow**, turn on **Skip confirmation for destructive commands** in **Settings → Privacy**; the card still turns red. |
 | 💬 **Deny with a reason** | Not just no. Tap the note button on a prompt to tell Claude what to do instead (say "use ripgrep, not grep"), and it adapts rather than just stopping. |
 | ❓ **Answer Claude's questions** | `AskUserQuestion` prompts arrive as tappable options, with a **type-your-own** field for when none of them fit. |
 | 🔑 **MCP sign-ins** | When an MCP server asks you to sign in, a card names the site, opens the link only when you press **Open**, and tells the server once you have signed in or declined. |
