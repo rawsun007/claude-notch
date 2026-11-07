@@ -265,9 +265,17 @@ end tell
 
 ## 🔒 Privacy
 
-Everything stays on your machine. ClaudeNotch talks to Claude Code over a
+Your work stays on your machine. ClaudeNotch talks to Claude Code over a
 **localhost-only** connection (`127.0.0.1`) and never sends your prompts,
 commands, or code anywhere. No accounts, no telemetry, no servers.
+
+The only requests it makes are version checks and one key check:
+
+- GitHub Releases, for whether ClaudeNotch itself has an update.
+- The npm registry (and Claude Code's public changelog), for whether the Claude
+  Code CLI is out of date.
+- Anthropic's `/v1/models`, once, if you paste an API key into Settings to have
+  it checked.
 
 This app decides which commands an AI agent may run on your Mac, so it is a
 security tool whether or not it is described as one.
