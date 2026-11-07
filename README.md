@@ -343,8 +343,9 @@ macOS 13 Ventura and later, Apple Silicon or Intel. See the note under
 [Install](#-install) about Intel and the current release.
 
 **Can I uninstall the hooks?**
-Yes, your `settings.json` is backed up during setup, and there's an uninstall
-script (below) to remove everything cleanly.
+Yes. `uninstall-hooks.sh` (below) removes every ClaudeNotch hook and leaves
+your own hooks alone, and your `settings.json` was backed up during setup.
+`brew uninstall` does not run it, so run it first.
 
 ---
 
