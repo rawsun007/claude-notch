@@ -84,6 +84,7 @@ system, and shows no Dock icon, just a small bell in your menu bar.
 | 📈 **Claude usage, broken down** | A **Claude Usage** menu shows your tokens and estimated cost for today and the last 7 days, by model and by project (priciest repos first), plus a 7-day token sparkline and your prompt-cache savings. |
 | 🪟 **Many sessions at once** | Up to twelve Claude sessions side by side, each with its own status, project, branch, and latest reply. Sessions that started before the app, or never fired a hook, come from Claude Code's own session registry, and Claude Code's spare background processes are left out, so every row is a session you are in. |
 | ✉️ **Send a message from anywhere** | Press **⌥⌘N** to open a quick composer. Send a note to your running session, or start a fresh one in a recent project. |
+| 🤖 **Reply to background agents** | A background agent's row has **Reply** next to **Attach**. Your message goes straight to the agent as its next turn, through Claude Code's own resume. |
 | 🕘 **Activity history** | Click the notch for a timeline of everything you've allowed, denied, or answered. |
 | ✅ **Smart always-allow** | Approve a tool for the whole session, or just one exact command. Your rules stick around between launches, and **Settings → Rules** shows the whole list so you can read what you have agreed to, delete a rule, add one by hand, or hand the lot to Claude Code's own `settings.json`. |
 | 📁 **Start Claude in any folder** | Launch Claude Code in any project straight from the menu bar, or jump back into a recent one. |
