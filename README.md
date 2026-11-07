@@ -338,11 +338,6 @@ Code it holds the permission and question prompts so you answer in the notch,
 while Codex keeps its own prompts in the terminal and the notch reports what is
 running, the cost and the context rather than gating it.
 
-**I run Claude Code inside VS Code or the Claude Desktop app and the notch stays quiet.**
-Update the Claude Code CLI to **2.1.233 or later**. Before that version it did not
-fire notification hooks for permission prompts when running under those hosts, so
-the notch never heard that a prompt was waiting on you. Check with `claude --version`.
-
 **Which Macs does it run on?**
 macOS 13 Ventura and later, Apple Silicon or Intel. See the note under
 [Install](#-install) about Intel and the current release.
