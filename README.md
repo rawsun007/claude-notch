@@ -327,7 +327,8 @@ identity instead of a per-build ad-hoc one, so you grant them once rather than
 after each update.
 
 **Does it send my data anywhere?**
-No. Everything runs locally over a localhost hook. Nothing leaves your machine.
+No. Your prompts, commands and code stay on your Mac; the only network
+requests are version checks. See [Privacy](#-privacy).
 
 **Which AI tools does it support?**
 Claude Code fully, and the Codex CLI in beta. Setup wires hooks into `~/.claude`
