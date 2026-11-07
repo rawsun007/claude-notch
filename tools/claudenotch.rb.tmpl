@@ -22,6 +22,12 @@ cask "claudenotch" do
   # terminates the running instance first so the swap is clean.
   uninstall quit: "com.claudenotch.app"
 
+  # No `uninstall script:` for uninstall-hooks.sh, though it looks like the
+  # obvious way to unwire Claude Code on `brew uninstall`. Homebrew runs every
+  # uninstall directive except `signal` on `brew upgrade` too, so the script
+  # would strip the hooks on each update and the notch would go quiet until
+  # setup ran again. Users run ~/.claudenotch/bin/uninstall-hooks.sh themselves.
+
   # `brew uninstall --zap` also removes the app's own data: persisted state and
   # hook scripts under ~/.claudenotch, debug/crash logs under Application
   # Support, and the preferences plist. (Run ~/.claudenotch/bin/uninstall-hooks.sh
