@@ -77,6 +77,7 @@ system, and shows no Dock icon, just a small bell in your menu bar.
 | ⚠️ **Guardrails for risky commands** | Dangerous ones like `rm -rf`, `sudo`, and force-push get a red warning. Confirm them with **Touch ID** (or Face ID), or a **press-and-hold** button when Touch ID is off, so nothing irreversible slips through by accident. |
 | 💬 **Deny with a reason** | Not just no. Tap the note button on a prompt to tell Claude what to do instead (say "use ripgrep, not grep"), and it adapts rather than just stopping. |
 | ❓ **Answer Claude's questions** | `AskUserQuestion` prompts arrive as tappable options, with a **type-your-own** field for when none of them fit. |
+| 🔑 **MCP sign-ins** | When an MCP server asks you to sign in, a card names the site, opens the link only when you press **Open**, and tells the server once you have signed in or declined. |
 | ↩️ **Reply when a task finishes** | The "done" card has a **Reply** button that opens a composer pointed right at that session, so you can send a follow-up without switching windows. |
 | ⚡ **Live activity + progress** | While Claude works, the notch shows what it's doing right now (the active tool and its target) and a **progress bar** as it works through a task list. |
 | 📝 **Watch Claude write** *(opt-in)* | Turn on **Show the reply as it streams** in **Settings → Privacy** and a session's row shows the end of Claude's reply as it arrives. Installed only while the setting is on, and it never holds up your terminal. |
