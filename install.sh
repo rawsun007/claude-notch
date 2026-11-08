@@ -167,8 +167,12 @@ fi
 if [ "$NEEDS_SWAP" = "1" ]; then
     printf '→ Waiting for it to start answering'
     START=$(date +%s)
+    # The app drops a request without the hook token once its hooks carry one,
+    # so a bare ping would never answer and this would sit out all 120 tries.
+    TOKEN_QUERY=""
+    [ -s "$HOME/.claudenotch/hook-token" ] && TOKEN_QUERY="?t=$(tr -d '\r\n' < "$HOME/.claudenotch/hook-token")"
     for _ in $(seq 1 120); do
-        if curl -s -m 1 -X POST http://127.0.0.1:53127/ping -d '{}' >/dev/null 2>&1; then
+        if curl -s -m 1 -X POST "http://127.0.0.1:53127/ping$TOKEN_QUERY" -d '{}' >/dev/null 2>&1; then
             echo " ($(( $(date +%s) - START ))s)"
             break
         fi
