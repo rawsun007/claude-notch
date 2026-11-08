@@ -1,6 +1,6 @@
-# ClaudeNotch — instructions for a coding agent
+# ClaudeNotch: instructions for a coding agent
 
-Doc version: 1 — written for ClaudeNotch 0.21.0 and later.
+Doc version: 2, written for ClaudeNotch 0.42.2 and later.
 Canonical copy: https://rawsun007.github.io/claude-notch/AGENTS.md
 If the installed app is newer than the version above, re-fetch this file.
 
@@ -20,18 +20,18 @@ answers the card, and the answer is written back as the response.
 
 Check these and stop with a clear message if any fails:
 
-- macOS 13 (Ventura) or later — `sw_vers -productVersion`
+- macOS 13 (Ventura) or later: `sw_vers -productVersion`
 - Apple Silicon or Intel, both supported
-- Claude Code CLI installed — `command -v claude`
-- Homebrew, for the install below — `command -v brew`
+- Claude Code CLI installed: `command -v claude`
+- Homebrew, for the install below: `command -v brew`
 
 `jq` is not required but the live activity line is inert without it:
 `brew install jq`.
 
 ## 1. Install
 
-Use Homebrew. It is a signed, checksummed build from the project's own tap, and
-it avoids the first-launch Gatekeeper warning that the raw disk image triggers.
+Use Homebrew. It installs the same Developer ID signed, notarized build as the
+GitHub release, checksummed by the project's own tap, and keeps it updated.
 
 ```bash
 brew install --cask rawsun007/tap/claudenotch
@@ -52,7 +52,7 @@ open -a ClaudeNotch
 ## 2. Wire the hooks
 
 The app installs its own hooks; you do not need to hand-edit
-`~/.claude/settings.json`. Launching it is normally enough — the Setup window
+`~/.claude/settings.json`. Launching it is normally enough: the Setup window
 offers to install them, and an existing install self-repairs on launch.
 
 Verify rather than assume. The hooks are wired when `~/.claude/settings.json`
@@ -63,7 +63,7 @@ grep -c '127.0.0.1:53127' ~/.claude/settings.json
 ```
 
 A count of 0 means they are not wired yet; the person can install them from the
-Setup window, or from Settings → General → "Fix setup".
+Setup window, or from Settings, About, "Run setup again".
 
 If you do edit that file for any reason, back it up first. It is theirs, and it
 holds their whole Claude Code configuration.
@@ -71,14 +71,21 @@ holds their whole Claude Code configuration.
 ## 3. Verify the app is actually listening
 
 ```bash
+T=$(cat ~/.claudenotch/hook-token 2>/dev/null)
 curl -s -o /dev/null -w '%{http_code}\n' --max-time 3 \
   -X POST -H 'Content-Type: application/json' \
   -d '{"message":"ClaudeNotch install check"}' \
-  http://127.0.0.1:53127/notification
+  "http://127.0.0.1:53127/notification?t=$T"
 ```
 
+Once the hooks are wired, the app only answers requests that carry the token
+from its own hook URLs, and drops any other connection without a reply. Leave
+the `?t=` off and a running app reads as `000`, which looks exactly like one
+that is not running. Do not print the token or paste it anywhere.
+
 `200` means the server is up and a card appeared in the notch. Anything else
-means the app is not running — check that it launched, then try again.
+means the app is not running or the token was not sent. Check that it
+launched and that `$T` is not empty, then try again.
 
 ## 4. Stop here and hand back
 
@@ -100,7 +107,7 @@ Tell them, in your own words:
 > 1. Open the ClaudeNotch Setup window from the menu-bar icon if it is not
 >    already open, and follow it. It requests Accessibility and Input
 >    Monitoring and opens the right System Settings pane for each.
-> 2. Grant both, then come back to the Setup window — it notices within a
+> 2. Grant both, then come back to the Setup window; it notices within a
 >    second or two. If a switch is on but the app still says it is missing,
 >    use the "Quit & relaunch" button it offers; macOS sometimes only reports
 >    a new grant to a freshly launched process.
@@ -112,11 +119,11 @@ Tell them, in your own words:
 
 - **Nothing appears in the notch.** Confirm the app is running (`pgrep -x
   ClaudeNotch`) and step 3 returns `200`. If the port answers but no card
-  shows, the hooks are probably not wired — see step 2.
+  shows, the hooks are probably not wired, see step 2.
 - **`socket hang up` on every tool call.** The app is refusing or dropping hook
   connections. Check it is running and on a current version; report it at
   https://github.com/rawsun007/claude-notch/issues with the version from
-  Settings → About.
+  Settings, About.
 - **The activity line stays empty.** `jq` is missing: `brew install jq`.
 - **Intel Mac refuses to open the app.** Update; builds before 0.13 shipped
   Apple Silicon only.
@@ -139,11 +146,17 @@ with the app's own uninstaller so the file is edited correctly:
 
 Worth knowing before you suggest deleting anything:
 
-- `~/.claudenotch/state.json` — settings, allow-rules, history. 0600.
-- `~/.claudenotch/bin/` — the hook forwarder scripts. 0700.
-- `~/.claudenotch/logs/` — an off-by-default debug log.
-- `~/.claude/settings.json` — the person's own Claude Code config, which the
+- `~/.claudenotch/state.json`: settings, allow-rules, history. 0600.
+- `~/.claudenotch/bin/`: the hook forwarder scripts. 0700.
+- `~/.claudenotch/hook-token`: a secret carried in the hook URLs, so another
+  account or a stray program cannot post cards. 0600.
+- `~/Library/Application Support/ClaudeNotch/debug.log`: an off-by-default
+  debug log, 0600 and rotated.
+- `~/.claude/settings.json`: the person's own Claude Code config, which the
   app merges its hooks into and backs up before touching.
 
-Nothing is sent anywhere. The app reads local transcripts and Claude Code's own
-cache; it makes no network calls except checking GitHub for a new release.
+Your prompts, commands and code are never sent anywhere. The app reads local
+transcripts and Claude Code's own cache. The only requests it makes are
+version checks (GitHub Releases for the app, the npm registry and Claude Code's
+public changelog for the CLI) and, only if the person pastes an API key into
+Settings to have it checked, one call to Anthropic's `/v1/models`.
