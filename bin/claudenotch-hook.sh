@@ -56,7 +56,7 @@ case "$event" in
         }' | curl -s --max-time 2 -X POST \
                -H 'Content-Type: application/json' \
                --data-binary @- \
-               http://127.0.0.1:53127/subagentstart >/dev/null 2>&1 || true
+               "http://127.0.0.1:53127/subagentstart$(notch_token_query)" >/dev/null 2>&1 || true
         exit 0
         ;;
     SubagentStop)
@@ -70,7 +70,7 @@ case "$event" in
         }' | curl -s --max-time 2 -X POST \
                -H 'Content-Type: application/json' \
                --data-binary @- \
-               http://127.0.0.1:53127/thinking >/dev/null 2>&1 || true
+               "http://127.0.0.1:53127/thinking$(notch_token_query)" >/dev/null 2>&1 || true
         exit 0
         ;;
     SessionEnd)
