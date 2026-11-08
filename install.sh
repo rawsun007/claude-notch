@@ -188,7 +188,7 @@ cat <<EOF
   Look for the bell in your menu bar.
 
   Test now without leaving the shell:
-    curl -s -X POST http://127.0.0.1:53127/notification \\
+    curl -s -X POST "http://127.0.0.1:53127/notification?t=\$(cat ~/.claudenotch/hook-token)" \\
       -H 'Content-Type: application/json' \\
       -d '{"message":"Hello from curl"}'
 
