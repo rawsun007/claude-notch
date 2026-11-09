@@ -1,0 +1,40 @@
+# ClaudeNotch
+
+> ClaudeNotch is a free macOS menu-bar app that puts Claude Code (and the Codex CLI) in the MacBook notch: permission prompts with a diff preview, Claude's questions, every running session, live cost, context and plan limits. You approve or answer without leaving your editor. Developer ID signed and notarized, macOS 13 or later, Apple Silicon and Intel.
+
+Claude Code fires hooks at a loopback server the app runs on 127.0.0.1:53127. Blocking hooks (permission, question) hold the connection open until the person answers the card in the notch, and the answer is written back to Claude Code. Prompts, commands and code never leave the Mac; the only network requests are version checks (GitHub Releases, the npm registry) and an optional one-time API key check.
+
+Install with Homebrew: `brew install --cask rawsun007/tap/claudenotch`, or download the DMG from GitHub Releases. Free for personal and noncommercial use; the source is on GitHub.
+
+## Features
+
+- Permissions in the notch: Allow, Deny or Always allow a command or edit, then the keyboard is back in the terminal.
+- See the diff first: edits show a red and green diff inside the card.
+- Answer Claude's questions, pick a plan's options, or sign in to an MCP server from the notch.
+- Guardrails: rm -rf, sudo and force-push need Touch ID or a press-and-hold.
+- Cost, context and plan limits: live spend, context left, and when limits reset, with a projection when you will hit the cap.
+- Skills page: what every skill adds to each turn, with switches to turn any of them down or off.
+- Up to twelve sessions at once, each with its branch and spend, including background agents you can reply to.
+- Every display at once; drop a folder onto the notch to start a session there.
+- Nine translations plus English, and an optional pet.
+
+## Pages
+
+- [Home](https://rawsun007.github.io/claude-notch/): what it does, install, FAQ
+- [Compare](https://rawsun007.github.io/claude-notch/compare/): ClaudeNotch against Claude Code's default terminal prompts
+- [Changelog](https://rawsun007.github.io/claude-notch/changelog/): every release and what changed
+- [Videos](https://rawsun007.github.io/claude-notch/videos/): short clips of the app at work
+- [Agent install guide](https://rawsun007.github.io/claude-notch/AGENTS.md): step-by-step instructions for a coding agent installing ClaudeNotch
+
+## Blog
+
+- [What Your Claude Code Skills Cost on Every Turn](https://rawsun007.github.io/claude-notch/blog/what-claude-code-skills-cost/): Every installed skill adds its name and description to each Claude Code turn, used or not. How to see what that costs and trim it without deleting anything.
+- [Claude Code Permissions Explained (and How to Approve Faster)](https://rawsun007.github.io/claude-notch/blog/claude-code-permissions-explained/): How Claude Code's permission system works (allow, deny, and always-allow), plus practical ways to handle prompts without breaking your flow.
+- [A Practical Guide to Claude Code Hooks](https://rawsun007.github.io/claude-notch/blog/claude-code-hooks-guide/): What Claude Code hooks are, the events you can hook into (PreToolUse, PostToolUse, Notification, Stop), and how to wire them up in settings.json with examples.
+- [How to Stay in Flow with Claude Code](https://rawsun007.github.io/claude-notch/blog/stay-in-flow-with-claude-code/): Practical tips to stop tabbing back to the terminal and keep your focus while pair-programming with Claude Code.
+
+## Optional
+
+- [Source code](https://github.com/rawsun007/claude-notch)
+- [Releases](https://github.com/rawsun007/claude-notch/releases)
+- [Report an issue](https://github.com/rawsun007/claude-notch/issues)
