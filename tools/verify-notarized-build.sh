@@ -137,7 +137,16 @@ fi
 # stapler's own words go into the failure. They used to be thrown away, and
 # v0.42.3's Release run failed here a minute after "The staple and validate
 # action worked!" on the same bundle, with nothing to say why.
-STAPLE_OUT=$(xcrun stapler validate "$APP" 2>&1) && STAPLED=1 || STAPLED=0
+#
+# Tried three times. stapler can talk to Apple's CloudKit, and the staple step
+# in the Release workflow already retries for the same reason (v0.42.0 lost a
+# connection there after notarization was Accepted). A ticket that is really
+# missing fails all three and still fails the check.
+STAPLED=0
+for attempt in 1 2 3; do
+    if STAPLE_OUT=$(xcrun stapler validate "$APP" 2>&1); then STAPLED=1; break; fi
+    [ "$attempt" -lt 3 ] && sleep $((attempt * 10))
+done
 if [ "$STAPLED" = 1 ]; then
     ok "notarization ticket is stapled"
 else
