@@ -134,11 +134,15 @@ if [ -n "$TEAM" ] && [ "$TEAM" != "not set" ]; then
 fi
 
 # --- notarization
-if xcrun stapler validate "$APP" >/dev/null 2>&1; then
+# stapler's own words go into the failure. They used to be thrown away, and
+# v0.42.3's Release run failed here a minute after "The staple and validate
+# action worked!" on the same bundle, with nothing to say why.
+STAPLE_OUT=$(xcrun stapler validate "$APP" 2>&1) && STAPLED=1 || STAPLED=0
+if [ "$STAPLED" = 1 ]; then
     ok "notarization ticket is stapled"
 else
     bad "no stapled ticket" \
-        "Gatekeeper falls back to a network check, so first launch fails offline"
+        "Gatekeeper falls back to a network check, so first launch fails offline. stapler: $(printf '%s' "$STAPLE_OUT" | tail -1)"
 fi
 
 ASSESS=$(spctl -a -vvv -t exec "$APP" 2>&1)
