@@ -84,8 +84,30 @@ final class CardSizeAnimator: ObservableObject {
     /// Animate toward a new size. `expanding` adds a slight overshoot for the
     /// grow-out-of-notch feel; collapsing eases in cleanly.
     func animate(to size: CGSize, expanding: Bool) {
-        // Already there (and not mid-flight) → nothing to do.
-        if abs(toW - size.width) < 0.5, abs(toH - size.height) < 0.5, !isTicking { return }
+        // Already heading there → nothing to do, whether or not it is mid-flight.
+        // Restarting toward the same target only restarted the easing.
+        if abs(toW - size.width) < 0.5, abs(toH - size.height) < 0.5 { return }
+
+        // A new target in the SAME direction while still moving. The usual case
+        // is a card's measured height landing a frame or two after it started
+        // opening at the formula height. Restarting here ran the whole curve
+        // again from the current size, overshoot and all, so the card grew,
+        // checked, and grew again. Instead keep the clock and the curve and only
+        // move where it ends: `from` is solved so the size this frame is exactly
+        // the size on screen now, and the motion carries on as one curve.
+        if isTicking, expanding == overshoot {
+            let raw = min(1, max(0, (CACurrentMediaTime() - start) / duration))
+            let e = overshoot ? Self.easeOutBack(raw) : Self.easeOutCubic(raw)
+            // Late in the curve, or past 1 on the overshoot, the solve divides by
+            // almost nothing; start a fresh curve there instead.
+            if e < 0.85 {
+                fromW = Self.rebasedStart(current: width, target: size.width, eased: e)
+                fromH = Self.rebasedStart(current: height, target: size.height, eased: e)
+                toW = size.width; toH = size.height
+                return
+            }
+        }
+
         fromW = width; fromH = height
         toW = size.width; toH = size.height
         overshoot = expanding
@@ -124,6 +146,14 @@ final class CardSizeAnimator: ObservableObject {
             size = CGSize(width: fromW + (toW - fromW) * e,
                           height: fromH + (toH - fromH) * e)
         }
+    }
+
+    /// The start value that puts a curve eased to `eased` exactly at `current`
+    /// while ending at `target`: solves start + (target - start) * eased = current.
+    /// Only meaningful for `eased` below 1.
+    nonisolated static func rebasedStart(current: CGFloat, target: CGFloat, eased: Double) -> CGFloat {
+        let e = CGFloat(eased)
+        return (current - target * e) / (1 - e)
     }
 
     private static func easeOutCubic(_ t: Double) -> Double {
