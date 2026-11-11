@@ -1,6 +1,8 @@
 import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
+import CoreVideo
+import os
 
 /// Carries the measured natural height of a compact card's content up to the
 /// body so the card frame can be an EXPLICIT (animatable) height that exactly
@@ -45,12 +47,16 @@ extension NotchMode {
     }
 }
 
-/// Drives the card's width/height with a plain Timer instead of SwiftUI's
-/// `.animation`. SwiftUI's spring is display-link-driven and gets paused when
-/// our app isn't frontmost (another app active / fullscreen) — so the card
-/// "popped in" with no animation. A Timer keeps ticking as long as we hold a
-/// ProcessInfo activity (App Nap disabled), so the size interpolates every
-/// frame regardless of which app is active.
+/// Drives the card's width/height itself instead of SwiftUI's `.animation`.
+/// SwiftUI's spring gets paused when our app isn't frontmost (another app
+/// active / fullscreen), so the card "popped in" with no animation.
+///
+/// Frames come from a CVDisplayLink, which fires once per refresh of the
+/// display whichever app is frontmost. It used to be a 120 Hz Timer, which
+/// kept running in the background too but was not synced to the display: its
+/// ticks drifted against the refresh, so some refreshes got two size steps and
+/// some none, and the expand and collapse juddered. The Timer is still there
+/// as a fallback for the case where no display link can be created.
 @MainActor
 final class CardSizeAnimator: ObservableObject {
     /// One published value, not a width and a height: two @Published
@@ -61,6 +67,7 @@ final class CardSizeAnimator: ObservableObject {
     var height: CGFloat { size.height }
 
     private var timer: Timer?
+    private var link: DisplayLinkBox?
     private var fromW: CGFloat = 0, fromH: CGFloat = 0
     private var toW: CGFloat = 0, toH: CGFloat = 0
     private var start: CFTimeInterval = 0
@@ -69,7 +76,7 @@ final class CardSizeAnimator: ObservableObject {
 
     /// Jump immediately (no animation) — used for the very first layout.
     func set(_ size: CGSize) {
-        timer?.invalidate(); timer = nil
+        stopTicking()
         self.size = size
         toW = size.width; toH = size.height
     }
@@ -78,19 +85,33 @@ final class CardSizeAnimator: ObservableObject {
     /// grow-out-of-notch feel; collapsing eases in cleanly.
     func animate(to size: CGSize, expanding: Bool) {
         // Already there (and not mid-flight) → nothing to do.
-        if abs(toW - size.width) < 0.5, abs(toH - size.height) < 0.5, timer == nil { return }
+        if abs(toW - size.width) < 0.5, abs(toH - size.height) < 0.5, !isTicking { return }
         fromW = width; fromH = height
         toW = size.width; toH = size.height
         overshoot = expanding
         duration = expanding ? 0.42 : 0.34
         start = CACurrentMediaTime()
-        if timer == nil {
-            let t = Timer(timeInterval: 1.0 / 120.0, repeats: true) { [weak self] _ in
-                MainActor.assumeIsolated { self?.tick() }
-            }
-            RunLoop.main.add(t, forMode: .common)
-            timer = t
+        startTicking()
+    }
+
+    private var isTicking: Bool { link != nil || timer != nil }
+
+    private func startTicking() {
+        guard !isTicking else { return }
+        if let box = DisplayLinkBox(onFrame: { [weak self] in self?.tick() }) {
+            link = box
+            return
         }
+        let t = Timer(timeInterval: 1.0 / 120.0, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.tick() }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
+    }
+
+    private func stopTicking() {
+        link = nil   // the box stops its display link when it goes
+        timer?.invalidate(); timer = nil
     }
 
     private func tick() {
@@ -98,7 +119,7 @@ final class CardSizeAnimator: ObservableObject {
         let e = overshoot ? Self.easeOutBack(raw) : Self.easeOutCubic(raw)
         if raw >= 1 {
             size = CGSize(width: toW, height: toH)
-            timer?.invalidate(); timer = nil
+            stopTicking()
         } else {
             size = CGSize(width: fromW + (toW - fromW) * e,
                           height: fromH + (toH - fromH) * e)
@@ -114,6 +135,44 @@ final class CardSizeAnimator: ObservableObject {
         let p = t - 1
         return 1 + c3 * p * p * p + c1 * p * p
     }
+}
+
+/// A running CVDisplayLink that calls `onFrame` on the main actor once per
+/// display refresh, and stops when released, so an animator that goes away
+/// (a mirror panel torn down with its display) cannot leave one firing.
+///
+/// At most one frame is queued on the main thread at a time. If the main
+/// thread stalls, refreshes are dropped rather than piled up behind it and
+/// replayed in a burst; the animation reads the clock, so it simply jumps to
+/// where it should be.
+final class DisplayLinkBox: @unchecked Sendable {
+    private let link: CVDisplayLink
+    private let pending = OSAllocatedUnfairLock(initialState: false)
+
+    init?(onFrame: @escaping @MainActor () -> Void) {
+        var created: CVDisplayLink?
+        guard CVDisplayLinkCreateWithActiveCGDisplays(&created) == kCVReturnSuccess,
+              let created else { return nil }
+        link = created
+        let pending = self.pending
+        CVDisplayLinkSetOutputHandler(link) { _, _, _, _, _ in
+            let alreadyQueued = pending.withLock { queued -> Bool in
+                if queued { return true }
+                queued = true
+                return false
+            }
+            if !alreadyQueued {
+                DispatchQueue.main.async {
+                    pending.withLock { $0 = false }
+                    MainActor.assumeIsolated { onFrame() }
+                }
+            }
+            return kCVReturnSuccess
+        }
+        guard CVDisplayLinkStart(link) == kCVReturnSuccess else { return nil }
+    }
+
+    deinit { CVDisplayLinkStop(link) }
 }
 
 /// The one view that watches CardSizeAnimator. It re-runs on every animation
