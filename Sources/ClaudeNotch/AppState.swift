@@ -409,7 +409,15 @@ final class AppState: ObservableObject {
     @Published var petActivity: PetActivity = .tucked
     /// Cursor offset from the notch's centre in points, clamped by MouseTracker.
     /// Drives the pet's lean and which way it faces.
-    @Published var petCursorX: Double = 0
+    ///
+    /// Deliberately NOT @Published. MouseTracker writes it on every mouse move
+    /// near the notch, which is exactly where the cursor is while the card
+    /// expands, and publishing it re-rendered the entire notch (on every
+    /// display) for each move, on top of the size animation's own frames: the
+    /// expand and collapse stuttered whenever the pet was on. The only reader
+    /// is PetStageView's TimelineView, which redraws every frame anyway and
+    /// picks up the latest value without being told.
+    var petCursorX: Double = 0
     /// The cursor is resting on the pet: hold it out and give it a heart.
     @Published var petPetting: Bool = false {
         didSet { if petPetting, !oldValue { petPettingSince = Date() } }
