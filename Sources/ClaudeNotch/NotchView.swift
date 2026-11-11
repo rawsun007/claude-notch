@@ -111,6 +111,21 @@ final class CardSizeAnimator: ObservableObject {
     }
 }
 
+/// The one view that watches CardSizeAnimator. It re-runs on every animation
+/// frame, so it does nothing but hand the current size to `content`, whose
+/// expensive parts are built by the caller beforehand and passed in as values.
+private struct SizedCard<Content: View>: View {
+    @ObservedObject var sizer: CardSizeAnimator
+    /// Used until the animator has been seeded with its first size.
+    let fallback: CGSize
+    @ViewBuilder let content: (CGSize) -> Content
+
+    var body: some View {
+        content(CGSize(width: sizer.width > 0 ? sizer.width : fallback.width,
+                       height: sizer.height > 0 ? sizer.height : fallback.height))
+    }
+}
+
 struct NotchView: View {
     @ObservedObject var state: AppState
     /// The screen this instance renders on. `nil` = the primary, cursor-following
@@ -119,7 +134,13 @@ struct NotchView: View {
     /// which must size to ITS OWN screen's notch/pill, not the primary's.
     var screenOverride: NSScreen? = nil
     @State private var measured = ContentMeasure(key: "", height: 0)
-    @StateObject private var sizer = CardSizeAnimator()
+    /// Held with @State, not @StateObject, on purpose. @StateObject subscribes
+    /// this view to every frame the animator publishes, and that re-ran this
+    /// whole body (every card, the session list, the size arithmetic and its
+    /// text measuring) 120 times a second for the length of each expand and
+    /// collapse. Only SizedCard observes it now, so a frame re-lays out the
+    /// clip and nothing else.
+    @State private var sizer = CardSizeAnimator()
 
     /// The screen to measure geometry against for this panel.
     private var localScreen: NSScreen? { screenOverride ?? NSScreen.main }
@@ -538,8 +559,6 @@ struct NotchView: View {
         // SwiftUI's display-link animation). Use the sizer's current value for
         // the actual frame, falling back to the target before it's seeded.
         let target = CGSize(width: card.width, height: displayHeight)
-        let w = sizer.width > 0 ? sizer.width : target.width
-        let h = sizer.height > 0 ? sizer.height : target.height
 
         // Rope is special: the black notch card must NOT grow, so it reads as
         // the rope and pet coming out of the *real* hardware notch rather than
@@ -605,123 +624,131 @@ struct NotchView: View {
         let tabOverlap: CGFloat = 14
         let restingNotchWidth = NotchView.collapsedSize(on: localScreen).width
 
-        return AnyView(ZStack(alignment: .top) {
-            if minimizedCount > 0 {
-                MinimizedQuestionTab(state: state,
-                                     height: max(22, localInset),
-                                     // The collapsed notch's bottom radius, as
-                                     // a constant rather than notchBottomRadius:
-                                     // that returns 18 while a card is open, so
-                                     // the stub's curve would change shape out
-                                     // of sight and be wrong the moment the card
-                                     // shrank away from it.
-                                     cornerRadius: 10)
-                    .offset(x: -(restingNotchWidth / 2 + tabWidth / 2 - tabOverlap), y: 0)
-            }
-            ZStack(alignment: .top) {
-                if !collapsed {
-                    // Lay the content out at its FINAL width/height (not the
-                    // animating w/h) so it doesn't reflow as the card grows —
-                    // the outer clip frame reveals it. Keeps the measured
-                    // height stable (no animate↔measure feedback loop).
-                    content
-                        .frame(maxWidth: .infinity,
-                               maxHeight: isScrollableMode ? .infinity : nil,
-                               alignment: .top)
-                        .padding(.horizontal, contentHorizontalPadding)
-                        .padding(.top, localInset + 10)
-                        // Bottom padding only needs to clear the notch shape's
-                        // bottom corner curve. Buttons are inset 22 pt
-                        // horizontally so they sit above the straight edge.
-                        // Pairs with the +18 top padding on each button row.
-                        .padding(.bottom, 10)
-                        .frame(width: card.width,
-                               height: isScrollableMode ? card.height : nil,
-                               alignment: .top)
-                        .background(
-                            GeometryReader { g in
-                                Color.clear.preference(
-                                    key: ContentHeightKey.self,
-                                    value: ContentMeasure(
-                                        key: state.mode.measureKey,
-                                        height: isScrollableMode ? 0 : g.size.height)
-                                )
-                            }
-                        )
-                } else if isPetOut && !state.isDropTarget && !state.isDropHot {
-                    // The mascot living its own life on the notch's lip.
-                    PetStageView(state: state, stageWidth: card.width, notchInset: localInset)
-                        .frame(width: card.width, height: card.height, alignment: .top)
-                } else {
-                    // Collapsed idle: nothing but the notch.
-                    //
-                    // The status row used to live here, and it never fitted: the
-                    // collapsed card is exactly as wide as the hardware cutout, so
-                    // every figure in it was squeezed down to an ellipsis. A row of
-                    // "8…" and "$…" is not information, it is litter, and it was
-                    // sitting in the one place the app is supposed to be invisible.
-                    // The limits live in the expanded notch now, where they fit and
-                    // can show their reset countdowns.
-                    //
-                    // Clicking the bare notch still wakes the pet — the notch is
-                    // where it lives.
-                    ZStack {
-                        Color.clear
-                    }
-                    .frame(width: card.width, height: card.height)
-                    .contentShape(Rectangle())
-                    .onTapGesture { state.petBoop() }
-                }
-            }
-            // Black fill + clip apply AT the animating frame size, so the
-            // shape grows from the notch out to the card while the content
-            // stays at full size underneath (revealed by the growing clip).
-            .frame(width: w, height: h, alignment: .top)
-            .background(Color.black)
-            // A drag over the notch takes over the WHOLE card: a black panel with
-            // the Apple-style drop zone, on top of and masking whatever the card
-            // was showing (status, pet, anything). Driven only by the drop flags,
-            // so it appears whether or not the card was already open on hover.
-            .overlay(alignment: .top) {
-                if state.isDropTarget || state.isDropHot {
-                    dropZone(width: w, height: h)
-                        .transition(.opacity)
-                }
-            }
-            .clipShape(shape)
-            .overlay(shape.stroke(Color.white.opacity(collapsed ? 0 : 0.05),
-                                  lineWidth: 0.5))
-            .animation(.easeOut(duration: 0.15), value: state.isDropTarget)
-        }
-        // Drop a file or folder on the notch to open Claude there. This is a
-        // GENEROUS invisible catcher over the notch area, not the tiny visible
-        // card — the same trick boring.notch uses. A drag has somewhere real to
-        // land, and the drop is caught even though clicks elsewhere pass through.
-        .background(
-            Color.clear
-                // Cover the WHOLE visible card, not a thin strip at the very top.
-                // The card expands on hover, and a dragged folder lands on the
-                // body of the expanded card (well below the notch lip). A 70pt
-                // top strip missed every real drop, so the file fell through to
-                // the desktop. Match the animating card size so wherever on the
-                // card the folder is dropped, it is caught.
-                .frame(width: max(w, 240), height: max(h, localInset + 30))
-                .contentShape(Rectangle())
-                // ONE drop target for the whole card. A DropDelegate (not a second
-                // onDrop) reports the live drag location, so the inner icon box can
-                // glow green from geometry — no competing drop views fighting over
-                // targeting, which was flickering the panel and eating the drop.
-                .onDrop(of: [UTType.fileURL], delegate: NotchDropDelegate(
-                    state: state,
-                    hotRect: CGRect(
-                        x: 14,
-                        y: localInset + 8,
-                        width: max(max(w, 240) - 28, 0),
-                        height: max(max(h, localInset + 30) - (localInset + 8) - 12, 0)
+        // Built here, once per real state change, and handed to SizedCard as a
+        // finished value. SizedCard re-runs on every animation frame, and
+        // anything built inside its closure would be rebuilt on every one.
+        let inner = ZStack(alignment: .top) {
+            if !collapsed {
+                // Lay the content out at its FINAL width/height (not the
+                // animating w/h) so it doesn't reflow as the card grows —
+                // the outer clip frame reveals it. Keeps the measured
+                // height stable (no animate↔measure feedback loop).
+                content
+                    .frame(maxWidth: .infinity,
+                           maxHeight: isScrollableMode ? .infinity : nil,
+                           alignment: .top)
+                    .padding(.horizontal, contentHorizontalPadding)
+                    .padding(.top, localInset + 10)
+                    // Bottom padding only needs to clear the notch shape's
+                    // bottom corner curve. Buttons are inset 22 pt
+                    // horizontally so they sit above the straight edge.
+                    // Pairs with the +18 top padding on each button row.
+                    .padding(.bottom, 10)
+                    .frame(width: card.width,
+                           height: isScrollableMode ? card.height : nil,
+                           alignment: .top)
+                    .background(
+                        GeometryReader { g in
+                            Color.clear.preference(
+                                key: ContentHeightKey.self,
+                                value: ContentMeasure(
+                                    key: state.mode.measureKey,
+                                    height: isScrollableMode ? 0 : g.size.height)
+                            )
+                        }
                     )
-                )),
-            alignment: .top
-        )
+            } else if isPetOut && !state.isDropTarget && !state.isDropHot {
+                // The mascot living its own life on the notch's lip.
+                PetStageView(state: state, stageWidth: card.width, notchInset: localInset)
+                    .frame(width: card.width, height: card.height, alignment: .top)
+            } else {
+                // Collapsed idle: nothing but the notch.
+                //
+                // The status row used to live here, and it never fitted: the
+                // collapsed card is exactly as wide as the hardware cutout, so
+                // every figure in it was squeezed down to an ellipsis. A row of
+                // "8…" and "$…" is not information, it is litter, and it was
+                // sitting in the one place the app is supposed to be invisible.
+                // The limits live in the expanded notch now, where they fit and
+                // can show their reset countdowns.
+                //
+                // Clicking the bare notch still wakes the pet — the notch is
+                // where it lives.
+                ZStack {
+                    Color.clear
+                }
+                .frame(width: card.width, height: card.height)
+                .contentShape(Rectangle())
+                .onTapGesture { state.petBoop() }
+            }
+        }
+
+        return AnyView(SizedCard(sizer: sizer, fallback: target) { size in
+            let w = size.width, h = size.height
+            ZStack(alignment: .top) {
+                if minimizedCount > 0 {
+                    MinimizedQuestionTab(state: state,
+                                         height: max(22, localInset),
+                                         // The collapsed notch's bottom radius, as
+                                         // a constant rather than notchBottomRadius:
+                                         // that returns 18 while a card is open, so
+                                         // the stub's curve would change shape out
+                                         // of sight and be wrong the moment the card
+                                         // shrank away from it.
+                                         cornerRadius: 10)
+                        .offset(x: -(restingNotchWidth / 2 + tabWidth / 2 - tabOverlap), y: 0)
+                }
+                inner
+                // Black fill + clip apply AT the animating frame size, so the
+                // shape grows from the notch out to the card while the content
+                // stays at full size underneath (revealed by the growing clip).
+                .frame(width: w, height: h, alignment: .top)
+                .background(Color.black)
+                // A drag over the notch takes over the WHOLE card: a black panel with
+                // the Apple-style drop zone, on top of and masking whatever the card
+                // was showing (status, pet, anything). Driven only by the drop flags,
+                // so it appears whether or not the card was already open on hover.
+                .overlay(alignment: .top) {
+                    if state.isDropTarget || state.isDropHot {
+                        dropZone(width: w, height: h)
+                            .transition(.opacity)
+                    }
+                }
+                .clipShape(shape)
+                .overlay(shape.stroke(Color.white.opacity(collapsed ? 0 : 0.05),
+                                      lineWidth: 0.5))
+                .animation(.easeOut(duration: 0.15), value: state.isDropTarget)
+            }
+            // Drop a file or folder on the notch to open Claude there. This is a
+            // GENEROUS invisible catcher over the notch area, not the tiny visible
+            // card — the same trick boring.notch uses. A drag has somewhere real to
+            // land, and the drop is caught even though clicks elsewhere pass through.
+            .background(
+                Color.clear
+                    // Cover the WHOLE visible card, not a thin strip at the very top.
+                    // The card expands on hover, and a dragged folder lands on the
+                    // body of the expanded card (well below the notch lip). A 70pt
+                    // top strip missed every real drop, so the file fell through to
+                    // the desktop. Match the animating card size so wherever on the
+                    // card the folder is dropped, it is caught.
+                    .frame(width: max(w, 240), height: max(h, localInset + 30))
+                    .contentShape(Rectangle())
+                    // ONE drop target for the whole card. A DropDelegate (not a second
+                    // onDrop) reports the live drag location, so the inner icon box can
+                    // glow green from geometry — no competing drop views fighting over
+                    // targeting, which was flickering the panel and eating the drop.
+                    .onDrop(of: [UTType.fileURL], delegate: NotchDropDelegate(
+                        state: state,
+                        hotRect: CGRect(
+                            x: 14,
+                            y: localInset + 8,
+                            width: max(max(w, 240) - 28, 0),
+                            height: max(max(h, localInset + 30) - (localInset + 8) - 12, 0)
+                        )
+                    )),
+                alignment: .top
+            )
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .onAppear { sizer.set(target) }
         .onPreferenceChange(ContentHeightKey.self) { m in
