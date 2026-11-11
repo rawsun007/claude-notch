@@ -2015,8 +2015,10 @@ struct SettingsView: View {
     /// renders as two identical headings on the About page.
     static let whatsNew: [ChangeGroup] = [
         ChangeGroup(kind: .fixed, items: [
-        "The session list no longer fills with copies of one project. Claude Code keeps spare background processes warm in each project, and each one was listed as a session that said ready. Spares, parked jobs and the background daemon are skipped now, so every row is a session you are actually in.",
-        "A session resumed or cleared in place shows as one row, not one per session id it has had.",
+        "Opening and closing the notch is smooth again. Every frame of the animation redrew every card and the whole session list, so the more a card showed, the more it stuttered. A frame now redraws only the notch's outline, and it moves once per display refresh instead of on a timer that drifted against it.",
+        "With the pet on, moving the mouse near the notch no longer slows the animation down.",
+        "A card opens in one motion. It used to grow, pause when its real height was measured, and grow again.",
+        "On installs still using the older command hooks, subagents starting and finishing show in the notch again.",
         ]),
     ]
 }
