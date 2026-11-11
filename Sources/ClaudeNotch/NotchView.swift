@@ -53,8 +53,12 @@ extension NotchMode {
 /// frame regardless of which app is active.
 @MainActor
 final class CardSizeAnimator: ObservableObject {
-    @Published private(set) var width: CGFloat = 0
-    @Published private(set) var height: CGFloat = 0
+    /// One published value, not a width and a height: two @Published
+    /// properties sent two change notifications per frame, and an observer
+    /// could be asked to draw the new width with the old height.
+    @Published private(set) var size: CGSize = .zero
+    var width: CGFloat { size.width }
+    var height: CGFloat { size.height }
 
     private var timer: Timer?
     private var fromW: CGFloat = 0, fromH: CGFloat = 0
@@ -66,7 +70,7 @@ final class CardSizeAnimator: ObservableObject {
     /// Jump immediately (no animation) — used for the very first layout.
     func set(_ size: CGSize) {
         timer?.invalidate(); timer = nil
-        width = size.width; height = size.height
+        self.size = size
         toW = size.width; toH = size.height
     }
 
@@ -92,11 +96,12 @@ final class CardSizeAnimator: ObservableObject {
     private func tick() {
         let raw = min(1, max(0, (CACurrentMediaTime() - start) / duration))
         let e = overshoot ? Self.easeOutBack(raw) : Self.easeOutCubic(raw)
-        width  = fromW + (toW - fromW) * e
-        height = fromH + (toH - fromH) * e
         if raw >= 1 {
-            width = toW; height = toH
+            size = CGSize(width: toW, height: toH)
             timer?.invalidate(); timer = nil
+        } else {
+            size = CGSize(width: fromW + (toW - fromW) * e,
+                          height: fromH + (toH - fromH) * e)
         }
     }
 
