@@ -99,14 +99,12 @@ final class MouseTracker {
             if state.isDropHot { state.isDropHot = false }
         }
 
-        let inside: Bool
-        if dragging || Date() < state.suppressHoverUntil {
-            inside = false
-        } else if state.isHovering {
-            inside = keepRegion(for: state).contains(mouse)
-        } else {
-            inside = Self.triggerZone(on: screen).contains(mouse)
-        }
+        let inside = Self.shouldHover(
+            isHovering: state.isHovering,
+            buttonDown: dragging,
+            suppressed: Date() < state.suppressHoverUntil,
+            inKeepRegion: state.isHovering && keepRegion(for: state).contains(mouse),
+            inTriggerZone: Self.triggerZone(on: screen).contains(mouse))
         state.setHovering(inside)
         updatePetCursor(state: state, mouse: mouse, screen: screen)
     }
@@ -134,6 +132,23 @@ final class MouseTracker {
         // cursor's actual position is the authority: nowhere near it, not
         // petting it.
         if !near, state.petPetting { state.petPetting = false }
+    }
+
+    /// Whether the card should be open after this check.
+    ///
+    /// A held mouse button stops the card OPENING, so a file dragged over the
+    /// notch shows the drop panel instead of flashing the status card. It must
+    /// not CLOSE a card that is already open. It used to, and this runs on a
+    /// 0.2 s poll, so a click on the open card's history button had a fair
+    /// chance of being polled mid-press: the card collapsed under the cursor,
+    /// the button was gone before the mouse came up, and the click did nothing
+    /// but shut the notch. A button held over an open card is a click on it.
+    nonisolated static func shouldHover(isHovering: Bool, buttonDown: Bool, suppressed: Bool,
+                                        inKeepRegion: Bool, inTriggerZone: Bool) -> Bool {
+        if suppressed { return false }
+        if isHovering { return inKeepRegion }
+        if buttonDown { return false }
+        return inTriggerZone
     }
 
     /// The "stay-expanded" region. Derived from the TARGET size for the
