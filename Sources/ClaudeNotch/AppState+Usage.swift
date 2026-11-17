@@ -139,15 +139,17 @@ extension AppState {
     /// Show the card and Touch ID take effect at once. Approving destructive
     /// commands with no prompt asks for the Mac owner's authentication every
     /// time it is switched on, and stays as it was unless that succeeds.
-    func setAutoApproveDangerous(_ mode: AutoApproveDangerous) {
+    /// `completion` says whether the choice took effect.
+    func setAutoApproveDangerous(_ mode: AutoApproveDangerous, completion: ((Bool) -> Void)? = nil) {
         autoApproveDangerousMessage = nil
         guard AutoApprovePolicy.needsAuthentication(from: autoApproveDangerous, to: mode) else {
-            autoApproveDangerous = mode; schedulePersist(); return
+            autoApproveDangerous = mode; schedulePersist(); completion?(true); return
         }
         BiometricAuth.confirm(reason: L("let Auto-Approve allow destructive commands", comment: "Touch ID prompt reason, shown after the app name: letting Auto-Approve allow destructive commands with no prompt")) { [weak self] ok, message in
             guard let self else { return }
             if ok { self.autoApproveDangerous = mode; self.schedulePersist() }
             else { self.autoApproveDangerousMessage = message }
+            completion?(ok)
         }
     }
 

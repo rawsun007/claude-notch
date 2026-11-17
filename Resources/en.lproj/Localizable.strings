@@ -96,6 +96,9 @@
 /* Sign-in card question. First %@ is the MCP server, second the website */
 "%@ wants you to sign in on %@." = "%@ wants you to sign in on %@.";
 
+/* Auto-Approve summary under its switch. First %@ is the scope, second the destructive-command choice */
+"%@. Destructive commands: %@." = "%@. Destructive commands: %@.";
+
 /* Dialog body when the login item could not be toggled. %@ is the system error */
 "%@\n\nMake sure ClaudeNotch is in /Applications, then try again." = "%@\n\nMake sure ClaudeNotch is in /Applications, then try again.";
 
@@ -312,11 +315,11 @@
 /* Settings toggle */
 "Allow claudenotch:// links" = "Allow claudenotch:// links";
 
-/* Settings toggle explanation */
-"Allow every tool request automatically. Turns the notch into a passive monitor. Use with care." = "Allow every tool request automatically. Turns the notch into a passive monitor. Use with care.";
-
 /* Button: allow a single over-budget command without raising the cap */
 "Allow once" = "Allow once";
+
+/* Settings toggle explanation */
+"Allow tool requests without a card. Switching it on asks what to approve, and what to do with destructive commands. Use with care." = "Allow tool requests without a card. Switching it on asks what to approve, and what to do with destructive commands. Use with care.";
 
 /* History filter: only approved requests */
 "Allowed" = "Allowed";
@@ -363,6 +366,9 @@
 /* Card title, Codex token budget nearly passed */
 "Approaching your daily Codex budget" = "Approaching your daily Codex budget";
 
+/* Auto-Approve dangerous-command choice */
+"Approve them too" = "Approve them too";
+
 /* Settings toggle */
 "Ask before switching to a pricier model" = "Ask before switching to a pricier model";
 
@@ -408,7 +414,7 @@
 /* Session page. %@ is a clock time */
 "Auto-approve on until %@." = "Auto-approve on until %@.";
 
-/* Settings toggle */
+/* Auto-Approve setup sheet title */
 "Auto-approve permissions" = "Auto-approve permissions";
 
 /* Card body when auto-compaction is imminent */
@@ -473,6 +479,9 @@
 
 /* Skills page: when changes take effect */
 "Changes apply to new sessions, or run /reload-skills in one that's already running." = "Changes apply to new sessions, or run /reload-skills in one that's already running.";
+
+/* Settings button: edit Auto-Approve's choices */
+"Change…" = "Change…";
 
 /* Settings button: re-check the Claude Code version */
 "Check" = "Check";
@@ -639,6 +648,9 @@
 /* Settings section heading */
 "Codex usage (tokens)" = "Codex usage (tokens)";
 
+/* Auto-Approve scope: shell commands only */
+"Commands only" = "Commands only";
+
 /* Settings toggle */
 "Compact long sessions while I'm away" = "Compact long sessions while I'm away";
 
@@ -662,6 +674,9 @@
 
 /* Button: allow a destructive command after biometric confirmation */
 "Confirm to Allow" = "Confirm to Allow";
+
+/* Auto-Approve dangerous-command choice. %@ is Touch ID or Face ID */
+"Confirm with %@" = "Confirm with %@";
 
 /* Context meter tooltip. %d is how full the context window is */
 "Context %d%% full" = "Context %d%% full";
@@ -759,6 +774,9 @@
 /* Settings row: mean spend per completed day */
 "Daily average" = "Daily average";
 
+/* Auto-Approve setup sheet explanation */
+"Deleting files, sudo, force pushes and the like: the ones that get the red card." = "Deleting files, sudo, force pushes and the like: the ones that get the red card.";
+
 /* History filter: only rejected requests */
 "Denied" = "Denied";
 
@@ -767,6 +785,15 @@
 
 /* Settings button */
 "Destructive command" = "Destructive command";
+
+/* Auto-Approve setup sheet question */
+"Destructive commands" = "Destructive commands";
+
+/* Auto-Approve dangerous-command explanation */
+"Destructive commands run with no prompt at all, including deleting files and force pushes. Each one is still logged in History. Turning this on asks for Touch ID or your Mac password." = "Destructive commands run with no prompt at all, including deleting files and force pushes. Each one is still logged in History. Turning this on asks for Touch ID or your Mac password.";
+
+/* Auto-Approve dangerous-command explanation */
+"Destructive commands still wait on the red card for you." = "Destructive commands still wait on the red card for you.";
 
 /* Settings page title */
 "Developer" = "Developer";
@@ -840,8 +867,14 @@
 /* Settings explanation */
 "Every time you click Always Allow, a rule lands here. Matching requests are approved without asking, so this is worth reading now and then." = "Every time you click Always Allow, a rule lands here. Matching requests are approved without asking, so this is worth reading now and then.";
 
+/* Auto-Approve scope explanation */
+"Every tool request is allowed without a card." = "Every tool request is allowed without a card.";
+
 /* Settings section heading */
 "Everyday" = "Everyday";
+
+/* Auto-Approve scope: every tool request */
+"Everything" = "Everything";
 
 /* Placeholder in the new-rule command field */
 "Exact command, leave blank for the whole tool" = "Exact command, leave blank for the whole tool";
@@ -860,6 +893,9 @@
 
 /* Chip on a session row: the session began as a fork of another one */
 "FORK" = "FORK";
+
+/* Auto-Approve scope: reading and editing files only */
+"File reads and edits only" = "File reads and edits only";
 
 /* Tooltip on the edited-files badge */
 "Files Claude edited this session, full list in the menu bar" = "Files Claude edited this session, full list in the menu bar";
@@ -1446,6 +1482,9 @@
 /* Settings explanation */
 "Reading transcripts…" = "Reading transcripts…";
 
+/* Auto-Approve scope explanation */
+"Reading, searching and editing files is allowed without a card. Terminal commands still ask." = "Reading, searching and editing files is allowed without a card. Terminal commands still ask.";
+
 /* Status: the agent is idle and waiting */
 "Ready" = "Ready";
 
@@ -1611,6 +1650,9 @@
 /* Settings toggle */
 "Show spend in the menu bar" = "Show spend in the menu bar";
 
+/* Auto-Approve dangerous-command choice */
+"Show the card" = "Show the card";
+
 /* Settings toggle */
 "Show the reply as it streams" = "Show the reply as it streams";
 
@@ -1719,6 +1761,9 @@
 /* Settings toggle */
 "Strict mode" = "Strict mode";
 
+/* Auto-Approve setup sheet note */
+"Strict mode is on, so only commands that read and change nothing are approved for you, whatever is chosen here." = "Strict mode is on, so only commands that read and change nothing are approved for you, whatever is chosen here.";
+
 /* History row: the session could not start another subagent */
 "Subagent limit reached" = "Subagent limit reached";
 
@@ -1755,6 +1800,9 @@
 /* Sign-in card option description */
 "Tell the server no." = "Tell the server no.";
 
+/* Auto-Approve scope explanation */
+"Terminal commands are allowed without a card. File edits and everything else still ask." = "Terminal commands are allowed without a card. File edits and everything else still ask.";
+
 /* Settings explanation */
 "Terminal:" = "Terminal:";
 
@@ -1769,6 +1817,9 @@
 
 /* Shown on the card when a biometric confirmation failed for any other reason */
 "That was not confirmed, so nothing was allowed." = "That was not confirmed, so nothing was allowed.";
+
+/* Auto-Approve dangerous-command explanation. %@ is Touch ID or Face ID */
+"The %@ prompt comes up on its own, so a finger allows it with no click. Cancel it and the card stays." = "The %@ prompt comes up on its own, so a finger allows it with no click. Cancel it and the card stays.";
 
 /* Card body naming the repeated call. %@ is a short preview of it */
 "The call is %@. A loop that cannot make progress bills at full speed, so this is worth a look at the terminal." = "The call is %@. A loop that cannot make progress bills at full speed, so this is worth a look at the terminal.";
@@ -2010,6 +2061,9 @@
 /* Settings explanation */
 "What I shipped" = "What I shipped";
 
+/* Auto-Approve setup sheet question */
+"What should it approve for you?" = "What should it approve for you?";
+
 /* Onboarding step description for the custom notch title */
 "What the notch calls itself. Leave blank to use the agent name (Claude, Codex). Change it anytime in Settings." = "What the notch calls itself. Leave blank to use the agent name (Claude, Codex). Change it anytime in Settings.";
 
@@ -2144,6 +2198,9 @@
 
 /* Limit tooltip fragment. %@ is how long ago the reading arrived */
 "last reported %@ ago" = "last reported %@ ago";
+
+/* Touch ID prompt reason, shown after the app name: letting Auto-Approve allow destructive commands with no prompt */
+"let Auto-Approve allow destructive commands" = "let Auto-Approve allow destructive commands";
 
 /* Rules list subtitle for a pattern rule. %@ is a regular expression */
 "matching /%@/" = "matching /%@/";

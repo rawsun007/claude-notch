@@ -382,6 +382,8 @@ struct SettingsView: View {
     @State var codexTotals: CodexReader.CodexTotals?
     @State var devSampleCardsOpen = false
     @State var devPetDemosOpen = false
+    /// The Auto-Approve setup sheet, when it is up.
+    @State var autoApproveSheet: AutoApproveSheetMode?
 
     private var searchResults: [SettingsSearchItem] {
         SettingsSearchItem.matching(search)
@@ -584,8 +586,23 @@ struct SettingsView: View {
                     bind(\.persistentNotchDisplay, state.setPersistentNotchDisplay))
                 divider
                 row(L("Auto-approve permissions", comment: "Settings toggle"),
-                    L("Allow every tool request automatically. Turns the notch into a passive monitor. Use with care.", comment: "Settings toggle explanation"),
-                    bind(\.autoApprove, state.setAutoApprove))
+                    L("Allow tool requests without a card. Switching it on asks what to approve, and what to do with destructive commands. Use with care.", comment: "Settings toggle explanation"),
+                    Binding(get: { state.autoApprove }, set: { on in
+                        // On asks first (the sheet turns it on); off is immediate.
+                        if on { autoApproveSheet = .turnOn } else { state.setAutoApprove(false) }
+                    }))
+                if state.autoApprove {
+                    HStack(spacing: 8) {
+                        Label(autoApproveSummary, systemImage: state.autoApproveDangerous == .allow ? "exclamationmark.triangle.fill" : "checkmark.shield")
+                            .font(.caption)
+                            .foregroundStyle(state.autoApproveDangerous == .allow ? Color.red : Color.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer()
+                        Button(L("Change…", comment: "Settings button: edit Auto-Approve's choices")) { autoApproveSheet = .edit }
+                            .controlSize(.small)
+                    }
+                    .padding(.horizontal, 14).padding(.bottom, 10)
+                }
                 divider
                 row(L("Show spend in the menu bar", comment: "Settings toggle"),
                     L("Put the running session cost next to the menu-bar bell.", comment: "Settings toggle explanation"),
@@ -652,6 +669,15 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
+        .sheet(item: $autoApproveSheet) { mode in
+            AutoApproveSetupSheet(state: state, editing: mode == .edit) { autoApproveSheet = nil }
+        }
+    }
+
+    /// "Commands only. Destructive commands: Confirm with Touch ID."
+    var autoApproveSummary: String {
+        String(format: L("%@. Destructive commands: %@.", comment: "Auto-Approve summary under its switch. First %@ is the scope, second the destructive-command choice"),
+               state.autoApproveScope.label, state.autoApproveDangerous.label)
     }
 
     /// Turning Codex on or off changes what the Plan and Usage pages should be
