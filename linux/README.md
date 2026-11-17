@@ -10,7 +10,7 @@ you and into your session list when you point at it.
 
 ## Install
 
-Download from the [latest release](https://github.com/rawsun007/claude-notch/releases/latest).
+Download from the [changelog](https://rawsun007.github.io/claude-notch/changelog/) (each release has Linux download buttons) or the [releases page](https://github.com/rawsun007/claude-notch/releases); Linux-only releases are tagged `linux-v...`.
 
 **Ubuntu, Debian, Mint, Pop!_OS** (`.deb`):
 
