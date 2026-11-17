@@ -3,7 +3,9 @@
 # distributions without dpkg (Fedora, Arch, openSUSE, ...).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-VERSION="$(python3 -c 'import claudenotch; print(claudenotch.__version__)')"
+# Read from the source, not by importing it: a stale __pycache__ can report
+# the previous version when the file was edited within the same second.
+VERSION="$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' claudenotch/__init__.py)"
 NAME="claudenotch-${VERSION}-linux"
 STAGE="$(mktemp -d)"; trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$STAGE/$NAME/claudenotch" "$STAGE/$NAME/bin"
