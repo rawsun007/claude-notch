@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=ClaudeNotch
+GenericName=Claude Code prompts
+Comment=Answer Claude Code permission prompts and questions from the top of your screen
+Exec=claudenotch
+Icon=claudenotch
+Terminal=false
+Categories=Development;Utility;
+Keywords=claude;ai;agent;hooks;permissions;
+StartupNotify=false
+X-GNOME-Autostart-enabled=true
