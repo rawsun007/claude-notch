@@ -41,6 +41,7 @@ jobs:
         run: |
           export PATH="/usr/bin:$PATH"
           APP="$PWD" OUT="$PWD/test-env/out" test-env/e2e.sh
+          APP="$PWD" OUT="$PWD/test-env/out" test-env/settings-e2e.sh
       - name: Screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -87,6 +88,13 @@ jobs:
           test-env/install-test.sh debian:12
       - name: Install the tarball on Fedora and run the e2e
         run: test-env/tarball-test.sh fedora:41
+      - name: Upgrading over a running app needs no uninstall (.deb and tarball)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          docker build -q -t claudenotch-linux-test test-env >/dev/null
+          test-env/upgrade-test.sh
+          test-env/tarball-upgrade.sh | tee /dev/stderr | grep -q '^PASS'
       - uses: actions/upload-artifact@v4
         with:
           name: claudenotch-linux

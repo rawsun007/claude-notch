@@ -11,4 +11,5 @@ fi
 docker run --rm -v "$PWD:/home/tester/app" claudenotch-linux-test bash -c '
   set -e
   echo "== unit and integration tests"; python3 -m unittest discover -s tests
-  echo "== desktop e2e"; test-env/e2e.sh'
+  echo "== desktop e2e"; test-env/e2e.sh
+  echo "== settings and app control"; test-env/settings-e2e.sh'
