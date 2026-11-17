@@ -10,3 +10,12 @@ Categories=Development;Utility;
 Keywords=claude;ai;agent;hooks;permissions;
 StartupNotify=false
 X-GNOME-Autostart-enabled=true
+Actions=Settings;Quit;
+
+[Desktop Action Settings]
+Name=Settings
+Exec=claudenotch --settings
+
+[Desktop Action Quit]
+Name=Quit ClaudeNotch
+Exec=claudenotch --quit
