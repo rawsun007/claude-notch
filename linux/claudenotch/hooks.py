@@ -215,3 +215,25 @@ def installed() -> bool:
         return is_installed(_load(), read_token())
     except UnreadableSettings:
         return False
+
+
+def expected_token() -> str | None:
+    """The token the installed hook URLs carry, if any.
+
+    Read from settings.json rather than the token file, as on the Mac: the
+    server requires a token only because the URL Claude Code posts to has
+    one, so the two can never disagree and an install that predates the
+    token keeps working instead of going deaf.
+    """
+    try:
+        settings = _load()
+    except UnreadableSettings:
+        return None
+    hooks = settings.get("hooks") if isinstance(settings.get("hooks"), dict) else {}
+    for rules in hooks.values():
+        for rule in rules if isinstance(rules, list) else []:
+            for entry in (rule.get("hooks") or []) if isinstance(rule, dict) else []:
+                url = str(entry.get("url") or "") if isinstance(entry, dict) else ""
+                if str(PORT) in url and "?t=" in url:
+                    return url.split("?t=", 1)[1].split("&", 1)[0] or None
+    return None
