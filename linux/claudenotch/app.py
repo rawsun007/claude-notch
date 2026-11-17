@@ -35,7 +35,10 @@ def _choose_backend() -> None:
     except (ImportError, ValueError):
         pass
     if os.environ.get("DISPLAY"):
-        os.environ["GDK_BACKEND"] = "x11"
+        # A list, not just x11: if XWayland refuses us (no Xauthority, or a
+        # session started without it) GDK falls through to native Wayland
+        # instead of the app quitting with "no display".
+        os.environ["GDK_BACKEND"] = "x11,wayland"
 
 
 def _is_running() -> bool:
