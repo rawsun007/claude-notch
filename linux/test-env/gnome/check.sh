@@ -31,8 +31,11 @@ Y=$(win_y); gshot "$OUT/check-card.png"
 kill $CURL 2>/dev/null
 
 /home/tester/app/bin/claudenotch </dev/null >/dev/null 2>&1
-sleep 0.8; gshot "$OUT/check-second-launch.png"
+sleep 1.5; gshot "$OUT/check-second-launch.png"
 grep -q "already running" "$HOME/.cache/claudenotch/claudenotch.log" && ok "a second launch is answered by the running app" || bad "second launch left no trace"
+xwininfo -root -tree | grep -q '"ClaudeNotch Settings"' && ok "and it opens Settings" || bad "no Settings window on GNOME"
+CARDS=$(shell_eval 'Main.messageTray.getSources().length' | sed -E "s/.*'([0-9]+)'.*/\1/")
+[ "${CARDS:-0}" -le 1 ] && ok "no desktop notifications sent for cards by default" || bad "$CARDS notification sources"
 grep -q "listening" "$HOME/.cache/claudenotch/claudenotch.log" && ok "menu launch logs to ~/.cache/claudenotch" || bad "no log from a menu launch"
 pkill -f bin/claudenotch; sleep 1
 
