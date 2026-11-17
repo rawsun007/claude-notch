@@ -53,3 +53,4 @@ promo/*/out/
 linux/**/__pycache__/
 linux/dist/
 linux/test-env/out/
+linux/test-env/out-gnome/
