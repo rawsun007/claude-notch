@@ -1,0 +1,83 @@
+name: Linux
+
+# The Linux edition (linux/). Separate from ci.yml, which builds the macOS app
+# and ignores linux/. Every release gets the .deb and the tarball attached
+# next to the DMG.
+
+on:
+  push:
+    branches: [main]
+    paths: ["linux/**", ".github/workflows/linux.yml"]
+    tags: ["v*"]
+  pull_request:
+    paths: ["linux/**", ".github/workflows/linux.yml"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach the Linux packages to (blank: build only)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: linux
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GTK, PyGObject and a virtual desktop
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            python3-gi python3-gi-cairo gir1.2-gtk-3.0 \
+            xvfb openbox xdotool imagemagick x11-utils x11-xserver-utils fonts-dejavu-core
+      - name: Unit and integration tests
+        # The system python, which is the one that has PyGObject.
+        run: /usr/bin/python3 -m unittest discover -s tests -v
+      - name: Desktop e2e (real clicks on Xvfb)
+        run: |
+          export PATH="/usr/bin:$PATH"
+          APP="$PWD" OUT="$PWD/test-env/out" test-env/e2e.sh
+      - name: Screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-e2e-screenshots
+          path: linux/test-env/out/
+          if-no-files-found: ignore
+
+  package:
+    needs: test
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: linux
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build .deb and tarball
+        run: |
+          packaging/build-deb.sh
+          packaging/build-tarball.sh
+          ls -la dist
+      - name: Install the .deb on a clean Ubuntu and Debian and run the e2e
+        run: |
+          test-env/install-test.sh ubuntu:24.04
+          test-env/install-test.sh debian:12
+      - name: Install the tarball on Fedora and run the e2e
+        run: test-env/tarball-test.sh fedora:41
+      - uses: actions/upload-artifact@v4
+        with:
+          name: claudenotch-linux
+          path: linux/dist/*
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          # release.sh creates the release; wait for it rather than racing it.
+          for i in $(seq 30); do gh release view "$TAG" >/dev/null 2>&1 && break; sleep 20; done
+          gh release upload "$TAG" dist/* --clobber
