@@ -186,6 +186,8 @@ def main(argv: list[str] | None = None) -> int:
     from .server import HookServer
     from .state import AppState
 
+    from . import settings as settings_mod
+    store = settings_mod.Store()
     state = AppState()
     try:
         server = HookServer(state)
@@ -225,7 +227,7 @@ def main(argv: list[str] | None = None) -> int:
     NotchWindow(state)
     state.greet(updated_from=os.environ.pop("CLAUDENOTCH_UPDATED_FROM", None), version=__version__)
     GLib.timeout_add_seconds(int(watcher.INTERVAL), watcher.check)
-    DesktopNotifier(state)
+    DesktopNotifier(state, store)
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, Gtk.main_quit)
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, Gtk.main_quit)
     print(f"ClaudeNotch {__version__} listening on 127.0.0.1:{hooks.PORT}", flush=True)
