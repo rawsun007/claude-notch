@@ -138,11 +138,75 @@ class UpgradeWatcher:
 
 
 def _is_running() -> bool:
+    return _running_version() is not None
+
+
+def _running_version() -> str | None:
+    """The version of the ClaudeNotch already running: None when none is,
+    "" for one too old to say (0.43.x answered a bare {"ok":true})."""
+    import json
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{hooks.PORT}/ping", timeout=1) as r:
+            body = r.read()
+    except OSError:
+        return None
+    try:
+        data = json.loads(body)
+    except ValueError:
+        return ""
+    return str(data.get("version") or "") if isinstance(data, dict) else ""
+
+
+def _control(action: str) -> bool:
+    token = hooks.expected_token()
+    url = f"http://127.0.0.1:{hooks.PORT}/control/{action}" + (f"?t={token}" if token else "")
+    try:
+        req = urllib.request.Request(url, data=b"{}", method="POST", headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=2) as r:
             return r.status == 200
     except OSError:
         return False
+
+
+def _other_instance_pids() -> list[int]:
+    """This user's other ClaudeNotch processes, found in /proc: the interpreter
+    running a launcher called claudenotch."""
+    me, uid, out = os.getpid(), os.getuid(), []
+    for entry in os.listdir("/proc") if os.path.isdir("/proc") else []:
+        if not entry.isdigit() or int(entry) == me:
+            continue
+        try:
+            if os.stat(f"/proc/{entry}").st_uid != uid:
+                continue
+            with open(f"/proc/{entry}/cmdline", "rb") as f:
+                argv = [a.decode("utf-8", "replace") for a in f.read().split(b"\0") if a]
+        except OSError:
+            continue
+        if len(argv) >= 2 and "python" in os.path.basename(argv[0]) and os.path.basename(argv[1]) == "claudenotch":
+            out.append(int(entry))
+    return out
+
+
+def _take_over(running: str) -> None:
+    """Make way for this launch: ask the running copy to quit, and stop it by
+    signal if it is too old to have been asked (0.43.x)."""
+    import time
+    if not _control("quit"):
+        for pid in _other_instance_pids():
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                pass
+    deadline = time.monotonic() + 6
+    while time.monotonic() < deadline and _running_version() is not None:
+        time.sleep(0.2)
+    if _running_version() is not None:
+        for pid in _other_instance_pids():
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except OSError:
+                pass
+        time.sleep(0.5)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -152,6 +216,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--status", action="store_true")
     ap.add_argument("--headless", action="store_true", help="run the hook server without a window")
     ap.add_argument("--no-install", action="store_true", help="do not install the hooks on start")
+    ap.add_argument("--settings", action="store_true", help="open the Settings window")
+    ap.add_argument("--quit", action="store_true", help="quit the running ClaudeNotch")
     ap.add_argument("--version", action="version", version=f"ClaudeNotch for Linux {__version__}")
     args = ap.parse_args(argv)
 
@@ -167,15 +233,35 @@ def main(argv: list[str] | None = None) -> int:
         print(f"log:   {log_path()}")
         return 0
 
+    running = _running_version()
+    if args.quit:
+        if running is None:
+            print("ClaudeNotch is not running.")
+        else:
+            _take_over(running)
+            print("ClaudeNotch quit.")
+        return 0
+
     _log_to_file_if_detached()
 
-    if _is_running():
-        if _wave_at_running_app():
-            print("ClaudeNotch is already running; it says hello at the top of the screen.", flush=True)
+    updated_from = os.environ.pop("CLAUDENOTCH_UPDATED_FROM", None)
+    if running is not None:
+        if running == __version__:
+            # Launching it again while it runs opens its Settings, the way
+            # reopening an app does, instead of quietly doing nothing.
+            if _control("settings"):
+                print("ClaudeNotch is already running; opened its Settings.", flush=True)
+                return 0
+            if _wave_at_running_app():
+                return 0
+            _tell("ClaudeNotch is already running. It sits at the top centre of your screen, "
+                  "just below the top bar.")
             return 0
-        _tell("ClaudeNotch is already running. It sits at the top centre of your screen, "
-              "just below the top bar.")
-        return 0
+        # A different version is running: this launch is the one just
+        # installed (or chosen), so it replaces the running one.
+        print(f"Replacing the running ClaudeNotch {running or '(older)'} with {__version__}.", flush=True)
+        _take_over(running)
+        updated_from = updated_from or running or "an older version"
 
     if not args.no_install:
         try:
@@ -198,6 +284,7 @@ def main(argv: list[str] | None = None) -> int:
     server.start()
 
     watcher = UpgradeWatcher(state, server)
+    server.controls["quit"] = lambda: os.kill(os.getpid(), signal.SIGTERM)
 
     if args.headless:
         print(f"ClaudeNotch {__version__} listening on 127.0.0.1:{hooks.PORT} (headless)", flush=True)
@@ -224,8 +311,18 @@ def main(argv: list[str] | None = None) -> int:
     if not Gtk.init_check(sys.argv)[0]:
         _tell("no display to draw on. Start it from your desktop session, or use --headless.", urgent=True)
         return 1
-    NotchWindow(state)
-    state.greet(updated_from=os.environ.pop("CLAUDENOTCH_UPDATED_FROM", None), version=__version__)
+    from .settings_window import SettingsWindow
+
+    def open_settings(page=None):
+        GLib.idle_add(lambda: SettingsWindow.present_for(state, store, page) and False)
+
+    server.controls["settings"] = open_settings
+    server.controls["quit"] = lambda: GLib.idle_add(Gtk.main_quit)
+    NotchWindow(state, store=store, on_settings=open_settings)
+    if updated_from or store.value.greeting:
+        state.greet(updated_from=updated_from, version=__version__)
+    if args.settings:
+        open_settings()
     GLib.timeout_add_seconds(int(watcher.INTERVAL), watcher.check)
     DesktopNotifier(state, store)
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, Gtk.main_quit)
