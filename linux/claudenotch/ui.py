@@ -153,6 +153,9 @@ class NotchWindow(Gtk.Window):
         self.add(self.box)
         self.connect("key-press-event", self._on_key)
         self.connect("size-allocate", lambda *_: self._place())
+        # Where the window really is is known only once the window manager
+        # has applied the move, so the test layout is written from here.
+        self.connect("configure-event", lambda *_: GLib.idle_add(self._dump_layout) and False)
         self.connect("delete-event", lambda *_: True)  # only Quit quits
 
         state.subscribe(lambda: GLib.idle_add(self.render))
@@ -173,7 +176,6 @@ class NotchWindow(Gtk.Window):
         geo = self._monitor_geometry()
         w, _ = self.get_size()
         self.move(geo.x + (geo.width - w) // 2, geo.y)
-        GLib.idle_add(self._dump_layout)
 
     # --- what to show --------------------------------------------------------
 
