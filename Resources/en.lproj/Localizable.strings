@@ -369,6 +369,9 @@
 /* Auto-Approve dangerous-command choice */
 "Approve them too" = "Approve them too";
 
+/* Auto-Approve submenu header: what it covers */
+"Approves" = "Approves";
+
 /* Settings toggle */
 "Ask before switching to a pricier model" = "Ask before switching to a pricier model";
 
@@ -786,7 +789,7 @@
 /* Settings button */
 "Destructive command" = "Destructive command";
 
-/* Auto-Approve setup sheet question */
+/* Auto-Approve submenu header */
 "Destructive commands" = "Destructive commands";
 
 /* Auto-Approve dangerous-command explanation */

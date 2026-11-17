@@ -149,7 +149,7 @@ extension MenuBarController {
             autoApproveItem.title = "Auto-Approve"
         }
 
-        let toggle = NSMenuItem(title: "Auto-Approve All", action: #selector(toggleAutoApprove), keyEquivalent: "")
+        let toggle = NSMenuItem(title: "Until I turn it off", action: #selector(toggleAutoApprove), keyEquivalent: "")
         toggle.target = self
         toggle.state = (state.autoApprove && state.autoApproveUntil == nil) ? .on : .off
         autoApproveMenu.addItem(toggle)
@@ -163,12 +163,53 @@ extension MenuBarController {
             autoApproveMenu.addItem(mi)
         }
 
+        // The same two choices as the Settings sheet, so the menu never turns
+        // on something broader than the user picked there.
+        autoApproveMenu.addItem(.separator())
+        autoApproveMenu.addItem(sectionHeader(L("Approves", comment: "Auto-Approve submenu header: what it covers")))
+        for scope in AutoApproveScope.allCases {
+            let mi = NSMenuItem(title: scope.label, action: #selector(pickAutoApproveScope(_:)), keyEquivalent: "")
+            mi.target = self
+            mi.representedObject = scope.rawValue
+            mi.state = state.autoApproveScope == scope ? .on : .off
+            mi.indentationLevel = 1
+            autoApproveMenu.addItem(mi)
+        }
+        autoApproveMenu.addItem(sectionHeader(L("Destructive commands", comment: "Auto-Approve submenu header")))
+        for mode in AutoApproveDangerous.allCases where mode != .biometric || BiometricAuth.isAvailable {
+            let mi = NSMenuItem(title: mode.label, action: #selector(pickAutoApproveDangerous(_:)), keyEquivalent: "")
+            mi.target = self
+            mi.representedObject = mode.rawValue
+            mi.state = state.autoApproveDangerous == mode ? .on : .off
+            mi.indentationLevel = 1
+            autoApproveMenu.addItem(mi)
+        }
+
         if state.autoApprove {
             autoApproveMenu.addItem(.separator())
             let cancel = NSMenuItem(title: "Turn off", action: #selector(turnOffAutoApprove), keyEquivalent: "")
             cancel.target = self
             autoApproveMenu.addItem(cancel)
         }
+    }
+
+    private func sectionHeader(_ title: String) -> NSMenuItem {
+        let mi = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        mi.isEnabled = false
+        return mi
+    }
+
+    @objc func pickAutoApproveScope(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let scope = AutoApproveScope(rawValue: raw) else { return }
+        state.setAutoApproveScope(scope)
+        refreshAutoApproveMenu()
+    }
+
+    /// Approving destructive commands asks for Touch ID or the password first
+    /// (setAutoApproveDangerous), from here as from Settings.
+    @objc func pickAutoApproveDangerous(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let mode = AutoApproveDangerous(rawValue: raw) else { return }
+        state.setAutoApproveDangerous(mode) { [weak self] _ in self?.refreshAutoApproveMenu() }
     }
 
     func refreshSnoozeMenu() {
