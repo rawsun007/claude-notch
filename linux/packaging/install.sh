@@ -44,8 +44,14 @@ sed "s|^Exec=claudenotch|Exec=$BIN/claudenotch|" "$HERE/claudenotch.desktop" > "
 cp "$APPS/claudenotch.desktop" "$AUTOSTART/claudenotch.desktop"
 
 "$BIN/claudenotch" --install-hooks
-echo "Installed to $LIB. It starts at login; starting it now."
+echo "Installed ClaudeNotch to $LIB. It starts at login, and replaces any older copy that is running."
 case ":$PATH:" in *":$BIN:"*) ;; *) echo "Note: $BIN is not on your PATH; add it to run 'claudenotch' by name." ;; esac
-if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && ! "$BIN/claudenotch" --status | grep -q 'app:   running'; then
+# Start it, unless this very version is already running. When an older one
+# is, the new launch takes over from it, so upgrading needs no uninstall.
+NEW="$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' "$LIB/claudenotch/__init__.py")"
+RUNNING="$(python3 -c 'import json,urllib.request as u
+try: print(json.load(u.urlopen("http://127.0.0.1:53127/ping", timeout=1)).get("version", ""))
+except Exception: pass' 2>/dev/null)"
+if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && [ "$RUNNING" != "$NEW" ]; then
   nohup "$BIN/claudenotch" >/dev/null 2>&1 &
 fi
