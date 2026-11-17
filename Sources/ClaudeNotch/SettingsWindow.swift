@@ -2041,10 +2041,13 @@ struct SettingsView: View {
     /// of the same kind is the obvious way to write a patch's notes and it
     /// renders as two identical headings on the About page.
     static let whatsNew: [ChangeGroup] = [
+        ChangeGroup(kind: .added, items: [
+        "Switching Auto-Approve on now asks what it should approve: everything, terminal commands only, or file reads and edits only.",
+        "Auto-Approve can handle destructive commands too, your choice: keep the red card, have Touch ID come up by itself so a finger allows it with no click, or approve them with no prompt (asks for Touch ID or your password to turn on, and every one is logged in History).",
+        "The same choices are in the menu bar's Auto-Approve submenu, and the Session page says what a timed Auto-Approve will cover.",
+        ]),
         ChangeGroup(kind: .fixed, items: [
-        "Linux: the notch shows on Ubuntu. It was drawn at the very top of the screen, behind GNOME's top bar, so the idle pill was invisible and every card lost its first row. It now hangs just below the bar, like a notch.",
-        "Linux: starting the app has a visible result. It says ClaudeNotch is running for a few seconds, a second launch makes the running app say so again, and errors from an app-menu launch show as a notification and go to a log instead of vanishing.",
-        "Linux: the app still starts when XWayland refuses it, using native Wayland instead of quitting.",
+        "Opening a second copy of ClaudeNotch (a new download next to the installed one) no longer leaves one of them deaf with Hooks: Not listening. The copy you opened last takes over.",
         ]),
     ]
 }
