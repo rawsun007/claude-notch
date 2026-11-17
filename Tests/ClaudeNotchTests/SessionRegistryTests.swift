@@ -95,7 +95,7 @@ final class SessionRegistryTests: XCTestCase {
         let e = try XCTUnwrap(SessionRegistry.parse(Data(realEntry.utf8)))
         XCTAssertFalse(SessionRegistry.isCurrent(e, alive: { _ in false }))
         XCTAssertTrue(SessionRegistry.isCurrent(e, now: Date(timeIntervalSince1970: 1786678070),
-                                                alive: { _ in true }))
+                                                alive: { _ in true }, processStart: { _ in nil }))
     }
 
     /// Pids are reused. A file whose process is alive but which has not been
@@ -104,7 +104,39 @@ final class SessionRegistryTests: XCTestCase {
     func testAVeryOldEntryIsNotCurrentEvenIfThePidExists() throws {
         let e = try XCTUnwrap(SessionRegistry.parse(Data(realEntry.utf8)))
         let muchLater = Date(timeIntervalSince1970: 1786678060 + SessionRegistry.maxAge + 60)
-        XCTAssertFalse(SessionRegistry.isCurrent(e, now: muchLater, alive: { _ in true }))
+        XCTAssertFalse(SessionRegistry.isCurrent(e, now: muchLater, alive: { _ in true },
+                                                 processStart: { _ in nil }))
+    }
+
+    /// A session idle for days is still current when the pid's real start
+    /// time matches the CLI's own record: it is the same process.
+    func testAnIdleSessionWhoseProcessStartMatchesIsCurrent() throws {
+        let e = try XCTUnwrap(SessionRegistry.parse(Data(#"{"pid": 42, "sessionId": "s1", "startedAt": 1786000000000, "updatedAt": 1786000000000}"#.utf8)))
+        let daysLater = Date(timeIntervalSince1970: 1786000000 + 5 * 86400)
+        XCTAssertTrue(SessionRegistry.isCurrent(e, now: daysLater, alive: { _ in true },
+                                                processStart: { _ in Date(timeIntervalSince1970: 1786000000 - 0.4) }))
+    }
+
+    /// A recycled pid started long after the session did: not this session,
+    /// however fresh the file.
+    func testARecycledPidIsNotCurrentEvenWhenTheFileIsFresh() throws {
+        let e = try XCTUnwrap(SessionRegistry.parse(Data(#"{"pid": 42, "sessionId": "s1", "startedAt": 1786000000000, "updatedAt": 1786000000000}"#.utf8)))
+        XCTAssertFalse(SessionRegistry.isCurrent(e, now: Date(timeIntervalSince1970: 1786000100), alive: { _ in true },
+                                                 processStart: { _ in Date(timeIntervalSince1970: 1786000000 + 3600) }))
+    }
+
+    /// The CLI records startedAt after its process began, sometimes most of a
+    /// minute after (a resume picker, a slow start). That is the same process.
+    func testAProcessThatStartedWellBeforeItsRecordIsStillCurrent() throws {
+        let e = try XCTUnwrap(SessionRegistry.parse(Data(#"{"pid": 42, "sessionId": "s1", "startedAt": 1786000000000, "updatedAt": 1786000000000}"#.utf8)))
+        XCTAssertTrue(SessionRegistry.isCurrent(e, now: Date(timeIntervalSince1970: 1786000000 + 3 * 86400), alive: { _ in true },
+                                                processStart: { _ in Date(timeIntervalSince1970: 1786000000 - 300) }))
+    }
+
+    func testThisProcessStartTimeIsReadable() throws {
+        let started = try XCTUnwrap(SessionRegistry.processStartTime(getpid()))
+        XCTAssertLessThan(started.timeIntervalSinceNow, 0)
+        XCTAssertGreaterThan(started.timeIntervalSinceNow, -24 * 3600)
     }
 
     /// No timestamp at all is not evidence of staleness.

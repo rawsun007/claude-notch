@@ -36,6 +36,10 @@ enum SessionRegistry {
         /// What `/rename` set, or the name the CLI derived.
         let name: String
         let updatedAt: Date?
+        /// When the CLI says its process started (`startedAt`). Compared with
+        /// the kernel's start time for the pid, it tells this session apart
+        /// from an unrelated process that was later given the same pid.
+        var startedAt: Date? = nil
         /// A pre-warmed background process waiting to be handed a job. Claude
         /// Code keeps a pool of these per project, each with its own pid file
         /// and session id, and drops the flag the moment one is claimed.
@@ -92,6 +96,7 @@ enum SessionRegistry {
             status: (obj["status"] as? String) ?? "",
             name: (obj["name"] as? String) ?? "",
             updatedAt: millisDate(obj["updatedAt"]) ?? millisDate(obj["startedAt"]),
+            startedAt: millisDate(obj["startedAt"]),
             spare: (obj["spare"] as? Bool) == true,
             parkedJobId: (obj["parkedJobId"] as? String) ?? "")
     }
@@ -100,12 +105,40 @@ enum SessionRegistry {
     ///
     /// `now` is injectable so the age rule can be tested without waiting a day.
     nonisolated static func isCurrent(_ entry: Entry, now: Date = Date(),
-                                      alive: (Int32) -> Bool = processExists) -> Bool {
+                                      alive: (Int32) -> Bool = processExists,
+                                      processStart: (Int32) -> Date? = processStartTime) -> Bool {
         guard alive(entry.pid) else { return false }
+        // The kernel's start time for the pid settles whether it is still this
+        // session, however long it has sat idle. The age rule below is only a
+        // guess at the same question, and it hid sessions idle since
+        // yesterday (Settings counted 3 running sessions out of 7).
+        if let started = entry.startedAt, let actual = processStart(entry.pid) {
+            return actual.timeIntervalSince(started) < startTolerance
+        }
         guard let updatedAt = entry.updatedAt else { return true }
         // A clock skew or a file written "in the future" is not a reason to
         // hide a session whose process is alive.
         return now.timeIntervalSince(updatedAt) < maxAge
+    }
+
+    /// How much later than the CLI's own `startedAt` the kernel's start time
+    /// may be. One-sided on purpose: the CLI writes `startedAt` after its
+    /// process began, sometimes most of a minute after (seen: 52 s), so an
+    /// earlier kernel time is normal; a pid can only be recycled once the
+    /// session's process has exited, so an impostor always started later.
+    /// The slack covers clock rounding only.
+    nonisolated static let startTolerance: TimeInterval = 5
+
+    /// When the process with this pid started, from the kernel. Nil when it
+    /// cannot be read (gone, or not ours to inspect).
+    nonisolated static func processStartTime(_ pid: Int32) -> Date? {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        guard sysctl(&mib, 4, &info, &size, nil, 0) == 0, size > 0 else { return nil }
+        let tv = info.kp_proc.p_un.__p_starttime
+        guard tv.tv_sec > 0 else { return nil }
+        return Date(timeIntervalSince1970: TimeInterval(tv.tv_sec) + TimeInterval(tv.tv_usec) / 1_000_000)
     }
 
     /// Does this pid exist? `kill(pid, 0)` asks the kernel and changes nothing.
