@@ -10,7 +10,7 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 python3-gi python3-gi-cairo gir1.2-gtk-3.0 \
-        xvfb openbox xdotool imagemagick x11-utils \
+        xvfb openbox xdotool imagemagick x11-utils x11-xserver-utils \
         fonts-dejavu-core fonts-noto-color-emoji \
         curl ca-certificates dbus-x11 libnotify-bin \
         dpkg-dev \

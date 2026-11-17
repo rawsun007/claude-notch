@@ -30,6 +30,7 @@ Xvfb :99 -screen 0 1440x900x24 -nolisten tcp >/dev/null 2>&1 & X_PID=$!
 for _ in $(seq 50); do xdpyinfo >/dev/null 2>&1 && break; sleep 0.1; done
 openbox >/dev/null 2>&1 & WM_PID=$!
 sleep 0.5
+xsetroot -solid '#4a5568' 2>/dev/null || true   # a desktop colour, so the card's shape shows
 
 "$LAUNCHER" > "$OUT/app.log" 2>&1 & APP_PID=$!
 for _ in $(seq 100); do curl -s -o /dev/null http://127.0.0.1:53127/ping && break; sleep 0.1; done
