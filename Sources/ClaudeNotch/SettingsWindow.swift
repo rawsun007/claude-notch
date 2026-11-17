@@ -2051,13 +2051,10 @@ struct SettingsView: View {
     /// of the same kind is the obvious way to write a patch's notes and it
     /// renders as two identical headings on the About page.
     static let whatsNew: [ChangeGroup] = [
-        ChangeGroup(kind: .added, items: [
-        "Switching Auto-Approve on now asks what it should approve: everything, terminal commands only, or file reads and edits only.",
-        "Auto-Approve can handle destructive commands too, your choice: keep the red card, have Touch ID come up by itself so a finger allows it with no click, or approve them with no prompt (asks for Touch ID or your password to turn on, and every one is logged in History).",
-        "The same choices are in the menu bar's Auto-Approve submenu, and the Session page says what a timed Auto-Approve will cover.",
-        ]),
         ChangeGroup(kind: .fixed, items: [
-        "Opening a second copy of ClaudeNotch (a new download next to the installed one) no longer leaves one of them deaf with Hooks: Not listening. The copy you opened last takes over.",
+        "Claude Code sessions left idle for more than a day count as running again. They were dropped from the notch's session list, and Settings said 3 sessions were on an older Claude Code when 7 were.",
+        "The Session icon in the Settings sidebar is no longer cut off at its left edge.",
+        "The Hooks card on the About page lines up with the other cards instead of its icon touching the card's edge.",
         ]),
     ]
 }
