@@ -12,6 +12,10 @@ APP="${APP:-/home/tester/app}"
 OUT="${OUT:-$APP/test-env/out}"
 mkdir -p "$OUT"
 export HOME="$(mktemp -d)"
+# Everything the app writes must land in the throwaway home, whatever the
+# runner exports (GitHub sets XDG_CONFIG_HOME to the real one).
+export XDG_CONFIG_HOME="$HOME/.config" XDG_DATA_HOME="$HOME/.local/share"
+unset CLAUDE_CONFIG_DIR
 export DISPLAY=:99
 export NO_AT_BRIDGE=1
 LAYOUT="$OUT/layout.json"
