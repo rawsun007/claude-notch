@@ -48,3 +48,8 @@ promo/*/page.html
 promo/*/icon.png
 promo/*/score.wav
 promo/*/out/
+
+# Linux edition
+linux/**/__pycache__/
+linux/dist/
+linux/test-env/out/

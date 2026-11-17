@@ -3,7 +3,11 @@ name: CI
 on:
   push:
     branches: [main]
+    # The Linux edition has its own workflow (linux.yml). A push that only
+    # touches it has nothing for the macOS build to check.
+    paths-ignore: ["linux/**", ".github/workflows/linux.yml"]
   pull_request:
+    paths-ignore: ["linux/**", ".github/workflows/linux.yml"]
 
 jobs:
   test:
