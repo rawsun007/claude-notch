@@ -2014,11 +2014,11 @@ struct SettingsView: View {
     /// of the same kind is the obvious way to write a patch's notes and it
     /// renders as two identical headings on the About page.
     static let whatsNew: [ChangeGroup] = [
+        ChangeGroup(kind: .added, items: [
+        "ClaudeNotch for Linux. The same permission card, questions, danger warnings and secret redaction, in a pill at the top centre of the screen. A .deb for Ubuntu and Debian and a tarball for Fedora, Arch and the rest are on the release page next to the Mac download.",
+        ]),
         ChangeGroup(kind: .fixed, items: [
-        "Opening and closing the notch is smooth again. Every frame of the animation redrew every card and the whole session list, so the more a card showed, the more it stuttered. A frame now redraws only the notch's outline, and it moves once per display refresh instead of on a timer that drifted against it.",
-        "With the pet on, moving the mouse near the notch no longer slows the animation down.",
-        "A card opens in one motion. It used to grow, pause when its real height was measured, and grow again.",
-        "On installs still using the older command hooks, subagents starting and finishing show in the notch again.",
+        "Clicking a button on the open notch, such as History, works again. A click was read as the start of a file drag, which closed the notch under the cursor before the button could respond.",
         ]),
     ]
 }
