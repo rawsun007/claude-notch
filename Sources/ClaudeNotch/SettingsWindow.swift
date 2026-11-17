@@ -91,7 +91,9 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: return "gearshape"
         case .notch: return "menubar.rectangle"
         case .pet: return "pawprint"
-        case .session: return "bubble.left.and.text.bubble.right"
+        // One bubble: the two-bubble glyph is wider than the sidebar's icon
+        // column and was clipped at its left edge.
+        case .session: return "text.bubble"
         case .alerts: return "bell.badge"
         case .sounds: return "speaker.wave.2"
         case .budget: return "dollarsign.circle"
@@ -414,7 +416,15 @@ struct SettingsView: View {
                         ForEach(SettingsSection.nav, id: \.title) { group in
                             Section(L(group.title, comment: "Settings sidebar group")) {
                                 ForEach(group.items) { s in
-                                    Label(L(s.rawValue, comment: "Settings sidebar section"), systemImage: s.symbol).tag(s)
+                                    Label {
+                                        Text(L(s.rawValue, comment: "Settings sidebar section"))
+                                    } icon: {
+                                        // A fixed column, centred: every icon gets the same
+                                        // room, so none spills past the row or crowds its title.
+                                        Image(systemName: s.symbol)
+                                            .frame(width: 26, alignment: .center)   // widest glyph here is 25 pt
+                                    }
+                                    .tag(s)
                                 }
                             }
                         }
