@@ -94,12 +94,23 @@ seconds (after any card you are answering) and says it was updated.
 ## Uninstall
 
 ```sh
-claudenotch --uninstall-hooks        # take the hooks out of Claude Code first
-sudo apt remove claudenotch          # .deb
-./claudenotch-0.44.0-linux/install.sh --uninstall   # tarball (does both steps)
+sudo apt purge claudenotch                          # .deb: stops it, removes its hooks and data
+./claudenotch-0.44.0-linux/install.sh --uninstall   # tarball
 ```
 
-Always-allow rules live in `~/.config/claudenotch/`; delete it to forget them.
+**Removed an older version (0.43.x) and it still shows notifications?** Those
+versions kept running after `apt purge` and left their hooks in Claude Code's
+settings. Run this as yourself (not with sudo) to clean up:
+
+```sh
+curl -fsSLO https://raw.githubusercontent.com/rawsun007/claude-notch/main/linux/packaging/remove-leftovers.sh
+less remove-leftovers.sh     # read it first
+bash remove-leftovers.sh
+```
+
+It stops the running copy, removes only ClaudeNotch's hooks from
+`~/.claude/settings.json` (your own hooks stay, a backup is written) and
+deletes its folders. Then restart any open `claude` sessions.
 
 ## Develop
 
