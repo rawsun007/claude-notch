@@ -2014,11 +2014,10 @@ struct SettingsView: View {
     /// of the same kind is the obvious way to write a patch's notes and it
     /// renders as two identical headings on the About page.
     static let whatsNew: [ChangeGroup] = [
-        ChangeGroup(kind: .added, items: [
-        "ClaudeNotch for Linux. The same permission card, questions, danger warnings and secret redaction, in a pill at the top centre of the screen. A .deb for Ubuntu and Debian and a tarball for Fedora, Arch and the rest are on the release page next to the Mac download.",
-        ]),
         ChangeGroup(kind: .fixed, items: [
-        "Clicking a button on the open notch, such as History, works again. A click was read as the start of a file drag, which closed the notch under the cursor before the button could respond.",
+        "Linux: the notch shows on Ubuntu. It was drawn at the very top of the screen, behind GNOME's top bar, so the idle pill was invisible and every card lost its first row. It now hangs just below the bar, like a notch.",
+        "Linux: starting the app has a visible result. It says ClaudeNotch is running for a few seconds, a second launch makes the running app say so again, and errors from an app-menu launch show as a notification and go to a log instead of vanishing.",
+        "Linux: the app still starts when XWayland refuses it, using native Wayland instead of quitting.",
         ]),
     ]
 }
