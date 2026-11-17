@@ -49,8 +49,27 @@ jobs:
           path: linux/test-env/out/
           if-no-files-found: ignore
 
+  gnome:
+    # Ubuntu's own desktop shell: catches what a bare X server cannot, like
+    # the card hiding behind GNOME's top bar.
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: linux
+    steps:
+      - uses: actions/checkout@v4
+      - name: Card placement and launch behaviour on GNOME Shell
+        run: test-env/gnome/run.sh test-env/gnome/check.sh
+      - name: Screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-gnome-screenshots
+          path: linux/test-env/out-gnome/
+          if-no-files-found: ignore
+
   package:
-    needs: test
+    needs: [test, gnome]
     runs-on: ubuntu-24.04
     defaults:
       run:

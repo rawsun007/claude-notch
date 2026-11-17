@@ -19,4 +19,7 @@ exec dbus-run-session -- bash -c '
   export XAUTHORITY="$(ls "$XDG_RUNTIME_DIR"/.mutter-Xwaylandauth.* 2>/dev/null | head -1)"
   kill -0 $SHELL_PID 2>/dev/null || { echo "gnome-shell died:"; tail -40 "$XDG_RUNTIME_DIR/shell.log"; exit 1; }
   bash "$SCRIPT"
+  rc=$?
+  kill $SHELL_PID 2>/dev/null
+  exit $rc
 '
