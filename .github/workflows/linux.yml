@@ -105,7 +105,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: claudenotch-linux
-          path: linux/dist/*
+          path: |
+            linux/dist/*.deb
+            linux/dist/*.tar.gz
       - name: Attach to the release
         if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/linux-v') || inputs.tag != ''
         env:
@@ -114,4 +116,6 @@ jobs:
         run: |
           # release.sh creates the release; wait for it rather than racing it.
           for i in $(seq 30); do gh release view "$TAG" >/dev/null 2>&1 && break; sleep 20; done
-          gh release upload "$TAG" dist/* --clobber
+          # Only this build's packages: dist/old holds the released versions
+          # the upgrade tests install first.
+          gh release upload "$TAG" dist/*.deb dist/*.tar.gz --clobber
