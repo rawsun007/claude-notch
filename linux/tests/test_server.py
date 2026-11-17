@@ -101,6 +101,25 @@ class ServerTests(unittest.TestCase):
             post(self.port, {"hook_event_name": "Stop"}, timeout=3)
         self.assertEqual(post(self.port, {"hook_event_name": "Stop"}, query=f"?t={token}"), {"ok": True})
 
+    def test_ping_reports_the_version(self):
+        from claudenotch import __version__
+        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/ping", timeout=3) as r:
+            self.assertEqual(json.loads(r.read())["version"], __version__)
+
+    def test_control_actions(self):
+        called = []
+        self.server.controls["settings"] = lambda: called.append("settings")
+        self.assertEqual(post(self.port, {}, path="/control/settings"), {"ok": True})
+        self.assertEqual(called, ["settings"])
+        with self.assertRaises(urllib.error.HTTPError):
+            post(self.port, {}, path="/control/format-disk")
+
+    def test_control_needs_the_token_like_a_hook(self):
+        self.server.controls["quit"] = lambda: None
+        hooks.install()
+        with self.assertRaises((urllib.error.URLError, ConnectionError, OSError)):
+            post(self.port, {}, path="/control/quit", timeout=3)
+
     def test_camel_case_keys_are_normalized(self):
         self.assertEqual(normalize({"hookEventName": "Stop", "sessionId": "x", "tool_input": {"aB": 1}}),
                          {"hook_event_name": "Stop", "session_id": "x", "tool_input": {"aB": 1}})

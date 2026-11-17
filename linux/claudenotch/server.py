@@ -61,7 +61,9 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if urlsplit(self.path).path == "/ping" and protocol.is_local_request(dict(self.headers)):
-            self._reply(protocol.OK_BODY)
+            # The version lets a newer launch tell an older running copy apart.
+            from . import __version__
+            self._reply(json.dumps({"ok": True, "app": "claudenotch-linux", "version": __version__}))
         else:
             self._refuse()
 
@@ -94,6 +96,12 @@ class _Handler(BaseHTTPRequestHandler):
             payload.setdefault("hook_event_name", "Notification")
             self.app.state.handle_event(payload)
             return self._reply(protocol.OK_BODY)
+        if path.startswith("/control/"):
+            # Another launch of this app talking to the running one: open
+            # Settings, or quit so a newer version can take over. Same
+            # Origin, Host and token checks as a hook.
+            done = self.app.control(path[len("/control/"):])
+            return self._reply(protocol.OK_BODY if done else '{"ok":false}', 200 if done else 404)
         if path != "/hook":
             return self._reply(protocol.OK_BODY)
         self._reply(self.app.answer(payload))
@@ -109,6 +117,15 @@ class HookServer:
         self._httpd.daemon_threads = True
         self._httpd.app = self  # type: ignore[attr-defined]
         self._thread: threading.Thread | None = None
+        # action name -> callable, filled in by the app ("settings", "quit").
+        self.controls: dict = {}
+
+    def control(self, action: str) -> bool:
+        handler = self.controls.get(action)
+        if handler is None:
+            return False
+        handler()
+        return True
 
     @property
     def port(self) -> int:
