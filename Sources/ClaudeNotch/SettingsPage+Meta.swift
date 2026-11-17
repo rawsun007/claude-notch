@@ -162,14 +162,16 @@ extension SettingsView {
                     .foregroundStyle(HookHealth.isProblem(health) ? .orange : .green)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L("Hooks", comment: "Settings row label for hook delivery health"))
-                        .font(.callout).fontWeight(.medium)
+                        .fontWeight(.medium)
                     Text(HookHealth.summary(health))
-                        .font(.callout).foregroundStyle(.secondary)
+                        .font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.vertical, 4)
+            // The same insets as every other card on the page; without the
+            // horizontal one the icon sat against the card's left edge.
+            .padding(.vertical, 10).padding(.horizontal, 14)
             .accessibilityElement(children: .combine)
         }
     }

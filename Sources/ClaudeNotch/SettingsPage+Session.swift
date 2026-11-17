@@ -33,7 +33,8 @@ extension SettingsView {
                         }
                         .buttonStyle(.link)
                     }
-                    .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 10).padding(.horizontal, 14)
                 }
             }
 
