@@ -94,6 +94,23 @@ final class PersistenceTests: XCTestCase {
         XCTAssertEqual(back.codexDailyTokenCap, 1_000_000)
     }
 
+    /// Auto-Approve's scope and destructive-command choice survive a relaunch,
+    /// and a file from before they existed decodes them as absent (Everything,
+    /// Show the card), keeping the switch itself.
+    func testAutoApproveChoicesRoundTrip() throws {
+        var s = sampleSnapshot()
+        s.autoApproveScope = AutoApproveScope.commands.rawValue
+        s.autoApproveDangerous = AutoApproveDangerous.biometric.rawValue
+        let back = try XCTUnwrap(Persistence.decode(XCTUnwrap(Persistence.encode(s))))
+        XCTAssertEqual(back.autoApproveScope, "commands")
+        XCTAssertEqual(back.autoApproveDangerous, "biometric")
+
+        let old = try XCTUnwrap(Persistence.decode(Data(#"{"history":[],"allowRules":[],"recentProjects":[],"autoApprove":true}"#.utf8)))
+        XCTAssertNil(old.autoApproveScope)
+        XCTAssertNil(old.autoApproveDangerous)
+        XCTAssertEqual(old.autoApprove, true)
+    }
+
     /// A file written by an older build has neither key, and must not reset
     /// anything else on the way in.
     func testMissingTokenCapsDecodeAsAbsentNotZeroed() throws {

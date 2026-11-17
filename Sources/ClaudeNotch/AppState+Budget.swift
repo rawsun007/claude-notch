@@ -596,7 +596,9 @@ extension AppState {
             lastWeeklyDigestDate: lastWeeklyDigestDate,
             dropStartsCodex: dropStartsCodex,
             codexSessionTokenCap: codexSessionTokenCap,
-            codexDailyTokenCap: codexDailyTokenCap
+            codexDailyTokenCap: codexDailyTokenCap,
+            autoApproveScope: autoApproveScope.rawValue,
+            autoApproveDangerous: autoApproveDangerous.rawValue
         ))
     }
 

@@ -74,6 +74,10 @@ enum Persistence {
         /// published, so a dollar cap could only ever be invented.
         var codexSessionTokenCap: Int? = nil
         var codexDailyTokenCap: Int? = nil
+        /// What Auto-Approve covers (AutoApproveScope raw value).
+        var autoApproveScope: String? = nil
+        /// What Auto-Approve does with destructive commands (AutoApproveDangerous).
+        var autoApproveDangerous: String? = nil
     }
 
     static let storeURL: URL = {
@@ -220,7 +224,9 @@ extension Persistence.Snapshot {
             lastWeeklyDigestDate: try? c.decode(String.self, forKey: .lastWeeklyDigestDate),
             dropStartsCodex: try? c.decode(Bool.self, forKey: .dropStartsCodex),
             codexSessionTokenCap: try? c.decode(Int.self, forKey: .codexSessionTokenCap),
-            codexDailyTokenCap: try? c.decode(Int.self, forKey: .codexDailyTokenCap)
+            codexDailyTokenCap: try? c.decode(Int.self, forKey: .codexDailyTokenCap),
+            autoApproveScope: try? c.decode(String.self, forKey: .autoApproveScope),
+            autoApproveDangerous: try? c.decode(String.self, forKey: .autoApproveDangerous)
         )
     }
 }

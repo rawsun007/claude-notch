@@ -354,6 +354,15 @@ final class AppState: ObservableObject {
     // Timed auto-approve: when set, auto-approve turns itself off at this time.
     // Not persisted, so a restart always reverts to the permanent toggle.
     @Published var autoApproveUntil: Date? = nil
+    /// What Auto-Approve covers. Persisted; Everything by default, which is
+    /// what the switch always meant before there was a choice.
+    @Published var autoApproveScope: AutoApproveScope = .everything
+    /// What Auto-Approve does with destructive commands. Persisted; Show the
+    /// card by default, as before. Moving to `.allow` needs the owner's
+    /// authentication (see setAutoApproveDangerous).
+    @Published var autoApproveDangerous: AutoApproveDangerous = .ask
+    /// Why the last attempt to allow destructive commands did not go through.
+    @Published var autoApproveDangerousMessage: String?
     var autoApproveTimer: Timer?
 
     // Snooze: suppress non-blocking cards (notification + completed) until this
@@ -935,6 +944,8 @@ final class AppState: ObservableObject {
             self.dropStartsCodex = snapshot.dropStartsCodex ?? false
             self.codexSessionTokenCap = snapshot.codexSessionTokenCap ?? 0
             self.codexDailyTokenCap = snapshot.codexDailyTokenCap ?? 0
+            self.autoApproveScope = snapshot.autoApproveScope.flatMap(AutoApproveScope.init(rawValue:)) ?? .everything
+            self.autoApproveDangerous = snapshot.autoApproveDangerous.flatMap(AutoApproveDangerous.init(rawValue:)) ?? .ask
             self.lastUpdateCardVersion = snapshot.lastUpdateCardVersion
             self.lastSeenVersion = snapshot.lastSeenVersion
             self.sessionCostCap = snapshot.sessionCostCap ?? 0
