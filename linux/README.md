@@ -56,13 +56,35 @@ seconds goes back to the terminal, exactly as if the app were not running.
 - **KDE Plasma, Sway, Hyprland on Wayland**: uses layer-shell when
   `gir1.2-gtklayershell-0.1` is installed, otherwise XWayland.
 
+## Settings
+
+Right-click the notch and choose **Settings…**, right-click ClaudeNotch in the
+dock or app grid, launch it again while it runs, or run `claudenotch
+--settings`. From there:
+
+- **General**: start at login, the start-up greeting, the session list on
+  hover, session updates in the notch.
+- **Notifications**: desktop notifications for cards. Off by default, since
+  the card is already on screen and GNOME puts its banner right over it; turn
+  them on for every card or for dangerous calls only.
+- **Claude Code**: whether the hooks are installed; install or remove them.
+- **Always allow**: every rule you added, each with Remove.
+- **About**: version, log, Quit.
+
+## Updating
+
+Install the new version over the old one, no uninstall needed:
+`sudo apt install ./claudenotch_<new>_all.deb`, or run the new tarball's
+`install.sh`. The running copy is replaced by the new version within a few
+seconds (after any card you are answering) and says it was updated.
+
 ## If you don't see it
 
 - Look just below the top bar, in the middle. On Ubuntu the pill hangs from
   GNOME's black bar like a notch, and says "ClaudeNotch is running" for a few
   seconds after it starts.
-- Launching it again while it runs makes it say so again, instead of
-  starting a second copy.
+- Launching it again while it runs opens its Settings, instead of starting a
+  second copy.
 - `claudenotch --status` says whether it is running and whether the hooks
   are installed, and where its log is (`~/.cache/claudenotch/claudenotch.log`).
 - Claude Code reads its hooks when a session starts: a `claude` session that
