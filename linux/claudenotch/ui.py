@@ -65,16 +65,16 @@ window.claudenotch { background-color: transparent; }
 }
 .notch .danger label { color: #ffb37a; font-size: 11px; }
 .notch .danger label.title { color: #ff9a4d; font-size: 12px; }
-button {
+.notch button {
     background-image: none; background-color: #262626; color: #ffffff;
     border: none; border-radius: 8px; padding: 5px 14px; box-shadow: none; text-shadow: none;
 }
-button:hover { background-color: #333333; }
-button label { color: #ffffff; }
-button.primary { background-color: #d97757; }
-button.primary:hover { background-color: #e08a6c; }
-button.warn { background-color: #c2410c; }
-radiobutton label, checkbutton label { color: #ffffff; font-size: 12px; }
+.notch button:hover { background-color: #333333; }
+.notch button label { color: #ffffff; }
+.notch button.primary { background-color: #d97757; }
+.notch button.primary:hover { background-color: #e08a6c; }
+.notch button.warn { background-color: #c2410c; }
+.notch radiobutton label, .notch checkbutton label { color: #ffffff; font-size: 12px; }
 .notch label.option-desc { color: rgba(255,255,255,0.5); font-size: 11px; }
 .session-row { padding: 3px 0; }
 """
