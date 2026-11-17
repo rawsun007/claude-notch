@@ -99,6 +99,7 @@ class Session:
 class Toast:
     title: str
     body: str
+    system: bool = False   # the app's own note (greeting, update), not a session's
     id: int = field(default_factory=lambda: next(_ids))
     created: float = field(default_factory=time.monotonic)
 
@@ -289,9 +290,10 @@ class AppState:
         """Shown once at start, so launching the app has a visible result.
         After an in-place upgrade it says so instead."""
         if updated_from and version and updated_from != version:
-            toast = Toast(f"ClaudeNotch updated to {version}", f"Was {updated_from}. Nothing to do on your side.")
+            toast = Toast(f"ClaudeNotch updated to {version}", f"Was {updated_from}. Nothing to do on your side.",
+                          system=True)
         else:
-            toast = Toast("ClaudeNotch is running", "Claude Code prompts will appear here.")
+            toast = Toast("ClaudeNotch is running", "Claude Code prompts will appear here.", system=True)
         with self._lock:
             self.toasts = (self.toasts + [toast])[-8:]
         self._changed()

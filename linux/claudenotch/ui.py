@@ -107,9 +107,11 @@ def _trim_lines(text: str, limit: int) -> tuple[list[str], bool]:
 
 
 class NotchWindow(Gtk.Window):
-    def __init__(self, state: AppState, layout_dump: str | None = None):
+    def __init__(self, state: AppState, layout_dump: str | None = None, store=None, on_settings=None):
         super().__init__(title="ClaudeNotch")
         self.state = state
+        self.store = store
+        self.on_settings = on_settings
         self.layout_dump = layout_dump or os.environ.get("CLAUDENOTCH_LAYOUT_DUMP")
         self.hovering = False
         self._collapse_source = None
@@ -148,8 +150,10 @@ class NotchWindow(Gtk.Window):
 
         self.box = Gtk.EventBox()
         self.box.set_above_child(False)
-        self.box.add_events(Gdk.EventMask.ENTER_NOTIFY_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK)
+        self.box.add_events(Gdk.EventMask.ENTER_NOTIFY_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK
+                            | Gdk.EventMask.BUTTON_PRESS_MASK)
         self.box.connect("enter-notify-event", self._on_enter)
+        self.box.connect("button-press-event", self._on_button)
         self.box.connect("leave-notify-event", self._on_leave)
         self.add(self.box)
         self.connect("key-press-event", self._on_key)
@@ -160,6 +164,8 @@ class NotchWindow(Gtk.Window):
         self.connect("delete-event", lambda *_: True)  # only Quit quits
 
         state.subscribe(lambda: GLib.idle_add(self.render))
+        if store is not None:
+            store.subscribe(lambda _s: GLib.idle_add(self._rerender))
         GLib.timeout_add(500, self._tick)
         self.render()
         self.show_all()
@@ -195,8 +201,18 @@ class NotchWindow(Gtk.Window):
             self.render()
         return True
 
+    def _setting(self, name: str, default: bool = True) -> bool:
+        return getattr(self.store.value, name, default) if self.store is not None else default
+
+    def _rerender(self) -> bool:
+        self._shown_key = None
+        return self.render()
+
     def render(self) -> bool:
         perms, questions, toasts, sessions = self.state.snapshot()
+        if not self._setting("toasts"):
+            # Session updates switched off; the app's own notes still show.
+            toasts = [t for t in toasts if t.system]
         if perms:
             card = perms[0]
             key = ("perm", card.id, len(perms), card.id in self._confirm_until)
@@ -205,7 +221,7 @@ class NotchWindow(Gtk.Window):
             card = questions[0]
             key = ("question", card.id, len(questions))
             build = lambda: self._question_card(card, len(questions) - 1)  # noqa: E731
-        elif self.hovering:
+        elif self.hovering and self._setting("hover_sessions"):
             key = ("sessions", tuple((s.id, s.status, s.last_prompt, s.agents) for s in sessions))
             build = lambda: self._session_list(sessions)  # noqa: E731
         elif toasts:
@@ -416,6 +432,24 @@ class NotchWindow(Gtk.Window):
         self.state.resolve_question(card.id, answers)
 
     # --- input ------------------------------------------------------------------
+
+    def _on_button(self, _w, event):
+        # Right-click anywhere on the notch: the app's own menu.
+        if event.button != 3:
+            return False
+        menu = Gtk.Menu()
+        settings = Gtk.MenuItem(label="Settings…")
+        settings.connect("activate", lambda *_: self.on_settings and self.on_settings())
+        quit_item = Gtk.MenuItem(label="Quit ClaudeNotch")
+        quit_item.connect("activate", lambda *_: Gtk.main_quit())
+        menu.append(settings)
+        menu.append(Gtk.SeparatorMenuItem())
+        menu.append(quit_item)
+        menu.show_all()
+        menu.attach_to_widget(self, None)
+        menu.popup_at_pointer(event)
+        self._menu = menu   # keep a reference while it is open
+        return True
 
     def _on_enter(self, *_):
         if self._collapse_source:
