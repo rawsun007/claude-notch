@@ -25,6 +25,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // kill the installer and updater use to swap the bundle.
         installTerminationFlush()
         installQuitEventHandler()
+        // Before the server starts: the copy just opened takes the hook port
+        // from any other copy of this app that is still running.
+        SingleInstance.takeOver()
 
         // Prevent App Nap. Without this, when ANOTHER app is active macOS
         // throttles our background process and the notch's SwiftUI spring
