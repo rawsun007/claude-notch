@@ -46,7 +46,7 @@ grep -q "53127/hook?t=$TOKEN" "$HOME/.claude/settings.json" && ok "hooks install
 
 # Wait until the window shows `$1` and has dumped its layout.
 wait_shown() {
-  for _ in $(seq 80); do
+  for _ in $(seq "${2:-80}"); do
     [ -f "$LAYOUT" ] && python3 -c "import json,sys; sys.exit(0 if json.load(open('$LAYOUT'))['shown']=='$1' else 1)" 2>/dev/null && return 0
     sleep 0.1
   done
@@ -60,7 +60,9 @@ click() {
 hook() { curl -s --max-time 30 -X POST -H 'Content-Type: application/json' -d "$1" "$URL"; }
 
 # --- idle pill ---------------------------------------------------------------
-wait_shown pill && ok "idle pill drawn" || bad "idle pill not drawn"
+wait_shown toast 80 && ok "start-up greeting shown" || bad "no start-up greeting"
+shot 00-greeting
+wait_shown pill 200 && ok "greeting gives way to the idle pill" || bad "idle pill not drawn"
 shot 01-pill
 
 # --- a session starts ----------------------------------------------------------
