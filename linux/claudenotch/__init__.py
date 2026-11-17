@@ -11,4 +11,5 @@ protocol, the settings merge, the server) lives in modules with no GTK import,
 so it is testable on any machine with Python.
 """
 
-__version__ = "0.1.0"
+# Matches the macOS release it ships with, so one release page carries both.
+__version__ = "0.43.0"

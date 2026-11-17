@@ -15,15 +15,15 @@ Download from the [latest release](https://github.com/rawsun007/claude-notch/rel
 **Ubuntu, Debian, Mint, Pop!_OS** (`.deb`):
 
 ```sh
-sudo apt install ./claudenotch_0.1.0_all.deb
+sudo apt install ./claudenotch_0.43.0_all.deb
 claudenotch &
 ```
 
 **Fedora, Arch, openSUSE and the rest** (tarball, no root needed):
 
 ```sh
-tar xzf claudenotch-0.1.0-linux.tar.gz
-./claudenotch-0.1.0-linux/install.sh
+tar xzf claudenotch-0.43.0-linux.tar.gz
+./claudenotch-0.43.0-linux/install.sh
 ```
 
 `install.sh` tells you what to install first if PyGObject or GTK 3 is missing.
@@ -61,7 +61,7 @@ seconds goes back to the terminal, exactly as if the app were not running.
 ```sh
 claudenotch --uninstall-hooks        # take the hooks out of Claude Code first
 sudo apt remove claudenotch          # .deb
-./claudenotch-0.1.0-linux/install.sh --uninstall   # tarball (does both steps)
+./claudenotch-0.43.0-linux/install.sh --uninstall   # tarball (does both steps)
 ```
 
 Always-allow rules live in `~/.config/claudenotch/`; delete it to forget them.
