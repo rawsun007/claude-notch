@@ -56,6 +56,13 @@ extension SettingsView {
             sectionLabel(L("Auto-approve for a while", comment: "Settings section heading"))
             Text(L("Turn on auto-approve for a set time and it switches itself back off, or keep it on until you turn it off.", comment: "Settings explanation"))
                 .font(.callout).foregroundStyle(.secondary)
+            // These buttons use the choices from the General page's sheet;
+            // say which, so a timed window never approves more than expected.
+            Label(autoApproveSummary, systemImage: state.autoApproveDangerous == .allow ? "exclamationmark.triangle.fill" : "checkmark.shield")
+                .font(.caption)
+                .foregroundStyle(state.autoApproveDangerous == .allow ? Color.red : Color.secondary)
+            Button(L("Change what it approves…", comment: "Settings button: open the Auto-Approve choices")) { autoApproveSheet = .edit }
+                .buttonStyle(.link)
             group {
                 actionRow(L("Keep on until I turn it off", comment: "Settings button"), "infinity") { state.setAutoApprove(true) }
                 divider

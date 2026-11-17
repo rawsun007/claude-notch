@@ -477,6 +477,9 @@
 /* Settings section heading */
 "Caps (USD)" = "Caps (USD)";
 
+/* Settings button: open the Auto-Approve choices */
+"Change what it approves…" = "Change what it approves…";
+
 /* Changelog group heading */
 "Changed" = "Changed";
 
@@ -955,7 +958,7 @@
 "Git worktree: %@" = "Git worktree: %@";
 
 /* Settings toggle explanation */
-"Give destructive commands a plain Allow button, with no Touch ID and no press-and-hold. The card still turns red and says Destructive, and Allow All, notifications and Auto-Approve still never allow one for you. Turning this on asks for Touch ID or your Mac password every time; turning it off never does." = "Give destructive commands a plain Allow button, with no Touch ID and no press-and-hold. The card still turns red and says Destructive, and Allow All, notifications and Auto-Approve still never allow one for you. Turning this on asks for Touch ID or your Mac password every time; turning it off never does.";
+"Give destructive commands a plain Allow button, with no Touch ID and no press-and-hold. The card still turns red and says Destructive, and Allow All and notifications still never allow one for you; Auto-Approve does only if you chose that when switching it on. Turning this on asks for Touch ID or your Mac password every time; turning it off never does." = "Give destructive commands a plain Allow button, with no Touch ID and no press-and-hold. The card still turns red and says Destructive, and Allow All and notifications still never allow one for you; Auto-Approve does only if you chose that when switching it on. Turning this on asks for Touch ID or your Mac password every time; turning it off never does.";
 
 /* Settings section heading */
 "Give these to Claude Code" = "Give these to Claude Code";

@@ -472,6 +472,10 @@ struct SettingsView: View {
             if let p { section = p; state.requestedSettingsPage = nil }
         }
         .onDisappear { removeArrowKeyNavigation() }
+        // At the root, so the General and Session pages can both open it.
+        .sheet(item: $autoApproveSheet) { mode in
+            AutoApproveSetupSheet(state: state, editing: mode == .edit) { autoApproveSheet = nil }
+        }
     }
 
     // MARK: - Arrow-key navigation
@@ -668,9 +672,6 @@ struct SettingsView: View {
                 Text(L("With Codex on, dropping a folder on the notch asks whether to open it in Claude Code or Codex.", comment: "Settings explanation"))
                     .font(.caption).foregroundStyle(.secondary)
             }
-        }
-        .sheet(item: $autoApproveSheet) { mode in
-            AutoApproveSetupSheet(state: state, editing: mode == .edit) { autoApproveSheet = nil }
         }
     }
 
@@ -1226,7 +1227,7 @@ struct SettingsView: View {
                     bind(\.requireTouchID, state.setRequireTouchID))
                 divider
                 row(L("Skip confirmation for destructive commands", comment: "Settings toggle"),
-                    L("Give destructive commands a plain Allow button, with no Touch ID and no press-and-hold. The card still turns red and says Destructive, and Allow All, notifications and Auto-Approve still never allow one for you. Turning this on asks for Touch ID or your Mac password every time; turning it off never does.", comment: "Settings toggle explanation"),
+                    L("Give destructive commands a plain Allow button, with no Touch ID and no press-and-hold. The card still turns red and says Destructive, and Allow All and notifications still never allow one for you; Auto-Approve does only if you chose that when switching it on. Turning this on asks for Touch ID or your Mac password every time; turning it off never does.", comment: "Settings toggle explanation"),
                     bind(\.skipDestructiveConfirm, state.setSkipDestructiveConfirm))
                 if let message = state.skipDestructiveConfirmMessage {
                     Label(message, systemImage: "lock.fill")
