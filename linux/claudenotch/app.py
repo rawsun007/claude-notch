@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import signal
+import subprocess
 import sys
 import urllib.request
 
@@ -41,6 +43,60 @@ def _choose_backend() -> None:
         os.environ["GDK_BACKEND"] = "x11,wayland"
 
 
+def log_path() -> str:
+    base = os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache")
+    return os.path.join(base, "claudenotch", "claudenotch.log")
+
+
+def _log_to_file_if_detached() -> None:
+    """Started from the app menu or at login there is no terminal, so
+    anything printed vanishes. Send it to a log the user can be pointed at."""
+    if sys.stderr is not None and sys.stderr.isatty():
+        return
+    path = log_path()
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        if os.path.exists(path) and os.path.getsize(path) > 512 * 1024:
+            os.replace(path, path + ".1")
+        f = open(path, "a", buffering=1, encoding="utf-8")
+    except OSError:
+        return
+    sys.stdout = sys.stderr = f
+    os.dup2(f.fileno(), 1)
+    os.dup2(f.fileno(), 2)
+
+
+def _tell(message: str, urgent: bool = False) -> None:
+    """Say something the user must see: printed, and when there is no
+    terminal, also as a desktop notification, since a double-click from the
+    app menu has nowhere else to show it."""
+    print(f"ClaudeNotch: {message}", file=sys.stderr, flush=True)
+    if os.isatty(2) or not shutil.which("notify-send"):
+        return
+    try:
+        subprocess.Popen(["notify-send", "--app-name=ClaudeNotch", "--icon=claudenotch",
+                          f"--urgency={'critical' if urgent else 'normal'}", "--", "ClaudeNotch", message],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError:
+        pass
+
+
+def _wave_at_running_app() -> bool:
+    """Ask the instance that is already running to show itself, so a second
+    double-click visibly lands somewhere instead of doing nothing."""
+    import json
+    token = hooks.expected_token()
+    url = f"http://127.0.0.1:{hooks.PORT}/notification" + (f"?t={token}" if token else "")
+    body = json.dumps({"hook_event_name": "Notification", "title": "ClaudeNotch is running",
+                       "message": "Claude Code prompts will appear here."}).encode()
+    try:
+        req = urllib.request.Request(url, data=body, method="POST", headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=2) as r:
+            return r.status == 200
+    except OSError:
+        return False
+
+
 def _is_running() -> bool:
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{hooks.PORT}/ping", timeout=1) as r:
@@ -68,17 +124,24 @@ def main(argv: list[str] | None = None) -> int:
     if args.status:
         print(f"hooks: {'installed' if hooks.installed() else 'not installed'} ({hooks.settings_path()})")
         print(f"app:   {'running' if _is_running() else 'not running'} (127.0.0.1:{hooks.PORT})")
+        print(f"log:   {log_path()}")
         return 0
 
+    _log_to_file_if_detached()
+
     if _is_running():
-        print("ClaudeNotch is already running.", file=sys.stderr)
-        return 1
+        if _wave_at_running_app():
+            print("ClaudeNotch is already running; it says hello at the top of the screen.", flush=True)
+            return 0
+        _tell("ClaudeNotch is already running. It sits at the top centre of your screen, "
+              "just below the top bar.")
+        return 0
 
     if not args.no_install:
         try:
             hooks.install()
         except hooks.UnreadableSettings as e:
-            print(f"ClaudeNotch: {e}. Fix it, then run claudenotch --install-hooks.", file=sys.stderr)
+            _tell(f"{e}. Fix it, then run claudenotch --install-hooks.", urgent=True)
 
     from .server import HookServer
     from .state import AppState
@@ -87,7 +150,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         server = HookServer(state)
     except OSError as e:
-        print(f"ClaudeNotch: cannot listen on 127.0.0.1:{hooks.PORT}: {e}", file=sys.stderr)
+        _tell(f"cannot listen on 127.0.0.1:{hooks.PORT} ({e.strerror}). Another program is using "
+              f"that port; close it and start ClaudeNotch again.", urgent=True)
         return 1
     server.start()
 
@@ -106,9 +170,10 @@ def main(argv: list[str] | None = None) -> int:
     from .ui import NotchWindow
 
     if not Gtk.init_check(sys.argv)[0]:
-        print("ClaudeNotch: no display. Run it from a desktop session, or use --headless.", file=sys.stderr)
+        _tell("no display to draw on. Start it from your desktop session, or use --headless.", urgent=True)
         return 1
     NotchWindow(state)
+    state.greet()
     DesktopNotifier(state)
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, Gtk.main_quit)
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, Gtk.main_quit)
