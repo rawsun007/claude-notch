@@ -192,6 +192,19 @@ back as the response.
 - **ToolPreviewParser.swift**: tool-call preview + danger detection (Touch ID
   gate). **AppDelegate.swift** / **main.swift**: app entry (menu-bar accessory).
 
+## Linux edition (`linux/`)
+
+Python 3.10+ / GTK 3 via PyGObject, same hook protocol on the same port, so
+it is a port of the spine above, not a fork of the Swift code. Pure modules
+mirror the Mac: **protocol.py** (EventServer bodies), **danger.py**
+(ToolPreviewParser rules + Linux paths), **redact.py** (SecretRedactor),
+**hooks.py** (HookInstaller merge rules); then **server.py**, **state.py**,
+**ui.py** (the overlay), **app.py** (CLI). A wire or danger-rule change on the
+Mac should land in both. Tests: `linux/test-env/run.sh` (Docker, Xvfb e2e with
+xdotool clicks and screenshots); CI is `.github/workflows/linux.yml`, which
+also attaches the `.deb` and tarball to every `v*` release. `ci.yml` ignores
+`linux/**`.
+
 ## Conventions
 
 - Untrusted input = anything from a hook payload, transcript, or the web. It's
