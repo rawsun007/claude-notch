@@ -95,6 +95,10 @@ jobs:
           docker build -q -t claudenotch-linux-test test-env >/dev/null
           test-env/upgrade-test.sh
           test-env/tarball-upgrade.sh | tee /dev/stderr | grep -q '^PASS'
+      - name: apt purge leaves nothing behind (and remove-leftovers.sh cleans up after 0.43.x)
+        run: |
+          test-env/purge-test.sh
+          CLEANUP=0 test-env/purge-test.sh "dist/claudenotch_$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' claudenotch/__init__.py)_all.deb"
       - uses: actions/upload-artifact@v4
         with:
           name: claudenotch-linux
