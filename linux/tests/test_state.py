@@ -61,6 +61,18 @@ class SessionTests(unittest.TestCase):
         st.handle_event({"hook_event_name": "SessionEnd", "session_id": "a"})
         self.assertNotIn("a", st.sessions)
 
+    def test_a_notification_can_carry_its_own_title(self):
+        st = AppState(persist=False)
+        st.handle_event({"hook_event_name": "Notification", "title": "ClaudeNotch is running", "message": "hi"})
+        self.assertEqual((st.toasts[-1].title, st.toasts[-1].body), ("ClaudeNotch is running", "hi"))
+        st.handle_event({"hook_event_name": "Notification", "message": "Claude needs input"})
+        self.assertEqual(st.toasts[-1].title, "Claude Code")
+
+    def test_greet(self):
+        st = AppState(persist=False)
+        st.greet()
+        self.assertEqual(st.toasts[-1].title, "ClaudeNotch is running")
+
     def test_sessions_are_capped(self):
         st = AppState(persist=False)
         for i in range(MAX_SESSIONS + 5):

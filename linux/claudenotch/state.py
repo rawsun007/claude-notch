@@ -278,10 +278,18 @@ class AppState:
                 toast = Toast("Claude stopped with an error", redact(str(payload.get("error") or ""))[:200])
             elif event == "Notification":
                 self._touch(sid, cwd)
-                toast = Toast("Claude Code", redact(str(payload.get("message") or "Claude needs your attention"))[:300])
+                title = redact(str(payload.get("title") or "Claude Code"))[:80]
+                toast = Toast(title, redact(str(payload.get("message") or "Claude needs your attention"))[:300])
             if toast:
                 self.toasts = (self.toasts + [toast])[-8:]
                 self._log("notice", toast.title, toast.body, "")
+        self._changed()
+
+    def greet(self) -> None:
+        """Shown once at start, so launching the app has a visible result."""
+        with self._lock:
+            self.toasts = (self.toasts + [Toast("ClaudeNotch is running",
+                                                "Claude Code prompts will appear here.")])[-8:]
         self._changed()
 
     def dismiss_toast(self, toast_id: int) -> None:
