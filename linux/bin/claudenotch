@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Launcher: runs the claudenotch package installed beside this script
-(/usr/lib/claudenotch from the .deb, or the source tree when run in place)."""
+(/usr/lib/claudenotch from the .deb, ~/.local/lib/claudenotch from
+install.sh, or the source tree when run in place)."""
 import os
 import sys
 
 here = os.path.dirname(os.path.realpath(__file__))
-for candidate in (os.path.join(here, "..", "lib", "claudenotch"), os.path.join(here, "..")):
+for candidate in (os.path.join(here, "..", "lib", "claudenotch"), here, os.path.join(here, "..")):
     if os.path.isdir(os.path.join(candidate, "claudenotch")):
         sys.path.insert(0, os.path.abspath(candidate))
         break
