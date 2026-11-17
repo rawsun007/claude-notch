@@ -56,6 +56,19 @@ seconds goes back to the terminal, exactly as if the app were not running.
 - **KDE Plasma, Sway, Hyprland on Wayland**: uses layer-shell when
   `gir1.2-gtklayershell-0.1` is installed, otherwise XWayland.
 
+## If you don't see it
+
+- Look just below the top bar, in the middle. On Ubuntu the pill hangs from
+  GNOME's black bar like a notch, and says "ClaudeNotch is running" for a few
+  seconds after it starts.
+- Launching it again while it runs makes it say so again, instead of
+  starting a second copy.
+- `claudenotch --status` says whether it is running and whether the hooks
+  are installed, and where its log is (`~/.cache/claudenotch/claudenotch.log`).
+- Claude Code reads its hooks when a session starts: a `claude` session that
+  was already open before you installed will not reach the card until you
+  start a new one.
+
 ## Uninstall
 
 ```sh
