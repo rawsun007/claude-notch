@@ -72,6 +72,8 @@ class SessionTests(unittest.TestCase):
         st = AppState(persist=False)
         st.greet()
         self.assertEqual(st.toasts[-1].title, "ClaudeNotch is running")
+        st.greet(updated_from="0.43.1", version="0.44.0")
+        self.assertEqual(st.toasts[-1].title, "ClaudeNotch updated to 0.44.0")
 
     def test_sessions_are_capped(self):
         st = AppState(persist=False)

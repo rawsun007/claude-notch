@@ -285,11 +285,15 @@ class AppState:
                 self._log("notice", toast.title, toast.body, "")
         self._changed()
 
-    def greet(self) -> None:
-        """Shown once at start, so launching the app has a visible result."""
+    def greet(self, updated_from: str | None = None, version: str = "") -> None:
+        """Shown once at start, so launching the app has a visible result.
+        After an in-place upgrade it says so instead."""
+        if updated_from and version and updated_from != version:
+            toast = Toast(f"ClaudeNotch updated to {version}", f"Was {updated_from}. Nothing to do on your side.")
+        else:
+            toast = Toast("ClaudeNotch is running", "Claude Code prompts will appear here.")
         with self._lock:
-            self.toasts = (self.toasts + [Toast("ClaudeNotch is running",
-                                                "Claude Code prompts will appear here.")])[-8:]
+            self.toasts = (self.toasts + [toast])[-8:]
         self._changed()
 
     def dismiss_toast(self, toast_id: int) -> None:

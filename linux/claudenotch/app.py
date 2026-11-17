@@ -97,6 +97,46 @@ def _wave_at_running_app() -> bool:
         return False
 
 
+class UpgradeWatcher:
+    """Restart into a different installed version, quit once uninstalled.
+
+    Waits while a card is on screen: restarting drops the held hook
+    connection, and an answer half given should not be thrown away.
+    """
+
+    INTERVAL = 3.0
+
+    def __init__(self, state, server, stop_ui=None):
+        from . import upgrade
+        self.upgrade = upgrade
+        self.state, self.server, self.stop_ui = state, server, stop_ui
+        self.missing = 0
+
+    def check(self) -> bool:
+        installed = self.upgrade.installed_version()
+        self.missing = self.missing + 1 if installed is None else 0
+        action = self.upgrade.decide(self.upgrade.running_version(), installed, self.missing)
+        if action == self.upgrade.QUIT:
+            print("ClaudeNotch was uninstalled; quitting.", flush=True)
+            self._stop()
+            os._exit(0)
+        if action == self.upgrade.RESTART:
+            perms, questions, _, _ = self.state.snapshot()
+            if perms or questions:
+                return True   # try again once the card is answered
+            print(f"ClaudeNotch {installed} installed over {__version__}; restarting into it.", flush=True)
+            self._stop()
+            env = dict(os.environ, CLAUDENOTCH_UPDATED_FROM=__version__)
+            os.execve(sys.executable, [sys.executable, os.path.abspath(sys.argv[0]), *sys.argv[1:]], env)
+        return True
+
+    def _stop(self):
+        try:
+            self.server.stop()
+        except Exception:
+            pass
+
+
 def _is_running() -> bool:
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{hooks.PORT}/ping", timeout=1) as r:
@@ -155,8 +195,18 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     server.start()
 
+    watcher = UpgradeWatcher(state, server)
+
     if args.headless:
         print(f"ClaudeNotch {__version__} listening on 127.0.0.1:{hooks.PORT} (headless)", flush=True)
+        import threading
+
+        def watch():
+            import time
+            while True:
+                time.sleep(watcher.INTERVAL)
+                watcher.check()
+        threading.Thread(target=watch, daemon=True, name="upgrade-watch").start()
         signal.sigwait({signal.SIGINT, signal.SIGTERM})
         server.stop()
         return 0
@@ -173,7 +223,8 @@ def main(argv: list[str] | None = None) -> int:
         _tell("no display to draw on. Start it from your desktop session, or use --headless.", urgent=True)
         return 1
     NotchWindow(state)
-    state.greet()
+    state.greet(updated_from=os.environ.pop("CLAUDENOTCH_UPDATED_FROM", None), version=__version__)
+    GLib.timeout_add_seconds(int(watcher.INTERVAL), watcher.check)
     DesktopNotifier(state)
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, Gtk.main_quit)
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, Gtk.main_quit)
