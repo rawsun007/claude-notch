@@ -141,24 +141,40 @@ extension AppState {
         }
 
         // Auto-approve mode: allow immediately and show a brief, button-less
-        // "live activity" card of what's changing. Dangerous commands are
-        // exempt — they still require an explicit hold-to-confirm.
-        if !bypassRules, autoApprove, req.kind == .toolUse, !req.isDangerous,
-           !strictBlocksBlanketApproval {
+        // "live activity" card of what's changing. What it covers, and what it
+        // does with a destructive command, is the user's choice from turning
+        // it on (AutoApprovePolicy); by default destructive commands still get
+        // the red card. Strict Mode overrides every choice.
+        let autoVerdict = AutoApprovePolicy.verdict(
+            enabled: !bypassRules && autoApprove && req.kind == .toolUse,
+            scope: autoApproveScope,
+            dangerous: autoApproveDangerous,
+            toolName: req.toolName,
+            isDangerous: req.isDangerous,
+            strictBlocks: strictBlocksBlanketApproval)
+        if autoVerdict == .allow {
             req.resolver(.allow, nil)
             appendHistory(HistoryEntry(
                 timestamp: Date(),
                 kind: .permission,
                 toolName: req.toolName,
                 title: req.title,
-                detail: req.detail,
+                detail: req.isDangerous ? req.detail + "  (destructive, auto-approved)" : req.detail,
                 project: (req.cwd as NSString).lastPathComponent,
-                outcome: .allowed
+                outcome: req.isDangerous ? .dangerous : .allowed
             ))
-            recordToolRequested(req.toolName, dangerousShown: false)
+            recordToolRequested(req.toolName, dangerousShown: req.isDangerous)
             recordDecision(.allow, auto: true)
+            if req.isDangerous {
+                Announcer.say("Auto-approved a destructive command. \(req.title)", priority: .high)
+            }
             showAutoInfo(req)
             return
+        }
+        if autoVerdict == .confirmWithBiometrics {
+            // The card goes up as usual below; the biometric prompt follows
+            // on its own, so a finger allows it with no click.
+            DispatchQueue.main.async { [weak self] in self?.queueAutoBiometric(req.id) }
         }
 
         if req.kind == .toolUse, req.source != "Demo" {
@@ -241,6 +257,36 @@ extension AppState {
             permissionMirror?.mirror(req)
         }
         recompute()
+    }
+
+    /// Auto-Approve set to confirm destructive commands with Touch ID: bring
+    /// up the prompt for this card without a click. One prompt at a time, in
+    /// arrival order. Success allows the card, if it is still waiting and has
+    /// not gone stale; cancelling or failing leaves the card exactly as it
+    /// is, with its own buttons.
+    func queueAutoBiometric(_ id: UUID) {
+        guard permissionQueue.contains(where: { $0.id == id }) else { return }
+        autoBiometricPending.append(id)
+        runNextAutoBiometric()
+    }
+
+    private func runNextAutoBiometric() {
+        guard !autoBiometricBusy else { return }
+        while let id = autoBiometricPending.first {
+            autoBiometricPending.removeFirst()
+            guard let req = permissionQueue.first(where: { $0.id == id }), !req.hasExpired else { continue }
+            autoBiometricBusy = true
+            let what = String(SecretRedactor.redact(req.detail).prefix(80))
+            BiometricAuth.confirm(reason: "allow this command: \(what)") { [weak self] ok, _ in
+                guard let self else { return }
+                self.autoBiometricBusy = false
+                if ok, let current = self.permissionQueue.first(where: { $0.id == id }), !current.hasExpired {
+                    self.resolvePermission(current, decision: .allow)
+                }
+                self.runNextAutoBiometric()
+            }
+            return
+        }
     }
 
     /// Show a transient, button-less card of an auto-approved action. A new

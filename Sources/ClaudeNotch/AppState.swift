@@ -363,6 +363,10 @@ final class AppState: ObservableObject {
     @Published var autoApproveDangerous: AutoApproveDangerous = .ask
     /// Why the last attempt to allow destructive commands did not go through.
     @Published var autoApproveDangerousMessage: String?
+    /// Cards waiting for Auto-Approve's own biometric prompt, and whether one
+    /// is up now (AppState+Queues.queueAutoBiometric).
+    var autoBiometricPending: [UUID] = []
+    var autoBiometricBusy = false
     var autoApproveTimer: Timer?
 
     // Snooze: suppress non-blocking cards (notification + completed) until this
