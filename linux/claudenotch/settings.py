@@ -1,0 +1,93 @@
+"""User preferences, in ~/.config/claudenotch/settings.json.
+
+Unknown keys are ignored and a value of the wrong type falls back to the
+default, so a hand-edited or older file can never stop the app starting.
+Written atomically at 0600.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import threading
+from dataclasses import asdict, dataclass, fields
+
+from .state import config_dir
+
+
+@dataclass
+class Settings:
+    # A desktop notification for every card. Off by default: the card is
+    # already on screen, and on GNOME the notification banner lands at the
+    # top centre right on top of it.
+    desktop_notifications: bool = False
+    # Only for dangerous calls, when the general switch is off.
+    notify_dangerous_only: bool = False
+    # "ClaudeNotch is running" for a few seconds at start.
+    greeting: bool = True
+    # Pointing at the pill opens the session list.
+    hover_sessions: bool = True
+    # A toast when a session finishes or Claude Code sends a notice.
+    toasts: bool = True
+    # Start with the desktop session (an autostart entry).
+    start_at_login: bool = True
+
+
+def path() -> str:
+    return os.path.join(config_dir(), "settings.json")
+
+
+def load() -> Settings:
+    try:
+        with open(path(), encoding="utf-8") as f:
+            raw = json.load(f)
+    except (OSError, ValueError):
+        return Settings()
+    if not isinstance(raw, dict):
+        return Settings()
+    out = Settings()
+    for fld in fields(Settings):
+        value = raw.get(fld.name)
+        if isinstance(value, type(getattr(out, fld.name))):
+            setattr(out, fld.name, value)
+    return out
+
+
+def save(settings: Settings) -> None:
+    d = config_dir()
+    os.makedirs(d, mode=0o700, exist_ok=True)
+    tmp = path() + ".tmp"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(asdict(settings), f, indent=2)
+        f.write("\n")
+    os.replace(tmp, path())
+
+
+class Store:
+    """The live settings, shared by the UI, the notifier and the server."""
+
+    def __init__(self, persist: bool = True):
+        self._lock = threading.Lock()
+        self._persist = persist
+        self.value = load() if persist else Settings()
+        self._listeners = []
+
+    def subscribe(self, fn) -> None:
+        self._listeners.append(fn)
+
+    def update(self, **changes) -> Settings:
+        with self._lock:
+            for k, v in changes.items():
+                if not hasattr(self.value, k):
+                    raise KeyError(k)
+                setattr(self.value, k, v)
+            if self._persist:
+                save(self.value)
+            current = self.value
+        for fn in list(self._listeners):
+            try:
+                fn(current)
+            except Exception:
+                pass
+        return current
