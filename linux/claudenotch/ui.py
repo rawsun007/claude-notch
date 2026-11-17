@@ -48,22 +48,22 @@ window.claudenotch { background-color: transparent; }
 .notch.pill { padding: 6px 16px 8px 16px; border-radius: 0 0 14px 14px; }
 .notch label { color: #ffffff; }
 .title { font-weight: bold; font-size: 13px; }
-.muted { color: rgba(255,255,255,0.55); font-size: 11px; }
-.status { font-size: 11px; color: rgba(255,255,255,0.8); }
-.dot-working { color: #f5a623; }
-.dot-waiting { color: #ff6b5a; }
-.dot-ready { color: #3ecf6e; }
+.notch label.muted { color: rgba(255,255,255,0.55); font-size: 11px; }
+.notch label.status { font-size: 11px; color: rgba(255,255,255,0.8); }
+.notch label.dot-working { color: #f5a623; }
+.notch label.dot-waiting { color: #ff6b5a; }
+.notch label.dot-ready { color: #3ecf6e; }
 .code {
     font-family: monospace; font-size: 11px;
     background-color: #161616; border-radius: 8px; padding: 8px 10px;
 }
-.diff-del { font-family: monospace; font-size: 11px; color: #ff8a80; background-color: rgba(255,80,80,0.12); }
-.diff-add { font-family: monospace; font-size: 11px; color: #9be89b; background-color: rgba(80,255,120,0.10); }
+.notch label.diff-del { font-family: monospace; font-size: 11px; color: #ff8a80; background-color: rgba(255,80,80,0.12); }
+.notch label.diff-add { font-family: monospace; font-size: 11px; color: #9be89b; background-color: rgba(80,255,120,0.10); }
 .danger {
     background-color: rgba(255,120,40,0.16); border-radius: 8px; padding: 8px 10px;
 }
-.danger label { color: #ffb37a; font-size: 11px; }
-.danger .title { color: #ff9a4d; font-size: 12px; }
+.notch .danger label { color: #ffb37a; font-size: 11px; }
+.notch .danger label.title { color: #ff9a4d; font-size: 12px; }
 button {
     background-image: none; background-color: #262626; color: #ffffff;
     border: none; border-radius: 8px; padding: 5px 14px; box-shadow: none; text-shadow: none;
@@ -74,7 +74,7 @@ button.primary { background-color: #d97757; }
 button.primary:hover { background-color: #e08a6c; }
 button.warn { background-color: #c2410c; }
 radiobutton label, checkbutton label { color: #ffffff; font-size: 12px; }
-.option-desc { color: rgba(255,255,255,0.5); font-size: 11px; }
+.notch label.option-desc { color: rgba(255,255,255,0.5); font-size: 11px; }
 .session-row { padding: 3px 0; }
 """
 
