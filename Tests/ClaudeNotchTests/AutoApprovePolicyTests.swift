@@ -82,8 +82,12 @@ final class AutoApproveQueueTests: XCTestCase {
 
     private func request(_ tool: String, _ detail: String) -> (PermissionRequest, () -> PermissionDecision?) {
         var decision: PermissionDecision?
+        // EventServer runs the danger scan and passes its reasons in; do the
+        // same, so the request is flagged exactly as a real one would be.
+        let reasons = ToolPreviewParser.dangerReasons(for: tool, input: ["command": detail])
         let req = PermissionRequest(kind: .toolUse, title: "Run", detail: detail, toolName: tool,
-                                    source: "Test", cwd: "/tmp", resolver: { d, _ in decision = d })
+                                    source: "Test", cwd: "/tmp", dangerReasons: reasons,
+                                    resolver: { d, _ in decision = d })
         return (req, { decision })
     }
 
@@ -105,8 +109,11 @@ final class AutoApproveQueueTests: XCTestCase {
         s.enqueuePermission(req)
         XCTAssertEqual(decision(), .allow)
         XCTAssertTrue(s.permissionQueue.isEmpty)
-        XCTAssertEqual(s.history.first?.outcome, .dangerous)
-        XCTAssertTrue(s.history.first?.detail.contains("auto-approved") ?? false)
+        // Look the entry up rather than taking the newest: AppState() loads
+        // whatever History other tests on this machine persisted.
+        let entry = s.history.first { $0.detail.contains("rm -rf ~/project") }
+        XCTAssertEqual(entry?.outcome, .dangerous)
+        XCTAssertTrue(entry?.detail.contains("auto-approved") ?? false)
     }
 
     func testBiometricChoiceShowsTheCardFirst() {
