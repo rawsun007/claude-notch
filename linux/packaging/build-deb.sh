@@ -70,17 +70,45 @@ fi
 POSTINST
 chmod 0755 "$PKG/DEBIAN/postinst"
 
-# Removing the package stops the running copies (an upgrade does not:
-# the new version takes over from them).
+# Removing the package must leave nothing behind that still acts: stop the
+# running copies (an upgrade does not, the new version takes over from them)
+# and take ClaudeNotch's hooks out of every user's Claude Code settings,
+# which the app itself wrote. Each user's file is edited as that user, with
+# the same merge the app uses: their own hooks stay, a backup is written, and
+# a file that does not parse is left alone. Without this, `apt purge` left the
+# old app running and Claude Code still calling it after every command.
 cat > "$PKG/DEBIAN/prerm" <<'PRERM'
 #!/bin/sh
 set -e
-if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+if [ "$1" = "remove" ]; then
   # The interpreter may be named python3, /usr/bin/python3 or python3.12.
   pkill -TERM -f '^(/usr/bin/)?python3[.0-9]* /usr/bin/claudenotch' 2>/dev/null || true
+  getent passwd | while IFS=: read -r name _ uid _ _ home _; do
+    [ "$uid" -ge 1000 ] 2>/dev/null || [ "$uid" = 0 ] || continue
+    [ -f "$home/.claude/settings.json" ] && grep -q 53127 "$home/.claude/settings.json" 2>/dev/null || continue
+    runuser -u "$name" -- env HOME="$home" python3 -c \
+      'import sys; sys.path.insert(0, "/usr/lib/claudenotch"); from claudenotch import hooks; hooks.uninstall()' \
+      >/dev/null 2>&1 && echo "claudenotch: removed its hooks from $home/.claude/settings.json" || true
+  done
 fi
 PRERM
 chmod 0755 "$PKG/DEBIAN/prerm"
+
+# Purge also deletes what the app kept per user: the hook token, the
+# always-allow rules and settings, the log, and a start-at-login override.
+cat > "$PKG/DEBIAN/postrm" <<'POSTRM'
+#!/bin/sh
+set -e
+if [ "$1" = "purge" ]; then
+  getent passwd | while IFS=: read -r _ _ uid _ _ home _; do
+    [ "$uid" -ge 1000 ] 2>/dev/null || [ "$uid" = 0 ] || continue
+    [ -d "$home" ] || continue
+    rm -rf "$home/.claudenotch" "$home/.config/claudenotch" "$home/.cache/claudenotch"
+    rm -f "$home/.config/autostart/claudenotch.desktop"
+  done
+fi
+POSTRM
+chmod 0755 "$PKG/DEBIAN/postrm"
 
 mkdir -p dist
 dpkg-deb --root-owner-group --build "$PKG" "dist/claudenotch_${VERSION}_all.deb" >/dev/null
