@@ -22,6 +22,7 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk, Pango  # noqa: E402
 
 from . import protocol  # noqa: E402
+from .layout import card_origin  # noqa: E402
 from .state import AppState  # noqa: E402
 
 try:  # Optional: a real overlay layer on wlroots / KDE Wayland compositors.
@@ -165,17 +166,18 @@ class NotchWindow(Gtk.Window):
 
     # --- placement -----------------------------------------------------------
 
-    def _monitor_geometry(self) -> Gdk.Rectangle:
+    def _monitor(self) -> Gdk.Monitor:
         display = Gdk.Display.get_default()
-        monitor = display.get_primary_monitor() or display.get_monitor(0)
-        return monitor.get_geometry()
+        return display.get_primary_monitor() or display.get_monitor(0)
 
     def _place(self) -> None:
         if self._layer:
             return
-        geo = self._monitor_geometry()
+        mon = self._monitor()
+        g, wa = mon.get_geometry(), mon.get_workarea()
         w, _ = self.get_size()
-        self.move(geo.x + (geo.width - w) // 2, geo.y)
+        x, y = card_origin((g.x, g.y, g.width, g.height), (wa.x, wa.y, wa.width, wa.height), w)
+        self.move(x, y)
 
     # --- what to show --------------------------------------------------------
 
