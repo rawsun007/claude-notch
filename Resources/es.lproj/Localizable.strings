@@ -38,8 +38,6 @@
 /* Button: approve every queued request. %d is how many */
 "Allow All (%d)" = "Permitir todo (%d)";
 
-/* Settings toggle explanation */
-"Allow every tool request automatically. Turns the notch into a passive monitor. Use with care." = "Aprueba automáticamente cada solicitud de herramienta. Convierte el notch en un monitor pasivo. Úsalo con cuidado.";
 
 /* Button: allow a single over-budget command without raising the cap */
 "Allow once" = "Permitir una vez";
