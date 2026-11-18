@@ -205,6 +205,14 @@ xdotool clicks and screenshots); CI is `.github/workflows/linux.yml`, which
 also attaches the `.deb` and tarball to every `v*` release. `ci.yml` ignores
 `linux/**`.
 
+## Windows edition (planned, `windows/`)
+
+Not built yet. The plan, decisions, ticket list and launch checklist are in
+**`plans/windows-linux-weekend/`** (start with its README). In short: Python +
+PySide6, importing the pure modules of `linux/claudenotch` as the shared
+core, HTTP hooks (no shell on Windows), per-user Inno Setup installer,
+winget. Replace this section with a real map once `windows/` exists.
+
 ## Conventions
 
 - Untrusted input = anything from a hook payload, transcript, or the web. It's
