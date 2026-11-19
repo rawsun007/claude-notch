@@ -506,7 +506,7 @@ struct SessionHistoryRow: View {
                 }
                 HStack(spacing: 8) {
                     if let dur = record.duration {
-                        label(fmtDuration(dur), icon: "clock")
+                        label(AppState.runningDuration(seconds: dur), icon: "clock")
                     }
                     if record.contextTokens > 0 {
                         label(fmtK(record.contextTokens) + " tok", icon: "text.alignleft")
@@ -556,14 +556,6 @@ struct SessionHistoryRow: View {
 
     private func fmtK(_ n: Int) -> String { n >= 1000 ? "\(n / 1000)k" : "\(n)" }
 
-    private func fmtDuration(_ t: TimeInterval) -> String {
-        let s = Int(t)
-        if s < 60 { return "\(s)s" }
-        let m = s / 60; let rem = s % 60
-        if m < 60 { return rem > 0 ? "\(m)m \(rem)s" : "\(m)m" }
-        let h = m / 60; let rm = m % 60
-        return rm > 0 ? "\(h)h \(rm)m" : "\(h)h"
-    }
 }
 
 // MARK: - Project stats row
@@ -575,15 +567,6 @@ struct ProjectStatsRow: View {
     @State private var hovering = false
 
     private func fmtK(_ n: Int) -> String { n >= 1000 ? "\(n / 1000)k" : "\(n)" }
-
-    private func fmtDuration(_ t: TimeInterval) -> String {
-        let s = Int(t)
-        if s < 60 { return "\(s)s" }
-        let m = s / 60
-        if m < 60 { return "\(m)m" }
-        let h = m / 60; let rm = m % 60
-        return rm > 0 ? "\(h)h \(rm)m" : "\(h)h"
-    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -624,7 +607,7 @@ struct ProjectStatsRow: View {
                     }
                 }
                 HStack(spacing: 8) {
-                    statChip(fmtDuration(stats.totalDuration), icon: "clock")
+                    statChip(AppState.runningDuration(seconds: stats.totalDuration), icon: "clock")
                     if stats.totalTokens > 0 {
                         statChip(fmtK(stats.totalTokens) + " tok", icon: "text.alignleft")
                     }
