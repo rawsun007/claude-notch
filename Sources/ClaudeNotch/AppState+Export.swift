@@ -135,7 +135,7 @@ extension AppState {
     private static func sessionsCSV(_ records: [SessionRecord]) -> Data {
         let iso = AppState.iso8601
         let esc = csvEscape
-        var lines = ["started,ended,project,cwd,duration_s,tokens,cost_usd,tool_calls,model"]
+        var lines = ["started,ended,project,cwd,duration_s,tokens,cost_usd,tool_calls,model,active_s"]
         for r in records {
             lines.append([
                 iso.string(from: r.startedAt),
@@ -146,6 +146,8 @@ extension AppState {
                 String(format: "%.4f", r.costUSD),
                 String(r.toolCallCount),
                 r.model,
+                // Appended last so tools reading columns by position keep working.
+                r.activeSeconds.map { String(Int($0)) } ?? "",
             ].map(esc).joined(separator: ","))
         }
         return lines.joined(separator: "\n").data(using: .utf8) ?? Data()
