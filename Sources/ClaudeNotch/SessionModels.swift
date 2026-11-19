@@ -45,6 +45,16 @@ struct LiveSession: Identifiable, Equatable {
     // the notch can order rows by it without them reshuffling every time a hook
     // bumps `lastHookAt` (which happens every second for an active session).
     var createdAt: Date
+    // Time this session was actually in use: the sum of gaps between its hooks,
+    // leaving out any gap longer than `SessionRecord.idleGap` (the terminal was
+    // left open, the laptop slept). Wall-clock since `createdAt` is not a
+    // duration anyone means: a session resumed now and then over two weeks
+    // read as "280h".
+    var activeSeconds: TimeInterval = 0
+    // How much of `activeSeconds` has already been written to the history
+    // record, so re-archiving the same session (every Stop) adds only the new
+    // part instead of counting earlier turns again.
+    var archivedActiveSeconds: TimeInterval = 0
     // Task progress for the current task list. Tracked as sets (keyed by task
     // id) so duplicate Created/Completed events dedup themselves. In-memory
     // only — sessions aren't persisted, so no Codable concern.
@@ -319,7 +329,35 @@ struct SessionRecord: Identifiable, Codable {
     var gitBranch: String? = nil
     var agent: String? = nil   // "claude" / "codex", inferred from the model
 
+    // Active time, accumulated across every stretch this session was live (see
+    // LiveSession.activeSeconds). Optional so older snapshots still decode;
+    // those have only start and end.
+    var activeSeconds: Double? = nil
+
+    /// Wall-clock from first hook to last archive, idle time included.
     var duration: TimeInterval? { endedAt.map { $0.timeIntervalSince(startedAt) } }
+
+    /// What the history shows as "how long": active time when we have it. A
+    /// record from before active time was tracked falls back to wall-clock,
+    /// but only when that is short enough to be believable; past
+    /// `legacyWallClockCap` it is a session left open, and showing nothing
+    /// beats showing "280h".
+    var displayDuration: TimeInterval? {
+        if let a = activeSeconds { return a >= 1 ? a : nil }
+        guard let d = duration, d <= Self.legacyWallClockCap else { return nil }
+        return d
+    }
+
+    /// A gap between two hooks longer than this is idle, not work. Five
+    /// minutes covers a long build or a slow model reply (the status line
+    /// keeps ticking through both) without counting a lunch break.
+    static let idleGap: TimeInterval = 5 * 60
+    static let legacyWallClockCap: TimeInterval = 12 * 3600
+
+    /// How much of the gap since the previous hook counts as active time.
+    static func activeIncrement(gap: TimeInterval) -> TimeInterval {
+        (gap > 0 && gap <= idleGap) ? gap : 0
+    }
 }
 
 /// Aggregate, all-time usage counters — accumulated locally and persisted to

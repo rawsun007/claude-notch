@@ -109,7 +109,7 @@ struct HistoryCard: View {
                 totalCostUSD: state.weekCostByProject[cwd] ?? 0,
                 totalTokens: records.reduce(0) { $0 + $1.contextTokens },
                 totalToolCalls: records.reduce(0) { $0 + $1.toolCallCount },
-                totalDuration: records.compactMap(\.duration).reduce(0, +),
+                totalDuration: records.compactMap(\.displayDuration).reduce(0, +),
                 lastSessionAt: records.map(\.startedAt).max() ?? .distantPast
             )
         }
@@ -504,7 +504,7 @@ struct SessionHistoryRow: View {
                     }
                 }
                 HStack(spacing: 8) {
-                    if let dur = record.duration {
+                    if let dur = record.displayDuration {
                         label(AppState.runningDuration(seconds: dur), icon: "clock")
                     }
                     if record.contextTokens > 0 {
@@ -605,7 +605,9 @@ struct ProjectStatsRow: View {
                     }
                 }
                 HStack(spacing: 8) {
-                    statChip(AppState.runningDuration(seconds: stats.totalDuration), icon: "clock")
+                    if stats.totalDuration >= 1 {
+                        statChip(AppState.runningDuration(seconds: stats.totalDuration), icon: "clock")
+                    }
                     if stats.totalTokens > 0 {
                         statChip(fmtK(stats.totalTokens) + " tok", icon: "text.alignleft")
                     }

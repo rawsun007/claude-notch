@@ -90,9 +90,13 @@ extension AppState {
     func archiveSession(_ session: LiveSession) {
         guard Self.isWorthArchiving(session) else { return }
         archivedSessionKeys.insert(session.id)
+        // Only the active time since this session's last archive is new.
+        let newActive = max(0, session.activeSeconds - session.archivedActiveSeconds)
+        sessions[session.id]?.archivedActiveSeconds = session.activeSeconds
 
         if let i = sessionHistory.firstIndex(where: { $0.sessionKey == session.id }) {
             sessionHistory[i].endedAt = Date()
+            sessionHistory[i].activeSeconds = (sessionHistory[i].activeSeconds ?? 0) + newActive
             sessionHistory[i].contextTokens = session.contextTokens
             sessionHistory[i].costUSD = session.sessionCostUSD
             sessionHistory[i].toolCallCount = session.toolCallCount
@@ -109,7 +113,7 @@ extension AppState {
             return
         }
 
-        let record = SessionRecord(
+        var record = SessionRecord(
             sessionKey: session.id,
             project: session.project.isEmpty ? "unnamed" : session.project,
             cwd: session.cwd,
@@ -126,6 +130,7 @@ extension AppState {
             gitBranch: session.gitBranch.isEmpty ? nil : session.gitBranch,
             agent: AgentKind.infer(fromModel: session.model).rawValue
         )
+        record.activeSeconds = newActive
         sessionHistory.insert(record, at: 0)
         if sessionHistory.count > sessionHistoryMax {
             sessionHistory = Array(sessionHistory.prefix(sessionHistoryMax))

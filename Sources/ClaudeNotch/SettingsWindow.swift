@@ -1848,7 +1848,7 @@ struct SettingsView: View {
                         Text(f == 1 ? L("1 file", comment: "Count of files changed, singular")
                              : String(format: L("%d files", comment: "Count of files changed. %d is 2 or more"), f))
                     }
-                    if let dur = r.duration, dur >= 1 {
+                    if let dur = r.displayDuration, dur >= 1 {
                         Text(AppState.runningDuration(seconds: dur))
                     }
                 }

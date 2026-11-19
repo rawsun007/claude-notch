@@ -54,7 +54,11 @@ extension AppState {
             session.project = (normCwd as NSString).lastPathComponent
         }
         mutate(&session)
-        if stampHook { session.lastHookAt = Date() }
+        if stampHook {
+            let now = Date()
+            session.activeSeconds += SessionRecord.activeIncrement(gap: now.timeIntervalSince(session.lastHookAt))
+            session.lastHookAt = now
+        }
         sessions[key] = session
 
         if sessions.count > sessionsMax {
