@@ -391,13 +391,12 @@ struct HistoryCard: View {
                     ? "No sessions yet, run some Claude sessions to see per-project stats."
                     : "No projects match your search.")
             } else {
-                let maxCost = filteredProjects.map(\.totalCostUSD).max() ?? 0
                 VStack(spacing: 6) {
                     weekSpendHeader
                     ScrollView {
                         VStack(spacing: 4) {
                             ForEach(filteredProjects) { stats in
-                                ProjectStatsRow(stats: stats, maxCost: maxCost,
+                                ProjectStatsRow(stats: stats,
                                                 onResume: { resume(in: stats.cwd) })
                             }
                         }
@@ -562,7 +561,6 @@ struct SessionHistoryRow: View {
 
 struct ProjectStatsRow: View {
     let stats: ProjectStats
-    let maxCost: Double
     var onResume: (() -> Void)? = nil
     @State private var hovering = false
 
@@ -617,17 +615,6 @@ struct ProjectStatsRow: View {
                     if stats.totalToolCalls > 0 {
                         statChip("\(stats.totalToolCalls) tools", icon: "wrench.and.screwdriver")
                     }
-                }
-                if maxCost > 0, stats.totalCostUSD > 0 {
-                    let frac = CGFloat(min(1, stats.totalCostUSD / maxCost))
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(Color.white.opacity(0.08))
-                            Capsule().fill(Color.green.opacity(0.6))
-                                .frame(width: geo.size.width * frac)
-                        }
-                    }
-                    .frame(height: 3)
                 }
             }
         }
