@@ -24,7 +24,7 @@ Order within each section is roughly by how often a user meets it.
 | Click-through outside the black shape | PassThroughHostingView | done | Layered window, per-pixel alpha; verified with WindowFromPoint. |
 | Never steals keyboard focus | NotchPanel (non-activating) | done | WS_EX_NOACTIVATE; foreground unchanged until the user clicks. |
 | Enter / Esc answer the card without focus | KeyboardMonitor (CGEventTap) | partial | Windows needs one click on the card first; a global hook that reads Enter while the terminal has focus would also eat the terminal's Enter. |
-| Hide from screen capture setting | NotchWindowController (`sharingType`) | todo | `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)`, Windows 10 2004+. |
+| Hide from screen capture setting | NotchWindowController (`sharingType`) | done | `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)`, on by default, Settings > Privacy. |
 | Multi-monitor: notch follows the cursor's screen, mirrors | NotchWindowController, MouseTracker | todo | Primary screen only today. |
 | Minimized question stub left of the notch | MinimizedQuestionTab | todo | |
 | Drop a folder on the notch to open Claude there | NotchDrop | todo | |
@@ -37,7 +37,7 @@ Order within each section is roughly by how often a user meets it.
 | Permission card layout and wording | NotchPermissionCard | done | Header (accent icon, CLAUDE CODE, tool, waiting time, project), title from humanTitle, command box, buttons 18 below. |
 | Destructive banner | DangerBanner | done | Red 14 % fill, 35 % stroke, bullets from the shared danger rules. |
 | Hold to Allow for destructive commands | HoldToConfirmButton | done | 0.9 s; Return never allows a destructive call. |
-| Confirm with Touch ID instead of holding | BiometricAuth, DestructiveGate | todo | Windows Hello via `UserConsentVerifier`. |
+| Confirm with Touch ID instead of holding | BiometricAuth, DestructiveGate | done | Windows Hello through WinRT `UserConsentVerifier` (ctypes, prompt parented to the notch), Require Windows Hello on by default; Hold to Allow where Hello is not set up (this PC). The live Hello prompt is not yet seen on a PC with Hello. |
 | Diff preview (red/green, cut at 10 a side, multi-edit header) | DiffPreviewView, ToolPreviewParser | done | |
 | Write / plan / todo preview (12 lines, "…and N more lines") | WritePreviewView | done | |
 | Always Allow menu (exact command / whole tool) | PermissionCard | done | Core gained the whole-tool scope. |
@@ -46,12 +46,12 @@ Order within each section is roughly by how often a user meets it.
 | "allowed N times" nudge | priorApprovals | todo | |
 | Sandbox badge | SandboxReader | todo | |
 | Too late to answer here (expired card) | PermissionCard.expiredBanner | todo | The core drops the card at 285 s instead; the Mac keeps it with a Dismiss. |
-| Budget block banner, Allow once, Raise to $X | BudgetBanner, AppState+Budget | todo | Needs spending caps. |
+| Budget block banner, Allow once, Raise to $X | BudgetBanner, AppState+Budget | done | Orange banner, Allow once, Raise to the Mac's next cap, Turn off. "Turn off" is a small button where the Mac draws plain text. |
 | Question card (AskUserQuestion), multi-question, Other text | QuestionCard | partial | Header, header pills, option rows (nothing picked at start), "Something else" field, Cancel / Send, the Mac's height budget and answer rules. Not yet: minimize and the stub beside the notch, the expired banner, the MCP sign-in link row. The Mac makes this card key at once; Windows waits for a click, so typing in the terminal is never caught. |
 | Plan approval (ExitPlanMode) | PermissionCard + WritePreview | done | Rendered as the plan preview card. |
 | Notification card (bell, Dismiss, Open IDE) | NotificationCard | done | Waits until Dismiss or Open IDE. Open IDE brings back the window that was in front when it arrived. StopFailure is this card with the Mac's "⚠️ Rate limited, session stopped" wording. The rate-limit crying pet and the Update button are todo. |
 | Completed card (done, reply, Open IDE, audit) | CompletedCard | partial | Green seal, "Claude finished", project, Open IDE and Done; waits until answered. Reply (needs compose), the audit banner and the dancing pet are todo. |
-| Auto-approved info card | AutoInfoCard | todo | Needs auto-approve. |
+| Auto-approved info card | AutoInfoCard | done | Button-less, four seconds, click to dismiss. |
 | Thinking pill | ThinkingPill | todo | |
 | Compose / reply card | NotchComposeCards | todo | |
 | Response detail (full reply, markdown) | ResponseDetailCard, NotchMarkdown | todo | |
@@ -81,12 +81,12 @@ Order within each section is roughly by how often a user meets it.
 | Secret redaction | SecretRedactor | done | Shared core. |
 | Hook installer merge / uninstall | HookInstaller | done | Shared core. |
 | Status line (context, cost, model, prompt cache) | HookInstaller + EventServer status endpoint | done | `/statusline` in the shared core with the Mac's body; a PowerShell 5.1 forwarder (no jq or curl) checked key for key against the Python port of the Mac's jq program; your own status line kept and restored on uninstall. Prompt-cache warnings, PR badge and the limit forecasts are todo. Each redraw costs about 1 s of Windows PowerShell start-up, outside Claude Code's own work. |
-| Spending caps (daily, session) and enforcement | AppState+Budget | todo | |
-| Usage breakdown, burn rate, forecast | AppState+Usage, BurnRate, CostForecast | todo | |
-| Usage limit window and pause | AppState+UsageLimit, UsageLimitPause, AppState+LimitWindow | todo | |
-| Activity history, export CSV/JSON, standup | AppState+History, AppState+Export | partial | Core keeps a history log; no UI or export yet. |
-| Always-allow rules page | AppState+Rules, SettingsPage+Rules | done | Settings > Always allow. |
-| Auto-approve policy | AutoApprovePolicy, AppState+AutoModeReview | todo | |
+| Spending caps (daily, session) and enforcement | AppState+Budget | done | Settings > Budget; today's spend from the transcripts every minute. Approaching-budget notices are todo. |
+| Usage breakdown, burn rate, forecast | AppState+Usage, BurnRate, CostForecast | partial | Settings > Usage: 7-day and 4-week cost, heatmap, all-time counters, top tools, top projects, today / 5 h / week tokens and cost, cache hit rate and savings, model mix, CSV export (core usage.py with the Mac's prices). Burn rate and forecasts are todo. |
+| Usage limit window and pause | AppState+UsageLimit, UsageLimitPause, AppState+LimitWindow | partial | Settings > Plan shows the 5-hour and weekly limits with reset countdowns; warnings at 80 % and 95 %. The usage-limit pause card is todo. |
+| Activity history, export CSV/JSON, standup | AppState+History, AppState+Export | partial | Settings > History: one record per session (summary, turns, model, branch, cost), search, Export CSV or JSON, Clear. The notch's own history drawer and the standup are todo. |
+| Always-allow rules page | AppState+Rules, SettingsPage+Rules | done | Settings > Rules. Adding a rule by hand and exporting rules to Claude Code are todo. |
+| Auto-approve policy | AutoApprovePolicy, AppState+AutoModeReview | done | Scope (everything, commands incl. PowerShell, files) and destructive choice (show the card, confirm with Windows Hello, approve them too). Approve them too needs Windows Hello or the Windows password (CredUI + LogonUser). Auto-approve for a while on Settings > Session. Strict mode and the auto-mode review are todo. |
 | Sessions: registry, staleness, background agents | SessionRegistry, BackgroundAgents, AppState+Sessions | partial | Sessions from hooks only. |
 | Git branch, diff stat, worktrees | Git, AppState+Git, Worktree | todo | |
 | Codex CLI | CodexReader, AgentAdapter | todo | |
@@ -94,7 +94,7 @@ Order within each section is roughly by how often a user meets it.
 | Skills page | SkillsReader, SkillSettings, SkillTrash | todo | |
 | Sounds | AppState+Sound | todo | |
 | Notifications mirrored to the OS | NotificationBridge | done | Windows toasts. |
-| URL scheme `claudenotch://` | URLScheme | todo | HKCU\Software\Classes, per user. |
+| URL scheme `claudenotch://` | URLScheme | partial | open, settings, settings/<page>, history; registered per user by the installer. compose, resume and standup are todo. |
 | Global hotkey for Settings | GlobalHotkey | todo | `RegisterHotKey`. |
 | Start at login | (LaunchAgent) | done | HKCU Run. |
 | Single instance, take over an older copy | SingleInstance | done | |
@@ -151,3 +151,27 @@ Also seen: a Claude Code session on the same PC, including the one used
 to build this, routes its own permission prompts to the notch while the
 app runs. That is by design (the hooks are user-wide), but worth knowing
 when testing on a machine you are also working on.
+
+
+## Settings window (22 Nov 2026)
+
+Rebuilt on the Mac's SettingsWindow: grouped sidebar with search, pages of
+rounded cards, light or dark following Windows. Pages now: General (launch
+at login, hello, Auto-Approve with its setup sheet, setup health for hooks
+and status line), Notch, Session (Auto-approve for a while, snooze),
+Alerts (cards, plan-limit warnings, Windows notifications), Budget, Plan,
+Usage, History, Privacy (hide from capture, Windows Hello, skip
+confirmation behind owner authentication), About, Rules, Developer (demo
+cards). Still to come from the Mac: Pet, Sounds, Skills.
+
+## VS Code (22 Nov 2026)
+
+The Claude Code extension for VS Code (2.1.330) runs its own
+`resources/native-binary/claude.exe`, which reads the same
+`%USERPROFILE%\.claude\settings.json` hooks. Run directly with `--debug`,
+its Read and Edit were held on the notch card (9 s and 5.5 s) and went
+through on Allow ("Hook approved tool use… bypassing permission prompt").
+Driving the extension's chat panel by hand was not finished: VS Code
+opened the folder in Restricted Mode (extensions off until the folder is
+trusted, which is the user's call) and asked for consent before the
+extension could open a link; the PC was then in use.
