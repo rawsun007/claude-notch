@@ -66,3 +66,28 @@ def test_secrets_are_redacted_in_detail_and_preview():
     assert t.title == "Run shell command" and t.source == "Claude Code" and t.project == "proj"
     p = m.preview("Write", {"content": f"KEY={secret}"})
     assert secret not in p.head
+
+
+def test_failure_wording_matches_eventserver():
+    assert m.failure_title("rate_limit") == "Rate limited, session stopped"
+    assert m.failure_title("weird") == "Session stopped on an error"
+    assert m.failure_detail("overloaded", "overloaded") == \
+        "Anthropic's servers are busy. Try the turn again in a moment."
+    assert m.failure_detail("x", "some_code") == "The turn stopped before it finished."
+    assert m.failure_detail("x", "The API said no.") == "The API said no."
+
+
+def test_notice_text_for_each_kind():
+    from claudenotch.state import Toast
+    done = m.notice_text(Toast("Claude is done", "proj", kind="done", cwd="C:/w/proj"))
+    assert (done.card, done.source, done.title, done.detail) == ("completed", "Claude Code", "Claude finished",
+                                                                 "proj")
+    n = m.notice_text(Toast("Claude Code", "Claude is waiting for your input", kind="notice", cwd="C:/w/p"))
+    assert (n.card, n.title, n.detail) == ("notification", "Claude is waiting for your input", "p")
+    t = m.notice_text(Toast("Custom title", "Claude needs your attention", kind="notice"))
+    assert t.title == "Custom title"
+    f = m.notice_text(Toast("Claude stopped with an error", "rate_limit", kind="failure", reason="rate_limit"))
+    assert f.title == "⚠️ Rate limited, session stopped"
+    assert f.detail.startswith("You have hit the usage limit")
+    hello = m.notice_text(Toast("ClaudeNotch is running", "Claude Code prompts will appear here.", system=True))
+    assert (hello.source, hello.title) == ("ClaudeNotch", "ClaudeNotch is running")

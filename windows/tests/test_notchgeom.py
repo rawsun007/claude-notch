@@ -154,3 +154,22 @@ def test_pulse_and_bob():
     assert abs(g.pulse_opacity(-math.pi / 2) - 0.4) < 1e-9
     assert all(g.bob_offset("celebrating", t / 10) <= 0 for t in range(20))
     assert abs(g.bob_offset("calm", 0.45)) <= 0.9 + 1e-9
+
+
+def test_time_ago_matches_mac():
+    assert [g.time_ago(s) for s in (0, 4, 12, 185, 7300, 3 * 86400)] == \
+        ["just now", "just now", "12s ago", "3m ago", "2h ago", "3d ago"]
+
+
+def test_notice_and_completed_sizes():
+    assert g.notice_size() == (500, g.INSET + 100)
+    assert g.completed_size() == (560, g.INSET + 100)
+    assert g.completed_size(audit=True)[1] == g.INSET + 144
+
+
+def test_question_size_budgets_rows_and_caps():
+    one = g.question_size([(["a", ""], True)])
+    assert one == (600, g.INSET + 104 + 26 + 6 + 66 + 38 + 44)
+    assert g.question_size([(["", ""], False)])[1] == g.INSET + 104 + 32 + 76
+    tall = g.question_size([(["d"] * 4, True)] * 5, screen_h=800)
+    assert tall[1] == g.INSET + 800 * 0.85 - g.INSET
