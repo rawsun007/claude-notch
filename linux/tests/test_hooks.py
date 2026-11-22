@@ -100,3 +100,56 @@ class DiskTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StatusLineTests(unittest.TestCase):
+    CMD = "powershell -NoProfile -File C:/x/claudenotch-statusline.ps1"
+
+    def test_the_users_line_is_kept_to_chain_to(self):
+        out, prior = hooks.with_status_line({"statusLine": {"type": "command", "command": "my-line.sh"}}, self.CMD)
+        self.assertEqual(out["statusLine"], {"type": "command", "command": self.CMD})
+        self.assertEqual(prior, "my-line.sh")
+
+    def test_rewiring_never_saves_our_own_forwarder_as_theirs(self):
+        out, _ = hooks.with_status_line({}, self.CMD)
+        _, prior = hooks.with_status_line(out, self.CMD + " --new")
+        self.assertIsNone(prior)
+        # The Mac's forwarder counts as ours too.
+        _, prior = hooks.with_status_line({"statusLine": {"command": "bash ~/x/claudenotch-statusline.sh"}}, self.CMD)
+        self.assertIsNone(prior)
+
+    def test_unwiring_puts_theirs_back_or_removes_ours(self):
+        ours = {"statusLine": {"type": "command", "command": self.CMD}, "theme": "dark"}
+        self.assertEqual(hooks.without_status_line(ours, "my-line.sh")["statusLine"]["command"], "my-line.sh")
+        self.assertEqual(hooks.without_status_line(ours, ""), {"theme": "dark"})
+        theirs = {"statusLine": {"type": "command", "command": "their.sh"}}
+        self.assertEqual(hooks.without_status_line(theirs, "x"), theirs)
+
+
+class StatusLineDiskTests(DiskTests):
+    CMD = StatusLineTests.CMD
+
+    def test_install_and_uninstall_round_trip_the_users_status_line(self):
+        os.makedirs(hooks.claude_dir())
+        mine = {"theme": "dark", "statusLine": {"type": "command", "command": "my-line.sh"}}
+        with open(hooks.settings_path(), "w") as f:
+            json.dump(mine, f)
+        hooks.install(status_command=self.CMD)
+        with open(hooks.settings_path()) as f:
+            self.assertEqual(json.load(f)["statusLine"]["command"], self.CMD)
+        with open(hooks.status_inner_path(), encoding="utf-8") as f:
+            self.assertEqual(f.read(), "my-line.sh")
+        hooks.install(status_command=self.CMD)        # again: the saved line survives
+        with open(hooks.status_inner_path(), encoding="utf-8") as f:
+            self.assertEqual(f.read(), "my-line.sh")
+        hooks.uninstall()
+        with open(hooks.settings_path()) as f:
+            self.assertEqual(json.load(f), mine)
+
+    def test_plain_install_leaves_the_status_line_alone(self):
+        os.makedirs(hooks.claude_dir())
+        with open(hooks.settings_path(), "w") as f:
+            json.dump({"statusLine": {"type": "command", "command": "my-line.sh"}}, f)
+        hooks.install()
+        with open(hooks.settings_path()) as f:
+            self.assertEqual(json.load(f)["statusLine"]["command"], "my-line.sh")

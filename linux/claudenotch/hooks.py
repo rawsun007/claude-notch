@@ -153,6 +153,66 @@ def is_installed(settings: dict, token: str | None) -> bool:
     return True
 
 
+# --- the status line forwarder ---------------------------------------------------
+
+#: Any status line command containing this is ours (the Mac's is
+#: claudenotch-statusline.sh, the Windows one claudenotch-statusline.ps1).
+STATUS_MARK = "claudenotch-statusline"
+
+
+def status_inner_path() -> str:
+    """Where the user's own previous status line command is kept, so ours can
+    run it after forwarding and uninstall can put it back. Next to the token,
+    in a folder only this user can read: the forwarder runs this command."""
+    return os.path.join(os.path.dirname(token_path()), "statusline-inner.cmd")
+
+
+def _status_command(settings: dict) -> str:
+    sl = settings.get("statusLine")
+    return str(sl.get("command") or "") if isinstance(sl, dict) else ""
+
+
+def status_wired(settings: dict, command: str) -> bool:
+    return _status_command(settings) == command
+
+
+def with_status_line(settings: dict, command: str) -> tuple[dict, str | None]:
+    """`settings` with `statusLine` pointed at our forwarder, and the user's
+    previous command to keep (None when the current one is already ours, so
+    a reinstall never saves our own forwarder as "theirs"). Pure."""
+    prior = _status_command(settings)
+    out = dict(settings)
+    out["statusLine"] = {"type": "command", "command": command}
+    return out, (None if STATUS_MARK in prior else prior)
+
+
+def without_status_line(settings: dict, prior: str) -> dict:
+    """Our forwarder out, the user's previous status line (if any) back."""
+    if STATUS_MARK not in _status_command(settings):
+        return dict(settings)
+    out = dict(settings)
+    if prior.strip():
+        out["statusLine"] = {"type": "command", "command": prior}
+    else:
+        out.pop("statusLine", None)
+    return out
+
+
+def _write_private(path: str, text: str) -> None:
+    os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(text)
+
+
+def _read_inner() -> str:
+    try:
+        with open(status_inner_path(), encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return ""
+
+
 class UnreadableSettings(Exception):
     """settings.json exists but is not a JSON object; it is left untouched."""
 
@@ -202,18 +262,24 @@ def _write(data: dict) -> None:
     fsutil.replace(tmp, path)
 
 
-def install() -> str:
-    """Install or refresh our hooks. Returns the settings path."""
+def install(status_command: str | None = None) -> str:
+    """Install or refresh our hooks, and with `status_command` our status
+    line forwarder too. Returns the settings path."""
     settings = _load()
     token = ensure_token()
-    if not is_installed(settings, token):
-        _write(merged(settings, token))
+    out = settings if is_installed(settings, token) else merged(settings, token)
+    if status_command and not status_wired(out, status_command):
+        out, prior = with_status_line(out, status_command)
+        if prior is not None:
+            _write_private(status_inner_path(), prior)
+    if out != settings:
+        _write(out)
     return settings_path()
 
 
 def uninstall() -> str:
     settings = _load()
-    cleaned = unmerged(settings)
+    cleaned = without_status_line(unmerged(settings), _read_inner())
     if cleaned != settings:
         _write(cleaned)
     return settings_path()
