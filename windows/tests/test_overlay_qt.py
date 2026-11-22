@@ -176,5 +176,19 @@ class OverlayTests(unittest.TestCase):
         self.overlay.buttons["send"].click()
         self.assertEqual(got, [[["Gamma"]]])
 
+    def test_the_session_list_needs_two_sessions(self):
+        from claudenotch_win.notchcards import IdleCardView
+        self.state.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "s1", "cwd": "C:/w/one",
+                                 "prompt": "a"})
+        self.overlay.hovering = True
+        self.overlay.render()
+        self.assertIsNone(self.overlay._content.findChild(IdleCardView).list_view)
+        self.state.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "s2", "cwd": "C:/w/two",
+                                 "prompt": "b"})
+        self.overlay.render()
+        card = self.overlay._content.findChild(IdleCardView)
+        self.assertIsNotNone(card.list_view)
+        self.assertEqual(len(card.list_view.rows), 1)          # the top session is the header
+
 if __name__ == "__main__":
     unittest.main()

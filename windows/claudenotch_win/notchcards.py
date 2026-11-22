@@ -163,7 +163,8 @@ def idle_header(sessions) -> tuple[str, str, tuple, bool]:
     "Claude · N sessions"), the status word, the dot colour, and whether it
     is active (pulsing dot, shimmering word)."""
     n = len(sessions)
-    name = f"Claude · {n} sessions" if n >= 2 else "Claude"
+    entity = cardmodel.entity_name(sessions)
+    name = f"{entity} · {n} sessions" if n >= 2 else entity
     working = any(s.status in ("working", "waiting") for s in sessions)
     if working:
         return name, "Running command", ms.BLUE, True
@@ -175,7 +176,7 @@ class IdleCardView(QWidget):
     """The open hover card: the mascot, the name, the status dot and word,
     then the model and the context and cost meter."""
 
-    def __init__(self, sessions, branch: str = "", parent=None):
+    def __init__(self, sessions, branch: str = "", rows=None, parent=None):
         super().__init__(parent)
         self.setAttribute(Qt.WA_TranslucentBackground)
         name, status, dot_rgb, active = idle_header(sessions)
@@ -217,6 +218,11 @@ class IdleCardView(QWidget):
         v.addLayout(r2)
         self.meter = m
         self.content_width = self._natural_width(name, status, agents, m)
+        self.list_view = None
+        if rows:
+            self.list_view = SessionsListView(rows)
+            v.addWidget(self.list_view)
+            self.content_width = max(self.content_width, self.list_view.natural_width())
 
     @staticmethod
     def _natural_width(name: str, status: str, agents: int, m) -> float:
@@ -248,6 +254,114 @@ class IdleCardView(QWidget):
         row2.append(sum(bar) + (len(bar) - 1) * 5)
         w2 = sum(row2) + max(0, len(row2) - 1) * 5
         return max(w1, w2)
+
+
+class Hairline(QWidget):
+    """The 0.5 pt white 8 % rule above the session list."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(1)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+
+    def paintEvent(self, _e) -> None:
+        p = QPainter(self)
+        p.setPen(QPen(ms.rgba(ms.WHITE, 0.08), 0.5))
+        p.drawLine(0, 0, self.width(), 0)
+
+
+def _chip(text: str, rgb, size: float = 8, weight: str = "bold", pad=(4, 1), radius: float = 3,
+          fill: float = 0.18) -> QWidget:
+    box = nw.RoundedBox(ms.rgba(rgb, fill), radius)
+    lay = QHBoxLayout(box)
+    lay.setContentsMargins(pad[0], pad[1], pad[0], pad[1])
+    lay.addWidget(nw.Text(text, size, weight, rgb, 0.95, fixed=True))
+    box.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    return box
+
+
+def _icon_text(icon: str, text: str, size: float = 9, icon_size: float = 7, opacity: float = 0.4):
+    row = _row(2)
+    row.addWidget(nw.Glyph(icon, icon_size, opacity=opacity))
+    row.addWidget(nw.Text(text, size, opacity=opacity, fixed=True))
+    return row
+
+
+class SessionsListView(QWidget):
+    """SessionsList: a hairline, then one row per other session, 3 pt of
+    padding above and below each: the status dot (6 pt, blue and pulsing
+    while working, else green), a CLI chip, the folder at 11 pt medium, its
+    branch and worktree, the hourglass, agents, and the status word at
+    10 pt, with the session's context meter 14 in on a second line."""
+
+    def __init__(self, rows, parent=None):
+        super().__init__(parent)
+        self.rows = rows
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        v = QVBoxLayout(self)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(0)
+        v.addWidget(Hairline())
+        v.addSpacing(4)
+        for r in rows:
+            box = QVBoxLayout()
+            box.setContentsMargins(0, 3, 0, 3)
+            box.setSpacing(2)
+            line = _row(8)
+            line.addWidget(nw.Dot(ms.BLUE if r.working else ms.GREEN, pulse=r.working, diameter=6))
+            if r.agent:
+                line.addWidget(_chip(r.agent, ms.TEAL))
+            line.addWidget(nw.Text(r.label, 11, "medium", opacity=0.9))
+            if r.branch_short:
+                line.addLayout(_icon_text("arrow.triangle.branch", r.branch_short))
+            if r.worktree_short:
+                line.addLayout(_icon_text("square.on.square", r.worktree_short))
+            if r.waiting:
+                line.addWidget(_chip(r.waiting, ms.ORANGE, 9, "semibold", (5, 2), 4))
+            if r.agents:
+                line.addWidget(_chip("1 agent" if r.agents == 1 else f"{r.agents} agents", ms.PURPLE, 9,
+                                     "medium", (5, 2), 4))
+            line.addStretch(1)
+            line.addSpacing(8)
+            line.addWidget(nw.Text(r.status, 10, opacity=0.5, fixed=True))
+            box.addLayout(line)
+            if r.meter is not None:
+                meter = _row(0)
+                meter.addSpacing(14)
+                meter.addWidget(nw.context_cost_bar(r.meter.context_pct, r.meter.tokens, r.meter.window,
+                                                    r.meter.cost))
+                meter.addStretch(1)
+                box.addLayout(meter)
+            v.addLayout(box)
+
+    def natural_width(self) -> float:
+        """NotchView.idleContentWidth's estimate for these rows."""
+        from PySide6.QtGui import QFontMetricsF
+        fm11 = QFontMetricsF(ms.font(11, "medium"))
+        fm10 = QFontMetricsF(ms.font(10))
+        fm9 = QFontMetricsF(ms.font(9))
+        widest = 0.0
+        for r in self.rows:
+            parts = [6]
+            if r.agent:
+                parts.append(44)
+            parts.append(fm11.horizontalAdvance(r.label))
+            if r.branch_short:
+                parts.append(11 + fm10.horizontalAdvance(r.branch_short))
+            if r.worktree_short:
+                parts.append(11 + fm10.horizontalAdvance(r.worktree_short))
+            if r.waiting:
+                parts.append(fm9.horizontalAdvance(r.waiting) + 10)
+            if r.agents:
+                parts.append(fm9.horizontalAdvance(f"{r.agents} agents") + 10)
+            parts.append(fm10.horizontalAdvance(r.status) + 12)
+            widest = max(widest, sum(parts) + (len(parts) - 1) * 8)
+            if r.meter is not None:
+                bar = 14 + 36 + 5 + fm9.horizontalAdvance(r.meter.meter_label)
+                if r.meter.cost:
+                    bar += 5 + fm9.horizontalAdvance(r.meter.cost_label)
+                widest = max(widest, bar)
+        return widest
 
 
 def _model_label(name: str, version: str) -> QWidget:
