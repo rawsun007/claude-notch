@@ -315,3 +315,21 @@ def notice_text(toast) -> NoticeText:
         return NoticeText("notification", "Claude Code", title, project)
     # The app's own note (hello, update): a notification card, worded by the app.
     return NoticeText("notification", "ClaudeNotch", toast.title, toast.body)
+
+
+def build_answers(multi: list[bool], selections: list[set], others: list[str]) -> list[list[str]]:
+    """QuestionCard.buildAnswers: each question's picks, sorted; a typed
+    "something else" answer replaces the pick on a single-choice question
+    and is added to the picks on a multiple-choice one."""
+    out = []
+    for i, is_multi in enumerate(multi):
+        picks = sorted(selections[i]) if i < len(selections) else []
+        custom = (others[i] if i < len(others) else "").strip()
+        if custom:
+            picks = picks + [custom] if is_multi else [custom]
+        out.append(picks)
+    return out
+
+
+def question_count_text(n: int) -> str:
+    return "1 question" if n == 1 else f"{n} questions"
