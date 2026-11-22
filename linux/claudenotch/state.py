@@ -14,6 +14,7 @@ from __future__ import annotations
 import itertools
 import json
 import os
+import re
 import sys
 import threading
 import time
@@ -30,6 +31,13 @@ MAX_HISTORY = 500
 MAX_RULES = 200
 
 _ids = itertools.count(1)
+
+
+def project_name(cwd: str) -> str:
+    """The last folder of a working directory, for either slash: a Windows
+    session reports C:\\Users\\a\\proj, which os.path on Linux (and the tests)
+    would read as one long name."""
+    return re.split(r"[\\/]", cwd.rstrip("/\\"))[-1] if cwd else ""
 
 
 @dataclass
@@ -59,7 +67,7 @@ class PermissionCard:
 
     @property
     def project(self) -> str:
-        return os.path.basename(self.cwd.rstrip("/")) if self.cwd else ""
+        return project_name(self.cwd)
 
     def expired(self, now: float | None = None) -> bool:
         return ((now or time.monotonic()) - self.created) >= protocol.DECISION_WINDOW
@@ -76,7 +84,7 @@ class QuestionCard:
 
     @property
     def project(self) -> str:
-        return os.path.basename(self.cwd.rstrip("/")) if self.cwd else ""
+        return project_name(self.cwd)
 
     def expired(self, now: float | None = None) -> bool:
         return ((now or time.monotonic()) - self.created) >= protocol.DECISION_WINDOW
@@ -93,7 +101,7 @@ class Session:
 
     @property
     def project(self) -> str:
-        return os.path.basename(self.cwd.rstrip("/")) if self.cwd else "session"
+        return project_name(self.cwd) or "session"
 
 
 @dataclass
