@@ -58,6 +58,13 @@ class PreviewTests(unittest.TestCase):
         self.assertEqual(p.preview("shell", {"command": ["ls", "-la"]}).detail, "ls -la")
 
 
+class WindowsPreviewTests(unittest.TestCase):
+    def test_a_windows_file_path_titles_the_card_with_the_file_name(self):
+        pv = p.preview("Edit", {"file_path": "C:\\Users\\a\\proj\\main.py", "old_string": "a", "new_string": "b"})
+        self.assertEqual(pv.title, "Edit main.py")
+        self.assertEqual(p.preview("Write", {"file_path": "C:/proj/x.txt"}).title, "Write x.txt")
+
+
 class RequestCheckTests(unittest.TestCase):
     def test_browser_requests_are_refused(self):
         self.assertTrue(p.is_local_request({"Host": "127.0.0.1:53127"}))
