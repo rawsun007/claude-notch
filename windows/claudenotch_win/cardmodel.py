@@ -384,3 +384,62 @@ def idle_meter(session, branch: str = "") -> IdleMeter:
         window=getattr(session, "context_window", None) or 0,
         cost=getattr(session, "cost_usd", None) or 0.0,
     )
+
+
+# --- the session list under the hover card (NotchSessionList.SessionsList) -----------------
+
+
+def agent_label(model: str) -> str:
+    """AgentKind.infer(fromModel:).notchLabel uppercased, for the row's CLI
+    chip; "" for Claude, which is the default and stays untagged."""
+    m = (model or "").lower()
+    if "grok" in m:
+        return "GROK"
+    if any(k in m for k in ("gpt", "codex", "o1", "o3")):
+        return "CODEX"
+    return ""
+
+
+@dataclass
+class SessionRow:
+    id: str
+    label: str
+    working: bool
+    agent: str = ""
+    branch_short: str = ""
+    worktree_short: str = ""
+    waiting: str = ""            # "⏳ 3m" while a card of its own is unanswered
+    agents: int = 0
+    status: str = ""
+    meter: IdleMeter | None = None
+
+
+def session_rows(sessions, branches: dict | None = None, waiting_since: dict | None = None,
+                 now: float = 0.0) -> list[SessionRow]:
+    """One row per session after the top one, which the header above
+    already shows. `branches` maps a session id to its branch, and
+    `waiting_since` maps a folder to the monotonic time its oldest
+    unanswered card arrived."""
+    from . import notchgeom
+    branches = branches or {}
+    waiting_since = waiting_since or {}
+    rows = []
+    for s in list(sessions)[1:]:
+        label = s.project if getattr(s, "cwd", "") else ""
+        label = label or getattr(s, "name", "") or "session"
+        has_meter = (getattr(s, "context_pct", None) or 0) > 0 or (getattr(s, "cost_usd", None) or 0) > 0
+        since = waiting_since.get(s.cwd)
+        branch = branches.get(s.id, "")
+        rows.append(SessionRow(
+            id=s.id,
+            label=label,
+            working=s.status in ("working", "waiting"),
+            agent=agent_label(getattr(s, "model", "")),
+            branch_short=notchgeom.elide(branch, 16) if branch else "",
+            worktree_short=notchgeom.elide(getattr(s, "worktree", "") or "", 14),
+            waiting=f"⏳ {notchgeom.wait_elapsed(now - since)}" if since is not None else "",
+            agents=s.agents,
+            status=s.status or "ready",
+            meter=idle_meter(s, branch) if has_meter else None,
+        ))
+    return rows
