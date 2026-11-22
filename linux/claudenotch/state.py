@@ -24,6 +24,7 @@ from typing import Callable
 from . import fsutil, protocol
 from .danger import danger_reasons
 from .redact import redact
+from .stats import StatsStore
 
 MAX_SESSIONS = 12
 MAX_QUEUE = 64
@@ -179,6 +180,9 @@ class AppState:
         self.history: list[dict] = []
         self.rules: list[AllowRule] = []
         self._persist = persist
+        # All-time counters for Settings > Usage (stats.py); kept on disk only
+        # for the real app, so tests never write them.
+        self.stats = StatsStore(os.path.join(config_dir(), "stats.json") if persist else None)
         if persist:
             self._load_rules()
 
@@ -201,6 +205,9 @@ class AppState:
         always-allow rule matched (never for a dangerous call), or the queue is
         full, in which case it is answered with no opinion."""
         verdict = self.approver(card) if self.approver is not None else None
+        self.stats.record("tool", card.tool)
+        if card.dangers:
+            self.stats.record("dangerous")
         with self._lock:
             if not card.dangers and any(r.matches(card) for r in self.rules):
                 self._log("auto-allowed", card.title, card.detail, card.project)
@@ -212,6 +219,7 @@ class AppState:
                 self.auto_info = card
                 self.auto_info_at = time.monotonic()
                 decided = protocol.ALLOW
+                self.stats.record("auto_approved")
             elif len(self.permissions) >= MAX_QUEUE:
                 decided = protocol.ASK
             else:
@@ -246,6 +254,8 @@ class AppState:
                     self._save_rules()
             self._log({"allow": "allowed", "deny": "denied", "ask": "sent to terminal"}[decision],
                       card.title, card.detail, card.project)
+            if decision in (protocol.ALLOW, protocol.DENY):
+                self.stats.record("allowed" if decision == protocol.ALLOW else "denied")
             self._touch(card.session_id, card.cwd, "working" if decision == protocol.ALLOW else "ready")
         card.resolve(decision, reason)
         self._changed()
@@ -292,6 +302,8 @@ class AppState:
             self.questions.remove(card)
             self._log("answered" if answers else "question skipped", "Question",
                       card.questions[0].text if card.questions else "", card.project)
+            if answers:
+                self.stats.record("question")
         card.resolve(answers)
         self._changed()
 

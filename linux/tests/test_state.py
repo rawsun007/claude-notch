@@ -87,6 +87,18 @@ class PermissionTests(unittest.TestCase):
         self.assertTrue(st.enqueue_permission(card()))
         self.assertFalse(st.permissions[0].confirm_now)
 
+    def test_stats_count_decisions(self):
+        st = AppState(persist=False)
+        c = card()
+        st.enqueue_permission(c)
+        st.resolve_permission(c.id, protocol.ALLOW)
+        d = card(command="sudo rm -rf /x")
+        st.enqueue_permission(d)
+        st.resolve_permission(d.id, protocol.DENY)
+        v = st.stats.value
+        self.assertEqual((v.allowed, v.denied, v.dangerous_flagged), (1, 1, 1))
+        self.assertEqual(v.tool_counts, {"Bash": 2})
+
     def test_the_card_is_redacted_but_the_rule_matches_the_raw_text(self):
         secret = "export API_KEY=abc123"
         c = card(command=secret)
