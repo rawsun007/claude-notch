@@ -35,7 +35,8 @@ POSITIONS = [("top", "Top centre"), ("bottom-right", "Bottom right, above the tr
 NAV = [
     ("Workspace", [("general", "General", "gearshape"), ("notch", "Notch", "menubar.rectangle")]),
     ("Session", [("session", "Session", "text.bubble")]),
-    ("Alerts & Cost", [("alerts", "Alerts", "bell.badge"), ("plan", "Plan", "creditcard")]),
+    ("Alerts & Cost", [("alerts", "Alerts", "bell.badge"), ("budget", "Budget", "dollarsign.circle"),
+                       ("plan", "Plan", "creditcard")]),
     ("Info", [("usage", "Usage", "chart.bar"), ("history", "History", "clock.arrow.circlepath"),
               ("privacy", "Privacy", "lock.shield"),
               ("about", "About", "info.circle")]),
@@ -58,6 +59,8 @@ SEARCH = [
     kit.SearchItem("Windows notifications", "toast banner action center", "alerts"),
     kit.SearchItem("Plan-limit warnings", "rate limit 80 95 percent", "alerts"),
     kit.SearchItem("Plan limits", "5 hour weekly limit resets percent pro max", "plan"),
+    kit.SearchItem("Cost caps", "budget session day dollars limit", "budget"),
+    kit.SearchItem("Hard-stop at the cap", "block enforce budget", "budget"),
     kit.SearchItem("Hide from screen capture", "recording screenshot privacy share", "privacy"),
     kit.SearchItem("Require Windows Hello", "biometric fingerprint face pin touch id", "privacy"),
     kit.SearchItem("Skip confirmation for destructive commands",
@@ -132,7 +135,7 @@ class SettingsWindow(QWidget):
         root.addWidget(self.stack, 1)
         for key, build in (("general", self._page_general), ("notch", self._page_notch),
                            ("session", self._page_session), ("alerts", self._page_alerts),
-                           ("plan", self._page_plan),
+                           ("plan", self._page_plan), ("budget", self._page_budget),
                            ("usage", self._page_usage), ("history", self._page_history),
                            ("privacy", self._page_privacy), ("about", self._page_about),
                            ("rules", self._page_rules)):
@@ -692,6 +695,31 @@ class SettingsWindow(QWidget):
             self.state.archive.clear()
             self._fill_history()
 
+    # --- Budget -----------------------------------------------------------------------------
+
+    def _page_budget(self) -> QWidget:
+        page, v = self._page("Budget")
+        v.addWidget(kit.label("Caps on what Claude spends, at public API prices: the session's own Claude Code "
+                              "figure, and today's estimate from the transcripts.", 12, color=self.t.secondary,
+                              wrap=True))
+        card = kit.Card(self.t)
+        self.caps = {}
+        for key, title, sub in (("session_cost_cap", "Session cap", "What one session may spend."),
+                                ("daily_cost_cap", "Daily cap", "What all sessions together may spend today.")):
+            combo = QComboBox()
+            combo.addItem("Off", 0.0)
+            for amount in (1, 2, 5, 10, 25, 50, 100, 200, 500):
+                combo.addItem(f"${amount}", float(amount))
+            combo.currentIndexChanged.connect(lambda _i, k=key, c=combo: self.store.update(**{k: c.currentData()}))
+            self.caps[key] = combo
+            card.add(kit.Row(self.t, title, sub, combo))
+        self._toggle_row(card, "enforce_budget", "Hard-stop at the cap",
+                         "Once a cap is reached, hold every tool request on the card with Allow once, Raise the cap "
+                         "or Turn off, instead of letting it through. Auto-Approve never answers these.")
+        v.addWidget(card)
+        v.addStretch(1)
+        return page
+
     # --- Plan -------------------------------------------------------------------------------
 
     def _page_plan(self) -> QWidget:
@@ -833,7 +861,8 @@ class SettingsWindow(QWidget):
         values = {"start_at_login": start}
         for key in ("greeting", "hover_sessions", "toasts", "show_pill", "hide_in_fullscreen",
                     "desktop_notifications", "notify_dangerous_only", "keep_open", "hide_from_capture",
-                    "require_hello", "skip_destructive_confirm", "auto_approve", "limit_warnings"):
+                    "require_hello", "skip_destructive_confirm", "auto_approve", "limit_warnings",
+                    "enforce_budget"):
             values[key] = getattr(v, key, False)
         for key, value in values.items():
             sw = self.switches.get(key)
@@ -845,6 +874,15 @@ class SettingsWindow(QWidget):
             self.position.blockSignals(True)
             self.position.setCurrentIndex(idx)
             self.position.blockSignals(False)
+        for key, combo in getattr(self, "caps", {}).items():
+            idx = combo.findData(float(getattr(v, key, 0.0)))
+            if idx < 0:
+                combo.addItem(f"${getattr(v, key):.2f}", float(getattr(v, key)))
+                idx = combo.count() - 1
+            if idx != combo.currentIndex():
+                combo.blockSignals(True)
+                combo.setCurrentIndex(idx)
+                combo.blockSignals(False)
         scope_title = autoapprove.SCOPE_LABELS.get(v.auto_approve_scope, ("", ""))[0]
         danger_title = autoapprove.DANGEROUS_LABELS.get(v.auto_approve_dangerous, ("", ""))[0]
         self.auto_summary.setText(f"{scope_title}. Destructive commands: {danger_title.lower()}.")
