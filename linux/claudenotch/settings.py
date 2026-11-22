@@ -61,6 +61,8 @@ class Settings:
     # Keep the notch out of screen shares, recordings and screenshots. It
     # shows commands, paths and code, so it is on by default, as on the Mac.
     hide_from_capture: bool = True
+    # Warn at 80 % and 95 % of the 5-hour and weekly plan limits.
+    limit_warnings: bool = True
 
 
 POSITIONS = ("top", "bottom-right")

@@ -275,6 +275,7 @@ class Overlay(QWidget):
     # --- what to show --------------------------------------------------------------------
 
     def render(self) -> None:
+        self.state.limit_warnings = self._setting("limit_warnings", True)
         perms, questions, toasts, sessions = self.state.snapshot()
         if not self._setting("toasts", True) or self.snoozed:
             # Snoozed (or switched off): passive cards are logged, not shown.
