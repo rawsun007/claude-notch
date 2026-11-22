@@ -44,7 +44,13 @@ hooks when they start, so restart those.
   red banner and are allowed only by **Hold to Allow**: press and hold
   the button until it fills. Enter never allows one, and they can never
   be always-allowed.
-- **Questions** (AskUserQuestion): pick and Send, or Answer in terminal.
+- **Questions** (AskUserQuestion): pick one or more answers, or type your
+  own under "Something else", then Send. Cancel sends Claude Code back to
+  asking in its terminal.
+- **Done and notifications:** a finished turn shows "Claude finished" and
+  a notification shows Claude's message. Both wait until you press Done
+  or Dismiss, or Open IDE, which brings back the window you were in when
+  the card arrived.
 - **Sessions:** point at the notch, or click the tray icon.
 - Nobody answers within 285 seconds, or ClaudeNotch is not running: Claude
   Code asks in its terminal exactly as it would without the app.

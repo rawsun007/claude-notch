@@ -47,10 +47,10 @@ Order within each section is roughly by how often a user meets it.
 | Sandbox badge | SandboxReader | todo | |
 | Too late to answer here (expired card) | PermissionCard.expiredBanner | todo | The core drops the card at 285 s instead; the Mac keeps it with a Dismiss. |
 | Budget block banner, Allow once, Raise to $X | BudgetBanner, AppState+Budget | todo | Needs spending caps. |
-| Question card (AskUserQuestion), multi-question, Other text | QuestionCard | partial | Works (pick, Submit, Cancel); layout is not yet the Mac's option rows; no Other field, no minimize. |
+| Question card (AskUserQuestion), multi-question, Other text | QuestionCard | partial | Header, header pills, option rows (nothing picked at start), "Something else" field, Cancel / Send, the Mac's height budget and answer rules. Not yet: minimize and the stub beside the notch, the expired banner, the MCP sign-in link row. The Mac makes this card key at once; Windows waits for a click, so typing in the terminal is never caught. |
 | Plan approval (ExitPlanMode) | PermissionCard + WritePreview | done | Rendered as the plan preview card. |
-| Notification card (bell, Dismiss, Open IDE) | NotificationCard | partial | Shown as a plain title and body card; Mac buttons todo. |
-| Completed card (done, reply, Open IDE, audit) | CompletedCard | todo | Shown as the plain card today. |
+| Notification card (bell, Dismiss, Open IDE) | NotificationCard | done | Waits until Dismiss or Open IDE. Open IDE brings back the window that was in front when it arrived. StopFailure is this card with the Mac's "⚠️ Rate limited, session stopped" wording. The rate-limit crying pet and the Update button are todo. |
+| Completed card (done, reply, Open IDE, audit) | CompletedCard | partial | Green seal, "Claude finished", project, Open IDE and Done; waits until answered. Reply (needs compose), the audit banner and the dancing pet are todo. |
 | Auto-approved info card | AutoInfoCard | todo | Needs auto-approve. |
 | Thinking pill | ThinkingPill | todo | |
 | Compose / reply card | NotchComposeCards | todo | |
@@ -76,6 +76,7 @@ Order within each section is roughly by how often a user meets it.
 | Mac feature | Source | Windows | Notes |
 |---|---|---|---|
 | Hook protocol, loopback server, token, Origin/Host checks | EventServer, HookSocket, HookToken | done | Shared core, HTTP hooks. |
+| Card order: question, permission and notification, done, then hover | AppState.recompute | done | Oldest card first in each queue. |
 | Danger rules | ToolPreviewParser | done | Shared core plus PowerShell/cmd rules. Two core tests fail on this PC before and after this work (see below). |
 | Secret redaction | SecretRedactor | done | Shared core. |
 | Hook installer merge / uninstall | HookInstaller | done | Shared core. |
