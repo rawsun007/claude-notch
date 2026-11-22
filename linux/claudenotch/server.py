@@ -136,10 +136,19 @@ class HookServer:
         self.paused = threading.Event()
 
     def control(self, action: str) -> bool:
-        handler = self.controls.get(action)
+        """"settings", "quit", or "name:argument" for a handler that takes one
+        (the Windows app's "settings:privacy"). Unknown names do nothing."""
+        name, _, arg = action.partition(":")
+        handler = self.controls.get(name)
         if handler is None:
             return False
-        handler()
+        if arg:
+            try:
+                handler(arg[:64])
+            except TypeError:
+                return False
+        else:
+            handler()
         return True
 
     @property

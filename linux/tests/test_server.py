@@ -78,6 +78,16 @@ class ServerTests(unittest.TestCase):
         self.assertEqual((s.model, s.context_tokens, s.cost_usd), ("claude-opus-5-5", 80000, 2.5))
         self.assertAlmostEqual(self.state.limits["five_hour_pct"], 0.12)
 
+    def test_control_with_an_argument(self):
+        got = []
+        self.server.controls["settings"] = lambda page="": got.append(page)
+        self.assertTrue(self.server.control("settings:privacy"))
+        self.assertTrue(self.server.control("settings"))
+        self.assertFalse(self.server.control("nope:x"))
+        self.server.controls["quit"] = lambda: got.append("quit")
+        self.assertFalse(self.server.control("quit:now"))      # takes no argument
+        self.assertEqual(got, ["privacy", ""])
+
     def test_read_only_tools_pass_straight_through(self):
         t0 = time.monotonic()
         out = post(self.port, {"hook_event_name": "PreToolUse", "tool_name": "Grep", "tool_input": {}})
