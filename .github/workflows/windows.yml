@@ -1,0 +1,78 @@
+name: Windows
+
+# The Windows edition (windows/), built on the shared core in linux/claudenotch.
+# Separate from ci.yml (macOS) and linux.yml. A windows-v* tag builds the
+# installer and publishes a Windows-only release that is never marked
+# latest, so the Mac download link and the Mac app's update check keep
+# pointing at the newest DMG (decision D5).
+
+on:
+  push:
+    branches: [main, windows]
+    paths: ["windows/**", "linux/claudenotch/**", "linux/tests/**", ".github/workflows/windows.yml"]
+    tags: ["windows-v*"]
+  pull_request:
+    paths: ["windows/**", "linux/claudenotch/**", "linux/tests/**", ".github/workflows/windows.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Test on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: windows/requirements.txt
+      - name: Install
+        run: python -m pip install -r windows/requirements.txt
+      - name: Core and Windows tests
+        # The core tests must pass on Windows too (ticket W0). Qt runs
+        # offscreen so the overlay smoke test needs no desktop.
+        env:
+          PYTHONPATH: ${{ github.workspace }}\linux;${{ github.workspace }}\windows
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -q linux/tests windows/tests
+
+  build:
+    name: Build installer
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: windows/requirements.txt
+      - name: Install
+        run: |
+          python -m pip install -r windows/requirements.txt
+          choco install innosetup --no-progress -y
+      - name: Build
+        shell: pwsh
+        run: ./windows/packaging/build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClaudeNotch-windows
+          path: windows/dist/*.exe
+          if-no-files-found: error
+      - name: Publish the release (windows-v* tags only)
+        if: startsWith(github.ref, 'refs/tags/windows-v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          PRE=""
+          case "$TAG" in *-rc*|*-beta*) PRE="--prerelease";; esac
+          gh release view "$TAG" >/dev/null 2>&1 || \
+            gh release create "$TAG" --title "ClaudeNotch for Windows ${TAG#windows-v}" \
+              --notes "ClaudeNotch for Windows. Install with winget, or download the setup below." \
+              --latest=false $PRE
+          gh release upload "$TAG" windows/dist/*.exe --clobber
