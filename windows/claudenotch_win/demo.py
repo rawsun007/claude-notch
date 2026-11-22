@@ -17,7 +17,7 @@ import argparse
 import sys
 from types import SimpleNamespace
 
-from claudenotch import protocol
+from claudenotch import protocol, statusline
 from claudenotch.danger import danger_reasons
 from claudenotch.state import AppState, PermissionCard, QuestionCard
 
@@ -98,6 +98,11 @@ def load(state: AppState, name: str) -> SimpleNamespace:
         if name == "hover":
             state.handle_event({"hook_event_name": "Stop", "session_id": "demo", "cwd": HOME})
             state.toasts = []
+        # What Claude Code's status line reports, as the forwarder posts it.
+        state.note_status(statusline.parse(statusline.flatten({
+            "session_id": "demo", "model": {"id": "claude-opus-5-5"}, "effort": {"level": "high"},
+            "context_window": {"used_percentage": 42, "context_window_size": 200000, "total_input_tokens": 84000},
+            "cost": {"total_cost_usd": 1.84}})))
         out.hover = True
     return out
 

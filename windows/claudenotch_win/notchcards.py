@@ -175,7 +175,7 @@ class IdleCardView(QWidget):
     """The open hover card: the mascot, the name, the status dot and word,
     then the model and the context and cost meter."""
 
-    def __init__(self, sessions, parent=None):
+    def __init__(self, sessions, branch: str = "", parent=None):
         super().__init__(parent)
         self.setAttribute(Qt.WA_TranslucentBackground)
         name, status, dot_rgb, active = idle_header(sessions)
@@ -197,26 +197,75 @@ class IdleCardView(QWidget):
         r1.addStretch(1)
         v.addLayout(r1)
 
+        # Row 2: the TOP session's model, effort, branch and meter, all from
+        # that one session so they agree with each other.
+        m = cardmodel.idle_meter(sessions[0] if sessions else None, branch)
         r2 = _row(5)
+        if m.model_name:
+            r2.addWidget(_model_label(m.model_name, m.model_version))
+            if m.effort:
+                r2.addWidget(_small_dot())
+        if m.effort:
+            r2.addWidget(nw.Text(f"{m.effort} effort", 10, opacity=0.35, fixed=True))
+        if m.branch:
+            chip = _row(3)
+            chip.addWidget(nw.Glyph("arrow.triangle.branch", 8, opacity=0.3))
+            chip.addWidget(nw.Text(m.branch_short, 10, opacity=0.45, fixed=True))
+            r2.addLayout(chip)
         r2.addStretch(1)
-        r2.addWidget(nw.context_cost_bar())
+        r2.addWidget(nw.context_cost_bar(m.context_pct, m.tokens, m.window, m.cost))
         v.addLayout(r2)
-        self.content_width = self._natural_width(name, status, agents)
+        self.meter = m
+        self.content_width = self._natural_width(name, status, agents, m)
 
     @staticmethod
-    def _natural_width(name: str, status: str, agents: int) -> float:
+    def _natural_width(name: str, status: str, agents: int, m) -> float:
         """NotchView.idleContentWidth for what this card shows."""
         from PySide6.QtGui import QFontMetricsF
         fm12 = QFontMetricsF(ms.font(12, "semibold"))
         fm10 = QFontMetricsF(ms.font(10))
-        fm9 = QFontMetricsF(ms.font(9, "medium"))
+        fm10b = QFontMetricsF(ms.font(10, "semibold"))
+        fm9 = QFontMetricsF(ms.font(9))
+        fm9m = QFontMetricsF(ms.font(9, "medium"))
         row1 = [15, fm12.horizontalAdvance(name), 5, fm10.horizontalAdvance(status)]
         if agents:
-            row1.append(fm9.horizontalAdvance(f"{agents} agents") + 10)
+            row1.append(fm9m.horizontalAdvance(f"{agents} agents") + 10)
         row1.append(34)
         w1 = sum(row1) + (len(row1) - 1) * 6
-        w2 = 36 + QFontMetricsF(ms.font(9)).horizontalAdvance("no usage yet") + 5
+        row2 = []
+        if m.model_name:
+            label = f"{m.model_name} {m.model_version}" if m.model_version else m.model_name
+            row2.append(fm10b.horizontalAdvance(label))
+            if m.effort:
+                row2.append(2.5)
+        if m.effort:
+            row2.append(fm10.horizontalAdvance(f"{m.effort} effort"))
+        if m.branch:
+            row2.append(11 + fm10.horizontalAdvance(m.branch_short))
+        bar = [36, fm9.horizontalAdvance(m.meter_label)]
+        if m.cost:
+            bar.append(fm9.horizontalAdvance(m.cost_label))
+        row2.append(sum(bar) + (len(bar) - 1) * 5)
+        w2 = sum(row2) + max(0, len(row2) - 1) * 5
         return max(w1, w2)
+
+
+def _model_label(name: str, version: str) -> QWidget:
+    """"Opus" at 10 pt semibold 65 %, " 5.5" at 10 pt regular 45 %: one run."""
+    w = QWidget()
+    w.setAttribute(Qt.WA_TranslucentBackground)
+    row = _row(0)
+    w.setLayout(row)
+    row.addWidget(nw.Text(name, 10, "semibold", opacity=0.65, fixed=True))
+    if version:
+        row.addWidget(nw.Text(f" {version}", 10, opacity=0.45, fixed=True))
+    return w
+
+
+def _small_dot() -> QWidget:
+    d = nw.Dot(ms.WHITE, diameter=2.5)
+    d.set_opacity(0.18)
+    return d
 
 
 def _badge(text: str, rgb, fill: float) -> QWidget:
