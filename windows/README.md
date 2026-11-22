@@ -5,11 +5,11 @@ top of your screen instead of the terminal. The same hooks, the same danger
 warnings and the same secret redaction as the macOS and Linux apps, plus
 rules for PowerShell and cmd.
 
-Windows laptops have no notch, so the app draws a small black pill hanging
-from the top centre of your main display (or bottom right, above the tray,
-if you prefer). It grows into a card when Claude needs you and into your
-session list when you point at it. A tray icon holds Settings, Pause and
-Quit.
+Windows laptops have no notch, so the app draws the Mac's notch where one
+would be: a small black notch hanging from the top centre of your main
+display, the same shape, colours, type and motion as the macOS app. Point
+at it and it opens into your session; when Claude needs you it grows into
+the card. A tray icon holds Settings, Pause and Quit.
 
 Windows 10 (1809 or later) and Windows 11, x64. Windows on Arm runs it
 under emulation.
@@ -33,20 +33,23 @@ hooks when they start, so restart those.
 
 ## Use
 
-- **Permission card:** Allow, Deny, or Always allow (the same call is then
-  answered without a card). Click the card once and Enter allows, Esc denies.
+- **Permission card:** Deny, Always Allow (this exact command, or every
+  call of that tool; the same call is then answered without a card), or
+  Allow. With several cards waiting, Allow All answers them at once.
+  Click the card once and Enter allows, Esc denies.
 - **Dangerous calls** (`Remove-Item -Recurse -Force`, `rd /s`, `iwr | iex`,
   `-EncodedCommand`, registry Run keys, scheduled tasks, Defender or the
   firewall turned off, `rm -rf`, `git push --force`, writes into `.ssh`,
-  `.claude` or your PowerShell profile, and more) show the reasons in
-  orange, need a second click within a few seconds, and can never be
-  always-allowed.
+  `.claude` or your PowerShell profile, and more) show the reasons in a
+  red banner and are allowed only by **Hold to Allow**: press and hold
+  the button until it fills. Enter never allows one, and they can never
+  be always-allowed.
 - **Questions** (AskUserQuestion): pick and Send, or Answer in terminal.
-- **Sessions:** point at the pill, or click the tray icon.
+- **Sessions:** point at the notch, or click the tray icon.
 - Nobody answers within 285 seconds, or ClaudeNotch is not running: Claude
   Code asks in its terminal exactly as it would without the app.
 
-The pill never takes the keyboard from your terminal: a card appearing
+The notch never takes the keyboard from your terminal: a card appearing
 while you type does not eat keystrokes. It hides over fullscreen games,
 videos and presentations; a card that needs an answer still shows.
 
