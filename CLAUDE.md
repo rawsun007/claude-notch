@@ -215,8 +215,18 @@ sensitive paths; **fsutil.py**: rename retried while antivirus holds a file;
 `state.config_dir()` and `hooks.token_path()` use `%APPDATA%\ClaudeNotch`).
 `windows/claudenotch_win`: **app.py** (CLI), **qtapp.py** (startup, single
 instance via **instance.py**, take-over, quit answers open cards "ask"),
-**overlay.py** (pill and cards; WS_EX_NOACTIVATE via **winutil.py** so it
-never takes the keyboard) with **view.py** (pure, tested) and **theme.py**,
+**overlay.py** (the Mac's notch and its cards: NotchView + MouseTracker
+ported; WS_EX_NOACTIVATE via **winutil.py** so it never takes the
+keyboard) built from **notchgeom.py** (pure, tested: NotchShape path,
+CardSizeAnimator curves, hover zones, card sizes), **cardmodel.py** (pure,
+tested: humanTitle / humanDetail / ToolPreviewParser.preview wording),
+**macstyle.py** (Mac colours, Segoe UI Variable / Cascadia Mono),
+**notchwidgets.py** and **notchcards.py** (QPainter ports of the SwiftUI
+views), with **view.py** (pure, tested; which card wins) and
+**demo.py** (`python -m claudenotch_win.demo <card> [--shot f.png]`, the
+Mac's demo cards on a private state, no hooks or port). The Mac source
+is the spec for every number in these; `plans/windows-linux-weekend/PARITY.md`
+tracks what is ported.
 **tray.py**, **notify.py**, **settings_window.py**, **autostart.py** (HKCU Run
 key + StartupApproved). Packaging: `windows/packaging/` (PyInstaller onedir,
 per-user Inno Setup, build.ps1). Dev: `windows/dev/setup.ps1`, `run.ps1`.
