@@ -25,6 +25,8 @@ from . import fsutil, protocol
 from .danger import danger_reasons
 from .redact import redact
 from .stats import StatsStore
+from .archive import Archive
+from . import gitinfo
 
 MAX_SESSIONS = 12
 MAX_QUEUE = 64
@@ -183,6 +185,8 @@ class AppState:
         # All-time counters for Settings > Usage (stats.py); kept on disk only
         # for the real app, so tests never write them.
         self.stats = StatsStore(os.path.join(config_dir(), "stats.json") if persist else None)
+        # Past sessions for Settings > History (archive.py).
+        self.archive = Archive(os.path.join(config_dir(), "sessions.json") if persist else None)
         if persist:
             self._load_rules()
 
@@ -359,6 +363,8 @@ class AppState:
                 s = self._touch(sid, cwd, "ready")
                 if s:
                     s.agents = 0
+                    self.archive.note_turn(sid, s.cwd, s.project, prompt=s.last_prompt, model=s.model,
+                                           branch=gitinfo.branch(s.cwd), cost_usd=s.cost_usd)
                 toast = Toast("Claude is done", s.project if s else "", kind="done", cwd=cwd)
             elif event == "StopFailure":
                 self._touch(sid, cwd, "ready")
