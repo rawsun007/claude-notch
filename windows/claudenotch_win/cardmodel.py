@@ -443,3 +443,15 @@ def session_rows(sessions, branches: dict | None = None, waiting_since: dict | N
             meter=idle_meter(s, branch) if has_meter else None,
         ))
     return rows
+
+
+def entity_name(sessions) -> str:
+    """AppState.entityName in its default mode: the agent the live sessions
+    run ("Claude", "Codex", "Grok"), from the models they reported; the
+    app's own name when they are a mix; "Claude" before any model is known."""
+    kinds = {agent_label(s.model) or "CLAUDE" for s in sessions if getattr(s, "model", "")}
+    if len(kinds) > 1:
+        return "ClaudeNotch"
+    if kinds:
+        return {"CLAUDE": "Claude", "CODEX": "Codex", "GROK": "Grok"}[kinds.pop()]
+    return "Claude"
