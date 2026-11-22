@@ -112,3 +112,28 @@ Order within each section is roughly by how often a user meets it.
   fail on this Windows PC, with and without the UI changes (the danger
   code is untouched). Danger rules must stay identical to the Mac, so the
   fix belongs in its own change against the Mac's ToolPreviewParser.
+
+## Checked with a real Claude Code session (22 Nov 2026)
+
+Claude Code 2.1.330 (npm, per user), ClaudeNotch from the checkout,
+hooks from `%USERPROFILE%\.claude\settings.json`, `claude -p` with
+`--debug` so the hook traffic is in the log.
+
+| Shell | What Claude did | Card | Answer | Result |
+|---|---|---|---|---|
+| Git Bash | Read, then Edit `hello.js` | Read card, then Edit card with diff | Allow (clicked on the card) | Hook returned `allow` after 9.5 s and 5 s; file edited |
+| PowerShell | Edit `hello.js` | Edit card with diff | Allow | File edited |
+| PowerShell | PowerShell tool: `Remove-Item -Recurse -Force old-cache` | Red destructive card, "Remove-Item -Recurse -Force, deletes a directory tree", Hold to Allow | 1.3 s press and hold | Hook returned `allow`; folder deleted |
+
+The terminal kept keyboard focus until the card was pressed, every time.
+
+Seen along the way, not changed (both editions do it, the wire must stay
+identical): Grep, Glob, LS, BashOutput and KillShell are answered `ask`
+at once, as `EventServer.handleUnifiedHook` does on the Mac. In an
+interactive session that is "ask in the terminal"; in `claude -p`, where
+nobody can be asked, Claude Code reads it as a denial.
+
+Also seen: a Claude Code session on the same PC, including the one used
+to build this, routes its own permission prompts to the notch while the
+app runs. That is by design (the hooks are user-wide), but worth knowing
+when testing on a machine you are also working on.
