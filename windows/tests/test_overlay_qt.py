@@ -190,5 +190,45 @@ class OverlayTests(unittest.TestCase):
         self.assertIsNotNone(card.list_view)
         self.assertEqual(len(card.list_view.rows), 1)          # the top session is the header
 
+    def _with_settings(self, **values):
+        from types import SimpleNamespace
+        defaults = dict(auto_approve=False, auto_approve_scope="everything", auto_approve_dangerous="ask",
+                        require_hello=True, skip_destructive_confirm=False, hover_sessions=True, toasts=True,
+                        position="top", show_pill=True, hide_in_fullscreen=True)
+        defaults.update(values)
+        self.overlay.store = SimpleNamespace(value=SimpleNamespace(**defaults), update=lambda **kw: None)
+
+    def test_auto_approve_allows_and_shows_the_auto_allowed_card(self):
+        from claudenotch_win.notchcards import AutoInfoCardView
+        self._with_settings(auto_approve=True)
+        _, got = self.perm("npm test")
+        self.assertEqual(got, ["allow"])
+        self.assertEqual(self.overlay._view, "auto")
+        self.assertIsNotNone(self.overlay._content.findChild(AutoInfoCardView))
+        self.state.auto_info_at -= 10                 # past its four seconds
+        self.overlay._tick()
+        self.app.processEvents()
+        self.assertEqual(self.overlay._view, "pill")
+
+    def test_destructive_waits_unless_approve_them_too(self):
+        self._with_settings(auto_approve=True)
+        _, got = self.perm(r"Remove-Item C:\proj -Recurse -Force")
+        self.assertEqual(got, [])
+        self.assertEqual(self.overlay._view, "perm")
+        self.state.resolve_permission(self.state.permissions[0].id, "deny")
+        self._with_settings(auto_approve=True, auto_approve_dangerous="allow")
+        _, got = self.perm(r"Remove-Item C:\proj -Recurse -Force")
+        self.assertEqual(got, ["allow"])
+
+    def test_scope_commands_leaves_edits_to_the_card(self):
+        self._with_settings(auto_approve=True, auto_approve_scope="commands")
+        _, got = self.perm("npm test")
+        self.assertEqual(got, ["allow"])
+        got2 = []
+        self.state.enqueue_permission(PermissionCard("Edit", {"file_path": "C:/a.py", "old_string": "a",
+                                                              "new_string": "b"}, "C:/p", protocol.PERMISSION,
+                                                     "s1", resolve=lambda d, r: got2.append(d)))
+        self.assertEqual(got2, [])
+
 if __name__ == "__main__":
     unittest.main()
