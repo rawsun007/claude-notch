@@ -46,7 +46,8 @@ from . import cardmodel, hello
 from claudenotch import autoapprove, budget, sounds, usage
 from . import macstyle as ms
 from . import notchgeom as geom
-from . import soundplay, view, winutil
+from . import notchwidgets as nw
+from . import petengine, soundplay, view, winutil
 from .notchcards import AutoInfoCardView, IdleCardView, NoticeCardView, PermissionCardView, QuestionCardView
 
 FRAME_MS = 8                 # the animation clock; frames land on the display's vsync
@@ -94,6 +95,11 @@ class Overlay(QWidget):
         self._hello = hello.Availability()
         self.auto_until: float | None = None
         self.snooze_until: float | None = None
+        self.pet = petengine.Scheduler()
+        self._pet_last_mood = ""
+        self._pet_timer = QTimer(self, interval=33)
+        self._pet_timer.timeout.connect(self._pet_tick)
+        self._pet_timer.start()
         # Today's estimated spend from the transcripts, for the daily cap;
         # refreshed off the GUI thread once a minute.
         self.today_cost = 0.0
@@ -179,7 +185,12 @@ class Overlay(QWidget):
 
     def _target(self) -> tuple[float, float]:
         if self._content is None:
-            return geom.collapsed_size()
+            w, h = geom.collapsed_size()
+            a = self.pet.activity if self._pet_on() else "tucked"
+            if a != "tucked":
+                # The notch swells a little to be the pet's stage (NotchView.size).
+                return (w + petengine.stage_width_pad(a), geom.INSET + petengine.stage_drop(a))
+            return (w, h)
         measured = self._content.sizeHint().height()
         return (float(self._card_w), float(max(self._formula_h, measured)))
 
@@ -274,6 +285,8 @@ class Overlay(QWidget):
             radius = geom.bottom_radius(self.collapsed)
             path.addRoundedRect(r, radius, radius)
         p.fillPath(path, QColor(0, 0, 0))
+        if self.collapsed and self._pet_on() and self.pet.activity != "tucked":
+            self._paint_pet(p, path, r)
         if not collapsed:
             p.setPen(QPen(ms.rgba(ms.WHITE, 0.05), 0.5))
             p.drawPath(path)
@@ -360,6 +373,57 @@ class Overlay(QWidget):
         self.snooze_until = time.time() + minutes * 60 if minutes > 0 else None
         if minutes > 0:
             QTimer.singleShot(int(minutes * 60 * 1000) + 100, self.rerender)
+
+    # --- Pet mode --------------------------------------------------------------------
+
+    def _pet_on(self) -> bool:
+        return bool(self._setting("pet_enabled", False)) and self.top
+
+    def _pet_mood(self, now: float) -> str:
+        _, _, toasts, sessions = self.state.snapshot()
+        kinds = {getattr(t, "kind", "") for t in toasts if now - t.created < 6}
+        working = any(s.status == "working" for s in sessions)
+        newest = max((s.updated for s in sessions), default=0.0)
+        idle = time.time() - newest if newest else 9999
+        return petengine.mood("failure" in kinds, "done" in kinds, working, False, idle)
+
+    def _pet_tick(self) -> None:
+        if not self._pet_on() or not self.collapsed or not self.isVisible():
+            return
+        now = time.monotonic()
+        m = self._pet_mood(now)
+        if m != self._pet_last_mood and m in ("celebrating", "startled"):
+            self.pet.react(m, now)
+        self._pet_last_mood = m
+        before = self.pet.activity
+        self.pet.tick(now, m)
+        if self.pet.activity != before:
+            self._retarget()
+        self.update()
+
+    def _paint_pet(self, p: QPainter, clip: QPainterPath, r) -> None:
+        now = time.monotonic()
+        a = self.pet.activity
+        pos = QCursor.pos() - self.mapToGlobal(r.center().toPoint())
+        cursor_x = max(-40.0, min(40.0, float(pos.x()))) if abs(pos.y()) < 120 else 0.0
+        pose = petengine.pose(a, self.pet.progress(now), geom.INSET, r.width() / 2, cursor_x)
+        size = petengine.sprite_size(a)          # the Mac draws PetSprite at spriteSize
+        p.save()
+        p.setClipPath(clip)
+        blink = (now % 4.2) < 0.12 or a == "sleep"
+        nw.draw_pet(p, r.center().x() + pose.x, r.top() + pose.y, size, pose, blink)
+        p.restore()
+
+    def boop_pet(self) -> None:
+        if self._pet_on():
+            self.pet.boop(time.monotonic())
+            self._retarget()
+
+    def mousePressEvent(self, event) -> None:
+        # Clicking the bare notch wakes the pet, as on the Mac.
+        if self.collapsed and event.button() == Qt.LeftButton:
+            self.boop_pet()
+        super().mousePressEvent(event)
 
     def _sound(self, event: str, tool: str | None = None) -> None:
         name = sounds.sound_for(
