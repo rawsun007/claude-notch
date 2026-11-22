@@ -11,9 +11,10 @@ in Qt.PlainText: never parsed as HTML.
 
 from __future__ import annotations
 
+import math
 import time
 
-from PySide6.QtCore import QEasingCurve, QPointF, QRectF, QSize, Qt, QTimer, QVariantAnimation, Signal
+from PySide6.QtCore import QEasingCurve, QPointF, QRect, QRectF, QSize, Qt, QTimer, QVariantAnimation, Signal
 from PySide6.QtGui import QColor, QFontMetricsF, QLinearGradient, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QAbstractButton, QHBoxLayout, QLabel, QMenu, QSizePolicy, QVBoxLayout, QWidget
 
@@ -507,6 +508,94 @@ def draw_pet(p: QPainter, cx: float, cy: float, size: float, pose=None, blink: b
         p.restore()
 
 
+class PetBadge(QWidget):
+    """PetCardBadge: the mascot performing on a card, in place, no
+    drop-out-of-the-lip envelope. Decorative only. It is painted on a box
+    larger than its slot (see pet_badge_slot) so a hop or the dance's jump
+    is not cut off, and lets every click through."""
+
+    def __init__(self, size: float = 34, activity: str = "celebrate", loop: float = 2.4, emote: str | None = None,
+                 jitter: bool = False, dance: bool = False, parent=None):
+        super().__init__(parent)
+        self.size_pt, self.activity, self.loop = size, activity, loop
+        self.emote, self.jitter, self.dance = emote, jitter, dance
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.setAccessibleName("")
+        self.slot: QWidget | None = None
+        self._timer = QTimer(self, interval=16)
+        self._timer.timeout.connect(self._tick)
+        self._timer.start()
+
+    def _tick(self) -> None:
+        slot = self.slot
+        if slot is not None:
+            try:
+                host = slot.window()
+                visible = slot.isVisible()
+            except RuntimeError:                    # the slot's card is gone
+                self.deleteLater()
+                return
+            if not visible:
+                self.hide()
+                return
+            if self.parentWidget() is not host:
+                self.setParent(host)
+            m = int(self.size_pt * self.MARGIN)
+            at = slot.mapTo(host, slot.rect().topLeft())
+            want = QRect(at.x() - m, at.y() - m, slot.width() + 2 * m, slot.height() + 2 * m)
+            if self.geometry() != want:
+                self.setGeometry(want)
+            if not self.isVisible():
+                self.show()
+            self.raise_()
+        self.update()
+
+    #: How far past its slot the badge may draw, in sprite sizes.
+    MARGIN = 0.6
+
+    def frame(self, clock: float):
+        """(rig, centre dx, centre dy, pose) for the moment `clock`, in
+        pixels from the slot's centre. Pure, so it can be tested."""
+        from . import petengine as pe
+        size = self.size_pt
+        t = (clock % self.loop) / self.loop
+        if self.dance:
+            rig, ox, oy, rot = pe.dance(t, clock)
+            return rig, ox * size, -oy * size, pe.Pose(rotation=rot)
+        rig = pe.rig(self.activity, t, clock)
+        if self.activity == "celebrate":
+            lift = abs(math.sin(t * 3 * math.pi)) * size * 0.28
+        elif self.activity in ("peek", "lookAround"):
+            lift = math.sin(t * 2 * math.pi) * size * 0.04
+        else:
+            lift = 0.0
+        shake = math.sin(clock * 22) * size * 0.045 if self.jitter else 0.0
+        return rig, shake, -lift, pe.Pose(emote=self.emote)
+
+    def paintEvent(self, _e) -> None:
+        rig, dx, dy, pose = self.frame(time.monotonic())
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing, False)
+        draw_pet(p, self.width() / 2 + dx, self.height() / 2 + dy, self.size_pt, pose, rig=rig)
+        p.end()
+
+
+def pet_badge_slot(card: QWidget, size: float, **kw) -> QWidget:
+    """A size x size space in a layout with a PetBadge floating over it.
+    SwiftUI does not clip an offset view and a Qt child is clipped by its
+    parent, so the badge lives on the slot's top-level window and follows
+    the slot every frame; it goes when the slot does."""
+    slot = QWidget()
+    slot.setFixedSize(int(size), int(size))
+    badge = PetBadge(size, parent=card, **kw)
+    badge.slot = slot
+    badge.hide()
+    slot.destroyed.connect(badge.deleteLater)
+    slot.badge = badge
+    return slot
+
+
 class ClaudeIcon(QWidget):
     """ClaudeIconView: the coral mascot at 15 pt, bobbing at its mood's tempo
     and blinking. Painted from the same grid PetSprite uses."""
@@ -813,7 +902,7 @@ class RoundedBox(QWidget):
             p.drawPath(path)
 
 
-def danger_banner(reasons: list[str]) -> QWidget:
+def danger_banner(reasons: list[str], pet: bool = False) -> QWidget:
     """DangerBanner: red 14 % fill, red 35 % 1 pt stroke, 8 pt corners,
     10 x 7 padding. An 11 pt bold triangle, "This command is destructive"
     at 11 pt semibold, and a bullet per reason at 10 pt, wrapping."""
@@ -834,6 +923,15 @@ def danger_banner(reasons: list[str]) -> QWidget:
     for reason in reasons:
         col.addWidget(wrap_label("• " + reason, 10, "regular", ms.RED, 0.85))
     row.addLayout(col, 1)
+    if pet:
+        # The pet peers at the command, shaking, a startled "!": a second
+        # pair of eyes that says "careful".
+        badge = pet_badge_slot(box, 30, activity="lookAround", loop=1.4, emote="bang", jitter=True)
+        holder = QVBoxLayout()
+        holder.setContentsMargins(2, 0, 0, 0)
+        holder.addWidget(badge)
+        holder.addStretch(1)
+        row.addLayout(holder)
     box.setAccessibleName(" ".join(["This command is destructive."] + list(reasons)))
     return box
 

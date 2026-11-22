@@ -524,7 +524,8 @@ class Overlay(QWidget):
         self._card_w = 620
         g = hello.gate(self._setting("require_hello", True), self._hello.available,
                        self._setting("skip_destructive_confirm", False))
-        w = PermissionCardView(card, pending, width=620 - 2 * geom.CONTENT_H_PAD, gate=g, hwnd=self._hwnd())
+        w = PermissionCardView(card, pending, width=620 - 2 * geom.CONTENT_H_PAD, gate=g, hwnd=self._hwnd(),
+                               pet=bool(self._setting("pet_enabled", False)))
         if getattr(card, "confirm_now", False) and g == hello.HELLO:
             # Auto-Approve set to confirm destructive commands: the prompt
             # comes up on its own, so a glance or a finger allows it.
@@ -614,7 +615,7 @@ class Overlay(QWidget):
         text = cardmodel.notice_text(t)
         w, h = geom.completed_size() if text.card == "completed" else geom.notice_size()
         self._card_w, self._formula_h = w, h
-        card = NoticeCardView(t, w - 2 * geom.CONTENT_H_PAD)
+        card = NoticeCardView(t, w - 2 * geom.CONTENT_H_PAD, pet=bool(self._setting("pet_enabled", False)))
         card.action.connect(lambda what: self._notice_action(t, what))
         self.buttons = card.buttons
         return card

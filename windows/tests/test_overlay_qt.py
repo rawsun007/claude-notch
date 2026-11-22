@@ -294,5 +294,38 @@ class OverlayTests(unittest.TestCase):
         self.assertGreater(still.pixelColor(13, 49).alpha(), 0)
         self.assertNotEqual(asleep.pixelColor(18, 21), still.pixelColor(18, 21))
 
+    def test_pet_badges_show_only_with_pet_mode(self):
+        from claudenotch_win import notchwidgets as nw
+        for on in (False, True):
+            self._with_settings(pet_enabled=on)
+            self.perm(r"Remove-Item -Recurse -Force C:\proj")
+            self.app.processEvents()
+            self.assertEqual(bool(self.overlay.findChildren(nw.PetBadge)), on)
+
+    def test_pet_badge_dances_and_follows_its_slot(self):
+        from PySide6.QtWidgets import QVBoxLayout, QWidget
+        from claudenotch_win import notchwidgets as nw
+        host = QWidget()
+        host.resize(200, 120)
+        card = QWidget(host)
+        card.setGeometry(40, 30, 100, 60)
+        slot = nw.pet_badge_slot(card, 32, loop=3.4, dance=True)
+        QVBoxLayout(card).addWidget(slot)
+        host.show()
+        badge = slot.badge
+        badge._tick()
+        self.assertIs(badge.parentWidget(), host)            # not clipped by the card
+        self.assertTrue(badge.geometry().contains(slot.mapTo(host, slot.rect().center())))
+        _, _, dy, pose = badge.frame(3.4 * 0.9)              # the jump
+        self.assertLess(dy, 0)
+        card.deleteLater()
+        self.app.processEvents()
+        from PySide6.QtCore import QCoreApplication, QEvent
+        for _ in range(2):                                    # the card, then its badge
+            QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+            self.app.processEvents()
+        self.assertFalse(host.findChildren(nw.PetBadge))
+        host.close()
+
 if __name__ == "__main__":
     unittest.main()

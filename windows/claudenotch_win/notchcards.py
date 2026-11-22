@@ -53,7 +53,7 @@ class PermissionCardView(QWidget):
     _hello_done = Signal(bool, object)
 
     def __init__(self, card, pending: int = 1, width: float = 564, gate: str = "hold", hwnd: int = 0,
-                 parent=None):
+                 parent=None, pet: bool = False):
         super().__init__(parent)
         self.gate, self._hwnd = gate, hwnd
         self._hello_done.connect(self._hello_answered)
@@ -84,7 +84,7 @@ class PermissionCardView(QWidget):
         v.addLayout(head)
 
         if dangerous:
-            v.addWidget(nw.danger_banner(card.dangers))
+            v.addWidget(nw.danger_banner(card.dangers, pet=pet))
         if block is not None:
             v.addWidget(self._budget_banner(block))
 
@@ -474,7 +474,7 @@ class NoticeCardView(QWidget):
 
     action = Signal(str)
 
-    def __init__(self, toast, width: float, parent=None):
+    def __init__(self, toast, width: float, parent=None, pet: bool = False):
         super().__init__(parent)
         self.toast = toast
         self.text = cardmodel.notice_text(toast)
@@ -496,6 +496,12 @@ class NoticeCardView(QWidget):
         inner.addWidget(self._ago)
         head.addLayout(inner)
         head.addStretch(1)
+        # Top right of the header: the pet dances out a finished task, or
+        # cries over a plan limit.
+        if pet and done:
+            head.addWidget(nw.pet_badge_slot(self, 32, loop=3.4, dance=True))
+        elif pet and getattr(toast, "kind", "") == "limit":
+            head.addWidget(nw.pet_badge_slot(self, 32, activity="fret", loop=1.6, emote="teardrop"))
         v.addLayout(head)
 
         body = _row(16)
