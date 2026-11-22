@@ -25,6 +25,15 @@ class WindowsPathTests(unittest.TestCase):
             self.assertTrue(state.config_dir().endswith(os.path.join("AppData", "Roaming", "ClaudeNotch")))
 
 
+class ProjectNameTests(unittest.TestCase):
+    def test_windows_and_posix_working_directories(self):
+        self.assertEqual(state.project_name("C:\\Users\\a\\proj"), "proj")
+        self.assertEqual(state.project_name("C:\\Users\\a\\proj\\"), "proj")
+        self.assertEqual(state.project_name("C:/Users/a/proj"), "proj")
+        self.assertEqual(state.project_name("/home/a/proj/"), "proj")
+        self.assertEqual(state.project_name(""), "")
+
+
 class LinuxPathTests(unittest.TestCase):
     def test_linux_paths_are_unchanged(self):
         with mock.patch.object(state.sys, "platform", "linux"), \
