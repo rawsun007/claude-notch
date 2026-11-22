@@ -34,7 +34,7 @@ POSITIONS = [("top", "Top centre"), ("bottom-right", "Bottom right, above the tr
 #: (group title, [(key, title, glyph)]), the Mac's SettingsSection.nav.
 NAV = [
     ("Workspace", [("general", "General", "gearshape"), ("notch", "Notch", "menubar.rectangle")]),
-    ("Session", [("session", "Session", "text.bubble")]),
+    ("Session", [("session", "Session", "text.bubble"), ("skills", "Skills", "wand.and.stars.nav")]),
     ("Alerts & Cost", [("alerts", "Alerts", "bell.badge"), ("sounds", "Sounds", "speaker.wave.2"),
                        ("budget", "Budget", "dollarsign.circle"),
                        ("plan", "Plan", "creditcard")]),
@@ -56,6 +56,9 @@ SEARCH = [
     kit.SearchItem("Show the notch when idle", "hide idle pill", "notch"),
     kit.SearchItem("Hide over fullscreen apps", "game video presentation", "notch"),
     kit.SearchItem("Auto-approve for a while", "timed window minutes", "session"),
+    kit.SearchItem("Skills", "skill skills slash command plugin context listing tokens disable enable off trash delete restore",
+                   "skills"),
+    kit.SearchItem("Free up skill context", "skills unused name only tokens budget listing", "skills"),
     kit.SearchItem("Snooze passive cards", "mute pause quiet", "session"),
     kit.SearchItem("Completion and notification cards", "done finished notice toast", "alerts"),
     kit.SearchItem("Windows notifications", "toast banner action center", "alerts"),
@@ -140,7 +143,8 @@ class SettingsWindow(QWidget):
         self.stack = QStackedWidget()
         root.addWidget(self.stack, 1)
         for key, build in (("general", self._page_general), ("notch", self._page_notch),
-                           ("session", self._page_session), ("alerts", self._page_alerts),
+                           ("session", self._page_session), ("skills", self._page_skills),
+                           ("alerts", self._page_alerts),
                            ("plan", self._page_plan), ("budget", self._page_budget),
                            ("sounds", self._page_sounds),
                            ("usage", self._page_usage), ("history", self._page_history),
@@ -230,6 +234,8 @@ class SettingsWindow(QWidget):
             self._fill_history()
         if key == "plan":
             self._fill_plan()
+        if key == "skills":
+            self._fill_skills()
         self.stack.setCurrentIndex(self.pages[key])
         for k, item in self.nav_items.items():
             item.setChecked(k == key)
@@ -475,6 +481,150 @@ class SettingsWindow(QWidget):
         if self.overlay is not None:
             self.overlay.snooze_for(minutes)
         self.refresh()
+
+    # --- Skills -----------------------------------------------------------------------------
+
+    def _page_skills(self) -> QWidget:
+        page, v = self._page("Skills")
+        v.addWidget(kit.label("Every skill adds a little to each Claude turn, even unused ones. Turn off what you "
+                              "don't need.", 13, color=self.t.text, wrap=True))
+        v.addWidget(kit.label("Changes apply to new sessions, or run /reload-skills in one that's already running.",
+                              11, color=self.t.secondary, wrap=True))
+        self.skills_total = kit.label("", 13, "semibold", self.t.text)
+        v.addWidget(self.skills_total)
+        self.skills_search = kit.SearchField(self.t, "Search skills")
+        self.skills_search.changed.connect(lambda _q: self._fill_skills())
+        v.addWidget(self.skills_search)
+        self.skills_box = QVBoxLayout()
+        self.skills_box.setSpacing(14)
+        v.addLayout(self.skills_box)
+        self._message("skills", v)
+        v.addStretch(1)
+        return page
+
+    def _skill_projects(self) -> list[str]:
+        """Recent projects (the Mac keeps 8): folders of sessions seen here."""
+        seen, out = set(), []
+        for r in self.state.archive.newest_first():
+            if r.cwd and r.cwd not in seen and os.path.isdir(r.cwd):
+                seen.add(r.cwd)
+                out.append(r.cwd)
+        for s in self.state.snapshot()[3]:
+            if s.cwd and s.cwd not in seen and os.path.isdir(s.cwd):
+                seen.add(s.cwd)
+                out.append(s.cwd)
+        return out[:8]
+
+    def _fill_skills(self) -> None:
+        from claudenotch import skills as sk
+        lay = self.skills_box
+        while lay.count():
+            w = lay.takeAt(0).widget()
+            if w is not None:
+                w.deleteLater()
+        found = sk.scan(self._skill_projects())
+        data = sk._read(sk.settings_path())
+        ov = sk.overrides(data)
+        plugins_on = sk.enabled_plugins(data)
+        tokens = 0
+        for s in found:
+            vis = ov.get(s.name, "on")
+            if vis == "on":
+                tokens += s.listing_tokens
+            elif vis == "name-only":
+                tokens += (len(s.name) + 4 + 3) // 4
+        self.skills_total.setText(f"{len(found)} skill{'' if len(found) == 1 else 's'} · about {tokens:,} tokens "
+                                  "of listing in every turn")
+        query = self.skills_search.edit.text().strip().lower()
+        if query:
+            found = [s for s in found if query in f"{s.name} {s.description} {s.plugin}".lower()]
+        groups = (("personal", "Personal"), ("synced", "From claude.ai"), ("project", "Projects"),
+                  ("plugin", "Plugins"))
+        any_shown = False
+        for source, title in groups:
+            items = [s for s in found if s.source == source]
+            if not items:
+                continue
+            any_shown = True
+            lay.addWidget(kit.section_label(self.t, title))
+            card = kit.Card(self.t)
+            for s in sorted(items, key=lambda x: x.name.lower()):
+                card.add(self._skill_row(s, ov.get(s.name, "on"), plugins_on))
+            lay.addWidget(card)
+        if not any_shown:
+            lay.addWidget(kit.label("No matching skills." if query else "No skills found in ~/.claude/skills, "
+                                    "your recent projects or your plugins.", 12, color=self.t.secondary))
+        entries = sk.trash_list()
+        if entries:
+            lay.addWidget(kit.section_label(self.t, "Trash · kept 30 days"))
+            card = kit.Card(self.t)
+            for e in entries:
+                btn = kit.PushButton(self.t, "Restore")
+                btn.clicked.connect(lambda _=False, en=e: self._skill_restore(en))
+                left = f"{e.days_left} days left" if e.days_left is not None else ""
+                card.add(kit.Row(self.t, e.name, left, btn))
+            lay.addWidget(card)
+
+    def _skill_row(self, s, vis: str, plugins_on: dict) -> QWidget:
+        from claudenotch import skills as sk
+        box = QWidget()
+        h = QHBoxLayout(box)
+        h.setContentsMargins(0, 0, 0, 0)
+        h.setSpacing(6)
+        combo = QComboBox()
+        for key in sk.VISIBILITIES:
+            combo.addItem(sk.VISIBILITY_LABELS[key][0], key)
+            combo.setItemData(combo.count() - 1, sk.VISIBILITY_LABELS[key][1], Qt.ToolTipRole)
+        combo.setCurrentIndex(combo.findData(vis))
+        combo.currentIndexChanged.connect(lambda _i, c=combo, name=s.name: self._skill_visibility(name, c.currentData()))
+        h.addWidget(combo)
+        if s.can_trash:
+            bin_ = kit.PushButton(self.t, "Move to Trash…", destructive=True)
+            bin_.clicked.connect(lambda _=False, sk_=s: self._skill_trash(sk_))
+            h.addWidget(bin_)
+        bits = []
+        if s.refused:
+            bits.append("Won't load: its folder name has a character Claude Code refuses")
+        if s.description:
+            bits.append(s.description[:160])
+        bits.append(f"~{s.listing_tokens} tokens" if s.listing_tokens else "not listed to Claude")
+        if s.project:
+            bits.append(os.path.basename(s.project))
+        row = kit.Row(self.t, s.name, " · ".join(bits), box)
+        row.title.setToolTip(s.path)
+        return row
+
+    def _skill_visibility(self, name: str, vis: str) -> None:
+        from claudenotch import skills as sk
+        try:
+            sk.set_visibility(name, vis)
+            self._say("skills", None)
+        except (sk.Unreadable, OSError) as e:
+            self._say("skills", f"{sk.settings_path()} is not valid JSON, so ClaudeNotch left it alone."
+                      if isinstance(e, sk.Unreadable) else str(e))
+        self._fill_skills()
+
+    def _skill_trash(self, s) -> None:
+        from PySide6.QtWidgets import QMessageBox
+        from claudenotch import skills as sk
+        if QMessageBox.question(self, "Move to Trash", f"Move {s.name} to the trash?\n\nYou can restore it from this "
+                                "page for 30 days.", QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
+            return
+        try:
+            sk.trash(s)
+            self._say("skills", None)
+        except (ValueError, OSError) as e:
+            self._say("skills", str(e))
+        self._fill_skills()
+
+    def _skill_restore(self, entry) -> None:
+        from claudenotch import skills as sk
+        try:
+            sk.restore(entry)
+            self._say("skills", None)
+        except OSError as e:
+            self._say("skills", str(e))
+        self._fill_skills()
 
     # --- Alerts -----------------------------------------------------------------------------
 
