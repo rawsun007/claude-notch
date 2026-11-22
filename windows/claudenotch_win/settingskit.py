@@ -269,7 +269,8 @@ class PushButton(QAbstractButton):
             fg = QColor(255, 255, 255)
         else:
             bg = QColor(self.t.card if not self.t.dark else QColor(70, 70, 74))
-            fg = QColor(255, 69, 58) if self.destructive else self.t.text
+            # A copy: dimming below must never change the theme's own colour.
+            fg = QColor(255, 69, 58) if self.destructive else QColor(self.t.text)
         if self._hover:
             bg = bg.lighter(112) if self.t.dark or self.primary else bg.darker(104)
         if not self.isEnabled():
@@ -344,8 +345,8 @@ class NavItem(QAbstractButton):
             fg = QColor(255, 255, 255)
             icon = QColor(255, 255, 255)
         else:
-            fg = self.t.text
-            icon = self.t.accent
+            fg = QColor(self.t.text)
+            icon = QColor(self.t.accent)
         draw_glyph(p, self.glyph, QRectF(r.left() + 6, r.top(), 18, r.height()), 13, icon)
         p.setFont(self._font)
         p.setPen(fg)

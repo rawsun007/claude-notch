@@ -56,5 +56,16 @@ class WidgetTests(unittest.TestCase):
         self.assertEqual(row.subtitle.textFormat(), __import__("PySide6.QtCore", fromlist=["Qt"]).Qt.PlainText)
 
 
+class ColourTests(WidgetTests):
+    def test_a_disabled_button_never_dims_the_theme(self):
+        t = kit.theme(False)
+        before = t.text.alphaF()
+        b = kit.PushButton(t, "Stop")
+        b.setEnabled(False)
+        b.resize(80, 26)
+        b.grab()                        # paints it
+        self.assertEqual(t.text.alphaF(), before)
+
+
 if __name__ == "__main__":
     unittest.main()
