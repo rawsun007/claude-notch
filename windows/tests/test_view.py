@@ -68,6 +68,9 @@ class ChooseTests(unittest.TestCase):
         self.assertEqual(view.choose([], [], [1], True, True), view.TOAST)
         self.assertEqual(view.choose([], [], [], True, True), view.SESSIONS)
         self.assertEqual(view.choose([], [], [], True, False), view.PILL)
+        # The Auto-allowed card: after done cards, ahead of the hover card.
+        self.assertEqual(view.choose([], [], [], True, True, auto_info=1), view.AUTO)
+        self.assertEqual(view.choose([], [], [1], True, True, auto_info=1), view.TOAST)
         self.assertEqual(view.choose([], [], [], False, True), view.PILL)
 
     def test_only_the_idle_pill_hides(self):
