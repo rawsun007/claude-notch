@@ -14,7 +14,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
-from . import hooks, protocol
+from . import hooks, protocol, statusline
 from .state import AppState, PermissionCard, QuestionCard
 
 MAX_BODY = 2 * 1024 * 1024
@@ -105,6 +105,11 @@ class _Handler(BaseHTTPRequestHandler):
             # Origin, Host and token checks as a hook.
             done = self.app.control(path[len("/control/"):])
             return self._reply(protocol.OK_BODY if done else '{"ok":false}', 200 if done else 404)
+        if path == "/statusline":
+            # A pure data feed, sent on every status redraw: it updates the
+            # meters and never starts or ends a session's life.
+            self.app.state.note_status(statusline.parse(payload))
+            return self._reply(protocol.OK_BODY)
         if path != "/hook":
             return self._reply(protocol.OK_BODY)
         self._reply(self.app.answer(payload))

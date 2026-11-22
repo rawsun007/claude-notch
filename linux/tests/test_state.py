@@ -102,6 +102,30 @@ class SessionTests(unittest.TestCase):
         st.greet()
         self.assertEqual(st.toasts[-1].kind, "")
 
+    def test_status_line_updates_without_reordering(self):
+        from claudenotch.statusline import Reading
+        st, heard = AppState(persist=False), []
+        st.subscribe(lambda: heard.append(1))
+        st.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "a", "cwd": "/p/a", "prompt": "x"})
+        st.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "b", "cwd": "/p/b", "prompt": "y"})
+        order = [x.id for x in st.snapshot()[3]]
+        n = len(heard)
+        st.note_status(Reading(session_id="a", model="claude-opus-5-5", context_pct=0.5, effort="high"))
+        self.assertEqual(st.sessions["a"].model, "claude-opus-5-5")
+        self.assertEqual([x.id for x in st.snapshot()[3]], order)
+        self.assertEqual(len(heard), n + 1)
+        st.note_status(Reading(session_id="a", model="claude-opus-5-5", context_pct=0.5, effort="high"))
+        self.assertEqual(len(heard), n + 1)          # the same reading again: nobody is told
+
+    def test_status_line_never_revives_an_ended_session(self):
+        from claudenotch.statusline import Reading
+        st = AppState(persist=False)
+        st.handle_event({"hook_event_name": "SessionEnd", "session_id": "gone", "cwd": "/p"})
+        st.note_status(Reading(session_id="gone", cwd="/p", context_pct=0.2))
+        self.assertNotIn("gone", st.sessions)
+        st.note_status(Reading(session_id="new", cwd="/q", context_pct=0.2))
+        self.assertIn("new", st.sessions)
+
     def test_greet(self):
         st = AppState(persist=False)
         st.greet()

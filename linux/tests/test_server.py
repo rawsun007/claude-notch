@@ -66,6 +66,18 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(out["hookSpecificOutput"]["permissionDecision"], "ask")
         self.assertEqual(self.state.permissions, [], "the card goes when the hook gives up")
 
+    def test_status_line_fills_the_meters(self):
+        from claudenotch import statusline
+        raw = {"session_id": "s9", "workspace": {"current_dir": "/p/proj"}, "model": {"id": "claude-opus-5-5"},
+               "context_window": {"used_percentage": 40, "context_window_size": 200000,
+                                  "total_input_tokens": 80000},
+               "cost": {"total_cost_usd": 2.5}, "rate_limits": {"five_hour": {"used_percentage": 12}}}
+        out = post(self.port, statusline.flatten(raw), path="/statusline")
+        self.assertEqual(out, {"ok": True})
+        s = self.state.sessions["s9"]
+        self.assertEqual((s.model, s.context_tokens, s.cost_usd), ("claude-opus-5-5", 80000, 2.5))
+        self.assertAlmostEqual(self.state.limits["five_hour_pct"], 0.12)
+
     def test_read_only_tools_pass_straight_through(self):
         t0 = time.monotonic()
         out = post(self.port, {"hook_event_name": "PreToolUse", "tool_name": "Grep", "tool_input": {}})
