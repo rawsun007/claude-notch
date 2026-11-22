@@ -64,5 +64,35 @@ class PetEngineTests(unittest.TestCase):
         self.assertEqual(s.tick(20 + 2.5, "calm"), "tucked")   # performance over, resting
 
 
+class RigAndRopeTests(unittest.TestCase):
+    def test_rope_falls_then_swings_and_settles(self):
+        anchor, l0, y0 = 28.0, pe.ROPE_LENGTH + 21, 5.0
+        early = pe.rope_state(0.05, anchor, l0, y0)
+        self.assertFalse(early.taut)
+        later = pe.rope_state(1.0, anchor, l0, y0)
+        self.assertTrue(later.taut)
+        settled = pe.rope_state(20.0, anchor, l0, y0)
+        self.assertAlmostEqual(settled.angle, 0.0, places=2)
+        self.assertAlmostEqual(settled.radius, l0, places=2)
+        mid = pe.pose("rope", 0.5, 28, 100)
+        self.assertGreater(mid.y, 28)                         # hanging below the notch
+
+    def test_rig_matches_the_mac(self):
+        r = pe.rig("sleep", 0.5, 10.0)
+        self.assertEqual((r.eye_open, r.leg_tuck), (pe.SLEEPING_EYES, [1.4] * 4))
+        r = pe.rig("celebrate", 1 / 6, 0.0)                   # top of the first hop
+        self.assertAlmostEqual(r.arm_left, 70, places=3)
+        r = pe.rig("stroll", 0.5, 0.42 * 0.25)
+        self.assertGreater(r.leg_lift[0], 0.6)               # stepping
+        self.assertEqual(pe.blink(1.0), 1.0)
+        self.assertLess(pe.blink(3.4 + 0.07), 0.1)            # mid-blink
+
+    def test_dance_phases(self):
+        _, _, _, rot = pe.dance(0.79, 0)
+        self.assertGreater(rot, 300)                          # the spin
+        rig_, _, oy, _ = pe.dance(0.9, 0)
+        self.assertGreater(oy, 0.3)                           # the jump
+
+
 if __name__ == "__main__":
     unittest.main()
