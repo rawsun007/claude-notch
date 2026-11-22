@@ -68,3 +68,20 @@ class WindowsFieldTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DestructiveSettingsTests(unittest.TestCase):
+    def test_hello_on_and_skip_off_by_default_and_they_persist(self):
+        import tempfile
+        from unittest import mock
+        from claudenotch import settings
+        with tempfile.TemporaryDirectory() as d, \
+                mock.patch.object(settings, "path", lambda: os.path.join(d, "settings.json")):
+            s = settings.load()
+            self.assertTrue(s.require_hello)
+            self.assertFalse(s.skip_destructive_confirm)
+            store = settings.Store()
+            store.update(require_hello=False, skip_destructive_confirm=True)
+            again = settings.load()
+            self.assertFalse(again.require_hello)
+            self.assertTrue(again.skip_destructive_confirm)

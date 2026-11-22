@@ -41,6 +41,13 @@ class Settings:
     # Hide the idle pill while a fullscreen game, video or presentation is in
     # front. A card that needs an answer still shows.
     hide_in_fullscreen: bool = True
+    # Windows edition: ask Windows Hello before a destructive command is
+    # allowed, where this PC has it (the Mac's "Require Touch ID"; on there
+    # by default whenever the hardware is). Without Hello it is press-and-hold.
+    require_hello: bool = True
+    # Give destructive commands a plain Allow. Switching it on needs Windows
+    # Hello every time (the Mac asks for Touch ID or the password).
+    skip_destructive_confirm: bool = False
 
 
 POSITIONS = ("top", "bottom-right")
