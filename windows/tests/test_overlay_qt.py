@@ -133,5 +133,48 @@ class OverlayTests(unittest.TestCase):
         self.assertEqual(self.overlay._view, "toast")
 
 
+    def test_done_card_waits_until_done(self):
+        self.state.handle_event({"hook_event_name": "Stop", "session_id": "s1", "cwd": "C:/w/proj"})
+        self.app.processEvents()
+        self.assertEqual(self.overlay._view, "toast")
+        self.assertIn("dismiss", self.overlay.buttons)
+        self.state.toasts[0].created -= 60          # long past the hello's few seconds
+        self.overlay._tick()
+        self.assertEqual(len(self.state.toasts), 1)
+        self.overlay.buttons["dismiss"].click()
+        self.app.processEvents()
+        self.assertEqual(self.state.toasts, [])
+        self.assertEqual(self.overlay._view, "pill")
+
+    def test_open_ide_brings_back_the_window_that_was_in_front(self):
+        from unittest import mock
+        from claudenotch_win import winutil
+        self.overlay._last_foreign = 4242
+        with mock.patch.object(winutil, "foreground_window", return_value=0),                 mock.patch.object(winutil, "set_foreground") as fg:
+            self.state.handle_event({"hook_event_name": "Notification", "message": "Claude needs input"})
+            self.app.processEvents()
+            self.overlay.buttons["open"].click()
+        fg.assert_called_once_with(4242)
+        self.assertEqual(self.state.toasts, [])
+
+    def test_a_question_waits_ahead_of_a_permission(self):
+        self.perm()
+        q = protocol.Question("", "Which one?", False, [("Alpha", ""), ("Beta", "")])
+        self.state.enqueue_question(QuestionCard([q], "C:/proj", "s1"))
+        self.app.processEvents()
+        self.assertEqual(self.overlay._view, "question")
+
+    def test_question_free_text_replaces_a_single_pick(self):
+        from claudenotch_win.notchcards import QuestionCardView
+        got = []
+        q = protocol.Question("", "Which one?", False, [("Alpha", ""), ("Beta", "")])
+        self.state.enqueue_question(QuestionCard([q], "C:/proj", "s1", resolve=lambda a: got.append(a)))
+        self.app.processEvents()
+        view_ = self.overlay._content.findChild(QuestionCardView)
+        self.overlay.buttons["q0o0"].setChecked(True)
+        view_.others[0].edit.setText("Gamma")
+        self.overlay.buttons["send"].click()
+        self.assertEqual(got, [[["Gamma"]]])
+
 if __name__ == "__main__":
     unittest.main()
