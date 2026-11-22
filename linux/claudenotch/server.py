@@ -126,6 +126,9 @@ class HookServer:
         self._thread: threading.Thread | None = None
         # action name -> callable, filled in by the app ("settings", "quit").
         self.controls: dict = {}
+        # Set while the user has paused the app: blocking hooks get "no
+        # opinion" at once and Claude Code asks in its terminal.
+        self.paused = threading.Event()
 
     def control(self, action: str) -> bool:
         handler = self.controls.get(action)
@@ -164,6 +167,8 @@ class HookServer:
         kind = protocol.classify(payload)
         if kind == protocol.PASS:
             return protocol.pretool_body(protocol.ASK)
+        if self.paused.is_set() and kind in (protocol.PERMISSION, protocol.PERM_REQUEST, protocol.QUESTION):
+            return protocol.timeout_body(kind) if kind != protocol.QUESTION else protocol.OK_BODY
         if kind in (protocol.PERMISSION, protocol.PERM_REQUEST):
             return self._wait_for_permission(kind, payload)
         if kind == protocol.QUESTION:
