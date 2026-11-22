@@ -57,6 +57,8 @@ def write() -> PermissionCard:
 
 def question() -> QuestionCard:
     qs = protocol.parse_questions({"tool_input": {"questions": [
+        {"header": "Format", "question": "Which formats should the export include?", "multiSelect": True,
+         "options": [{"label": "CSV"}, {"label": "JSON"}, {"label": "PDF summary"}]},
         {"header": "Storage", "question": "Where should the exported reports live?", "multiSelect": False,
          "options": [
              {"label": "Local disk", "description": "Fastest, but nothing is shared between machines and a "
@@ -69,7 +71,12 @@ def question() -> QuestionCard:
 
 PERMISSIONS = {"permission": permission, "dangerous": dangerous, "dangerous-powershell": dangerous_powershell,
                "diff": diff, "write": write}
-ALL = [*PERMISSIONS, "queue", "question", "idle", "hover", "working"]
+NOTICES = {
+    "notification": {"hook_event_name": "Notification", "message": "Claude is waiting for your input"},
+    "completed": {"hook_event_name": "Stop"},
+    "failure": {"hook_event_name": "StopFailure", "failure_reason": "rate_limit", "message": "rate_limit"},
+}
+ALL = [*PERMISSIONS, "queue", "question", *NOTICES, "idle", "hover", "working"]
 
 
 def load(state: AppState, name: str) -> SimpleNamespace:
@@ -83,6 +90,8 @@ def load(state: AppState, name: str) -> SimpleNamespace:
             state.enqueue_permission(permission())
     elif name == "question":
         state.enqueue_question(question())
+    elif name in NOTICES:
+        state.handle_event({**NOTICES[name], "session_id": "demo", "cwd": HOME + "\\proj"})
     elif name in ("hover", "working"):
         state.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "demo", "cwd": HOME,
                             "prompt": "fix the build"})
