@@ -271,5 +271,28 @@ class OverlayTests(unittest.TestCase):
             self.perm("npm test")
         self.assertTrue(all(c.args[0] is None for c in play.call_args_list))
 
+    def test_pet_limbs_follow_the_rig(self):
+        from PySide6.QtGui import QColor, QImage, QPainter
+        from claudenotch_win import notchwidgets as nw, petengine as pe
+
+        def shot(rig):
+            img = QImage(64, 64, QImage.Format_ARGB32)
+            img.fill(QColor(0, 0, 0, 0))
+            p = QPainter(img)
+            nw.draw_pet(p, 32, 32, 64, None, rig=rig)
+            p.end()
+            return img
+
+        still = shot(pe.rig("peek", 0.5, 1.0))
+        up = shot(pe.rig("celebrate", 1 / 6, 0.0))           # arms at 70 degrees
+        asleep = shot(pe.rig("sleep", 0.5, 10.0))
+        # Arms up: coral beside the head (grid x 1, y 6.5), none there at rest.
+        self.assertEqual(still.pixelColor(6, 26).alpha(), 0)
+        self.assertGreater(up.pixelColor(6, 26).alpha(), 0)
+        # Asleep: legs tucked away, eyes nearly shut.
+        self.assertEqual(asleep.pixelColor(13, 49).alpha(), 0)
+        self.assertGreater(still.pixelColor(13, 49).alpha(), 0)
+        self.assertNotEqual(asleep.pixelColor(18, 21), still.pixelColor(18, 21))
+
 if __name__ == "__main__":
     unittest.main()

@@ -452,9 +452,15 @@ EMOTES = {"zzz": "z", "heart": "\u2665", "sparkle": "\u2726", "bang": "!", "dots
 EMOTE_RGB = {"heart": (255, 107, 140), "sparkle": (255, 204, 89), "teardrop": (115, 179, 255)}
 
 
-def draw_pet(p: QPainter, cx: float, cy: float, size: float, pose=None, blink: bool = False) -> None:
+_SHOULDERS = [(2, 8), (14, 8)]      # PetBody.shoulderLeft/Right, mid-height
+
+
+def draw_pet(p: QPainter, cx: float, cy: float, size: float, pose=None, blink: bool = False, rig=None) -> None:
     """PetSprite: the coral mascot from PetBody's 16-cell grid, centred on
-    (cx, cy), with a pose's tilt, squash and stretch, facing and emote."""
+    (cx, cy), with a pose's tilt, squash and stretch, facing and emote, and
+    a PetRig's limbs: legs stepping, lifting and tucking, arms turning about
+    the shoulders, eyes blinking and following the pointer. Limbs first and
+    the torso last, so the body covers every joint."""
     cell = size / 16.0
     p.save()
     p.translate(cx, cy)
@@ -464,11 +470,30 @@ def draw_pet(p: QPainter, cx: float, cy: float, size: float, pose=None, blink: b
         p.setOpacity(max(0.0, min(1.0, pose.opacity)))
     p.translate(-8 * cell, -8 * cell)
     coral = ms.rgba(ms.CORAL)
-    for x, y, w, h in _LEGS + _ARMS + _TORSO:
+    lift = rig.leg_lift if rig else [0.0] * 4
+    swing = rig.leg_swing if rig else [0.0] * 4
+    tuck = rig.leg_tuck if rig else [0.0] * 4
+    for i, (x, y, w, h) in enumerate(_LEGS):
+        height = max(0.0, h - tuck[i])
+        if height > 0.01:
+            p.fillRect(QRectF((x + swing[i]) * cell, (y - lift[i]) * cell, w * cell, height * cell),
+                       coral)
+    angles = (rig.arm_left, -rig.arm_right) if rig else (0.0, 0.0)
+    for (x, y, w, h), (px, py), angle in zip(_ARMS, _SHOULDERS, angles):
+        p.save()
+        p.translate(px * cell, py * cell)
+        p.rotate(angle)
+        p.translate(-px * cell, -py * cell)
         p.fillRect(QRectF(x * cell, y * cell, w * cell, h * cell), coral)
-    for x, y, w, h in _EYES:
-        eye = QRectF(x * cell, (y + (1.4 if blink else 0)) * cell, w * cell, (0.6 if blink else h) * cell)
-        p.fillRect(eye, Qt.black)
+        p.restore()
+    for x, y, w, h in _TORSO:
+        p.fillRect(QRectF(x * cell, y * cell, w * cell, h * cell), coral)
+    open_ = max(0.0, rig.eye_open) if rig else (0.3 if blink else 1.0)
+    shift = rig.eye_shift if rig else 0.0
+    if open_ > 0.02:
+        for x, y, w, h in _EYES:
+            lid = h * open_
+            p.fillRect(QRectF((x + shift) * cell, (y + h - lid) * cell, w * cell, lid * cell), Qt.black)
     p.restore()
     if pose is not None and pose.emote:
         p.save()
