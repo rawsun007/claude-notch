@@ -37,17 +37,16 @@ import time
 
 from PySide6.QtCore import QEvent, QObject, QRect, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QCursor, QGuiApplication, QPainter, QPainterPath, QPen, QRegion
-from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QHBoxLayout, QLabel, QMenu, QRadioButton,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import QApplication, QLabel, QMenu, QVBoxLayout, QWidget
 
 from claudenotch import protocol
 from claudenotch.state import AppState
 
+from . import cardmodel
 from . import macstyle as ms
 from . import notchgeom as geom
-from . import notchwidgets as nw
 from . import view, winutil
-from .notchcards import IdleCardView, PermissionCardView
+from .notchcards import IdleCardView, NoticeCardView, PermissionCardView, QuestionCardView
 
 FRAME_MS = 8                 # the animation clock; frames land on the display's vsync
 BOTTOM_RIGHT_MARGIN = 12
@@ -85,7 +84,9 @@ class Overlay(QWidget):
         self._content: QWidget | None = None
         self._card_w = geom.COLLAPSED_W
         self._formula_h = geom.COLLAPSED_H
-        self._question_inputs: list[list[tuple[str, QWidget]]] = []
+        self._question_view = None
+        self._originators: dict[int, int] = {}
+        self._last_foreign = 0
         self._keyboard = False
         self._focus_return = 0
         self.buttons: dict[str, QWidget] = {}
@@ -285,7 +286,9 @@ class Overlay(QWidget):
             key = (v, tuple((s.id, s.status, s.last_prompt, s.agents) for s in sessions), self.position)
             build = lambda: self._idle_card(sessions)  # noqa: E731
         elif v == view.TOAST:
-            t = toasts[-1]
+            # The oldest first, as the Mac's queues are: completedQueue.first.
+            t = toasts[0]
+            self._note_originator(t)
             key = (v, t.id, self.position)
             build = lambda: self._toast(t)  # noqa: E731
         else:
@@ -378,87 +381,46 @@ class Overlay(QWidget):
             self._decide(perms[0], protocol.ALLOW)
 
     def _toast(self, t) -> QWidget:
-        self._card_w = 500
-        w = QWidget()
-        v = QVBoxLayout(w)
-        v.setContentsMargins(0, 0, 0, 0)
-        v.setSpacing(6)
-        v.addWidget(nw.Text(t.title, 14, "semibold"))
-        if t.body:
-            v.addWidget(nw.wrap_label(t.body, 11, opacity=0.55))
-        w.setFixedWidth(500 - 2 * geom.CONTENT_H_PAD)
-        w.setProperty("toast_id", t.id)
-        self._formula_h = geom.INSET + 64
-        return w
+        text = cardmodel.notice_text(t)
+        w, h = geom.completed_size() if text.card == "completed" else geom.notice_size()
+        self._card_w, self._formula_h = w, h
+        card = NoticeCardView(t, w - 2 * geom.CONTENT_H_PAD)
+        card.action.connect(lambda what: self._notice_action(t, what))
+        self.buttons = card.buttons
+        return card
+
+    def _note_originator(self, t) -> None:
+        """Remember the window that was in front when this card arrived, so
+        Open IDE can bring it back (the Mac's capturedOriginator). A window
+        handle the OS gave us, never anything from the payload."""
+        if t.id not in self._originators:
+            fg = winutil.foreground_window()
+            self._originators[t.id] = fg if fg and fg != self._hwnd() else self._last_foreign
+            self._originators = dict(list(self._originators.items())[-16:])
+
+    def _notice_action(self, t, what: str) -> None:
+        if what == "open":
+            hwnd = self._originators.get(t.id) or 0
+            if hwnd:
+                winutil.set_foreground(hwnd)
+        self._originators.pop(t.id, None)
+        self.state.dismiss_toast(t.id)
 
     def _question_card(self, card, more: int) -> QWidget:
-        self._card_w = 600
-        inner = 600 - 2 * geom.CONTENT_H_PAD
-        w = QWidget()
-        w.setStyleSheet("QRadioButton, QCheckBox { color: white; background: transparent; }")
-        v = QVBoxLayout(w)
-        v.setContentsMargins(0, 0, 0, 0)
-        v.setSpacing(10)
-        head = QHBoxLayout()
-        head.setSpacing(8)
-        head.addWidget(nw.Glyph("questionmark.bubble.fill", 14, ms.PURPLE))
-        head.addWidget(nw.Text("Claude Code", 11, "semibold", ms.PURPLE, 0.9, upper=True, fixed=True))
-        head.addWidget(nw.Text("·", 13, opacity=0.3, fixed=True))
-        n = len(card.questions)
-        head.addWidget(nw.Text("1 question" if n == 1 else f"{n} questions", 11, "medium", opacity=0.55,
-                               fixed=True))
-        head.addStretch(1)
-        if card.project:
-            head.addWidget(nw.Text(card.project, 10, opacity=0.4, fixed=True))
-        v.addLayout(head)
-        self._question_inputs = []
-        for qi, q in enumerate(card.questions):
-            if q.header:
-                v.addWidget(nw.Text(q.header, 10, "semibold", opacity=0.5, upper=True))
-            v.addWidget(nw.wrap_label(q.text, 13, "semibold"))
-            group = None
-            if not q.multi_select:
-                group = QButtonGroup(w)
-                group.setExclusive(True)
-            inputs = []
-            for oi, (text, desc) in enumerate(q.options):
-                btn = QCheckBox() if q.multi_select else QRadioButton()
-                btn.setText(text)          # QAbstractButton text is never rich text
-                btn.setFont(ms.font(12, "medium"))
-                btn.setFocusPolicy(Qt.NoFocus)
-                btn.setCursor(Qt.PointingHandCursor)
-                if group is not None:
-                    group.addButton(btn)
-                    if oi == 0:
-                        btn.setChecked(True)
-                v.addWidget(btn)
-                self.buttons[f"q{qi}o{oi}"] = btn
-                if desc:
-                    d = nw.wrap_label(desc, 11, opacity=0.5)
-                    d.setContentsMargins(24, 0, 0, 0)
-                    v.addWidget(d)
-                inputs.append((text, btn))
-            self._question_inputs.append(inputs)
-        row = QHBoxLayout()
-        row.setSpacing(8)
-        row.addStretch(1)
-        skip = nw.NotchButton("Cancel", "secondary", "⎋")
-        skip.clicked.connect(lambda: self.state.resolve_question(card.id, None))
-        send = nw.NotchButton("Submit", "primary", "⏎")
-        send.clicked.connect(lambda: self._send_answers(card))
-        row.addWidget(skip)
-        row.addWidget(send)
-        self.buttons["skip"] = skip
-        self.buttons["send"] = send
-        v.addSpacing(8)
-        v.addLayout(row)
-        w.setFixedWidth(inner)
-        self._formula_h = geom.INSET + 104 + 70 * n
+        sx, sy, sw, sh = self._screen_rect()
+        self._card_w, self._formula_h = geom.question_size(
+            [([d for _, d in q.options], True) for q in card.questions], screen_h=sh)
+        top = geom.INSET + geom.CONTENT_TOP_GAP if self.top else 14
+        inner_h = self._formula_h - top - geom.CONTENT_BOTTOM_PAD
+        w = QuestionCardView(card, self._card_w - 2 * geom.CONTENT_H_PAD, inner_h)
+        w.answered.connect(lambda answers: self.state.resolve_question(card.id, answers))
+        self._question_view = w
+        self.buttons = w.buttons
         return w
 
     def _send_answers(self, card) -> None:
-        answers = [[text for text, btn in inputs if btn.isChecked()] for inputs in self._question_inputs]
-        self.state.resolve_question(card.id, answers)
+        if self._question_view is not None:
+            self.state.resolve_question(card.id, self._question_view.answers())
 
     # --- keyboard ------------------------------------------------------------------------
 
@@ -504,11 +466,6 @@ class Overlay(QWidget):
         if event.type() == QEvent.MouseButtonPress and isinstance(obj, QWidget) and obj.window() is self:
             if event.button() == Qt.LeftButton:
                 self._take_keyboard()
-                if self._view == view.TOAST and self._content is not None:
-                    inner = self._content.layout().itemAt(0).widget()
-                    toast_id = inner.property("toast_id") if inner is not None else None
-                    if toast_id:
-                        self.state.dismiss_toast(int(toast_id))
         return False
 
     def contextMenuEvent(self, event) -> None:
@@ -566,11 +523,16 @@ class Overlay(QWidget):
     # --- timers ----------------------------------------------------------------------------
 
     def _tick(self) -> None:
+        # A session's card waits until it is dismissed, as on the Mac; only
+        # the app's own hello and update notes go by themselves.
         now = time.monotonic()
         _, _, toasts, _ = self.state.snapshot()
         for t in toasts:
-            if now - t.created > view.TOAST_SECONDS:
+            if t.system and now - t.created > view.TOAST_SECONDS:
                 self.state.dismiss_toast(t.id)
+        fg = winutil.foreground_window()
+        if fg and fg != self._hwnd():
+            self._last_foreign = fg
 
     def _poll_fullscreen(self) -> None:
         full = winutil.fullscreen_in_front()
