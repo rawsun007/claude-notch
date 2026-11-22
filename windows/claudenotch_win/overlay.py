@@ -43,10 +43,10 @@ from claudenotch import gitinfo, protocol
 from claudenotch.state import AppState
 
 from . import cardmodel, hello
-from claudenotch import autoapprove, budget, usage
+from claudenotch import autoapprove, budget, sounds, usage
 from . import macstyle as ms
 from . import notchgeom as geom
-from . import view, winutil
+from . import soundplay, view, winutil
 from .notchcards import AutoInfoCardView, IdleCardView, NoticeCardView, PermissionCardView, QuestionCardView
 
 FRAME_MS = 8                 # the animation clock; frames land on the display's vsync
@@ -330,6 +330,7 @@ class Overlay(QWidget):
             build = None
 
         if key != self._shown_key:
+            self._sound_for_view(v, key, perms, questions, toasts, auto)
             self._shown_key = key
             was_card = self._view in (view.PERMISSION, view.QUESTION)
             self._view = v
@@ -359,6 +360,28 @@ class Overlay(QWidget):
         self.snooze_until = time.time() + minutes * 60 if minutes > 0 else None
         if minutes > 0:
             QTimer.singleShot(int(minutes * 60 * 1000) + 100, self.rerender)
+
+    def _sound(self, event: str, tool: str | None = None) -> None:
+        name = sounds.sound_for(
+            event, tool, muted=self._setting("sound_muted", False), per_tool=self._setting("per_tool_sounds", False),
+            alert=self._setting("alert_sound", sounds.DEFAULT_ALERT), per_event=self._setting("sound_events", {}),
+            per_category=self._setting("sound_tools", {}))
+        soundplay.play(name)
+
+    def _sound_for_view(self, v, key, perms, questions, toasts, auto) -> None:
+        """A card that just came up makes its sound, once (AppState.play)."""
+        if self._shown_key is not None and key[:2] == self._shown_key[:2]:
+            return
+        if v == view.PERMISSION:
+            self._sound("permission", perms[0].tool)
+        elif v == view.QUESTION:
+            self._sound("question")
+        elif v == view.TOAST:
+            kind = getattr(toasts[0], "kind", "")
+            self._sound({"done": "completed", "limit": "limit"}.get(kind, "permission"),
+                        "Notification" if kind in ("notice", "failure") else None)
+        elif v == view.AUTO:
+            self._sound("autoApproved", auto.tool)
 
     def _frame_content(self, inner: QWidget) -> QWidget:
         """NotchView's padding around every card: 28 a side, inset + 10 on
@@ -420,6 +443,7 @@ class Overlay(QWidget):
         return w
 
     def _decide(self, card, decision: str, scope: str = "") -> None:
+        self._sound("approved" if decision == protocol.ALLOW else "dismissed")
         block = getattr(card, "budget_block", None)
         if scope == "raise" and block is not None and self.store is not None:
             key = "daily_cost_cap" if block.scope == "daily" else "session_cost_cap"

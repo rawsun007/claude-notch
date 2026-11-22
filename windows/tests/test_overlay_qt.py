@@ -249,5 +249,27 @@ class OverlayTests(unittest.TestCase):
         self.assertEqual(got, ["allow"])
         self.assertEqual(saved, {"session_cost_cap": 10.0})
 
+    def test_sounds_for_a_card_and_for_your_answer(self):
+        from unittest import mock
+        from claudenotch_win import soundplay
+        self._with_settings(sound_muted=False, per_tool_sounds=True, alert_sound="A", sound_events={},
+                            sound_tools={"bash": "SHELL"})
+        with mock.patch.object(soundplay, "play") as play:
+            self.perm("npm test", tool="Bash")
+            self.overlay.buttons["deny"].click()
+            self.app.processEvents()
+        names = [c.args[0] for c in play.call_args_list]
+        self.assertEqual(names[0], "SHELL")                       # the per-tool prompt sound
+        self.assertIn("Windows Navigation Start", names)         # dismissed
+
+    def test_muted_plays_nothing(self):
+        from unittest import mock
+        from claudenotch_win import soundplay
+        self._with_settings(sound_muted=True, per_tool_sounds=False, alert_sound="A", sound_events={},
+                            sound_tools={})
+        with mock.patch.object(soundplay, "play") as play:
+            self.perm("npm test")
+        self.assertTrue(all(c.args[0] is None for c in play.call_args_list))
+
 if __name__ == "__main__":
     unittest.main()
