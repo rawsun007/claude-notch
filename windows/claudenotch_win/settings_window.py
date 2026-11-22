@@ -448,7 +448,7 @@ class SettingsWindow(QWidget):
         from . import petengine
         for key, title in (("peek", "Peek"), ("lookAround", "Look around"), ("stroll", "Stroll"),
                            ("hangLeft", "Hang off the left corner"), ("hangRight", "Hang off the right corner"),
-                           ("sleep", "Sleep"), ("celebrate", "Celebrate"), ("watch", "Watch Claude work"),
+                           ("sleep", "Sleep"), ("celebrate", "Celebrate"), ("watch", "Watch Claude work"), ("rope", "Dangle on a rope"),
                            ("flinch", "Flinch"), ("fret", "Fret (limit almost up)"), ("spin", "Backflip")):
             btn = kit.PushButton(self.t, "Play")
             btn.clicked.connect(lambda _=False, a=key: self._pet_try(a))
