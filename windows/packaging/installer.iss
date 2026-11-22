@@ -46,6 +46,13 @@ Source: "..\dist\ClaudeNotch\*"; DestDir: "{app}"; Flags: ignoreversion recurses
 ; icon now and actionable toasts can come later without a reinstall.
 Name: "{userprograms}\ClaudeNotch"; Filename: "{app}\{#AppExe}"; AppUserModelID: "Rawsun.ClaudeNotch"
 
+[Registry]
+; claudenotch:// links (Settings pages, open the notch), per user: no admin.
+Root: HKCU; Subkey: "Software\Classes\claudenotch"; ValueType: string; ValueName: ""; ValueData: "URL:ClaudeNotch"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\claudenotch"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKCU; Subkey: "Software\Classes\claudenotch\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExe}"",0"
+Root: HKCU; Subkey: "Software\Classes\claudenotch\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExe}"" --url ""%1"""
+
 [Run]
 ; Last page: wire Claude Code to the app and start it with a welcome.
 Filename: "{app}\{#AppExe}"; Parameters: "--first-run"; Description: "Start ClaudeNotch"; Flags: nowait postinstall

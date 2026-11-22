@@ -25,7 +25,7 @@ import threading
 import time
 import urllib.request
 
-from . import __version__, paths, winstatus
+from . import __version__, paths, urlscheme, winstatus
 
 from claudenotch import hooks  # noqa: E402  (paths made it importable)
 
@@ -112,6 +112,7 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     ap.add_argument("--first-run", action="store_true", help="installer's last step: hooks and a welcome")
     ap.add_argument("--headless", action="store_true", help="run the hook server without a window")
     ap.add_argument("--no-install", action="store_true", help="do not install the hooks on start")
+    ap.add_argument("--url", help="a claudenotch:// link to open (Windows passes these)")
     ap.add_argument("--version", action="version", version=f"ClaudeNotch for Windows {__version__}")
     return ap.parse_args(argv)
 
@@ -170,6 +171,15 @@ def main(argv: list[str] | None = None) -> int:
         say(f"app:   {'running ' + running if running else 'not running'} (127.0.0.1:{hooks.PORT})")
         say(f"log:   {paths.log_path()}")
         return 0
+
+    if args.url is not None:
+        action = urlscheme.parse(args.url)
+        if action is None:
+            return 1
+        if running_version() is not None:
+            verb, page = action
+            return 0 if control(f"settings:{page}" if verb == "settings" and page else verb) else 1
+        # Not running: start, and do it once up (qtapp reads args.url).
 
     if args.headless:
         return run_headless(args)

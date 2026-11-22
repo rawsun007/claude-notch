@@ -23,7 +23,7 @@ from claudenotch import settings as settings_mod
 from claudenotch.server import HookServer
 from claudenotch.state import AppState
 
-from . import __version__, autostart, instance, paths, winstatus, winutil
+from . import __version__, autostart, instance, paths, urlscheme, winstatus, winutil
 from .app import control, quit_running, running_version, say
 
 FIRST_RUN_TIP = ("It sits at the top centre of your screen and in the tray. Windows may tuck new tray icons "
@@ -112,13 +112,16 @@ def run(args) -> int:
         from PySide6.QtCore import QObject, Signal
 
         class _Controls(QObject):
-            settings = Signal()
+            settings = Signal(str)
+            open_notch = Signal()
             quit = Signal()
 
         controls = _Controls()
-        controls.settings.connect(lambda: open_settings())
+        controls.settings.connect(lambda page: open_settings(page or None))
+        controls.open_notch.connect(lambda: overlay.show_sessions(8))
         controls.quit.connect(quit_app)
-        server.controls["settings"] = controls.settings.emit
+        server.controls["settings"] = lambda page="": controls.settings.emit(page)
+        server.controls["open"] = controls.open_notch.emit
         server.controls["quit"] = controls.quit.emit
         server.start()
     else:
@@ -148,6 +151,11 @@ def run(args) -> int:
         state.greet(updated_from=updated_from, version=__version__)
     if args.settings:
         QTimer.singleShot(0, open_settings)
+    link = urlscheme.parse(getattr(args, "url", None) or "") if getattr(args, "url", None) else None
+    if link is not None:
+        verb, page = link
+        QTimer.singleShot(300, (lambda: open_settings(page or None)) if verb == "settings"
+                          else (lambda: overlay.show_sessions(8)))
 
     # Ctrl+C in a console run: let Python see the signal now and then.
     signal.signal(signal.SIGINT, lambda *_: quit_app())
