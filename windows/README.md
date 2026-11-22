@@ -73,21 +73,34 @@ status line back.
 
 ## Settings
 
-Tray icon > Settings, or right-click the pill.
+Tray icon > Settings, right-click the notch, or a `claudenotch://settings`
+link (`claudenotch://settings/usage` opens a page). Laid out like the Mac
+app's: a sidebar with search, and these pages:
 
-- **General:** start at login, the hello at start, sessions on hover,
-  session updates, show the idle pill, hide it over fullscreen apps, and
-  where the pill sits.
-- **Notifications:** Windows notifications for every card, or dangerous
-  calls only. Off by default, since the card is already on screen.
-- **Claude Code:** install, reinstall or remove the hooks. Your own hooks
-  in `%USERPROFILE%\.claude\settings.json` are kept, and a backup is
-  written next to it before any change.
-- **Always allow:** the rules you added, with Remove.
-- **About:** version, where the log and settings are.
-
-**Pause** in the tray menu sends every prompt straight back to the terminal
-until you un-pause.
+- **General:** launch at login, the hello at start, **Auto-Approve** (what
+  it answers for you, and what it does with destructive commands: show the
+  card, confirm with Windows Hello, or approve them too, which asks for
+  Windows Hello or your Windows password first), and setup health for the
+  hooks and the status line.
+- **Notch:** keep it open, open on hover, show it when idle, hide it over
+  fullscreen apps, and where it sits.
+- **Session:** Auto-approve for 15 minutes to an hour, and snooze
+  finished-turn and notification cards.
+- **Alerts:** finished-turn and notification cards, plan-limit warnings at
+  80 % and 95 %, and Windows notifications.
+- **Budget:** session and daily spending caps, and a hard stop that holds
+  requests on the card once a cap is reached.
+- **Plan:** your 5-hour and weekly limits, with time to reset.
+- **Usage:** estimated cost for 7 days and 4 weeks, an activity heatmap,
+  all-time counters, top tools and projects, tokens and cost today, in the
+  last 5 hours and this week, cache savings, and the model mix. Costs are
+  estimates at public API prices, not your subscription bill.
+- **History:** every session with its summary, turns, model, branch and
+  cost; search, export (CSV or JSON) and clear.
+- **Privacy:** hide the notch from screen capture (on by default), require
+  Windows Hello for destructive commands, and skip that confirmation
+  (asks for Windows Hello or your password).
+- **Rules**, **About**, and **Developer** (show any card on demand).
 
 ## Updating
 
