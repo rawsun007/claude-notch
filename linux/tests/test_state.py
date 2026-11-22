@@ -88,6 +88,17 @@ class SessionTests(unittest.TestCase):
         st.handle_event({"hook_event_name": "Notification", "message": "Claude needs input"})
         self.assertEqual(st.toasts[-1].title, "Claude Code")
 
+    def test_toasts_say_what_they_report(self):
+        st = AppState(persist=False)
+        st.handle_event({"hook_event_name": "Stop", "session_id": "a", "cwd": "C:/work/proj"})
+        self.assertEqual((st.toasts[-1].kind, st.toasts[-1].cwd), ("done", "C:/work/proj"))
+        st.handle_event({"hook_event_name": "Notification", "cwd": "/p", "message": "m"})
+        self.assertEqual(st.toasts[-1].kind, "notice")
+        st.handle_event({"hook_event_name": "StopFailure", "cwd": "/p", "error": "rate_limit"})
+        self.assertEqual(st.toasts[-1].kind, "failure")
+        st.greet()
+        self.assertEqual(st.toasts[-1].kind, "")
+
     def test_greet(self):
         st = AppState(persist=False)
         st.greet()
