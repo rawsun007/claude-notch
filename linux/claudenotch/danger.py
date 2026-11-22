@@ -12,6 +12,7 @@ for a second confirm, and an always-allow rule never applies.
 from __future__ import annotations
 
 import os
+import posixpath
 import re
 
 from . import danger_windows as win
@@ -162,7 +163,10 @@ def path_danger(path: str, home: str | None = None) -> list[str]:
     if win.looks_like_windows_path(path) or (home is None and _on_windows()):
         return win.windows_path_danger(path)
     home = home if home is not None else os.path.expanduser("~")
-    p = os.path.normpath(os.path.expanduser(path)) if path.startswith(("~", "/")) else os.path.normpath(path)
+    # POSIX rules on a POSIX-style path: posixpath, so the same answer comes
+    # back on a Windows machine (where os.path would turn / into \\).
+    p = posixpath.normpath(os.path.expanduser(path) if path.startswith("~") and home is None
+                           else path.replace("~", home, 1) if path.startswith("~") else path)
     h = home.rstrip("/") + "/"
 
     sensitive = [
