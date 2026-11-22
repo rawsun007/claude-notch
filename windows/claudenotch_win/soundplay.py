@@ -13,9 +13,10 @@ sound plays nothing, never the default beep.
 from __future__ import annotations
 
 import os
+import struct
 import sys
 
-from . import paths
+from . import aiffwav, paths
 
 MEDIA = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Media")
 
@@ -24,10 +25,39 @@ def user_dir() -> str:
     return os.path.join(paths.config_dir(), "Sounds")
 
 
+def _from_aiff(name: str) -> str | None:
+    """The user's <name>.aiff as a WAV, converted on first use and again
+    whenever the AIFF changes."""
+    for ext in (".aiff", ".aif"):
+        src = os.path.join(user_dir(), name + ext)
+        if not os.path.isfile(src):
+            continue
+        out = os.path.join(user_dir(), ".converted", name + ".wav")
+        try:
+            if not os.path.isfile(out) or os.path.getmtime(out) < os.path.getmtime(src):
+                with open(src, "rb") as f:
+                    wav = aiffwav.to_wav(f.read(aiffwav.MAX_BYTES + 1))
+                os.makedirs(os.path.dirname(out), exist_ok=True)
+                tmp = out + ".tmp"
+                with open(tmp, "wb") as f:
+                    f.write(wav)
+                os.replace(tmp, out)
+            return out
+        except (OSError, ValueError, struct.error):
+            return None
+    return None
+
+
 def path(name: str) -> str | None:
     if not name or os.sep in name or "/" in name or ".." in name or ":" in name:
         return None
-    for folder in (user_dir(), paths.resource("sounds"), MEDIA):
+    mine = os.path.join(user_dir(), name + ".wav")
+    if os.path.isfile(mine):
+        return mine
+    converted = _from_aiff(name)
+    if converted:
+        return converted
+    for folder in (paths.resource("sounds"), MEDIA):
         p = os.path.join(folder, name + ".wav")
         if os.path.isfile(p):
             return p
