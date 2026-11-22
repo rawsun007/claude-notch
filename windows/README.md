@@ -104,7 +104,10 @@ app's: a sidebar with search, and these pages:
   strolls, keeps Claude company, celebrates and flinches; click the notch
   to boop it), and a Play button for each thing it does.
 - **Sounds:** mute, the alert sound or a sound per kind of tool, and a
-  sound per event, using Windows' own sounds.
+  sound per event, under the Mac's names (Funk, Glass, Pop, Tink,
+  Submarine...). The app ships its own sounds by those names; to hear the
+  real macOS ones, put your copies (.aiff or .wav, named as on the Mac) in
+  `%APPDATA%\ClaudeNotch\Sounds` and they are used instead.
 - **Skills:** your Claude Code skills (personal, claude.ai, projects,
   plugins) with what each costs in every turn; set each to On, Name only,
   Only when I type it, or Off, or move it to the trash and restore it.

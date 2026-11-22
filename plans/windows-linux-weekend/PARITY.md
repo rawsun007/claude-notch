@@ -92,7 +92,7 @@ Order within each section is roughly by how often a user meets it.
 | Codex CLI | CodexReader, AgentAdapter | todo | |
 | Model switch gate, model drift | AppState+ModelSwitch, ModelDrift | todo | |
 | Skills page | SkillsReader, SkillSettings, SkillTrash | partial | Personal, claude.ai, project and plugin skills; listing cost; On, Name only, Only when I type it, Off (skillOverrides); trash and restore. Per-project overrides (settings.local.json), plugin on/off switches, usage counts and Free up context are todo. |
-| Sounds | AppState+Sound | done | The Mac's events, per-tool sounds (PowerShell counts as shell), per-event overrides and None, mute; Windows' own sounds stand in for the macOS ones. Settings > Sounds. |
+| Sounds | AppState+Sound | done | The Mac's events, per-tool sounds (PowerShell counts as shell), per-event overrides and None, mute; the app's own sounds under the Mac's names, or the user's copies of the macOS sounds (.aiff or .wav) from %APPDATA%\ClaudeNotch\Sounds. Settings > Sounds. |
 | Notifications mirrored to the OS | NotificationBridge | done | Windows toasts. |
 | URL scheme `claudenotch://` | URLScheme | partial | open, settings, settings/<page>, history; registered per user by the installer. compose, resume and standup are todo. |
 | Global hotkey for Settings | GlobalHotkey | todo | `RegisterHotKey`. |
