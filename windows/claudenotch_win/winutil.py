@@ -6,6 +6,7 @@ does nothing and returns a neutral answer.
 
 from __future__ import annotations
 
+import ctypes
 import sys
 
 GWL_EXSTYLE = -20
@@ -124,3 +125,21 @@ def set_app_user_model_id(aumid: str) -> None:
         _shell32.SetCurrentProcessExplicitAppUserModelID(ctypes.c_wchar_p(aumid))
     except (AttributeError, OSError):
         pass
+
+
+WDA_NONE = 0x0
+WDA_EXCLUDEFROMCAPTURE = 0x11
+
+
+def exclude_from_capture(hwnd: int, on: bool) -> bool:
+    """Keep a window out of screen shares, recordings and screenshots (the
+    Mac's sharingType = .none). Windows 10 2004 and later; returns False
+    where it is not available, and the window then simply shows in them."""
+    if sys.platform != "win32" or not hwnd:
+        return False
+    try:
+        user32 = ctypes.windll.user32
+        user32.SetWindowDisplayAffinity.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+        return bool(user32.SetWindowDisplayAffinity(ctypes.c_void_p(hwnd), WDA_EXCLUDEFROMCAPTURE if on else WDA_NONE))
+    except (AttributeError, OSError):
+        return False
