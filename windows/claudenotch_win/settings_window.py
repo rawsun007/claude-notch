@@ -33,7 +33,8 @@ POSITIONS = [("top", "Top centre"), ("bottom-right", "Bottom right, above the tr
 
 #: (group title, [(key, title, glyph)]), the Mac's SettingsSection.nav.
 NAV = [
-    ("Workspace", [("general", "General", "gearshape"), ("notch", "Notch", "menubar.rectangle")]),
+    ("Workspace", [("general", "General", "gearshape"), ("notch", "Notch", "menubar.rectangle"),
+                   ("pet", "Pet", "pawprint")]),
     ("Session", [("session", "Session", "text.bubble"), ("skills", "Skills", "wand.and.stars.nav")]),
     ("Alerts & Cost", [("alerts", "Alerts", "bell.badge"), ("sounds", "Sounds", "speaker.wave.2"),
                        ("budget", "Budget", "dollarsign.circle"),
@@ -55,6 +56,7 @@ SEARCH = [
     kit.SearchItem("Show sessions on hover", "hover open list", "notch"),
     kit.SearchItem("Show the notch when idle", "hide idle pill", "notch"),
     kit.SearchItem("Hide over fullscreen apps", "game video presentation", "notch"),
+    kit.SearchItem("Pet Mode", "mascot creature animation boop", "pet"),
     kit.SearchItem("Auto-approve for a while", "timed window minutes", "session"),
     kit.SearchItem("Skills", "skill skills slash command plugin context listing tokens disable enable off trash delete restore",
                    "skills"),
@@ -142,7 +144,7 @@ class SettingsWindow(QWidget):
         root.addWidget(self._sidebar())
         self.stack = QStackedWidget()
         root.addWidget(self.stack, 1)
-        for key, build in (("general", self._page_general), ("notch", self._page_notch),
+        for key, build in (("general", self._page_general), ("notch", self._page_notch), ("pet", self._page_pet),
                            ("session", self._page_session), ("skills", self._page_skills),
                            ("alerts", self._page_alerts),
                            ("plan", self._page_plan), ("budget", self._page_budget),
@@ -430,6 +432,41 @@ class SettingsWindow(QWidget):
         value = self.position.currentData()
         if value and value != self.store.value.position:
             self.store.update(position=value)
+
+    # --- Pet --------------------------------------------------------------------------------
+
+    def _page_pet(self) -> QWidget:
+        page, v = self._page("Pet")
+        card = kit.Card(self.t)
+        self._toggle_row(card, "pet_enabled", "Pet Mode",
+                         "The mascot lives in the closed notch: it peeks out, strolls, naps when nothing is "
+                         "happening, keeps Claude company while it works, celebrates a finished task and flinches "
+                         "when one fails. Click the notch to boop it; three quick boops make it flip.")
+        v.addWidget(card)
+        v.addWidget(kit.section_label(self.t, "Try an activity"))
+        tries = kit.Card(self.t)
+        from . import petengine
+        for key, title in (("peek", "Peek"), ("lookAround", "Look around"), ("stroll", "Stroll"),
+                           ("hangLeft", "Hang off the left corner"), ("hangRight", "Hang off the right corner"),
+                           ("sleep", "Sleep"), ("celebrate", "Celebrate"), ("watch", "Watch Claude work"),
+                           ("flinch", "Flinch"), ("fret", "Fret (limit almost up)"), ("spin", "Backflip")):
+            btn = kit.PushButton(self.t, "Play")
+            btn.clicked.connect(lambda _=False, a=key: self._pet_try(a))
+            tries.add(kit.Row(self.t, title, None, btn))
+        v.addWidget(tries)
+        v.addWidget(kit.label("Pet Mode needs the notch at the top of the screen.", 11, color=self.t.secondary))
+        v.addStretch(1)
+        return page
+
+    def _pet_try(self, activity: str) -> None:
+        import time as _t
+        ov = self.overlay
+        if ov is None:
+            return
+        if not self.store.value.pet_enabled:
+            self.store.update(pet_enabled=True)
+        ov.pet._start(activity, _t.monotonic())
+        ov._retarget()
 
     # --- Session ----------------------------------------------------------------------------
 
@@ -1130,7 +1167,7 @@ class SettingsWindow(QWidget):
         for key in ("greeting", "hover_sessions", "toasts", "show_pill", "hide_in_fullscreen",
                     "desktop_notifications", "notify_dangerous_only", "keep_open", "hide_from_capture",
                     "require_hello", "skip_destructive_confirm", "auto_approve", "limit_warnings",
-                    "enforce_budget", "sound_muted", "per_tool_sounds"):
+                    "enforce_budget", "sound_muted", "per_tool_sounds", "pet_enabled"):
             values[key] = getattr(v, key, False)
         for key, value in values.items():
             sw = self.switches.get(key)
