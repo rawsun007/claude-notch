@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import time
 
-from PySide6.QtCore import QEvent, QObject, QRect, QRectF, Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, QObject, QPointF, QRect, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QCursor, QGuiApplication, QPainter, QPainterPath, QPen, QRegion
 from PySide6.QtWidgets import QApplication, QLabel, QMenu, QVBoxLayout, QWidget
 
@@ -408,10 +408,39 @@ class Overlay(QWidget):
         cursor_x = max(-40.0, min(40.0, float(pos.x()))) if abs(pos.y()) < 120 else 0.0
         pose = petengine.pose(a, self.pet.progress(now), geom.INSET, r.width() / 2, cursor_x)
         size = petengine.sprite_size(a)          # the Mac draws PetSprite at spriteSize
+        rig = petengine.rig(a, self.pet.progress(now), now, cursor_x)
         p.save()
         p.setClipPath(clip)
-        blink = (now % 4.2) < 0.12 or a == "sleep"
-        nw.draw_pet(p, r.center().x() + pose.x, r.top() + pose.y, size, pose, blink)
+        if a == "rope":
+            self._paint_rope(p, r, pose, size)
+        nw.draw_pet(p, r.center().x() + pose.x, r.top() + pose.y, size, pose, rig=rig)
+        p.restore()
+
+    def _paint_rope(self, p: QPainter, r, pose, size: float) -> None:
+        """The rope, behind the pet, from the notch's lip to where the paws
+        grip it, following the swing; it sags while there is slack."""
+        import math
+        theta = math.radians(pose.rotation)
+        grip = (0.3125 + 0.04) * size              # -PetBody.headTopFraction + 0.04
+        top_x = pose.x - math.sin(theta) * grip
+        top_y = pose.y - math.cos(theta) * grip
+        rest = petengine.ROPE_LENGTH + size / 2 - grip
+        span = math.hypot(top_x, top_y - geom.INSET)
+        slack = max(0.0, rest - span)
+        cx, y0 = r.center().x(), r.top()
+        start, end = QPointF(cx, y0 + geom.INSET), QPointF(cx + top_x, y0 + top_y)
+        path = QPainterPath(start)
+        if slack > 0.5:
+            path.quadTo(QPointF((start.x() + end.x()) / 2, (start.y() + end.y()) / 2 + slack * 1.1), end)
+        else:
+            path.lineTo(end)
+        p.save()
+        p.setRenderHint(QPainter.Antialiasing, True)
+        pen = QPen(QColor.fromRgbF(0.32, 0.32, 0.32, max(0.0, min(1.0, pose.opacity))), 2)
+        pen.setCapStyle(Qt.RoundCap)
+        p.setPen(pen)
+        p.setBrush(Qt.NoBrush)
+        p.drawPath(path)
         p.restore()
 
     def boop_pet(self) -> None:
