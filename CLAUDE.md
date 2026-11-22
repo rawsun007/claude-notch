@@ -205,13 +205,26 @@ xdotool clicks and screenshots); CI is `.github/workflows/linux.yml`, which
 also attaches the `.deb` and tarball to every `v*` release. `ci.yml` ignores
 `linux/**`.
 
-## Windows edition (planned, `windows/`)
+## Windows edition (`windows/`)
 
-Not built yet. The plan, decisions, ticket list and launch checklist are in
-**`plans/windows-linux-weekend/`** (start with its README). In short: Python +
-PySide6, importing the pure modules of `linux/claudenotch` as the shared
-core, HTTP hooks (no shell on Windows), per-user Inno Setup installer,
-winget. Replace this section with a real map once `windows/` exists.
+Python 3.10+ / PySide6 (Qt), same hook protocol on the same port (HTTP hooks,
+so no shell step on Windows). It imports the pure modules of
+`linux/claudenotch` as the shared core; Windows-only rules and paths live in
+the core too (**danger_windows.py**: PowerShell/cmd rules and Windows
+sensitive paths; **fsutil.py**: rename retried while antivirus holds a file;
+`state.config_dir()` and `hooks.token_path()` use `%APPDATA%\ClaudeNotch`).
+`windows/claudenotch_win`: **app.py** (CLI), **qtapp.py** (startup, single
+instance via **instance.py**, take-over, quit answers open cards "ask"),
+**overlay.py** (pill and cards; WS_EX_NOACTIVATE via **winutil.py** so it
+never takes the keyboard) with **view.py** (pure, tested) and **theme.py**,
+**tray.py**, **notify.py**, **settings_window.py**, **autostart.py** (HKCU Run
+key + StartupApproved). Packaging: `windows/packaging/` (PyInstaller onedir,
+per-user Inno Setup, build.ps1). Dev: `windows/dev/setup.ps1`, `run.ps1`.
+Tests: `pytest linux/tests windows/tests` with both folders on PYTHONPATH;
+CI is `.github/workflows/windows.yml` (windows-latest, Qt offscreen); a
+`windows-v*` tag publishes a Windows-only release, never marked latest.
+`ci.yml` ignores `windows/**`. The plan and launch checklist are in
+`plans/windows-linux-weekend/`.
 
 ## Conventions
 
