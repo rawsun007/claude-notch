@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import os
 import threading
-from dataclasses import asdict, dataclass, fields
+from dataclasses import field, asdict, dataclass, fields
 
 from . import fsutil
 from .state import config_dir
@@ -68,6 +68,13 @@ class Settings:
     daily_cost_cap: float = 0.0
     session_cost_cap: float = 0.0
     enforce_budget: bool = False
+    # Sounds (sounds.py): mute, per-tool sounds, the alert sound, and
+    # per-event / per-category overrides ("None" silences one).
+    sound_muted: bool = False
+    per_tool_sounds: bool = False
+    alert_sound: str = "Windows Notify System Generic"
+    sound_events: dict = field(default_factory=dict)
+    sound_tools: dict = field(default_factory=dict)
 
 
 POSITIONS = ("top", "bottom-right")
