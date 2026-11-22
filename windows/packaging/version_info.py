@@ -40,6 +40,9 @@ def render(v: str) -> str:
 
 
 def main() -> int:
+    if "--print-version" in sys.argv:
+        print(version())
+        return 0
     out = os.path.join(WIN, "build", "version_info.txt")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
