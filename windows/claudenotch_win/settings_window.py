@@ -36,7 +36,8 @@ NAV = [
     ("Workspace", [("general", "General", "gearshape"), ("notch", "Notch", "menubar.rectangle")]),
     ("Session", [("session", "Session", "text.bubble")]),
     ("Alerts & Cost", [("alerts", "Alerts", "bell.badge")]),
-    ("Info", [("usage", "Usage", "chart.bar"), ("privacy", "Privacy", "lock.shield"),
+    ("Info", [("usage", "Usage", "chart.bar"), ("history", "History", "clock.arrow.circlepath"),
+              ("privacy", "Privacy", "lock.shield"),
               ("about", "About", "info.circle")]),
     ("Permissions", [("rules", "Rules", "checkmark.shield")]),
 ]
@@ -66,6 +67,8 @@ SEARCH = [
     kit.SearchItem("Estimated cost, last 7 days", "trend chart spend week", "usage"),
     kit.SearchItem("Top tools", "bash edit counts stats", "usage"),
     kit.SearchItem("Export usage", "csv download", "usage"),
+    kit.SearchItem("Session history", "past sessions log what i did search recall project", "history"),
+    kit.SearchItem("Export session history", "csv json download sessions", "history"),
 ]
 
 TITLES = {key: title for _, items in NAV for key, title, _ in items}
@@ -127,7 +130,7 @@ class SettingsWindow(QWidget):
         root.addWidget(self.stack, 1)
         for key, build in (("general", self._page_general), ("notch", self._page_notch),
                            ("session", self._page_session), ("alerts", self._page_alerts),
-                           ("usage", self._page_usage),
+                           ("usage", self._page_usage), ("history", self._page_history),
                            ("privacy", self._page_privacy), ("about", self._page_about),
                            ("rules", self._page_rules)):
             self.pages[key] = self.stack.addWidget(self._scroll(build()))
@@ -183,6 +186,7 @@ class SettingsWindow(QWidget):
         sc = QScrollArea()
         sc.setWidgetResizable(True)
         sc.setFrameShape(QScrollArea.NoFrame)
+        sc.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         sc.setStyleSheet(f"QScrollArea {{ background: {kit.css(self.t.window)}; }}")
         page.setAutoFillBackground(True)
         pal = page.palette()
@@ -209,6 +213,8 @@ class SettingsWindow(QWidget):
             return
         if key == "usage":
             self._load_usage()
+        if key == "history":
+            self._fill_history()
         self.stack.setCurrentIndex(self.pages[key])
         for k, item in self.nav_items.items():
             item.setChecked(k == key)
@@ -596,6 +602,88 @@ class SettingsWindow(QWidget):
         if path:
             with open(path, "w", encoding="utf-8", newline="") as fh:
                 fh.write(usage_mod.export_csv(u.daily_tokens, u.daily_cost))
+
+    # --- History ----------------------------------------------------------------------------
+
+    def _page_history(self) -> QWidget:
+        page, v = self._page("History")
+        v.addWidget(kit.label("Every session is archived here with a one-line summary, its cost, and where it "
+                              "ran. Search to recall what you did in a project last week.", 12,
+                              color=self.t.secondary, wrap=True))
+        self.history_total = kit.label("", 13, color=self.t.text)
+        v.addWidget(self.history_total)
+        self.history_search = kit.SearchField(self.t, "Search by project, summary, branch…")
+        self.history_search.changed.connect(lambda _q: self._fill_history())
+        v.addWidget(self.history_search)
+        self.history_card = kit.Card(self.t)
+        v.addWidget(self.history_card)
+        row = QHBoxLayout()
+        export = kit.PushButton(self.t, "Export…")
+        export.clicked.connect(self._export_history)
+        clear = kit.PushButton(self.t, "Clear history", destructive=True)
+        clear.clicked.connect(self._clear_history)
+        row.addWidget(export)
+        row.addStretch(1)
+        row.addWidget(clear)
+        v.addLayout(row)
+        v.addStretch(1)
+        return page
+
+    def _fill_history(self) -> None:
+        import time as _t
+        from claudenotch.statusline import fmt_money, short_model
+        archive = self.state.archive
+        every = archive.newest_first()
+        query = self.history_search.edit.text()
+        matches = archive.newest_first(query)
+        lay = self.history_card.lay
+        while lay.count():
+            w = lay.takeAt(0).widget()
+            if w is not None:
+                w.deleteLater()
+        self.history_card._rows = 0
+        total = sum(r.cost_usd for r in every)
+        n = len(every)
+        self.history_total.setText(f"{'1 session' if n == 1 else f'{n} sessions'}    {fmt_money(total)}")
+        if not every:
+            self.history_card.add(kit.Row(self.t, "No sessions yet",
+                                          "They show up here after a session finishes its first turn."))
+            return
+        if not matches:
+            self.history_card.add(kit.Row(self.t, f"No sessions match \u201c{query}\u201d."))
+            return
+        for r in matches[:100]:
+            when = _t.strftime("%b %d, %H:%M", _t.localtime(r.last))
+            bits = [when, f"{r.turns} turn{'' if r.turns == 1 else 's'}"]
+            if r.model:
+                bits.append(short_model(r.model))
+            if r.branch:
+                bits.append(r.branch)
+            row = kit.Row(self.t, f"{r.project}  ·  {r.summary or 'no prompt recorded'}", "  ·  ".join(bits),
+                          kit.label(fmt_money(r.cost_usd) if r.cost_usd else "", 13, "semibold", self.t.text))
+            row.title.setToolTip(r.cwd)
+            self.history_card.add(row)
+
+    def _export_history(self) -> None:
+        from PySide6.QtWidgets import QFileDialog
+        from claudenotch import archive as archive_mod
+        path, chosen = QFileDialog.getSaveFileName(self, "Export session history",
+                                                   os.path.expanduser("~/claudenotch-sessions.csv"),
+                                                   "CSV (*.csv);;JSON (*.json)")
+        if not path:
+            return
+        recs = self.state.archive.newest_first()
+        text = archive_mod.export_json(recs) if path.lower().endswith(".json") or "JSON" in chosen \
+            else archive_mod.export_csv(recs)
+        with open(path, "w", encoding="utf-8", newline="") as fh:
+            fh.write(text)
+
+    def _clear_history(self) -> None:
+        from PySide6.QtWidgets import QMessageBox
+        if QMessageBox.question(self, "Clear history", "Remove every archived session? This cannot be undone.",
+                                QMessageBox.Yes | QMessageBox.No, QMessageBox.No) == QMessageBox.Yes:
+            self.state.archive.clear()
+            self._fill_history()
 
     # --- Privacy ----------------------------------------------------------------------------
 
