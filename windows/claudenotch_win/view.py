@@ -92,16 +92,18 @@ def allow_label(dangerous: bool, confirming: bool) -> str:
 
 
 def choose(perms, questions, toasts, hovering: bool, hover_sessions: bool) -> str:
-    """Which view wins, in the Linux order: a permission card, a question,
-    the session list while hovered, the newest toast, then the pill."""
-    if perms:
-        return PERMISSION
+    """Which card wins, in AppState.recompute's order: a question, then a
+    permission, then a notification or done card, and only then the open
+    card on hover. A card that is waiting for you is not hidden by
+    pointing at the notch."""
     if questions:
         return QUESTION
-    if hovering and hover_sessions:
-        return SESSIONS
+    if perms:
+        return PERMISSION
     if toasts:
         return TOAST
+    if hovering and hover_sessions:
+        return SESSIONS
     return PILL
 
 
