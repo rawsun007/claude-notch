@@ -47,5 +47,22 @@ class SettingsTests(unittest.TestCase):
             store.update(no_such_setting=True)
 
 
+class WindowsFieldTests(unittest.TestCase):
+    def test_an_unknown_position_falls_back_to_top(self):
+        import json
+        import os
+        import tempfile
+        from unittest import mock
+        from claudenotch import settings
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(settings, "path",
+                                                                   return_value=os.path.join(d, "s.json")):
+            with open(os.path.join(d, "s.json"), "w") as f:
+                json.dump({"position": "middle", "show_pill": False}, f)
+            v = settings.load()
+            self.assertEqual(v.position, "top")
+            self.assertFalse(v.show_pill)
+            self.assertTrue(v.hide_in_fullscreen)
+
+
 if __name__ == "__main__":
     unittest.main()
