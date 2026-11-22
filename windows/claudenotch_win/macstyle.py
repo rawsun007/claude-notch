@@ -77,4 +77,7 @@ def font(size: float, weight: str = "regular", mono: bool = False, display: bool
     f.setPixelSize(max(1, round(size)))
     f.setWeight(_WEIGHTS.get(weight, QFont.Weight.Normal))
     f.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
+    # Greyscale antialiasing, as macOS draws: ClearType's colour fringes
+    # show on white text over black, and on a per-pixel-alpha window.
+    f.setStyleStrategy(QFont.StyleStrategy(QFont.PreferAntialias | QFont.NoSubpixelAntialias))
     return f
