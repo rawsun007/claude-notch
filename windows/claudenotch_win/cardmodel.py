@@ -313,6 +313,9 @@ def notice_text(toast) -> NoticeText:
         title = toast.body if toast.body and toast.body != default else (
             toast.title if toast.title != "Claude Code" else default)
         return NoticeText("notification", "Claude Code", title, project)
+    if kind == "limit":
+        # A plan-limit warning: the app's own notification card, which waits.
+        return NoticeText("notification", "ClaudeNotch", toast.title, toast.body)
     # The app's own note (hello, update): a notification card, worded by the app.
     return NoticeText("notification", "ClaudeNotch", toast.title, toast.body)
 

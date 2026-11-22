@@ -26,6 +26,7 @@ from .danger import danger_reasons
 from .redact import redact
 from .stats import StatsStore
 from .archive import Archive
+from .limits import Armed
 from . import gitinfo
 
 MAX_SESSIONS = 12
@@ -178,6 +179,10 @@ class AppState:
         self.auto_info_at = 0.0
         # Plan limits from the status line, app-wide (0..1, unix seconds).
         self.limits: dict = {}
+        # Plan-limit warnings at 80 % and 95 % (limits.py); the app switches
+        # them off from Settings > Alerts.
+        self.limit_warnings = True
+        self._armed = {"five_hour": Armed(), "seven_day": Armed()}
         self.sessions: dict[str, Session] = {}
         self.history: list[dict] = []
         self.rules: list[AllowRule] = []
@@ -426,6 +431,17 @@ class AppState:
                 if v is not None:
                     self.limits[attr] = v
             changed = changed or self.limits != limits
+            if self.limit_warnings:
+                for key, name in (("five_hour", "5-hour"), ("seven_day", "weekly")):
+                    pct = getattr(r, key + "_pct")
+                    if pct is None:
+                        continue
+                    hit = self._armed[key].check(name, pct, self.limits.get(key + "_resets_at"), time.time())
+                    if hit:
+                        toast = Toast(hit[0], hit[1], kind="limit")
+                        self.toasts = (self.toasts + [toast])[-8:]
+                        self._log("notice", toast.title, toast.body, "")
+                        changed = True
         if changed:
             self._changed()
 

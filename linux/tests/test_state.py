@@ -107,6 +107,17 @@ class PermissionTests(unittest.TestCase):
         recs = st.archive.newest_first()
         self.assertEqual([(r.id, r.project, r.summary, r.turns) for r in recs], [("a", "one", "fix the build", 1)])
 
+    def test_plan_limit_warning_once_per_threshold(self):
+        from claudenotch.statusline import Reading
+        st = AppState(persist=False)
+        st.note_status(Reading(session_id="a", five_hour_pct=0.83, five_hour_resets_at=4_000_000_000))
+        self.assertEqual((st.toasts[-1].kind, st.toasts[-1].title), ("limit", "80% of your 5-hour limit used"))
+        st.note_status(Reading(session_id="a", five_hour_pct=0.85, five_hour_resets_at=4_000_000_000))
+        self.assertEqual(len(st.toasts), 1)
+        st.limit_warnings = False
+        st.note_status(Reading(session_id="a", five_hour_pct=0.97, five_hour_resets_at=4_000_000_000))
+        self.assertEqual(len(st.toasts), 1)
+
     def test_the_card_is_redacted_but_the_rule_matches_the_raw_text(self):
         secret = "export API_KEY=abc123"
         c = card(command=secret)
