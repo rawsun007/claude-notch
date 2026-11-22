@@ -260,7 +260,7 @@ class OverlayTests(unittest.TestCase):
             self.app.processEvents()
         names = [c.args[0] for c in play.call_args_list]
         self.assertEqual(names[0], "SHELL")                       # the per-tool prompt sound
-        self.assertIn("Windows Navigation Start", names)         # dismissed
+        self.assertIn("Pop", names)                               # dismissed, as on the Mac
 
     def test_muted_plays_nothing(self):
         from unittest import mock
