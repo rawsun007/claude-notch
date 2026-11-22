@@ -67,7 +67,7 @@ Order within each section is roughly by how often a user meets it.
 | Context and cost meter | ContextCostBar | done | From the status line: capsule warming blue, orange, red, "84k/200k", Claude Code's own cost. The cost-cap tint waits on spending caps; the window guess for sessions without a status line is todo. |
 | Running command strip with timer | CommandLineBlock | todo | Needs the last tool from PreToolUse. |
 | Task-list progress bar | AppState+TaskMeter | todo | |
-| Session list (2+ sessions) | NotchSessionList | todo | |
+| Session list (2+ sessions) | NotchSessionList | partial | Rows for every session after the top one: dot, CODEX/GROK chip, folder, branch and worktree chips, hourglass while a card waits, agents, status, own meter; title names the agent or says ClaudeNotch for a mix. Not yet: clicking a row (opens the reply card), task meter, fork, sandbox, cache, permission-mode and PR chips, background-agent Attach/Reply, the live reply line, stale sessions dropping off. |
 | Status bar | NotchStatusBar | todo | |
 | Permission-mode and sandbox badges | IdlePill | todo | |
 
