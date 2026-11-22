@@ -63,6 +63,11 @@ class Settings:
     hide_from_capture: bool = True
     # Warn at 80 % and 95 % of the 5-hour and weekly plan limits.
     limit_warnings: bool = True
+    # Spending caps in dollars (0 = off), and whether reaching one holds
+    # tool requests on the card (the Mac's Hard-stop at the cap).
+    daily_cost_cap: float = 0.0
+    session_cost_cap: float = 0.0
+    enforce_budget: bool = False
 
 
 POSITIONS = ("top", "bottom-right")
