@@ -41,6 +41,7 @@ NAV = [
               ("privacy", "Privacy", "lock.shield"),
               ("about", "About", "info.circle")]),
     ("Permissions", [("rules", "Rules", "checkmark.shield")]),
+    ("Advanced", [("developer", "Developer", "hammer")]),
 ]
 
 SEARCH = [
@@ -67,6 +68,7 @@ SEARCH = [
                    "bypass hello biometric hold dangerous destructive one click lock", "privacy"),
     kit.SearchItem("Always-allow rules", "allowlist permissions approved automatically rule", "rules"),
     kit.SearchItem("Version and logs", "about log folder github", "about"),
+    kit.SearchItem("Demo cards", "test preview developer permission dangerous diff question", "developer"),
     kit.SearchItem("Activity heatmap", "usage graph history days", "usage"),
     kit.SearchItem("Token usage and cost", "spend dollars money tokens model", "usage"),
     kit.SearchItem("Estimated cost, last 7 days", "trend chart spend week", "usage"),
@@ -138,7 +140,7 @@ class SettingsWindow(QWidget):
                            ("plan", self._page_plan), ("budget", self._page_budget),
                            ("usage", self._page_usage), ("history", self._page_history),
                            ("privacy", self._page_privacy), ("about", self._page_about),
-                           ("rules", self._page_rules)):
+                           ("rules", self._page_rules), ("developer", self._page_developer)):
             self.pages[key] = self.stack.addWidget(self._scroll(build()))
         self.show_page("general")
 
@@ -822,6 +824,36 @@ class SettingsWindow(QWidget):
             row = kit.Row(self.t, rule.tool, rule.exact or "Every call of this tool", btn)
             row.title.setTextInteractionFlags(Qt.TextSelectableByMouse)
             self.rules_card.add(row)
+
+    # --- Developer --------------------------------------------------------------------------
+
+    def _page_developer(self) -> QWidget:
+        page, v = self._page("Developer")
+        v.addWidget(kit.label("Show any card in the notch without waiting for Claude Code. Its answer goes "
+                              "nowhere.", 12, color=self.t.secondary, wrap=True))
+        from . import demo
+        card = kit.Card(self.t)
+        for name, title in (("permission", "Permission card"), ("dangerous", "Destructive command"),
+                            ("dangerous-powershell", "Destructive PowerShell command"), ("diff", "Edit with a diff"),
+                            ("write", "Write a file"), ("queue", "Three queued requests"),
+                            ("budget", "Over budget"), ("question", "Question card"),
+                            ("notification", "Notification"), ("completed", "Finished turn"),
+                            ("failure", "Rate-limited turn")):
+            btn = kit.PushButton(self.t, "Show")
+            btn.clicked.connect(lambda _=False, n=name: self._demo(n))
+            card.add(kit.Row(self.t, title, None, btn))
+        v.addWidget(card)
+        v.addStretch(1)
+        return page
+
+    def _demo(self, name: str) -> None:
+        from . import demo
+        if name == "budget":
+            saved = self.state.approver
+            demo.load(self.state, name)
+            self.state.approver = saved
+        else:
+            demo.load(self.state, name)
 
     # --- About ------------------------------------------------------------------------------
 
