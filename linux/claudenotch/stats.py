@@ -29,6 +29,7 @@ class Stats:
     questions_answered: int = 0
     active_days: list = field(default_factory=list)      # "YYYY-MM-DD"
     tool_counts: dict = field(default_factory=dict)
+    daily_tools: dict = field(default_factory=dict)      # "YYYY-MM-DD" -> tool requests
 
     def top_tools(self, n: int = 6) -> list[tuple[str, int]]:
         return sorted(self.tool_counts.items(), key=lambda kv: (-kv[1], kv[0]))[:n]
@@ -58,6 +59,10 @@ class StatsStore:
         days = raw.get("active_days")
         if isinstance(days, list):
             s.active_days = [d for d in days if isinstance(d, str)][-MAX_DAYS:]
+        daily = raw.get("daily_tools")
+        if isinstance(daily, dict):
+            s.daily_tools = {k: v for k, v in sorted(daily.items())[-MAX_DAYS:]
+                             if isinstance(k, str) and isinstance(v, int) and v >= 0}
         tools = raw.get("tool_counts")
         if isinstance(tools, dict):
             s.tool_counts = {str(k)[:64]: v for k, v in list(tools.items())[:MAX_TOOLS]
@@ -97,6 +102,22 @@ class StatsStore:
                 name = tool[:64]
                 if name in s.tool_counts or len(s.tool_counts) < MAX_TOOLS:
                     s.tool_counts[name] = s.tool_counts.get(name, 0) + 1
+                s.daily_tools[day] = s.daily_tools.get(day, 0) + 1
+                if len(s.daily_tools) > MAX_DAYS:
+                    del s.daily_tools[min(s.daily_tools)]
             if day not in s.active_days:
                 s.active_days = (s.active_days + [day])[-MAX_DAYS:]
             self._save()
+
+
+def heat_level(n: int) -> int:
+    """The Mac heatmap's five levels: 0, 1-5, 6-15, 16-30, more."""
+    if n <= 0:
+        return 0
+    if n <= 5:
+        return 1
+    if n <= 15:
+        return 2
+    if n <= 30:
+        return 3
+    return 4

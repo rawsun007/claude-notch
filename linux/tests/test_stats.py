@@ -22,6 +22,11 @@ class StatsTests(unittest.TestCase):
             self.assertEqual((again.dangerous_flagged, again.questions_answered), (1, 1))
             self.assertEqual(again.active_days, ["2026-11-22", "2026-11-23"])
             self.assertEqual(again.top_tools(), [("Bash", 2)])
+            self.assertEqual(again.daily_tools, {"2026-11-22": 1, "2026-11-23": 1})
+
+    def test_heat_levels_match_the_mac(self):
+        from claudenotch.stats import heat_level
+        self.assertEqual([heat_level(n) for n in (0, 1, 5, 6, 15, 16, 30, 31)], [0, 1, 1, 2, 2, 3, 3, 4])
 
     def test_tool_names_are_capped(self):
         s = StatsStore(None)
