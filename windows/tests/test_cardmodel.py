@@ -141,3 +141,12 @@ def test_session_rows_skip_the_top_session():
     assert b.meter.meter_label == "140k/200k"
     assert (c.label, c.working, c.waiting, c.meter) == ("renamed", True, "⏳ 3m", None)
     assert m.session_rows([top]) == []
+
+
+def test_entity_name_matches_the_mac():
+    from claudenotch.state import Session
+    assert m.entity_name([]) == "Claude"
+    assert m.entity_name([Session("a", "/p")]) == "Claude"
+    assert m.entity_name([Session("a", "/p", model="gpt-5-codex")]) == "Codex"
+    assert m.entity_name([Session("a", "/p", model="claude-opus-5-5"),
+                          Session("b", "/q", model="gpt-5")]) == "ClaudeNotch"
