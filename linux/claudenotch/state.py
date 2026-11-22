@@ -52,6 +52,7 @@ class PermissionCard:
     created: float = field(default_factory=time.monotonic)
 
     def __post_init__(self):
+        self.confirm_now = False
         pv = protocol.preview(self.tool, self.tool_input)
         # Redacted once, here: nothing downstream (card, notification,
         # history) ever sees the raw text.
@@ -166,6 +167,11 @@ class AppState:
         self.questions: list[QuestionCard] = []
         self.toasts: list[Toast] = []
         self.ended: list[str] = []
+        # Auto-Approve: called with each new permission card, answers "allow",
+        # "confirm_now" or "card" (autoapprove.verdict). Set by the app.
+        self.approver = None
+        # The last request Auto-Approve allowed, for the button-less info card.
+        self.auto_info = None
         # Plan limits from the status line, app-wide (0..1, unix seconds).
         self.limits: dict = {}
         self.sessions: dict[str, Session] = {}
@@ -193,13 +199,23 @@ class AppState:
         """Queue a card. Returns False when it was decided without one: an
         always-allow rule matched (never for a dangerous call), or the queue is
         full, in which case it is answered with no opinion."""
+        verdict = self.approver(card) if self.approver is not None else None
         with self._lock:
             if not card.dangers and any(r.matches(card) for r in self.rules):
                 self._log("auto-allowed", card.title, card.detail, card.project)
                 decided = protocol.ALLOW
+            elif verdict == "allow":
+                # Auto-Approve answered it. A destructive one is logged as such.
+                self._log("auto-approved, destructive" if card.dangers else "auto-approved",
+                          card.title, card.detail, card.project)
+                self.auto_info = card
+                decided = protocol.ALLOW
             elif len(self.permissions) >= MAX_QUEUE:
                 decided = protocol.ASK
             else:
+                # Auto-Approve set to confirm destructive commands: the card
+                # shows and the OS prompt comes up for it without a click.
+                card.confirm_now = verdict == "confirm_now"
                 self.permissions.append(card)
                 self._touch(card.session_id, card.cwd, "waiting")
                 decided = None

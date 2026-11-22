@@ -62,6 +62,28 @@ class PermissionTests(unittest.TestCase):
         st.resolve_all_permissions(protocol.DENY)
         self.assertEqual(got, ["allow", "allow", "deny"])
 
+    def test_auto_approve_allows_without_a_card_and_says_so(self):
+        st, got = AppState(persist=False), []
+        st.approver = lambda c: "allow"
+        self.assertFalse(st.enqueue_permission(card(command="sudo rm -rf /tmp/x", answers=got)))
+        self.assertEqual(got, ["allow"])
+        self.assertEqual(st.permissions, [])
+        self.assertEqual(st.history[-1]["what"], "auto-approved, destructive")
+        self.assertIsNotNone(st.auto_info)
+
+    def test_auto_approve_confirm_now_shows_the_card_flagged(self):
+        st, got = AppState(persist=False), []
+        st.approver = lambda c: "confirm_now"
+        self.assertTrue(st.enqueue_permission(card(command="sudo rm -rf /tmp/x", answers=got)))
+        self.assertTrue(st.permissions[0].confirm_now)
+        self.assertEqual(got, [])
+
+    def test_no_approver_or_card_verdict_changes_nothing(self):
+        st = AppState(persist=False)
+        st.approver = lambda c: "card"
+        self.assertTrue(st.enqueue_permission(card()))
+        self.assertFalse(st.permissions[0].confirm_now)
+
     def test_the_card_is_redacted_but_the_rule_matches_the_raw_text(self):
         secret = "export API_KEY=abc123"
         c = card(command=secret)
