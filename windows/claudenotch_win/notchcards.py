@@ -731,3 +731,42 @@ class QuestionCardView(QWidget):
 
     def _send(self) -> None:
         self.answered.emit(self.answers())
+
+
+# --- the Auto-allowed card (NotchCards.AutoInfoCard) ---------------------------------------
+
+
+class AutoInfoCardView(QWidget):
+    """AutoInfoCard: no buttons, it already happened. A green bolt badge,
+    AUTO-ALLOWED · tool, "click to dismiss" at 9 pt, the title, and the
+    command in 12 pt monospaced at 70 %, cut in the middle. A click takes
+    it down; otherwise it goes after four seconds."""
+
+    clicked = Signal()
+
+    def __init__(self, card, width: float, parent=None):
+        super().__init__(parent)
+        self.card = card
+        text = cardmodel.card_text(card)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setCursor(Qt.PointingHandCursor)
+        v = QVBoxLayout(self)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(8)
+        head = _row(8)
+        head.addWidget(nw.Glyph("bolt.badge.checkmark.fill", 13, ms.GREEN))
+        head.addWidget(nw.Text("Auto-allowed", 11, "semibold", ms.GREEN, 0.9, upper=True, fixed=True))
+        head.addWidget(nw.Text("·", 13, opacity=0.3, fixed=True))
+        head.addWidget(nw.Text(card.tool, 11, "medium", opacity=0.55, fixed=True))
+        head.addStretch(1)
+        head.addWidget(nw.Text("click to dismiss", 9, opacity=0.3, fixed=True))
+        v.addLayout(head)
+        v.addWidget(nw.Text(text.title, 14, "semibold"))
+        if text.detail:
+            v.addWidget(nw.Text(text.detail.splitlines()[0], 12, mono=True, opacity=0.7, elide=Qt.ElideMiddle))
+        self.setFixedWidth(int(width))
+        self.setAccessibleName(" ".join(x for x in ("Auto-allowed.", text.title, f"Tool: {card.tool}.") if x))
+
+    def mousePressEvent(self, e) -> None:
+        if e.button() == Qt.LeftButton:
+            self.clicked.emit()

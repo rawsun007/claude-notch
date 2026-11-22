@@ -364,3 +364,8 @@ def question_size(questions, screen_h: float = 900.0, link: bool = False) -> tup
     want = 104 + total + (44 if link else 0)
     cap = max(360.0, screen_h * 0.85 - INSET)
     return (600.0, INSET + min(want, cap))
+
+
+def auto_info_size() -> tuple[float, float]:
+    """AutoInfoCard: compact and button-less, 460 x inset + 96."""
+    return (460.0, float(INSET + 96))
