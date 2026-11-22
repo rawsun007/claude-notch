@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QHBoxLayout, QLabel, QListW
 
 from claudenotch import hooks
 
-from . import __version__, autostart, paths
+from . import __version__, autostart, paths, winstatus
 
 GITHUB = "https://github.com/rawsun007/claude-notch"
 POSITIONS = [("top", "Top centre"), ("bottom-right", "Bottom right, above the tray")]
@@ -181,7 +181,7 @@ class SettingsWindow(QWidget):
         v.addWidget(self.hooks_status)
         row = QHBoxLayout()
         self.install_btn = QPushButton("Install hooks")
-        self.install_btn.clicked.connect(lambda: self._hooks(hooks.install))
+        self.install_btn.clicked.connect(lambda: self._hooks(winstatus.install_hooks))
         self.remove_btn = QPushButton("Remove hooks")
         self.remove_btn.clicked.connect(lambda: self._hooks(hooks.uninstall))
         open_btn = QPushButton("Open settings.json folder")

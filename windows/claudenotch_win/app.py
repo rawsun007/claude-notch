@@ -25,7 +25,7 @@ import threading
 import time
 import urllib.request
 
-from . import __version__, paths
+from . import __version__, paths, winstatus
 
 from claudenotch import hooks  # noqa: E402  (paths made it importable)
 
@@ -159,7 +159,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.install_hooks and not args.first_run:
         try:
-            say(f"Hooks installed in {hooks.install()}")
+            say(f"Hooks installed in {winstatus.install_hooks()}")
         except hooks.UnreadableSettings as e:
             say(str(e))
             return 1
@@ -185,7 +185,7 @@ def run_headless(args: argparse.Namespace) -> int:
     from claudenotch.state import AppState
 
     if not args.no_install:
-        hooks.install()
+        winstatus.install_hooks()
     state = AppState()
     try:
         server = HookServer(state)
