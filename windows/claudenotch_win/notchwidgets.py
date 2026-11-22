@@ -279,6 +279,15 @@ def draw_glyph(p: QPainter, name: str, r: QRectF, size: float, color: QColor) ->
         path.lineTo(cx + s * 0.36, cy - s * 0.16)
         p.drawPath(path)
         return
+    if name == "square.on.square":
+        # The worktree chip: two overlapping squares.
+        pen = QPen(color, max(1.0, s * 0.12))
+        p.setPen(pen)
+        p.setBrush(Qt.NoBrush)
+        d = s * 0.62
+        p.drawRoundedRect(QRectF(cx - s * 0.42, cy - s * 0.42, d, d), s * 0.12, s * 0.12)
+        p.drawRoundedRect(QRectF(cx - s * 0.2, cy - s * 0.2, d, d), s * 0.12, s * 0.12)
+        return
     if name == "arrow.triangle.branch":
         pen = QPen(color, max(1.0, s * 0.16), Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
         p.setPen(pen)

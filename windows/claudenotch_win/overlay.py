@@ -283,11 +283,17 @@ class Overlay(QWidget):
             key = (v, card.id, len(questions), self.position)
             build = lambda: self._question_card(card, len(questions) - 1)  # noqa: E731
         elif v == view.SESSIONS:
-            branch = gitinfo.branch(sessions[0].cwd) if sessions else ""
+            branches = {s.id: gitinfo.branch(s.cwd) for s in sessions}
+            branch = branches[sessions[0].id] if sessions else ""
+            waiting: dict = {}
+            for c in list(perms) + list(questions):
+                waiting[c.cwd] = min(waiting.get(c.cwd, c.created), c.created)
+            # The list shows only with two or more sessions, as on the Mac.
+            rows = cardmodel.session_rows(sessions, branches, waiting, time.monotonic())                 if len(sessions) >= 2 else []
             key = (v, tuple((s.id, s.status, s.last_prompt, s.agents, s.model, s.effort, s.context_pct,
-                             s.context_tokens, s.context_window, s.cost_usd) for s in sessions),
-                   branch, self.position)
-            build = lambda: self._idle_card(sessions, branch)  # noqa: E731
+                             s.context_tokens, s.context_window, s.cost_usd, s.worktree) for s in sessions),
+                   tuple(branches.items()), tuple(r.waiting for r in rows), self.position)
+            build = lambda: self._idle_card(sessions, branch, rows)  # noqa: E731
         elif v == view.TOAST:
             # The oldest first, as the Mac's queues are: completedQueue.first.
             t = toasts[0]
@@ -354,8 +360,8 @@ class Overlay(QWidget):
 
     # --- cards ------------------------------------------------------------------------
 
-    def _idle_card(self, sessions, branch: str = "") -> QWidget:
-        card = IdleCardView(sessions, branch)
+    def _idle_card(self, sessions, branch: str = "", rows=None) -> QWidget:
+        card = IdleCardView(sessions, branch, rows)
         self._card_w, self._formula_h = geom.idle_open_size(card.content_width)
         return card
 
