@@ -322,3 +322,45 @@ def bob_offset(mood: str, clock: float) -> float:
     phase = (clock % beat.period) / beat.period
     wave = -abs(math.sin(phase * math.pi * 2)) if mood == "celebrating" else math.sin(phase * 2 * math.pi)
     return wave * beat.amplitude
+
+
+def time_ago(seconds: float) -> str:
+    """timeAgo (NotchMarkdown): "just now", "12s ago", "3m ago", "2h ago",
+    "4d ago". Past a week the Mac prints the date; the caller does that."""
+    s = max(0, int(seconds))
+    if s < 5:
+        return "just now"
+    if s < 60:
+        return f"{s}s ago"
+    m = s // 60
+    if m < 60:
+        return f"{m}m ago"
+    h = m // 60
+    if h < 24:
+        return f"{h}h ago"
+    return f"{h // 24}d ago"
+
+
+def notice_size() -> tuple[float, float]:
+    """NotificationCard: 500 wide, inset + 100 as the floor."""
+    return (500.0, float(INSET + 100))
+
+
+def completed_size(audit: bool = False) -> tuple[float, float]:
+    """CompletedCard: 560 wide, inset + 100, plus 44 for an audit banner."""
+    return (560.0, float(INSET + 100 + (44 if audit else 0)))
+
+
+def question_size(questions, screen_h: float = 900.0, link: bool = False) -> tuple[float, float]:
+    """NotchView.size(for: .question). Each question: 26 heading + 6, an
+    option row of 38 (66 with a description), 44 for the free-text row;
+    104 of header, buttons and padding; capped at 85 % of the screen, past
+    which the list scrolls. `questions` holds (option descriptions,
+    allows_custom) pairs."""
+    total = 0.0
+    for descriptions, custom in questions:
+        options = sum(66 if d else 38 for d in descriptions)
+        total += 26 + 6 + options + (44 if custom else 0)
+    want = 104 + total + (44 if link else 0)
+    cap = max(360.0, screen_h * 0.85 - INSET)
+    return (600.0, INSET + min(want, cap))

@@ -243,3 +243,75 @@ def card_text(card) -> CardText:
         project=card.project,
         preview=preview(card.tool, card.tool_input),
     )
+
+
+# --- notification, completed and failure cards ----------------------------------
+
+_FAILURE_TITLES = {
+    "rate_limit": "Rate limited, session stopped",
+    "overloaded": "Servers overloaded, session stopped",
+    "authentication_failed": "Authentication failed",
+    "oauth_org_not_allowed": "Org not allowed, auth error",
+    "billing_error": "Billing error, session stopped",
+    "invalid_request": "Invalid request, session stopped",
+    "model_not_found": "Model not found",
+    "server_error": "Server error, session stopped",
+    "max_output_tokens": "Hit max output tokens",
+}
+_FAILURE_DETAILS = {
+    "rate_limit": "You have hit the usage limit. It will lift on its own.",
+    "overloaded": "Anthropic's servers are busy. Try the turn again in a moment.",
+    "authentication_failed": "Your login is no longer valid. Run /login in the terminal.",
+    "oauth_org_not_allowed": "Your organisation does not allow this account here.",
+    "billing_error": "The account cannot be billed right now. Check your plan or credits.",
+    "invalid_request": "Claude Code sent a request the API refused. Usually the conversation outgrew the "
+                       "context window.",
+    "model_not_found": "That model is not available on your account.",
+    "server_error": "Something went wrong on Anthropic's side. The turn did not finish.",
+    "max_output_tokens": "The reply hit its length limit and was cut off.",
+}
+
+
+def failure_title(reason: str) -> str:
+    return _FAILURE_TITLES.get(reason, "Session stopped on an error")
+
+
+def failure_detail(reason: str, message: str) -> str:
+    """EventServer.failureDetail: the hook's message when it is a sentence;
+    a bare reason code is no message, so say what it means instead."""
+    import re
+    t = message.strip()
+    bare = (not t or t.lower() == reason.lower() or (" " not in t and re.fullmatch(r"[a-z_]+", t) is not None))
+    if not bare:
+        return t
+    return _FAILURE_DETAILS.get(reason, "The turn stopped before it finished.")
+
+
+@dataclass
+class NoticeText:
+    card: str          # "notification" or "completed"
+    source: str
+    title: str
+    detail: str
+
+
+def notice_text(toast) -> NoticeText:
+    """What the Mac's NotificationCard or CompletedCard prints for a core
+    toast. The core's own titles stay as they are for Linux."""
+    from claudenotch.state import project_name
+    project = project_name(toast.cwd)
+    kind = getattr(toast, "kind", "")
+    if kind == "done":
+        return NoticeText("completed", "Claude Code", "Claude finished", project)
+    if kind == "failure":
+        reason = getattr(toast, "reason", "") or "unknown"
+        return NoticeText("notification", "Claude Code", f"⚠️ {failure_title(reason)}",
+                          failure_detail(reason, toast.body))
+    if kind == "notice":
+        # The Mac's title is the hook's message, else its title.
+        default = "Claude needs your attention"
+        title = toast.body if toast.body and toast.body != default else (
+            toast.title if toast.title != "Claude Code" else default)
+        return NoticeText("notification", "Claude Code", title, project)
+    # The app's own note (hello, update): a notification card, worded by the app.
+    return NoticeText("notification", "ClaudeNotch", toast.title, toast.body)
