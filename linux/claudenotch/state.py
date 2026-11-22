@@ -109,6 +109,10 @@ class Toast:
     title: str
     body: str
     system: bool = False   # the app's own note (greeting, update), not a session's
+    # What it reports, so a UI can draw the Mac's card for it: "done" (Stop),
+    # "failure" (StopFailure), "notice" (Notification), "" for the app's own.
+    kind: str = ""
+    cwd: str = ""          # the session's folder, for the project name
     id: int = field(default_factory=lambda: next(_ids))
     created: float = field(default_factory=time.monotonic)
 
@@ -309,14 +313,16 @@ class AppState:
                 s = self._touch(sid, cwd, "ready")
                 if s:
                     s.agents = 0
-                toast = Toast("Claude is done", s.project if s else "")
+                toast = Toast("Claude is done", s.project if s else "", kind="done", cwd=cwd)
             elif event == "StopFailure":
                 self._touch(sid, cwd, "ready")
-                toast = Toast("Claude stopped with an error", redact(str(payload.get("error") or ""))[:200])
+                toast = Toast("Claude stopped with an error", redact(str(payload.get("error") or ""))[:200],
+                              kind="failure", cwd=cwd)
             elif event == "Notification":
                 self._touch(sid, cwd)
                 title = redact(str(payload.get("title") or "Claude Code"))[:80]
-                toast = Toast(title, redact(str(payload.get("message") or "Claude needs your attention"))[:300])
+                toast = Toast(title, redact(str(payload.get("message") or "Claude needs your attention"))[:300],
+                              kind="notice", cwd=cwd)
             if toast:
                 self.toasts = (self.toasts + [toast])[-8:]
                 self._log("notice", toast.title, toast.body, "")
