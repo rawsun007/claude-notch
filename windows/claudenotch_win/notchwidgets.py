@@ -186,6 +186,20 @@ _FLUENT = {
     "bolt.fill": "",
     "timer": "",
     "lock.fill": "",
+    "gearshape": "",
+    "menubar.rectangle": "",
+    "bell.badge": "",
+    "lock.shield": "",
+    "info.circle": "",
+    "checkmark.shield": "",
+    "chart.bar": "",
+    "clock.arrow.circlepath": "",
+    "dollarsign.circle": "",
+    "creditcard": "",
+    "speaker.wave.2": "",
+    "pawprint": "",
+    "wand.and.stars.nav": "",
+    "hammer": "",
 }
 
 
