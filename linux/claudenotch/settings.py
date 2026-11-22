@@ -12,6 +12,7 @@ import os
 import threading
 from dataclasses import asdict, dataclass, fields
 
+from . import fsutil
 from .state import config_dir
 
 
@@ -61,7 +62,7 @@ def save(settings: Settings) -> None:
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(asdict(settings), f, indent=2)
         f.write("\n")
-    os.replace(tmp, path())
+    fsutil.replace(tmp, path())
 
 
 class Store:

@@ -21,7 +21,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable
 
-from . import protocol
+from . import fsutil, protocol
 from .danger import danger_reasons
 from .redact import redact
 
@@ -360,7 +360,7 @@ class AppState:
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump([{"tool": r.tool, "exact": r.exact} for r in self.rules], f, indent=2)
-        os.replace(tmp, self._rules_path())
+        fsutil.replace(tmp, self._rules_path())
 
     # --- what the UI shows ---------------------------------------------------
 

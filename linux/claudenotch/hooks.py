@@ -19,6 +19,8 @@ import os
 import secrets
 import time
 
+from . import fsutil
+
 PORT = 53127
 HOOK_TIMEOUT = 290
 BACKUPS_KEPT = 5
@@ -197,7 +199,7 @@ def _write(data: dict) -> None:
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
         f.write("\n")
-    os.replace(tmp, path)
+    fsutil.replace(tmp, path)
 
 
 def install() -> str:
