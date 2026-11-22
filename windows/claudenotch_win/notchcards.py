@@ -17,7 +17,7 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QLineEdit, QScrollArea, QSize
 
 from claudenotch import protocol
 
-from . import cardmodel, notchgeom
+from . import cardmodel, hello, notchgeom
 from . import macstyle as ms
 from . import notchwidgets as nw
 
@@ -47,9 +47,14 @@ class PermissionCardView(QWidget):
     rule, or "all" for Allow All (n)."""
 
     decided = Signal(str, str)
+    #: Windows Hello's answer, delivered on the GUI thread.
+    _hello_done = Signal(bool, object)
 
-    def __init__(self, card, pending: int = 1, width: float = 564, parent=None):
+    def __init__(self, card, pending: int = 1, width: float = 564, gate: str = "hold", hwnd: int = 0,
+                 parent=None):
         super().__init__(parent)
+        self.gate, self._hwnd = gate, hwnd
+        self._hello_done.connect(self._hello_answered)
         self.card = card
         self.text = cardmodel.card_text(card)
         self.buttons: dict[str, QWidget] = {}
@@ -112,7 +117,21 @@ class PermissionCardView(QWidget):
             row.addWidget(always)
             self.buttons["always"] = always
         row.addStretch(1)
-        if dangerous:
+        if dangerous and gate == hello.NONE:
+            # Confirmation switched off (behind Windows Hello): still red,
+            # still one deliberate press.
+            allow = nw.NotchButton("Allow", "destructive", RETURN_GLYPH)
+            allow.setToolTip("Confirmation for destructive commands is off in Settings")
+            allow.clicked.connect(lambda: self.decided.emit(protocol.ALLOW, ""))
+            row.addWidget(allow)
+            self.buttons["allow"] = allow
+        elif dangerous and gate == hello.HELLO:
+            confirm = nw.ConfirmButton("Confirm to Allow")
+            confirm.setToolTip("Confirm with Windows Hello to run this destructive command")
+            confirm.clicked.connect(self._ask_hello)
+            row.addWidget(confirm)
+            self.buttons["allow"] = confirm
+        elif dangerous:
             hold = nw.HoldToConfirmButton("Hold to Allow", 0.9)
             hold.confirmed.connect(lambda: self.decided.emit(protocol.ALLOW, ""))
             row.addWidget(hold)
@@ -132,12 +151,29 @@ class PermissionCardView(QWidget):
             row.addWidget(allow)
             self.buttons["allow"] = allow
         v.addLayout(row)
+        # Why the last Windows Hello attempt did not go through: without it a
+        # locked-out Hello makes Confirm look like a button that does nothing.
+        self.auth_message = nw.wrap_label("", 11, rgb=ms.ORANGE, opacity=0.95)
+        self.auth_message.hide()
+        v.addWidget(self.auth_message)
 
         self.setFixedWidth(int(width))
         self._tick = QTimer(self, interval=15000)
         self._tick.timeout.connect(self._update_waiting)
         self._tick.start()
         self._update_waiting()
+
+    def _ask_hello(self) -> None:
+        from claudenotch.redact import redact
+        reason = "Allow this command: " + redact(self.text.detail)[:80]
+        hello.confirm_async(self._hwnd, reason, lambda ok, msg: self._hello_done.emit(ok, msg))
+
+    def _hello_answered(self, ok: bool, message) -> None:
+        if ok:
+            self.decided.emit(protocol.ALLOW, "")
+            return
+        self.auth_message.setText(message or "")
+        self.auth_message.setVisible(bool(message))
 
     def _update_waiting(self) -> None:
         waited = time.monotonic() - self.card.created
