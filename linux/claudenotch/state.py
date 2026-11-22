@@ -172,6 +172,7 @@ class AppState:
         self.approver = None
         # The last request Auto-Approve allowed, for the button-less info card.
         self.auto_info = None
+        self.auto_info_at = 0.0
         # Plan limits from the status line, app-wide (0..1, unix seconds).
         self.limits: dict = {}
         self.sessions: dict[str, Session] = {}
@@ -209,6 +210,7 @@ class AppState:
                 self._log("auto-approved, destructive" if card.dangers else "auto-approved",
                           card.title, card.detail, card.project)
                 self.auto_info = card
+                self.auto_info_at = time.monotonic()
                 decided = protocol.ALLOW
             elif len(self.permissions) >= MAX_QUEUE:
                 decided = protocol.ASK
@@ -362,6 +364,13 @@ class AppState:
                 self.toasts = (self.toasts + [toast])[-8:]
                 self._log("notice", toast.title, toast.body, "")
         self._changed()
+
+    def dismiss_auto_info(self) -> None:
+        with self._lock:
+            had = self.auto_info is not None
+            self.auto_info = None
+        if had:
+            self._changed()
 
     def note_status(self, r) -> None:
         """A status line reading (statusline.Reading): the session's model,

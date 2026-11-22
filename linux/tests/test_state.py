@@ -70,6 +70,9 @@ class PermissionTests(unittest.TestCase):
         self.assertEqual(st.permissions, [])
         self.assertEqual(st.history[-1]["what"], "auto-approved, destructive")
         self.assertIsNotNone(st.auto_info)
+        self.assertGreater(st.auto_info_at, 0)
+        st.dismiss_auto_info()
+        self.assertIsNone(st.auto_info)
 
     def test_auto_approve_confirm_now_shows_the_card_flagged(self):
         st, got = AppState(persist=False), []
