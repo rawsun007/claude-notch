@@ -48,6 +48,13 @@ class Settings:
     # Give destructive commands a plain Allow. Switching it on needs Windows
     # Hello every time (the Mac asks for Touch ID or the password).
     skip_destructive_confirm: bool = False
+    # Auto-Approve (the Mac's AutoApprovePolicy): off until switched on.
+    # Scope: "everything", "commands" or "files". Destructive commands in
+    # scope: "ask" (the red card), "confirm" (Windows Hello at once) or
+    # "allow" (approved too; switching to it needs owner authentication).
+    auto_approve: bool = False
+    auto_approve_scope: str = "everything"
+    auto_approve_dangerous: str = "ask"
 
 
 POSITIONS = ("top", "bottom-right")
