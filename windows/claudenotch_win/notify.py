@@ -21,13 +21,12 @@ from PySide6.QtWidgets import QSystemTrayIcon
 
 from claudenotch.notify import wanted
 
-from . import winutil
 
 
-def fresh_items(perms, questions, seen: set, on: bool, dangerous_only: bool, fullscreen: bool = False):
+def fresh_items(perms, questions, seen: set, on: bool, dangerous_only: bool):
     """(title, body, dangerous) for cards not seen before that should toast.
-    Marks them seen either way. A card that shows over a fullscreen app also
-    toasts when dangerous-only is on, since the user may not see the pill."""
+    Marks them seen either way, so turning toasts on later does not replay
+    old cards."""
     out = []
     for c in perms:
         if c.id in seen:
@@ -63,7 +62,7 @@ class Notifier(QObject):
         cfg = self.store.value
         with self._lock:
             items = fresh_items(perms, questions, self._seen, cfg.desktop_notifications,
-                                cfg.notify_dangerous_only, winutil.fullscreen_in_front())
+                                cfg.notify_dangerous_only)
         for title, body, dangerous in items:
             self._send.emit(title, body, dangerous)
 
