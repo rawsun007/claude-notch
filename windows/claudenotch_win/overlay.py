@@ -93,6 +93,8 @@ class Overlay(QWidget):
         self.buttons: dict[str, QWidget] = {}
         self._hello = hello.Availability()
         self.auto_until: float | None = None
+        self.snooze_until: float | None = None
+        self._capture_hidden = None
         state.approver = self._approve
         self._sizer = geom.SizeAnimator()
         self._sizer.set(geom.collapsed_size())
@@ -274,9 +276,14 @@ class Overlay(QWidget):
 
     def render(self) -> None:
         perms, questions, toasts, sessions = self.state.snapshot()
-        if not self._setting("toasts", True):
+        if not self._setting("toasts", True) or self.snoozed:
+            # Snoozed (or switched off): passive cards are logged, not shown.
+            for t in toasts:
+                if not t.system:
+                    self.state.dismiss_toast(t.id)
             toasts = [t for t in toasts if t.system]
-        hovering = self.hovering or time.monotonic() < self.pinned_until
+        hovering = (self.hovering or time.monotonic() < self.pinned_until
+                    or self._setting("keep_open", False))
         auto = self.state.auto_info
         if auto is not None and time.monotonic() - self.state.auto_info_at > view.AUTO_INFO_SECONDS:
             auto = None
@@ -332,6 +339,18 @@ class Overlay(QWidget):
             if was_card and v not in (view.PERMISSION, view.QUESTION):
                 self._give_keyboard_back()
         self._update_visibility()
+        if self.isVisible() and self._setting("hide_from_capture", True) != self._capture_hidden:
+            self._apply_native_style()
+
+    @property
+    def snoozed(self) -> bool:
+        return self.snooze_until is not None and time.time() < self.snooze_until
+
+    def snooze_for(self, minutes: int) -> None:
+        """Snooze passive cards for `minutes` (0 wakes them). Not saved."""
+        self.snooze_until = time.time() + minutes * 60 if minutes > 0 else None
+        if minutes > 0:
+            QTimer.singleShot(int(minutes * 60 * 1000) + 100, self.rerender)
 
     def _frame_content(self, inner: QWidget) -> QWidget:
         """NotchView's padding around every card: 28 a side, inset + 10 on
@@ -367,6 +386,8 @@ class Overlay(QWidget):
 
     def _apply_native_style(self) -> None:
         winutil.set_no_activate(self._hwnd(), not self._keyboard)
+        self._capture_hidden = self._setting("hide_from_capture", True)
+        winutil.exclude_from_capture(self._hwnd(), self._capture_hidden)
 
     # --- cards ------------------------------------------------------------------------
 
