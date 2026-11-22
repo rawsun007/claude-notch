@@ -91,7 +91,7 @@ def run(args) -> int:
     quitting = {"done": False}
 
     def open_settings(page=None):
-        SettingsWindow.present(state, store, page, on_quit=quit_app)
+        SettingsWindow.present(state, store, page, on_quit=quit_app, overlay=overlay)
 
     def quit_app():
         if quitting["done"]:
