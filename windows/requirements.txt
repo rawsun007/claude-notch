@@ -1,0 +1,5 @@
+# Runtime
+PySide6-Essentials>=6.7,<6.11
+# Build and test (not shipped)
+pyinstaller>=6.10
+pytest>=8
