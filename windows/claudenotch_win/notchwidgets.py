@@ -447,6 +447,41 @@ _LEGS = [(3, 10, 1, 3), (5, 10, 1, 3), (10, 10, 1, 3), (12, 10, 1, 3)]
 _EYES = [(4, 5, 1, 2), (11, 5, 1, 2)]
 
 
+EMOTES = {"zzz": "z", "heart": "\u2665", "sparkle": "\u2726", "bang": "!", "dots": "\u2026",
+          "teardrop": "\u25cf"}
+EMOTE_RGB = {"heart": (255, 107, 140), "sparkle": (255, 204, 89), "teardrop": (115, 179, 255)}
+
+
+def draw_pet(p: QPainter, cx: float, cy: float, size: float, pose=None, blink: bool = False) -> None:
+    """PetSprite: the coral mascot from PetBody's 16-cell grid, centred on
+    (cx, cy), with a pose's tilt, squash and stretch, facing and emote."""
+    cell = size / 16.0
+    p.save()
+    p.translate(cx, cy)
+    if pose is not None:
+        p.rotate(pose.rotation)
+        p.scale(pose.scale_x * (-1 if pose.flipped else 1), pose.scale_y)
+        p.setOpacity(max(0.0, min(1.0, pose.opacity)))
+    p.translate(-8 * cell, -8 * cell)
+    coral = ms.rgba(ms.CORAL)
+    for x, y, w, h in _LEGS + _ARMS + _TORSO:
+        p.fillRect(QRectF(x * cell, y * cell, w * cell, h * cell), coral)
+    for x, y, w, h in _EYES:
+        eye = QRectF(x * cell, (y + (1.4 if blink else 0)) * cell, w * cell, (0.6 if blink else h) * cell)
+        p.fillRect(eye, Qt.black)
+    p.restore()
+    if pose is not None and pose.emote:
+        p.save()
+        rgb = EMOTE_RGB.get(pose.emote, WHITE)
+        f = ms.font(max(7.0, size * 0.28 * pose.emote_scale), "bold")
+        p.setFont(f)
+        p.setPen(ms.rgba(rgb, 0.85 if pose.emote in EMOTE_RGB else 0.55))
+        ex = cx + (size * 0.38 if not pose.flipped else -size * 0.52)
+        p.drawText(QRectF(ex, cy - size * 0.62, size * 0.4, size * 0.3), Qt.AlignCenter,
+                   EMOTES.get(pose.emote, ""))
+        p.restore()
+
+
 class ClaudeIcon(QWidget):
     """ClaudeIconView: the coral mascot at 15 pt, bobbing at its mood's tempo
     and blinking. Painted from the same grid PetSprite uses."""
