@@ -98,6 +98,15 @@ class Session:
     last_prompt: str = ""
     updated: float = field(default_factory=time.time)
     agents: int = 0
+    # From Claude Code's status line (statusline.py); empty / None until one arrives.
+    model: str = ""
+    effort: str = ""
+    name: str = ""                  # what /rename set
+    worktree: str = ""
+    context_pct: float | None = None    # 0..1
+    context_window: int | None = None
+    context_tokens: int | None = None
+    cost_usd: float | None = None       # Claude Code's own figure
 
     @property
     def project(self) -> str:
@@ -156,6 +165,9 @@ class AppState:
         self.permissions: list[PermissionCard] = []
         self.questions: list[QuestionCard] = []
         self.toasts: list[Toast] = []
+        self.ended: list[str] = []
+        # Plan limits from the status line, app-wide (0..1, unix seconds).
+        self.limits: dict = {}
         self.sessions: dict[str, Session] = {}
         self.history: list[dict] = []
         self.rules: list[AllowRule] = []
@@ -300,6 +312,9 @@ class AppState:
                 self._touch(sid, cwd, "ready")
             elif event == "SessionEnd":
                 self.sessions.pop(sid or cwd, None)
+                if sid:
+                    # A late status line must not bring the session back.
+                    self.ended = (self.ended + [sid])[-MAX_SESSIONS * 4:]
             elif event == "UserPromptSubmit":
                 s = self._touch(sid, cwd, "working")
                 if s:
@@ -331,6 +346,45 @@ class AppState:
                 self.toasts = (self.toasts + [toast])[-8:]
                 self._log("notice", toast.title, toast.body, "")
         self._changed()
+
+    def note_status(self, r) -> None:
+        """A status line reading (statusline.Reading): the session's model,
+        effort, context and cost, and the plan limits. Creates the session
+        if it is new, as the Mac's upsert does, but never one that ended,
+        and never moves it up the list: a redraw is not activity."""
+        if r is None:
+            return
+        with self._lock:
+            before = None
+            key = r.session_id or r.cwd
+            if key and r.session_id not in self.ended:
+                s = self.sessions.get(key)
+                if s is None:
+                    s = self._touch(r.session_id, r.cwd)
+                before = dict(vars(s))
+                if r.model:
+                    s.model = r.model
+                if r.effort:
+                    s.effort = r.effort
+                if r.session_name:
+                    s.name = r.session_name
+                if r.worktree:
+                    s.worktree = r.worktree
+                for attr in ("context_pct", "context_window", "context_tokens", "cost_usd"):
+                    v = getattr(r, attr)
+                    if v is not None:
+                        setattr(s, attr, v)
+                changed = dict(vars(s)) != before
+            else:
+                changed = False
+            limits = dict(self.limits)
+            for attr in ("five_hour_pct", "seven_day_pct", "five_hour_resets_at", "seven_day_resets_at"):
+                v = getattr(r, attr)
+                if v is not None:
+                    self.limits[attr] = v
+            changed = changed or self.limits != limits
+        if changed:
+            self._changed()
 
     def greet(self, updated_from: str | None = None, version: str = "") -> None:
         """Shown once at start, so launching the app has a visible result.
