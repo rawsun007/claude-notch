@@ -117,3 +117,27 @@ def test_idle_meter_before_any_status_line():
     assert (mt.model_name, mt.meter_label, mt.cost_label) == ("", "no usage yet", "")
     assert m.idle_meter(Session("a", "C:/p", context_pct=0.3)).meter_label == "30%"
     assert m.idle_meter(None, "main").branch_short == "main"
+
+
+def test_agent_label_matches_agentkind():
+    assert m.agent_label("claude-opus-5-5") == ""
+    assert m.agent_label("gpt-5-codex") == "CODEX"
+    assert m.agent_label("grok-4") == "GROK"
+
+
+def test_session_rows_skip_the_top_session():
+    from claudenotch.state import Session
+    top = Session("a", "C:/w/top", status="working")
+    two = Session("b", "C:/w/second", status="ready", model="gpt-5", worktree="feature-worktree-name",
+                  context_pct=0.7, context_tokens=140000, context_window=200000, agents=2)
+    three = Session("c", "", status="waiting", name="renamed")
+    rows = m.session_rows([top, two, three], branches={"b": "feature/very-long-branch-name"},
+                          waiting_since={"": 100.0}, now=290.0)
+    assert [r.id for r in rows] == ["b", "c"]
+    b, c = rows
+    assert (b.label, b.agent, b.working, b.status, b.agents) == ("second", "CODEX", False, "ready", 2)
+    assert b.branch_short == "feature/…ch-name" and len(b.branch_short) == 16
+    assert b.worktree_short == "feature…e-name"
+    assert b.meter.meter_label == "140k/200k"
+    assert (c.label, c.working, c.waiting, c.meter) == ("renamed", True, "⏳ 3m", None)
+    assert m.session_rows([top]) == []
