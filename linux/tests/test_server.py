@@ -26,7 +26,7 @@ def post(port, payload, path="/hook", query="", headers=None, timeout=10):
 class ServerTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
-        self.env = mock.patch.dict(os.environ, {"HOME": self.tmp.name,
+        self.env = mock.patch.dict(os.environ, {"HOME": self.tmp.name, "USERPROFILE": self.tmp.name, "APPDATA": self.tmp.name,
                                                 "CLAUDE_CONFIG_DIR": os.path.join(self.tmp.name, ".claude")})
         self.env.start()
         self.state = AppState(persist=False)

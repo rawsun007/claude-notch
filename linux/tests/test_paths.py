@@ -38,7 +38,7 @@ class LinuxPathTests(unittest.TestCase):
     def test_linux_paths_are_unchanged(self):
         with mock.patch.object(state.sys, "platform", "linux"), \
                 mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": "/x/cfg"}):
-            self.assertEqual(state.config_dir(), "/x/cfg/claudenotch")
+            self.assertEqual(state.config_dir(), os.path.join("/x/cfg", "claudenotch"))
             self.assertEqual(hooks.token_path(), os.path.expanduser("~/.claudenotch/hook-token"))
 
 
