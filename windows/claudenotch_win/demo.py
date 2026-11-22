@@ -76,14 +76,19 @@ NOTICES = {
     "completed": {"hook_event_name": "Stop"},
     "failure": {"hook_event_name": "StopFailure", "failure_reason": "rate_limit", "message": "rate_limit"},
 }
-ALL = [*PERMISSIONS, "queue", "question", *NOTICES, "idle", "hover", "working", "sessions"]
+ALL = [*PERMISSIONS, "budget", "queue", "question", *NOTICES, "idle", "hover", "working", "sessions"]
 
 
 def load(state: AppState, name: str) -> SimpleNamespace:
     """Put demo `name` on `state`. Returns what the overlay needs to know
     (whether to hold the hover card open)."""
     out = SimpleNamespace(hover=False)
-    if name in PERMISSIONS:
+    if name == "budget":
+        from claudenotch.budget import BudgetBlock
+        card = permission()
+        state.approver = lambda c: (setattr(c, "budget_block", BudgetBlock("daily", 12.4, 10.0)), "card")[1]
+        state.enqueue_permission(card)
+    elif name in PERMISSIONS:
         state.enqueue_permission(PERMISSIONS[name]())
     elif name == "queue":
         for _ in range(3):
