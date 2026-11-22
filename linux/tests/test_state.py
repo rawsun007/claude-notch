@@ -99,6 +99,14 @@ class PermissionTests(unittest.TestCase):
         self.assertEqual((v.allowed, v.denied, v.dangerous_flagged), (1, 1, 1))
         self.assertEqual(v.tool_counts, {"Bash": 2})
 
+    def test_each_finished_turn_is_archived(self):
+        st = AppState(persist=False)
+        st.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "a", "cwd": "/p/one",
+                         "prompt": "fix the build"})
+        st.handle_event({"hook_event_name": "Stop", "session_id": "a", "cwd": "/p/one"})
+        recs = st.archive.newest_first()
+        self.assertEqual([(r.id, r.project, r.summary, r.turns) for r in recs], [("a", "one", "fix the build", 1)])
+
     def test_the_card_is_redacted_but_the_rule_matches_the_raw_text(self):
         secret = "export API_KEY=abc123"
         c = card(command=secret)
