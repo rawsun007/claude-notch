@@ -63,8 +63,8 @@ Order within each section is roughly by how often a user meets it.
 |---|---|---|---|
 | Mascot, name, status dot (pulse) and word (shimmer) | IdlePill | done | |
 | Agent and file badges | IdlePill | partial | Agents done; edited-file count needs PostToolUse paths. |
-| Model, effort, branch, /add-dir chip | IdlePill row 2 | todo | Needs the status line feed. |
-| Context and cost meter | ContextCostBar | partial | Drawn ("no usage yet"); numbers need the status line endpoint. |
+| Model, effort, branch, /add-dir chip | IdlePill row 2 | partial | Model and version, effort and the branch chip (from .git/HEAD, worktrees followed) are done, from the top session only. The /add-dir chip is todo. |
+| Context and cost meter | ContextCostBar | done | From the status line: capsule warming blue, orange, red, "84k/200k", Claude Code's own cost. The cost-cap tint waits on spending caps; the window guess for sessions without a status line is todo. |
 | Running command strip with timer | CommandLineBlock | todo | Needs the last tool from PreToolUse. |
 | Task-list progress bar | AppState+TaskMeter | todo | |
 | Session list (2+ sessions) | NotchSessionList | todo | |
@@ -80,7 +80,7 @@ Order within each section is roughly by how often a user meets it.
 | Danger rules | ToolPreviewParser | done | Shared core plus PowerShell/cmd rules. Two core tests fail on this PC before and after this work (see below). |
 | Secret redaction | SecretRedactor | done | Shared core. |
 | Hook installer merge / uninstall | HookInstaller | done | Shared core. |
-| Status line (context, cost, model, prompt cache) | HookInstaller + EventServer status endpoint | todo | Most-used missing feature after the cards. |
+| Status line (context, cost, model, prompt cache) | HookInstaller + EventServer status endpoint | done | `/statusline` in the shared core with the Mac's body; a PowerShell 5.1 forwarder (no jq or curl) checked key for key against the Python port of the Mac's jq program; your own status line kept and restored on uninstall. Prompt-cache warnings, PR badge and the limit forecasts are todo. Each redraw costs about 1 s of Windows PowerShell start-up, outside Claude Code's own work. |
 | Spending caps (daily, session) and enforcement | AppState+Budget | todo | |
 | Usage breakdown, burn rate, forecast | AppState+Usage, BurnRate, CostForecast | todo | |
 | Usage limit window and pause | AppState+UsageLimit, UsageLimitPause, AppState+LimitWindow | todo | |
@@ -129,6 +129,12 @@ hooks from `%USERPROFILE%\.claude\settings.json`, `claude -p` with
 | (real server, Claude Code's AskUserQuestion payload) | One question, three described options | Question card | Real clicks: Blue, then Send | Hook answered in 2.3 s with "[ClaudeNotch, user replied via the notch] - Colour: Blue", the Mac's exact text |
 
 The terminal kept keyboard focus until the card was pressed, every time.
+
+Status line, live: an interactive `claude` (2.1.330) with ClaudeNotch
+running. The hover card showed "Claude · 2 sessions", Haiku 5.5, Medium
+effort and the `windows` branch, all from the status line and .git/HEAD,
+and the terminal's own status line still drew the default
+"Haiku 5.5  E:\claude notch\claude-notch".
 
 `claude -p` does not use AskUserQuestion (with nobody to ask, it asks in
 plain text), so the question card was driven with the payload Claude Code

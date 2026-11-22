@@ -226,7 +226,13 @@ views), with **view.py** (pure, tested; which card wins) and
 **demo.py** (`python -m claudenotch_win.demo <card> [--shot f.png]`, the
 Mac's demo cards on a private state, no hooks or port). The Mac source
 is the spec for every number in these; `plans/windows-linux-weekend/PARITY.md`
-tracks what is ported.
+tracks what is ported. Status line: core **statusline.py** (pure: the Mac
+forwarder's jq flattening, handleStatusLine's parse, model names, money),
+`/statusline` in **server.py**, meters on `Session` in **state.py**,
+`hooks.install(status_command=...)` wiring with the user's own line kept;
+**gitinfo.py** reads the branch from .git/HEAD. Windows forwarder:
+`windows/resources/claudenotch-statusline.ps1` (PowerShell 5.1, tested
+key for key against statusline.flatten), placed by **winstatus.py**.
 **tray.py**, **notify.py**, **settings_window.py**, **autostart.py** (HKCU Run
 key + StartupApproved). Packaging: `windows/packaging/` (PyInstaller onedir,
 per-user Inno Setup, build.ps1). Dev: `windows/dev/setup.ps1`, `run.ps1`.

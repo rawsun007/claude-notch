@@ -51,13 +51,25 @@ hooks when they start, so restart those.
   a notification shows Claude's message. Both wait until you press Done
   or Dismiss, or Open IDE, which brings back the window you were in when
   the card arrived.
-- **Sessions:** point at the notch, or click the tray icon.
+- **Sessions:** point at the notch, or click the tray icon. The open notch
+  shows the session's model, effort, git branch, how full its context
+  window is and what it has cost so far, read from Claude Code's status
+  line.
 - Nobody answers within 285 seconds, or ClaudeNotch is not running: Claude
   Code asks in its terminal exactly as it would without the app.
 
 The notch never takes the keyboard from your terminal: a card appearing
 while you type does not eat keystrokes. It hides over fullscreen games,
 videos and presentations; a card that needs an answer still shows.
+
+## Your status line
+
+To read those numbers, ClaudeNotch sets Claude Code's `statusLine` to a
+small PowerShell script in `%APPDATA%\ClaudeNotch`. If you already had a
+status line, it is kept and still drawn below your prompt, through Git
+Bash; if you had none, you get a short default (model, folder, context).
+`ClaudeNotch --uninstall-hooks` (and uninstalling the app) puts your own
+status line back.
 
 ## Settings
 
