@@ -28,7 +28,7 @@ Order within each section is roughly by how often a user meets it.
 | Multi-monitor: notch follows the cursor's screen, mirrors | NotchWindowController, MouseTracker | todo | Primary screen only today. |
 | Minimized question stub left of the notch | MinimizedQuestionTab | todo | |
 | Drop a folder on the notch to open Claude there | NotchDrop | todo | |
-| Pet mode (stage, rope, costumes, moods) | NotchPetViews, PetEngine, PetRig | partial | PetEngine ported (moods, weights, durations, duty cycle, entry spring, poses for peek, look around, hang either corner, stroll, sleep, celebrate, boop, backflip, watch, flinch, fret); the closed notch is its stage; boop on click; Settings > Pet. Not ported: the rope physics, limb rigging (arms and legs swinging), the pet badges on the danger and done cards, and the guest costumes, which recreate third-party characters. |
+| Pet mode (stage, rope, costumes, moods) | NotchPetViews, PetEngine, PetRig | done | PetEngine ported (moods, weights, durations, duty cycle, entry spring, poses for peek, look around, hang either corner, stroll, sleep, celebrate, boop, backflip, watch, flinch, fret, rope); the rope with its physics (fall, catch, damped swing, springy stretch) and the line that sags while slack; PetRig's limbs (arms about the shoulders, legs stepping, lifting and tucking, blinks, eyes on the pointer); PetCardBadge on the danger banner, the done card (the dance) and the plan-limit card (fret, teardrop); boop on click; Settings > Pet with a Play button per activity. Not ported, on purpose: the guest costumes, which recreate third-party characters. |
 
 ## Cards
 
@@ -49,8 +49,8 @@ Order within each section is roughly by how often a user meets it.
 | Budget block banner, Allow once, Raise to $X | BudgetBanner, AppState+Budget | done | Orange banner, Allow once, Raise to the Mac's next cap, Turn off. "Turn off" is a small button where the Mac draws plain text. |
 | Question card (AskUserQuestion), multi-question, Other text | QuestionCard | partial | Header, header pills, option rows (nothing picked at start), "Something else" field, Cancel / Send, the Mac's height budget and answer rules. Not yet: minimize and the stub beside the notch, the expired banner, the MCP sign-in link row. The Mac makes this card key at once; Windows waits for a click, so typing in the terminal is never caught. |
 | Plan approval (ExitPlanMode) | PermissionCard + WritePreview | done | Rendered as the plan preview card. |
-| Notification card (bell, Dismiss, Open IDE) | NotificationCard | done | Waits until Dismiss or Open IDE. Open IDE brings back the window that was in front when it arrived. StopFailure is this card with the Mac's "⚠️ Rate limited, session stopped" wording. The rate-limit crying pet and the Update button are todo. |
-| Completed card (done, reply, Open IDE, audit) | CompletedCard | partial | Green seal, "Claude finished", project, Open IDE and Done; waits until answered. Reply (needs compose), the audit banner and the dancing pet are todo. |
+| Notification card (bell, Dismiss, Open IDE) | NotificationCard | done | Waits until Dismiss or Open IDE. Open IDE brings back the window that was in front when it arrived. StopFailure is this card with the Mac's "⚠️ Rate limited, session stopped" wording. With Pet Mode on, a plan-limit warning has the fretting pet. The Update button is todo. |
+| Completed card (done, reply, Open IDE, audit) | CompletedCard | partial | Green seal, "Claude finished", project, Open IDE and Done; waits until answered. With Pet Mode on, the pet dances on it. Reply (needs compose) and the audit banner are todo. |
 | Auto-approved info card | AutoInfoCard | done | Button-less, four seconds, click to dismiss. |
 | Thinking pill | ThinkingPill | todo | |
 | Compose / reply card | NotchComposeCards | todo | |

@@ -248,8 +248,9 @@ and **skills.py** (scan, skillOverrides merge, trash); Windows
 **soundplay.py** (winsound; the user's own .wav or macOS .aiff in
 %APPDATA%\ClaudeNotch\Sounds, converted by **aiffwav.py**, else the app's
 own sounds under the Mac's names) and **petengine.py**
-(PetEngine: moods, schedule, poses; drawn by `notchwidgets.draw_pet` in
-the overlay's closed notch).
+(PetEngine: moods, schedule, poses, rope physics; PetRig: limbs, blink,
+dance; drawn by `notchwidgets.draw_pet` in the overlay's closed notch,
+and on cards by `notchwidgets.PetBadge`).
 **tray.py**, **notify.py**, **settings_window.py**, **autostart.py** (HKCU Run
 key + StartupApproved). Packaging: `windows/packaging/` (PyInstaller onedir,
 per-user Inno Setup, build.ps1). Dev: `windows/dev/setup.ps1`, `run.ps1`.

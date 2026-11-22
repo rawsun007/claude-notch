@@ -101,8 +101,10 @@ app's: a sidebar with search, and these pages:
   Windows Hello for destructive commands, and skip that confirmation
   (asks for Windows Hello or your password).
 - **Pet:** Pet Mode, the mascot living in the closed notch (it naps,
-  strolls, keeps Claude company, celebrates and flinches; click the notch
-  to boop it), and a Play button for each thing it does.
+  strolls, drops down on a rope, keeps Claude company, celebrates and
+  flinches; click the notch to boop it). It also shows up on cards: wary
+  on a destructive command, dancing when a task finishes, fretting near a
+  plan limit. A Play button for each thing it does.
 - **Sounds:** mute, the alert sound or a sound per kind of tool, and a
   sound per event, under the Mac's names (Funk, Glass, Pop, Tink,
   Submarine...). The app ships its own sounds by those names; to hear the
