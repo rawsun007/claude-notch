@@ -194,14 +194,18 @@ class AppState:
         return True
 
     def resolve_permission(self, card_id: int, decision: str, always: bool = False,
-                           reason: str | None = None) -> None:
+                           reason: str | None = None, scope: str = "exact") -> None:
+        """`always` with `scope` "exact" saves a rule for this exact command
+        (the Mac's "Always Allow This Exact Command"); "tool" saves one for
+        every call of the tool ("Always Allow All Bash"). Never for a
+        dangerous call."""
         with self._lock:
             card = next((c for c in self.permissions if c.id == card_id), None)
             if card is None:
                 return
             self.permissions.remove(card)
             if always and decision == protocol.ALLOW and not card.dangers:
-                rule = AllowRule(card.tool, card.match_text)
+                rule = AllowRule(card.tool, "" if scope == "tool" else card.match_text)
                 if rule not in self.rules:
                     self.rules = (self.rules + [rule])[-MAX_RULES:]
                     self._save_rules()
@@ -210,6 +214,15 @@ class AppState:
             self._touch(card.session_id, card.cwd, "working" if decision == protocol.ALLOW else "ready")
         card.resolve(decision, reason)
         self._changed()
+
+    def resolve_all_permissions(self, decision: str) -> None:
+        """The Mac's "Allow All (n)": one press answers every queued card.
+        A dangerous card is never swept up by it; it stays for its own
+        deliberate answer."""
+        with self._lock:
+            ids = [c.id for c in self.permissions if not (decision == protocol.ALLOW and c.dangers)]
+        for card_id in ids:
+            self.resolve_permission(card_id, decision)
 
     def drop_permission(self, card_id: int) -> None:
         """The hook gave up waiting (Claude Code asked in the terminal)."""

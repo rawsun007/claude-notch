@@ -42,6 +42,26 @@ class PermissionTests(unittest.TestCase):
         st.resolve_permission(c.id, protocol.ALLOW, always=True)
         self.assertNotIn(AllowRule("Bash", "sudo rm -rf /"), st.rules)
 
+    def test_always_allow_the_whole_tool(self):
+        st = AppState(persist=False)
+        first = card()
+        st.enqueue_permission(first)
+        st.resolve_permission(first.id, protocol.ALLOW, always=True, scope="tool")
+        self.assertIn(AllowRule("Bash", ""), st.rules)
+        got = []
+        self.assertFalse(st.enqueue_permission(card(command="npm publish", answers=got)))
+        self.assertEqual(got, ["allow"])
+
+    def test_allow_all_skips_dangerous_cards(self):
+        st, got = AppState(persist=False), []
+        for cmd in ("npm test", "npm run build", "sudo rm -rf /"):
+            st.enqueue_permission(card(command=cmd, answers=got))
+        st.resolve_all_permissions(protocol.ALLOW)
+        self.assertEqual(got, ["allow", "allow"])
+        self.assertEqual([c.match_text for c in st.permissions], ["sudo rm -rf /"])
+        st.resolve_all_permissions(protocol.DENY)
+        self.assertEqual(got, ["allow", "allow", "deny"])
+
     def test_the_card_is_redacted_but_the_rule_matches_the_raw_text(self):
         secret = "export API_KEY=abc123"
         c = card(command=secret)
