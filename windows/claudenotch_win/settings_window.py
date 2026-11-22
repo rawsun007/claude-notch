@@ -35,7 +35,7 @@ POSITIONS = [("top", "Top centre"), ("bottom-right", "Bottom right, above the tr
 NAV = [
     ("Workspace", [("general", "General", "gearshape"), ("notch", "Notch", "menubar.rectangle")]),
     ("Session", [("session", "Session", "text.bubble")]),
-    ("Alerts & Cost", [("alerts", "Alerts", "bell.badge")]),
+    ("Alerts & Cost", [("alerts", "Alerts", "bell.badge"), ("plan", "Plan", "creditcard")]),
     ("Info", [("usage", "Usage", "chart.bar"), ("history", "History", "clock.arrow.circlepath"),
               ("privacy", "Privacy", "lock.shield"),
               ("about", "About", "info.circle")]),
@@ -56,6 +56,8 @@ SEARCH = [
     kit.SearchItem("Snooze passive cards", "mute pause quiet", "session"),
     kit.SearchItem("Completion and notification cards", "done finished notice toast", "alerts"),
     kit.SearchItem("Windows notifications", "toast banner action center", "alerts"),
+    kit.SearchItem("Plan-limit warnings", "rate limit 80 95 percent", "alerts"),
+    kit.SearchItem("Plan limits", "5 hour weekly limit resets percent pro max", "plan"),
     kit.SearchItem("Hide from screen capture", "recording screenshot privacy share", "privacy"),
     kit.SearchItem("Require Windows Hello", "biometric fingerprint face pin touch id", "privacy"),
     kit.SearchItem("Skip confirmation for destructive commands",
@@ -130,6 +132,7 @@ class SettingsWindow(QWidget):
         root.addWidget(self.stack, 1)
         for key, build in (("general", self._page_general), ("notch", self._page_notch),
                            ("session", self._page_session), ("alerts", self._page_alerts),
+                           ("plan", self._page_plan),
                            ("usage", self._page_usage), ("history", self._page_history),
                            ("privacy", self._page_privacy), ("about", self._page_about),
                            ("rules", self._page_rules)):
@@ -215,6 +218,8 @@ class SettingsWindow(QWidget):
             self._load_usage()
         if key == "history":
             self._fill_history()
+        if key == "plan":
+            self._fill_plan()
         self.stack.setCurrentIndex(self.pages[key])
         for k, item in self.nav_items.items():
             item.setChecked(k == key)
@@ -468,6 +473,8 @@ class SettingsWindow(QWidget):
         card = kit.Card(self.t)
         self._toggle_row(card, "toasts", "Completion and notification cards",
                          "A card in the notch when a session finishes or Claude Code sends a notification.")
+        self._toggle_row(card, "limit_warnings", "Plan-limit warnings",
+                         "A card at 80% and again at 95% of your 5-hour or weekly plan limit, once per window.")
         v.addWidget(card)
         v.addWidget(kit.section_label(self.t, "Windows notifications"))
         win = kit.Card(self.t)
@@ -685,6 +692,43 @@ class SettingsWindow(QWidget):
             self.state.archive.clear()
             self._fill_history()
 
+    # --- Plan -------------------------------------------------------------------------------
+
+    def _page_plan(self) -> QWidget:
+        page, v = self._page("Plan")
+        v.addWidget(kit.label("Your plan limits, as Claude Code's own status line reports them. They update while "
+                              "a session is open.", 12, color=self.t.secondary, wrap=True))
+        self.plan_card = kit.Card(self.t)
+        v.addWidget(self.plan_card)
+        v.addStretch(1)
+        return page
+
+    def _fill_plan(self) -> None:
+        import time as _t
+        from claudenotch.limits import reset_countdown
+        lay = self.plan_card.lay
+        while lay.count():
+            w = lay.takeAt(0).widget()
+            if w is not None:
+                w.deleteLater()
+        self.plan_card._rows = 0
+        lim = dict(self.state.limits)
+        shown = False
+        for key, title in (("five_hour", "5-hour limit"), ("seven_day", "Weekly limit")):
+            pct = lim.get(key + "_pct")
+            if pct is None:
+                continue
+            shown = True
+            reset = lim.get(key + "_resets_at")
+            when = f"resets in {reset_countdown(reset - _t.time())}" if reset else "reset time not reported"
+            self.plan_card.add(charts.leader_row(self.t, title, f"{int(round(pct * 100))}%", pct))
+            note = kit.label(when, 11, color=self.t.secondary)
+            note.setContentsMargins(14, 0, 14, 8)
+            lay.addWidget(note)
+        if not shown:
+            self.plan_card.add(kit.Row(self.t, "No limits reported yet",
+                                       "Claude Code sends them through the status line once a session is open."))
+
     # --- Privacy ----------------------------------------------------------------------------
 
     def _page_privacy(self) -> QWidget:
@@ -789,7 +833,7 @@ class SettingsWindow(QWidget):
         values = {"start_at_login": start}
         for key in ("greeting", "hover_sessions", "toasts", "show_pill", "hide_in_fullscreen",
                     "desktop_notifications", "notify_dangerous_only", "keep_open", "hide_from_capture",
-                    "require_hello", "skip_destructive_confirm", "auto_approve"):
+                    "require_hello", "skip_destructive_confirm", "auto_approve", "limit_warnings"):
             values[key] = getattr(v, key, False)
         for key, value in values.items():
             sw = self.switches.get(key)
