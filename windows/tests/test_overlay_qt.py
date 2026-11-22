@@ -16,7 +16,7 @@ except ImportError:
     HAVE_QT = False
 
 from claudenotch import protocol  # noqa: E402
-from claudenotch.state import AppState, PermissionCard, QuestionCard  # noqa: E402
+from claudenotch.state import AllowRule, AppState, PermissionCard, QuestionCard  # noqa: E402
 
 
 @unittest.skipUnless(HAVE_QT, "needs PySide6")
@@ -44,10 +44,10 @@ class OverlayTests(unittest.TestCase):
         self.app.processEvents()
         return card, got
 
-    def test_the_idle_pill_shows(self):
+    def test_the_closed_notch_shows(self):
         self.assertEqual(self.overlay._view, "pill")
         self.assertTrue(self.overlay.isVisible())
-        self.assertGreater(self.overlay.width(), 100)
+        self.assertEqual(self.overlay._sizer.size, (200, 28))
 
     def test_allow_answers_the_hook(self):
         card, got = self.perm()
@@ -63,25 +63,52 @@ class OverlayTests(unittest.TestCase):
         self.overlay.buttons["deny"].click()
         self.assertEqual(got, ["deny"])
 
-    def test_dangerous_needs_two_clicks_and_has_no_always_allow(self):
-        card, got = self.perm("Remove-Item C:\\proj -Recurse -Force")
+    def test_dangerous_needs_a_hold_and_has_no_always_allow(self):
+        from claudenotch_win.notchwidgets import HoldToConfirmButton
+        card, got = self.perm(r"Remove-Item C:\proj -Recurse -Force")
         self.assertTrue(card.dangers)
         self.assertNotIn("always", self.overlay.buttons)
-        self.overlay.buttons["allow"].click()
-        self.app.processEvents()
+        hold = self.overlay.buttons["allow"]
+        self.assertIsInstance(hold, HoldToConfirmButton)
+        # Return never allows a dangerous call; only the hold does.
+        self.overlay._allow_current()
         self.assertEqual(got, [])
-        self.assertEqual(self.overlay.buttons["allow"].text(), "Click again to allow")
-        self.overlay.buttons["allow"].click()
+        hold.confirmed.emit()
+        self.app.processEvents()
         self.assertEqual(got, ["allow"])
+
+    def test_always_allow_whole_tool_from_the_card(self):
+        from claudenotch_win.notchcards import PermissionCardView
+        card, got = self.perm("npm run lint")
+        self.overlay._content.findChild(PermissionCardView).decided.emit("allow", "tool")
+        self.assertEqual(got, ["allow"])
+        self.assertIn(AllowRule("PowerShell", ""), self.state.rules)
+
+    def test_allow_all_answers_the_queue(self):
+        _, got1 = self.perm("npm test")
+        _, got2 = self.perm("npm run build")
+        self.assertIn("allow_all", self.overlay.buttons)
+        self.overlay.buttons["allow_all"].click()
+        self.app.processEvents()
+        self.assertEqual((got1, got2), (["allow"], ["allow"]))
 
     def test_payload_text_is_never_rendered_as_html(self):
         from PySide6.QtCore import Qt
         from PySide6.QtWidgets import QLabel
+        from claudenotch_win.notchwidgets import Text
         self.perm("<b>bold</b><img src=x>")
+        texts = [t.text() for t in self.overlay.findChildren(Text)]
+        self.assertTrue(any("<b>bold</b>" in t for t in texts))
         labels = self.overlay.findChildren(QLabel)
-        self.assertTrue(labels)
-        self.assertTrue(all(lbl.textFormat() == Qt.PlainText for lbl in labels if "<b>" in lbl.text()))
-        self.assertTrue(any("<b>bold</b>" in lbl.text() for lbl in labels))
+        self.assertTrue(all(lbl.textFormat() == Qt.PlainText for lbl in labels))
+
+    def test_the_card_grows_out_of_the_notch(self):
+        self.perm()
+        self.assertEqual(self.overlay._sizer.target[0], 620)
+        self.overlay._sizer.tick(10.0 + self.overlay._now())
+        w, h = self.overlay._sizer.size
+        self.assertEqual(w, 620)
+        self.assertGreaterEqual(h, 24 + 152)
 
     def test_question_card_sends_the_picked_option(self):
         got = []
