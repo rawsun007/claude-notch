@@ -91,3 +91,11 @@ def test_notice_text_for_each_kind():
     assert f.detail.startswith("You have hit the usage limit")
     hello = m.notice_text(Toast("ClaudeNotch is running", "Claude Code prompts will appear here.", system=True))
     assert (hello.source, hello.title) == ("ClaudeNotch", "ClaudeNotch is running")
+
+
+def test_build_answers_matches_the_mac():
+    assert m.build_answers([False, True], [{"B"}, {"z", "a"}], ["", ""]) == [["B"], ["a", "z"]]
+    assert m.build_answers([False], [{"B"}], ["  mine "]) == [["mine"]]
+    assert m.build_answers([True], [{"a"}], ["mine"]) == [["a", "mine"]]
+    assert m.build_answers([False], [set()], [""]) == [[]]
+    assert m.question_count_text(1) == "1 question" and m.question_count_text(3) == "3 questions"
