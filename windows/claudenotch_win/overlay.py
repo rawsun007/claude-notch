@@ -39,7 +39,7 @@ from PySide6.QtCore import QEvent, QObject, QRect, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QCursor, QGuiApplication, QPainter, QPainterPath, QPen, QRegion
 from PySide6.QtWidgets import QApplication, QLabel, QMenu, QVBoxLayout, QWidget
 
-from claudenotch import protocol
+from claudenotch import gitinfo, protocol
 from claudenotch.state import AppState
 
 from . import cardmodel
@@ -283,8 +283,11 @@ class Overlay(QWidget):
             key = (v, card.id, len(questions), self.position)
             build = lambda: self._question_card(card, len(questions) - 1)  # noqa: E731
         elif v == view.SESSIONS:
-            key = (v, tuple((s.id, s.status, s.last_prompt, s.agents) for s in sessions), self.position)
-            build = lambda: self._idle_card(sessions)  # noqa: E731
+            branch = gitinfo.branch(sessions[0].cwd) if sessions else ""
+            key = (v, tuple((s.id, s.status, s.last_prompt, s.agents, s.model, s.effort, s.context_pct,
+                             s.context_tokens, s.context_window, s.cost_usd) for s in sessions),
+                   branch, self.position)
+            build = lambda: self._idle_card(sessions, branch)  # noqa: E731
         elif v == view.TOAST:
             # The oldest first, as the Mac's queues are: completedQueue.first.
             t = toasts[0]
@@ -351,8 +354,8 @@ class Overlay(QWidget):
 
     # --- cards ------------------------------------------------------------------------
 
-    def _idle_card(self, sessions) -> QWidget:
-        card = IdleCardView(sessions)
+    def _idle_card(self, sessions, branch: str = "") -> QWidget:
+        card = IdleCardView(sessions, branch)
         self._card_w, self._formula_h = geom.idle_open_size(card.content_width)
         return card
 

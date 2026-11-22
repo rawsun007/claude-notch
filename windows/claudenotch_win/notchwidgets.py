@@ -846,6 +846,7 @@ def _rect_path(r: QRectF) -> QPainterPath:
 
 
 def context_cost_bar(percent: float = 0.0, tokens: int = 0, window: int = 0, cost: float = 0.0) -> QWidget:
+    percent, tokens, window, cost = percent or 0.0, tokens or 0, window or 0, cost or 0.0
     """ContextCostBar: a 36 x 3 capsule warming blue, orange, red, then the
     token label at 9 pt, or "no usage yet" at 30 % before any status line."""
     w = QWidget()
@@ -862,7 +863,8 @@ def context_cost_bar(percent: float = 0.0, tokens: int = 0, window: int = 0, cos
     else:
         row.addWidget(Text("no usage yet", 9, opacity=0.3, fixed=True))
     if cost > 0:
-        row.addWidget(Text(f"${cost:.2f}", 9, opacity=0.4, fixed=True))
+        from claudenotch.statusline import fmt_money
+        row.addWidget(Text(fmt_money(cost), 9, opacity=0.4, fixed=True))
     return w
 
 
@@ -892,6 +894,7 @@ class Dot(QWidget):
     def __init__(self, rgb, pulse: bool = False, diameter: float = 5, parent=None):
         super().__init__(parent)
         self.rgb, self.pulse, self.d = rgb, pulse, diameter
+        self.opacity = 1.0
         self.setFixedSize(int(diameter) + 1, int(diameter) + 1)
         self._t0 = time.monotonic()
         if pulse:
@@ -899,11 +902,15 @@ class Dot(QWidget):
             self._timer.timeout.connect(self.update)
             self._timer.start()
 
+    def set_opacity(self, opacity: float) -> None:
+        self.opacity = opacity
+        self.update()
+
     def paintEvent(self, _e) -> None:
         import math
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
-        op = 1.0
+        op = self.opacity
         if self.pulse:
             phase = ((time.monotonic() - self._t0) % 1.2) / 1.2 * 2 * math.pi
             op = notchgeom.pulse_opacity(phase)
