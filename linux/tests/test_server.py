@@ -125,5 +125,20 @@ class ServerTests(unittest.TestCase):
                          {"hook_event_name": "Stop", "session_id": "x", "tool_input": {"aB": 1}})
 
 
+class EditionTests(unittest.TestCase):
+    def test_ping_names_the_edition(self):
+        import urllib.request
+        from claudenotch.state import AppState
+        for app_id in ("claudenotch-windows", "claudenotch-linux"):
+            server = HookServer(AppState(persist=False), port=0, app_id=app_id)
+            server.start()
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{server.port}/ping", timeout=5) as r:
+                    self.assertEqual(json.loads(r.read())["app"], app_id)
+                    self.assertTrue(r.headers["Server"].startswith("ClaudeNotch-"))
+            finally:
+                server.stop()
+
+
 if __name__ == "__main__":
     unittest.main()
