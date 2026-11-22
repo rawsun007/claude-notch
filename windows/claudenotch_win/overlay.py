@@ -43,10 +43,11 @@ from claudenotch import gitinfo, protocol
 from claudenotch.state import AppState
 
 from . import cardmodel, hello
+from claudenotch import autoapprove
 from . import macstyle as ms
 from . import notchgeom as geom
 from . import view, winutil
-from .notchcards import IdleCardView, NoticeCardView, PermissionCardView, QuestionCardView
+from .notchcards import AutoInfoCardView, IdleCardView, NoticeCardView, PermissionCardView, QuestionCardView
 
 FRAME_MS = 8                 # the animation clock; frames land on the display's vsync
 BOTTOM_RIGHT_MARGIN = 12
@@ -91,6 +92,8 @@ class Overlay(QWidget):
         self._focus_return = 0
         self.buttons: dict[str, QWidget] = {}
         self._hello = hello.Availability()
+        self.auto_until: float | None = None
+        state.approver = self._approve
         self._sizer = geom.SizeAnimator()
         self._sizer.set(geom.collapsed_size())
         self._clock0 = time.monotonic()
@@ -274,8 +277,14 @@ class Overlay(QWidget):
         if not self._setting("toasts", True):
             toasts = [t for t in toasts if t.system]
         hovering = self.hovering or time.monotonic() < self.pinned_until
-        v = view.choose(perms, questions, toasts, hovering, self._setting("hover_sessions", True))
-        if v == view.PERMISSION:
+        auto = self.state.auto_info
+        if auto is not None and time.monotonic() - self.state.auto_info_at > view.AUTO_INFO_SECONDS:
+            auto = None
+        v = view.choose(perms, questions, toasts, hovering, self._setting("hover_sessions", True), auto)
+        if v == view.AUTO:
+            key = (v, auto.id, self.position)
+            build = lambda: self._auto_info_card(auto)  # noqa: E731
+        elif v == view.PERMISSION:
             card = perms[0]
             key = (v, card.id, len(perms), self.position)
             build = lambda: self._permission_card(card, len(perms))  # noqa: E731
@@ -371,6 +380,10 @@ class Overlay(QWidget):
         g = hello.gate(self._setting("require_hello", True), self._hello.available,
                        self._setting("skip_destructive_confirm", False))
         w = PermissionCardView(card, pending, width=620 - 2 * geom.CONTENT_H_PAD, gate=g, hwnd=self._hwnd())
+        if getattr(card, "confirm_now", False) and g == hello.HELLO:
+            # Auto-Approve set to confirm destructive commands: the prompt
+            # comes up on its own, so a glance or a finger allows it.
+            QTimer.singleShot(300, w._ask_hello)
         sx, sy, sw, sh = self._screen_rect()
         self._card_w, self._formula_h = w.budget(screen_h=sh)
         w.decided.connect(lambda d, scope: self._decide(card, d, scope))
@@ -391,6 +404,38 @@ class Overlay(QWidget):
         perms, _, _, _ = self.state.snapshot()
         if perms and hello.return_allows(bool(perms[0].dangers), self._setting("skip_destructive_confirm", False)):
             self._decide(perms[0], protocol.ALLOW)
+
+    def _auto_info_card(self, card) -> QWidget:
+        self._card_w, self._formula_h = geom.auto_info_size()
+        w = AutoInfoCardView(card, self._card_w - 2 * geom.CONTENT_H_PAD)
+        w.clicked.connect(self.state.dismiss_auto_info)
+        return w
+
+    # --- Auto-Approve ----------------------------------------------------------------
+
+    def _approve(self, card) -> str:
+        """state.approver: the Mac's AutoApprovePolicy with this PC's settings.
+        Called on a server thread; reads settings only."""
+        dangerous = self._setting("auto_approve_dangerous", autoapprove.ASK)
+        if dangerous == autoapprove.CONFIRM and not self._hello.available:
+            dangerous = autoapprove.ASK          # no Hello: nothing to bring up on its own
+        return autoapprove.verdict(
+            autoapprove.active(self._setting("auto_approve", False), self.auto_until, time.time()),
+            self._setting("auto_approve_scope", autoapprove.EVERYTHING), dangerous, card.tool, bool(card.dangers))
+
+    def enable_auto_approve_for(self, minutes: int) -> None:
+        """"Auto-approve for a while": on now, off again by itself after
+        `minutes`. Not saved, as on the Mac: a restart ends the window."""
+        self.auto_until = time.time() + minutes * 60
+        if self.store is not None:
+            self.store.update(auto_approve=True)
+        QTimer.singleShot(int(minutes * 60 * 1000) + 100, self._end_timed_auto_approve)
+
+    def _end_timed_auto_approve(self) -> None:
+        if self.auto_until is not None and time.time() >= self.auto_until:
+            self.auto_until = None
+            if self.store is not None:
+                self.store.update(auto_approve=False)
 
     def _toast(self, t) -> QWidget:
         text = cardmodel.notice_text(t)
@@ -542,6 +587,8 @@ class Overlay(QWidget):
         for t in toasts:
             if t.system and now - t.created > view.TOAST_SECONDS:
                 self.state.dismiss_toast(t.id)
+        if self.state.auto_info is not None and now - self.state.auto_info_at > view.AUTO_INFO_SECONDS:
+            self.state.dismiss_auto_info()
         fg = winutil.foreground_window()
         if fg and fg != self._hwnd():
             self._last_foreign = fg
