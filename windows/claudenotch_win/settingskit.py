@@ -207,7 +207,10 @@ class Row(QWidget):
         h.setSpacing(12)
         col = QVBoxLayout()
         col.setSpacing(2)
-        self.title = label(title, 13, color=t.text)
+        # Wraps rather than widening the page: a long title (a session's
+        # summary, a rule's command) must never push the card off screen.
+        self.title = label(title, 13, color=t.text, wrap=True)
+        self.title.setMinimumWidth(1)
         col.addWidget(self.title)
         self.subtitle = None
         if subtitle:
