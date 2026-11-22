@@ -333,3 +333,54 @@ def build_answers(multi: list[bool], selections: list[set], others: list[str]) -
 
 def question_count_text(n: int) -> str:
     return "1 question" if n == 1 else f"{n} questions"
+
+
+# --- the hover card's second row (IdlePill row 2) -----------------------------------------
+
+
+@dataclass
+class IdleMeter:
+    model_name: str = ""
+    model_version: str = ""
+    effort: str = ""
+    branch: str = ""
+    branch_short: str = ""
+    context_pct: float = 0.0
+    tokens: int = 0
+    window: int = 0
+    cost: float = 0.0
+
+    @property
+    def meter_label(self) -> str:
+        """What ContextCostBar prints beside its capsule."""
+        from . import notchgeom
+        if self.tokens > 0:
+            return f"{notchgeom.fmt_k(self.tokens)}/{notchgeom.fmt_k(self.window or self.tokens)}"
+        if self.context_pct > 0:
+            return f"{round(self.context_pct * 100)}%"
+        return "no usage yet"
+
+    @property
+    def cost_label(self) -> str:
+        from claudenotch.statusline import fmt_money
+        return fmt_money(self.cost) if self.cost > 0 else ""
+
+
+def idle_meter(session, branch: str = "") -> IdleMeter:
+    """Row 2 from the top session alone, so the model, context, cost and
+    branch always belong to the same session. Branch names are elided from
+    the middle at 12 characters, as NotchView.elide does."""
+    from claudenotch.statusline import capitalized, model_name_version
+    from . import notchgeom
+    if session is None:
+        return IdleMeter(branch=branch, branch_short=notchgeom.elide(branch, 12))
+    name, version = model_name_version(getattr(session, "model", "") or "")
+    return IdleMeter(
+        model_name=name, model_version=version,
+        effort=capitalized(getattr(session, "effort", "") or ""),
+        branch=branch, branch_short=notchgeom.elide(branch, 12),
+        context_pct=getattr(session, "context_pct", None) or 0.0,
+        tokens=getattr(session, "context_tokens", None) or 0,
+        window=getattr(session, "context_window", None) or 0,
+        cost=getattr(session, "cost_usd", None) or 0.0,
+    )

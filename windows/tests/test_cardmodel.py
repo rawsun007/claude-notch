@@ -99,3 +99,21 @@ def test_build_answers_matches_the_mac():
     assert m.build_answers([True], [{"a"}], ["mine"]) == [["a", "mine"]]
     assert m.build_answers([False], [set()], [""]) == [[]]
     assert m.question_count_text(1) == "1 question" and m.question_count_text(3) == "3 questions"
+
+
+def test_idle_meter_from_the_top_session():
+    from claudenotch.state import Session
+    s = Session("a", "C:/p", model="claude-opus-5-5", effort="high", context_pct=0.42, context_window=200000,
+                context_tokens=85000, cost_usd=1.234)
+    mt = m.idle_meter(s, "feature/really-long-name")
+    assert (mt.model_name, mt.model_version, mt.effort) == ("Opus", "5.5", "High")
+    assert mt.branch_short == "featur…-name"
+    assert mt.meter_label == "85k/200k" and mt.cost_label == "$1.23"
+
+
+def test_idle_meter_before_any_status_line():
+    from claudenotch.state import Session
+    mt = m.idle_meter(Session("a", "C:/p"))
+    assert (mt.model_name, mt.meter_label, mt.cost_label) == ("", "no usage yet", "")
+    assert m.idle_meter(Session("a", "C:/p", context_pct=0.3)).meter_label == "30%"
+    assert m.idle_meter(None, "main").branch_short == "main"
