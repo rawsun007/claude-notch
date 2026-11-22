@@ -62,10 +62,12 @@ class CardTests(unittest.TestCase):
 
 class ChooseTests(unittest.TestCase):
     def test_order(self):
-        self.assertEqual(view.choose([1], [1], [1], True, True), view.PERMISSION)
-        self.assertEqual(view.choose([], [1], [1], True, True), view.QUESTION)
-        self.assertEqual(view.choose([], [], [1], True, True), view.SESSIONS)
-        self.assertEqual(view.choose([], [], [1], True, False), view.TOAST)
+        # AppState.recompute: question, permission, completed, then idle.
+        self.assertEqual(view.choose([1], [1], [1], True, True), view.QUESTION)
+        self.assertEqual(view.choose([1], [], [1], True, True), view.PERMISSION)
+        self.assertEqual(view.choose([], [], [1], True, True), view.TOAST)
+        self.assertEqual(view.choose([], [], [], True, True), view.SESSIONS)
+        self.assertEqual(view.choose([], [], [], True, False), view.PILL)
         self.assertEqual(view.choose([], [], [], False, True), view.PILL)
 
     def test_only_the_idle_pill_hides(self):
