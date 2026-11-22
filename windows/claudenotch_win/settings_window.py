@@ -120,7 +120,7 @@ class SettingsWindow(QWidget):
         self._bridge.authed.connect(self._authed)
         self._bridge.usage.connect(self._fill_usage)
         self._usage_busy = False
-        self.setWindowTitle("ClaudeNotch Settings")
+        self.setWindowTitle("Settings")      # Qt adds " - ClaudeNotch"
         self.setWindowIcon(QIcon(paths.resource("ClaudeNotch.ico")))
         self.resize(880, 640)
         self.setMinimumSize(720, 480)
