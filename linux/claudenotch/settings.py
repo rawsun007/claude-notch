@@ -55,6 +55,12 @@ class Settings:
     auto_approve: bool = False
     auto_approve_scope: str = "everything"
     auto_approve_dangerous: str = "ask"
+    # Keep the notch open (the Mac's persistentNotchDisplay): the open card
+    # with its meters stays out instead of waiting for the pointer.
+    keep_open: bool = False
+    # Keep the notch out of screen shares, recordings and screenshots. It
+    # shows commands, paths and code, so it is on by default, as on the Mac.
+    hide_from_capture: bool = True
 
 
 POSITIONS = ("top", "bottom-right")
