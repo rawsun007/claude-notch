@@ -14,6 +14,8 @@ from __future__ import annotations
 import os
 import re
 
+from . import danger_windows as win
+
 # Where a quoted string is a script to run rather than free text: the argument
 # to `sh -c`, an `eval`, or the remote command of an `ssh`. One capture group
 # each, the script. Deliberately narrow: scanning every quoted segment would
@@ -157,6 +159,8 @@ def path_danger(path: str, home: str | None = None) -> list[str]:
     so tests do not depend on whose machine they run on."""
     if not path:
         return []
+    if win.looks_like_windows_path(path) or (home is None and _on_windows()):
+        return win.windows_path_danger(path)
     home = home if home is not None else os.path.expanduser("~")
     p = os.path.normpath(os.path.expanduser(path)) if path.startswith(("~", "/")) else os.path.normpath(path)
     h = home.rstrip("/") + "/"
@@ -201,9 +205,43 @@ def _contains_dir(p: str, name: str) -> bool:
     return ("/" + name) in (p + "/")
 
 
+def _on_windows() -> bool:
+    import sys
+    return sys.platform == "win32"
+
+
+def _merge(*lists: list[str]) -> list[str]:
+    out: list[str] = []
+    for lst in lists:
+        for r in lst:
+            if r not in out:
+                out.append(r)
+    return out
+
+
+def windows_bash_danger(command: str) -> list[str]:
+    """Bash on Windows is Git Bash: Linux-style commands, plus Windows
+    binaries called from it (`cmd /c ...`, `powershell -c ...`, `reg add`)."""
+    return _merge(bash_danger(command), win.powershell_danger(command))
+
+
+def powershell_danger(command: str) -> list[str]:
+    """Claude Code's PowerShell tool. Aliases such as rm, curl and
+    `git push --force` mean the same there, so the Bash rules run too."""
+    return _merge(win.powershell_danger(command), bash_danger(command))
+
+
 def danger_reasons(tool: str, tool_input: dict) -> list[str]:
+    if tool == "PowerShell":
+        return powershell_danger(str(tool_input.get("command") or ""))
     if tool == "Bash":
-        return bash_danger(str(tool_input.get("command") or ""))
+        command = str(tool_input.get("command") or "")
+        if _on_windows():
+            return windows_bash_danger(command)
+        # A Windows shell nested in a Bash command is judged by its own rules
+        # on any platform: the command says what it runs.
+        nested = win.nested_scripts(command) or win.encoded_command(command)
+        return _merge(bash_danger(command), win.powershell_danger(command) if nested else [])
     if tool in ("shell", "local_shell", "exec", "exec_command", "unified_exec"):
         cmd = tool_input.get("command")
         if isinstance(cmd, list):
