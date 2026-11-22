@@ -88,3 +88,10 @@ class ComputeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ExportTests(unittest.TestCase):
+    def test_csv(self):
+        out = usage.export_csv({"2026-11-21": 10, "2026-11-22": 20}, {"2026-11-22": 1.5})
+        self.assertEqual(out.splitlines(), ["day,tokens,estimated_cost_usd", "2026-11-21,10,0.0000",
+                                            "2026-11-22,20,1.5000"])

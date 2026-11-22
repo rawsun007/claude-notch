@@ -301,3 +301,11 @@ def fmt_tokens(n: int) -> str:
         return f"{n / 1000:.1f}k"
     return str(n)
 
+
+
+def export_csv(daily_tokens: dict, daily_cost: dict) -> str:
+    """Days with their tokens and estimated cost, oldest first, as CSV."""
+    rows = ["day,tokens,estimated_cost_usd"]
+    for day in sorted(set(daily_tokens) | set(daily_cost)):
+        rows.append(f"{day},{daily_tokens.get(day, 0)},{daily_cost.get(day, 0.0):.4f}")
+    return "\n".join(rows) + "\n"
