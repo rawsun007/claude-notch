@@ -17,6 +17,8 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QLineEdit, QScrollArea, QSize
 
 from claudenotch import protocol
 
+from claudenotch import budget
+
 from . import cardmodel, hello, notchgeom
 from . import macstyle as ms
 from . import notchwidgets as nw
@@ -60,7 +62,8 @@ class PermissionCardView(QWidget):
         self.buttons: dict[str, QWidget] = {}
         self.setAttribute(Qt.WA_TranslucentBackground)
         dangerous = bool(card.dangers)
-        accent, icon = accent_for(dangerous)
+        block = getattr(card, "budget_block", None)
+        accent, icon = accent_for(dangerous, block is not None)
 
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 0)
@@ -82,6 +85,8 @@ class PermissionCardView(QWidget):
 
         if dangerous:
             v.addWidget(nw.danger_banner(card.dangers))
+        if block is not None:
+            v.addWidget(self._budget_banner(block))
 
         v.addWidget(nw.Text(self.text.title, 14, "semibold"))
 
@@ -109,7 +114,7 @@ class PermissionCardView(QWidget):
         deny.clicked.connect(lambda: self.decided.emit(protocol.DENY, ""))
         row.addWidget(deny)
         self.buttons["deny"] = deny
-        if not dangerous:
+        if not dangerous and block is None:
             always = nw.CapsuleButton("Always Allow…", chevron=True)
             always.clicked.connect(self._always_menu)
             always.setAccessibleDescription(
@@ -117,7 +122,17 @@ class PermissionCardView(QWidget):
             row.addWidget(always)
             self.buttons["always"] = always
         row.addStretch(1)
-        if dangerous and gate == hello.NONE:
+        if block is not None:
+            # Over budget: explicit choices only, and no Return shortcut.
+            once = nw.NotchButton("Allow once", "secondary")
+            once.clicked.connect(lambda: self.decided.emit(protocol.ALLOW, ""))
+            row.addWidget(once)
+            self.buttons["allow"] = once
+            raise_to = nw.NotchButton(f"Raise to {budget.money(budget.next_cap(block.cost, block.cap))}", "primary")
+            raise_to.clicked.connect(lambda: self.decided.emit(protocol.ALLOW, "raise"))
+            row.addWidget(raise_to)
+            self.buttons["raise"] = raise_to
+        elif dangerous and gate == hello.NONE:
             # Confirmation switched off (behind Windows Hello): still red,
             # still one deliberate press.
             allow = nw.NotchButton("Allow", "destructive", RETURN_GLYPH)
@@ -163,6 +178,27 @@ class PermissionCardView(QWidget):
         self._tick.start()
         self._update_waiting()
 
+    def _budget_banner(self, block) -> QWidget:
+        """BudgetBanner: orange 14 % fill, 35 % stroke, a coin, "Over your daily
+        budget", the spend against the cap, and Turn off on the right."""
+        box = nw.RoundedBox(ms.rgba(ms.ORANGE, 0.14), 8, ms.rgba(ms.ORANGE, 0.35))
+        row = QHBoxLayout(box)
+        row.setContentsMargins(10, 7, 10, 7)
+        row.setSpacing(8)
+        row.addWidget(nw.Glyph("dollarsign.circle.fill", 11, ms.ORANGE))
+        col = QVBoxLayout()
+        col.setSpacing(1)
+        col.addWidget(nw.Text(f"Over your {block.scope} budget", 11, "semibold", ms.ORANGE, 0.95))
+        col.addWidget(nw.Text(f"{budget.money(block.cost)} of {budget.money(block.cap)} cap ({block.pct}%)", 10,
+                              rgb=ms.ORANGE, opacity=0.85))
+        row.addLayout(col, 1)
+        off = nw.NotchButton("Turn off", "secondary")
+        off.setToolTip("Turn off budget enforcement and allow this command")
+        off.clicked.connect(lambda: self.decided.emit(protocol.ALLOW, "turn_off"))
+        row.addWidget(off)
+        self.buttons["turn_off"] = off
+        return box
+
     def _ask_hello(self) -> None:
         from claudenotch.redact import redact
         reason = "Allow this command: " + redact(self.text.detail)[:80]
@@ -191,6 +227,7 @@ class PermissionCardView(QWidget):
     def budget(self, screen_h: float = 900.0) -> tuple[float, float]:
         """NotchView.size(for: .permission) for this card."""
         return notchgeom.permission_size(dangers=len(self.card.dangers), screen_h=screen_h,
+                                         budget=getattr(self.card, "budget_block", None) is not None,
                                          **cardmodel.preview_budget(self.text.preview))
 
 
