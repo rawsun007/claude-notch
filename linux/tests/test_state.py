@@ -95,7 +95,10 @@ class SessionTests(unittest.TestCase):
         st.handle_event({"hook_event_name": "Notification", "cwd": "/p", "message": "m"})
         self.assertEqual(st.toasts[-1].kind, "notice")
         st.handle_event({"hook_event_name": "StopFailure", "cwd": "/p", "error": "rate_limit"})
-        self.assertEqual(st.toasts[-1].kind, "failure")
+        self.assertEqual((st.toasts[-1].kind, st.toasts[-1].reason), ("failure", "unknown"))
+        st.handle_event({"hook_event_name": "StopFailure", "cwd": "/p", "failure_reason": "overloaded",
+                         "message": "Overloaded, try again"})
+        self.assertEqual((st.toasts[-1].reason, st.toasts[-1].body), ("overloaded", "Overloaded, try again"))
         st.greet()
         self.assertEqual(st.toasts[-1].kind, "")
 

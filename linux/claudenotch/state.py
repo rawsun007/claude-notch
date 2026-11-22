@@ -113,6 +113,7 @@ class Toast:
     # "failure" (StopFailure), "notice" (Notification), "" for the app's own.
     kind: str = ""
     cwd: str = ""          # the session's folder, for the project name
+    reason: str = ""       # StopFailure's reason code (rate_limit, overloaded, ...)
     id: int = field(default_factory=lambda: next(_ids))
     created: float = field(default_factory=time.monotonic)
 
@@ -316,8 +317,11 @@ class AppState:
                 toast = Toast("Claude is done", s.project if s else "", kind="done", cwd=cwd)
             elif event == "StopFailure":
                 self._touch(sid, cwd, "ready")
-                toast = Toast("Claude stopped with an error", redact(str(payload.get("error") or ""))[:200],
-                              kind="failure", cwd=cwd)
+                reason = str(payload.get("failure_reason") or payload.get("reason") or payload.get("error_type")
+                             or payload.get("matcher") or "unknown")[:64]
+                message = payload.get("message") or payload.get("error") or ""
+                toast = Toast("Claude stopped with an error", redact(str(message))[:200],
+                              kind="failure", cwd=cwd, reason=reason)
             elif event == "Notification":
                 self._touch(sid, cwd)
                 title = redact(str(payload.get("title") or "Claude Code"))[:80]
