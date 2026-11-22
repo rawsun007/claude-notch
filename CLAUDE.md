@@ -243,7 +243,11 @@ from **settingskit.py** and **settingscharts.py**), **hello.py** (Windows
 Hello via WinRT/ctypes, DestructiveGate), **ownerauth.py** (Hello or the
 Windows password via CredUI + LogonUser, before Approve them too / Skip
 confirmation), **urlscheme.py** (claudenotch:// parsing; the installer
-registers it in HKCU).
+registers it in HKCU). Core **sounds.py** (events, categories, overrides)
+and **skills.py** (scan, skillOverrides merge, trash); Windows
+**soundplay.py** (winsound, C:\Windows\Media only) and **petengine.py**
+(PetEngine: moods, schedule, poses; drawn by `notchwidgets.draw_pet` in
+the overlay's closed notch).
 **tray.py**, **notify.py**, **settings_window.py**, **autostart.py** (HKCU Run
 key + StartupApproved). Packaging: `windows/packaging/` (PyInstaller onedir,
 per-user Inno Setup, build.ps1). Dev: `windows/dev/setup.ps1`, `run.ps1`.
