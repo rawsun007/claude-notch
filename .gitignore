@@ -54,3 +54,8 @@ linux/**/__pycache__/
 linux/dist/
 linux/test-env/out/
 linux/test-env/out-gnome/
+
+# Windows edition
+windows/.venv/
+windows/build/
+windows/dist/
