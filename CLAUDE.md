@@ -233,6 +233,17 @@ forwarder's jq flattening, handleStatusLine's parse, model names, money),
 **gitinfo.py** reads the branch from .git/HEAD. Windows forwarder:
 `windows/resources/claudenotch-statusline.ps1` (PowerShell 5.1, tested
 key for key against statusline.flatten), placed by **winstatus.py**.
+Core, shared and tested: **autoapprove.py** (AutoApprovePolicy;
+`state.approver` is set by the overlay), **budget.py** (caps, nextCap),
+**limits.py** (80/95 % plan-limit warnings), **usage.py** (ModelPricing +
+ClaudeUsageReader.compute from transcripts), **stats.py** (all-time
+counters, per-day tool counts), **archive.py** (one record per session for
+History). Windows: **settings_window.py** (the Mac's SettingsWindow, built
+from **settingskit.py** and **settingscharts.py**), **hello.py** (Windows
+Hello via WinRT/ctypes, DestructiveGate), **ownerauth.py** (Hello or the
+Windows password via CredUI + LogonUser, before Approve them too / Skip
+confirmation), **urlscheme.py** (claudenotch:// parsing; the installer
+registers it in HKCU).
 **tray.py**, **notify.py**, **settings_window.py**, **autostart.py** (HKCU Run
 key + StartupApproved). Packaging: `windows/packaging/` (PyInstaller onedir,
 per-user Inno Setup, build.ps1). Dev: `windows/dev/setup.ps1`, `run.ps1`.
