@@ -125,6 +125,17 @@ class ServerTests(unittest.TestCase):
                          {"hook_event_name": "Stop", "session_id": "x", "tool_input": {"aB": 1}})
 
 
+class PauseTests(unittest.TestCase):
+    def test_paused_answers_no_opinion_at_once(self):
+        from claudenotch.state import AppState
+        server = HookServer(AppState(persist=False), port=0, window=30)
+        server.paused.set()
+        body = server.answer({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "ls"}})
+        self.assertIn('"permissionDecision":"ask"', body)
+        self.assertEqual(server.answer({"hook_event_name": "PermissionRequest", "tool_name": "Bash"}), '{"ok":true}')
+        self.assertEqual(server.state.permissions, [])
+
+
 class EditionTests(unittest.TestCase):
     def test_ping_names_the_edition(self):
         import urllib.request
