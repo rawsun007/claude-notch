@@ -1,16 +1,19 @@
 """The cards inside the notch, laid out as the Mac lays them out.
 
 PermissionCardView ports NotchPermissionCard.PermissionCard, IdleCardView
-ports NotchIdlePill.IdlePill. Spacing, sizes and colours are the Swift
-source's; the widgets that draw them are in notchwidgets.py.
+ports NotchIdlePill.IdlePill, NoticeCardView ports NotchCards'
+NotificationCard and CompletedCard, QuestionCardView ports QuestionCard.
+Spacing, sizes and colours are the Swift source's; the widgets that draw
+them are in notchwidgets.py.
 """
 
 from __future__ import annotations
 
 import time
 
-from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
+from PySide6.QtCore import QEvent, QRectF, Qt, QTimer, Signal
+from PySide6.QtGui import QPainter, QPainterPath, QPalette, QPen
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLineEdit, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
 from claudenotch import protocol
 
@@ -222,3 +225,310 @@ def _badge(text: str, rgb, fill: float) -> QWidget:
     lay.setContentsMargins(5, 2, 5, 2)
     lay.addWidget(nw.Text(text, 9, "medium", rgb, 0.95, fixed=True))
     return box
+
+
+# --- notification and done cards ------------------------------------------------------------
+
+
+class NoticeCardView(QWidget):
+    """NotificationCard (orange bell, Dismiss, Open IDE) or CompletedCard
+    (green seal, Open IDE, Done), chosen by cardmodel.notice_text. Rows 14
+    apart; the title wraps to two lines next to the buttons, 16 between.
+    Emits `action("dismiss" | "open")`."""
+
+    action = Signal(str)
+
+    def __init__(self, toast, width: float, parent=None):
+        super().__init__(parent)
+        self.toast = toast
+        self.text = cardmodel.notice_text(toast)
+        self.buttons: dict[str, QWidget] = {}
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        done = self.text.card == "completed"
+        accent = ms.GREEN if done else ms.ORANGE
+
+        v = QVBoxLayout(self)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(14)
+
+        head = _row(8)
+        head.addWidget(nw.Glyph("checkmark.seal.fill" if done else "bell.fill", 14 if done else 13, accent))
+        inner = _row(6)
+        inner.addWidget(nw.Text(self.text.source, 11, "semibold", accent, 0.9, upper=True, fixed=True))
+        inner.addWidget(nw.Text("·", 13, opacity=0.3, fixed=True))
+        self._ago = nw.Text(notchgeom.time_ago(0), 10, opacity=0.45, fixed=True)
+        inner.addWidget(self._ago)
+        head.addLayout(inner)
+        head.addStretch(1)
+        v.addLayout(head)
+
+        body = _row(16)
+        col = QVBoxLayout()
+        col.setContentsMargins(0, 0, 0, 0)
+        col.setSpacing(3)
+        col.addWidget(nw.LinesText(self.text.title, 14, "semibold", max_lines=2))
+        if self.text.detail:
+            if done:
+                col.addWidget(nw.LinesText(self.text.detail, 11, opacity=0.6, max_lines=2))
+            else:
+                col.addWidget(nw.Text(self.text.detail, 11, opacity=0.55, elide=Qt.ElideMiddle))
+        body.addLayout(col, 1)
+        buttons = _row(8)
+        if done:
+            opener, close = nw.NotchButton("Open IDE", "secondary"), nw.NotchButton("Done", "primary")
+            buttons.addWidget(opener)
+            buttons.addWidget(close)
+        else:
+            close, opener = nw.NotchButton("Dismiss", "secondary"), nw.NotchButton("Open IDE", "primary")
+            buttons.addWidget(close)
+            buttons.addWidget(opener)
+        self.buttons.update(open=opener, dismiss=close)
+        opener.clicked.connect(lambda: self.action.emit("open"))
+        close.clicked.connect(lambda: self.action.emit("dismiss"))
+        body.addLayout(buttons)
+        v.addLayout(body)
+        self.setFixedWidth(int(width))
+
+        self._tick = QTimer(self, interval=5000)
+        self._tick.timeout.connect(self._update_ago)
+        self._tick.start()
+        self._update_ago()
+
+    def _update_ago(self) -> None:
+        self._ago.set_text(notchgeom.time_ago(time.monotonic() - self.toast.created))
+
+
+# --- question card ------------------------------------------------------------------------
+
+
+class OptionRow(QWidget):
+    """One answer: the radio or checkbox symbol (13 pt, purple when picked),
+    the label at 12 pt medium, the description at 10 pt wrapping; 8 x 5
+    padding on a 6 pt rounded fill, purple 18 % when picked, else white 4 %."""
+
+    toggled = Signal()
+
+    def __init__(self, label: str, description: str, multi: bool, parent=None):
+        super().__init__(parent)
+        self.label, self.multi, self.selected = label, multi, False
+        self.setCursor(Qt.PointingHandCursor)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        row = QHBoxLayout(self)
+        row.setContentsMargins(8, 5, 8, 5)
+        row.setSpacing(8)
+        icon_col = QVBoxLayout()
+        icon_col.setContentsMargins(0, 0, 0, 0)
+        self._icon = nw.Glyph("square" if multi else "circle", 13, opacity=0.4)
+        icon_col.addWidget(self._icon)
+        icon_col.addStretch(1)
+        row.addLayout(icon_col)
+        col = QVBoxLayout()
+        col.setContentsMargins(0, 0, 0, 0)
+        col.setSpacing(1)
+        col.addWidget(nw.Text(label, 12, "medium"))
+        if description:
+            col.addWidget(nw.wrap_label(description, 10, opacity=0.5))
+        row.addLayout(col, 1)
+        self.setAccessibleName(f"{label}. {description}" if description else label)
+        self.setAccessibleDescription("Choose one or more" if multi else "Choose one")
+
+    def set_selected(self, on: bool) -> None:
+        self.selected = on
+        if self.multi:
+            self._icon.name = "checkmark.square.fill" if on else "square"
+        else:
+            self._icon.name = "largecircle.fill.circle" if on else "circle"
+        self._icon.set_color(ms.PURPLE if on else ms.WHITE, 1.0 if on else 0.4)
+        self.update()
+
+    def setChecked(self, on: bool) -> None:
+        """Tests and keyboard: pick this option as a click would."""
+        if on != self.selected:
+            self.toggled.emit()
+
+    def mousePressEvent(self, e) -> None:
+        if e.button() == Qt.LeftButton:
+            self.toggled.emit()
+
+    def paintEvent(self, _e) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(self.rect()), 6, 6)
+        p.fillPath(path, ms.rgba(ms.PURPLE, 0.18) if self.selected else ms.rgba(ms.WHITE, 0.04))
+
+
+class OtherRow(QWidget):
+    """The free-text answer: a pencil symbol and "Something else… (type your
+    own answer)", purple once something is typed, outlined while focused."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        row = QHBoxLayout(self)
+        row.setContentsMargins(8, 7, 8, 7)
+        row.setSpacing(8)
+        self._icon = nw.Glyph("pencil.circle", 13, opacity=0.4)
+        row.addWidget(self._icon)
+        self.edit = QLineEdit()
+        self.edit.setPlaceholderText("Something else… (type your own answer)")
+        self.edit.setFont(ms.font(12, "medium"))
+        self.edit.setFrame(False)
+        self.edit.setStyleSheet("QLineEdit { background: transparent; color: white; border: none; padding: 0; }")
+        pal = self.edit.palette()
+        pal.setColor(QPalette.PlaceholderText, ms.rgba(ms.WHITE, 0.35))
+        self.edit.setPalette(pal)
+        self.edit.setAccessibleName("Your own answer")
+        self.edit.setAccessibleDescription("Type an answer if none of the options fit")
+        self.edit.textChanged.connect(self._changed)
+        self.edit.installEventFilter(self)
+        row.addWidget(self.edit, 1)
+
+    @property
+    def active(self) -> bool:
+        return bool(self.edit.text().strip())
+
+    def _changed(self) -> None:
+        on = self.active
+        self._icon.name = "pencil.circle.fill" if on else "pencil.circle"
+        self._icon.set_color(ms.PURPLE if on else ms.WHITE, 1.0 if on else 0.4)
+        self.update()
+
+    def eventFilter(self, obj, e) -> bool:
+        if e.type() in (QEvent.FocusIn, QEvent.FocusOut):
+            self.update()
+        return False
+
+    def paintEvent(self, _e) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5), 6, 6)
+        p.fillPath(path, ms.rgba(ms.PURPLE, 0.18) if self.active else ms.rgba(ms.WHITE, 0.04))
+        if self.edit.hasFocus():
+            p.setPen(QPen(ms.rgba(ms.PURPLE, 0.6), 1))
+            p.drawPath(path)
+
+
+def _header_pill(text: str) -> QWidget:
+    box = nw.RoundedBox(ms.rgba(ms.PURPLE, 0.18), 4)
+    lay = QHBoxLayout(box)
+    lay.setContentsMargins(6, 2, 6, 2)
+    lay.addWidget(nw.Text(text, 10, "bold", ms.PURPLE, 0.85, fixed=True))
+    box.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+    return box
+
+
+_SCROLL_STYLE = (
+    "QScrollArea { background: transparent; }"
+    "QScrollBar:vertical { background: transparent; width: 6px; margin: 0; }"
+    "QScrollBar::handle:vertical { background: rgba(255,255,255,0.25); border-radius: 3px; min-height: 24px; }"
+    "QScrollBar::add-line, QScrollBar::sub-line, QScrollBar::add-page, QScrollBar::sub-page"
+    " { background: none; height: 0; }")
+
+
+class QuestionCardView(QWidget):
+    """QuestionCard: purple header with the question count, then each
+    question (header pill, the question at 13 pt semibold, its option rows,
+    the free-text row) in a list that scrolls only past the height cap,
+    then Cancel and Send 18 below. Nothing is picked to start with, as on
+    the Mac. Emits `answered(list | None)`."""
+
+    answered = Signal(object)
+
+    def __init__(self, card, width: float, height: float, allow_custom: bool = True, parent=None):
+        super().__init__(parent)
+        self.card = card
+        self.buttons: dict[str, QWidget] = {}
+        self.selections: list[set] = [set() for _ in card.questions]
+        self.rows: list[list[OptionRow]] = []
+        self.others: list[OtherRow | None] = []
+        self.setAttribute(Qt.WA_TranslucentBackground)
+
+        v = QVBoxLayout(self)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(10)
+        head = _row(8)
+        head.addWidget(nw.Glyph("questionmark.bubble.fill", 14, ms.PURPLE))
+        head.addWidget(nw.Text("Claude Code", 11, "semibold", ms.PURPLE, 0.9, upper=True, fixed=True))
+        head.addWidget(nw.Text("·", 13, opacity=0.3, fixed=True))
+        head.addWidget(nw.Text(cardmodel.question_count_text(len(card.questions)), 11, "medium", opacity=0.55,
+                               fixed=True))
+        head.addStretch(1)
+        v.addLayout(head)
+
+        body = QWidget()
+        body.setAttribute(Qt.WA_TranslucentBackground)
+        body.setStyleSheet("background: transparent;")
+        bl = QVBoxLayout(body)
+        bl.setContentsMargins(0, 0, 0, 0)
+        bl.setSpacing(14)
+        for qi, q in enumerate(card.questions):
+            block = QVBoxLayout()
+            block.setSpacing(6)
+            top = _row(6)
+            if q.header:
+                pill_col = QVBoxLayout()
+                pill_col.setContentsMargins(0, 0, 0, 0)
+                pill_col.addWidget(_header_pill(q.header))
+                pill_col.addStretch(1)
+                top.addLayout(pill_col)
+            top.addWidget(nw.wrap_label(q.text, 13, "semibold"), 1)
+            block.addLayout(top)
+            rows = []
+            for oi, (label, desc) in enumerate(q.options):
+                r = OptionRow(label, desc, q.multi_select)
+                r.toggled.connect(lambda qi=qi, label=label: self._toggle(qi, label))
+                block.addWidget(r)
+                rows.append(r)
+                self.buttons[f"q{qi}o{oi}"] = r
+            self.rows.append(rows)
+            other = OtherRow() if allow_custom else None
+            if other is not None:
+                block.addWidget(other)
+            self.others.append(other)
+            bl.addLayout(block)
+        bl.addStretch(1)
+
+        scroll = QScrollArea()
+        scroll.setWidget(body)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setStyleSheet(_SCROLL_STYLE)
+        scroll.viewport().setAutoFillBackground(False)
+        scroll.viewport().setStyleSheet("background: transparent;")
+        v.addWidget(scroll, 1)
+
+        v.addSpacing(18 - 10)
+        row = _row(8)
+        row.addStretch(1)
+        cancel = nw.NotchButton("Cancel", "secondary")
+        cancel.clicked.connect(lambda: self.answered.emit(None))
+        send = nw.NotchButton("Send", "primary")
+        send.clicked.connect(self._send)
+        row.addWidget(cancel)
+        row.addWidget(send)
+        self.buttons.update(skip=cancel, send=send)
+        v.addLayout(row)
+
+        self.setFixedWidth(int(width))
+        self.setFixedHeight(int(height))
+
+    def _toggle(self, qi: int, label: str) -> None:
+        q = self.card.questions[qi]
+        sel = self.selections[qi]
+        if q.multi_select:
+            sel.symmetric_difference_update({label})
+        else:
+            sel.clear()
+            sel.add(label)
+        for r in self.rows[qi]:
+            r.set_selected(r.label in sel)
+
+    def answers(self) -> list[list[str]]:
+        return cardmodel.build_answers([q.multi_select for q in self.card.questions], self.selections,
+                                       [o.edit.text() if o else "" for o in self.others])
+
+    def _send(self) -> None:
+        self.answered.emit(self.answers())
