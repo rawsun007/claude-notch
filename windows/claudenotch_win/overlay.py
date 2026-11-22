@@ -42,7 +42,7 @@ from PySide6.QtWidgets import QApplication, QLabel, QMenu, QVBoxLayout, QWidget
 from claudenotch import gitinfo, protocol
 from claudenotch.state import AppState
 
-from . import cardmodel
+from . import cardmodel, hello
 from . import macstyle as ms
 from . import notchgeom as geom
 from . import view, winutil
@@ -90,6 +90,7 @@ class Overlay(QWidget):
         self._keyboard = False
         self._focus_return = 0
         self.buttons: dict[str, QWidget] = {}
+        self._hello = hello.Availability()
         self._sizer = geom.SizeAnimator()
         self._sizer.set(geom.collapsed_size())
         self._clock0 = time.monotonic()
@@ -367,7 +368,9 @@ class Overlay(QWidget):
 
     def _permission_card(self, card, pending: int) -> QWidget:
         self._card_w = 620
-        w = PermissionCardView(card, pending, width=620 - 2 * geom.CONTENT_H_PAD)
+        g = hello.gate(self._setting("require_hello", True), self._hello.available,
+                       self._setting("skip_destructive_confirm", False))
+        w = PermissionCardView(card, pending, width=620 - 2 * geom.CONTENT_H_PAD, gate=g, hwnd=self._hwnd())
         sx, sy, sw, sh = self._screen_rect()
         self._card_w, self._formula_h = w.budget(screen_h=sh)
         w.decided.connect(lambda d, scope: self._decide(card, d, scope))
@@ -386,7 +389,7 @@ class Overlay(QWidget):
         """Return on a card: Allow, unless it is dangerous, which only a
         deliberate hold allows."""
         perms, _, _, _ = self.state.snapshot()
-        if perms and not perms[0].dangers:
+        if perms and hello.return_allows(bool(perms[0].dangers), self._setting("skip_destructive_confirm", False)):
             self._decide(perms[0], protocol.ALLOW)
 
     def _toast(self, t) -> QWidget:

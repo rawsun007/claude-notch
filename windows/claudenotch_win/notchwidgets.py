@@ -185,6 +185,7 @@ _FLUENT = {
     "wand.and.stars": "",
     "bolt.fill": "",
     "timer": "",
+    "lock.fill": "",
 }
 
 
@@ -567,6 +568,47 @@ class CapsuleButton(QAbstractButton):
             x += 4
             p.setOpacity(0.7)
             draw_glyph(p, "chevron.down", QRectF(x, 0, 9, r.height()), 9, ms.rgba(WHITE))
+
+
+class ConfirmButton(QAbstractButton):
+    """The Mac's "Confirm to Allow": a red 85 % capsule, 14 x 7 padding, a
+    lock symbol and the label at 12 pt semibold in white. Pressing it asks
+    Windows Hello; only a verified answer allows the command."""
+
+    def __init__(self, label: str, parent=None):
+        super().__init__(parent)
+        self.label = label
+        self._font = ms.font(12, "semibold")
+        self._hover = False
+        self.setCursor(Qt.PointingHandCursor)
+        self.setFocusPolicy(Qt.NoFocus)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.setAccessibleName("Confirm to allow")
+        self.setAccessibleDescription("This command is destructive. Confirms with Windows Hello before running it")
+
+    def sizeHint(self) -> QSize:
+        fm = QFontMetricsF(self._font)
+        return QSize(int(28 + 14 + 5 + fm.horizontalAdvance(self.label) + 0.99), int(fm.height() + 14 + 0.5))
+
+    def enterEvent(self, e) -> None:
+        self._hover = True
+        self.update()
+
+    def leaveEvent(self, e) -> None:
+        self._hover = False
+        self.update()
+
+    def paintEvent(self, _e) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        r = QRectF(self.rect())
+        cap = QPainterPath()
+        cap.addRoundedRect(r, r.height() / 2, r.height() / 2)
+        p.fillPath(cap, ms.rgba(ms.RED, 0.95 if self._hover else 0.85))
+        draw_glyph(p, "lock.fill", QRectF(14, 0, 14, r.height()), 12, ms.rgba(WHITE))
+        p.setFont(self._font)
+        p.setPen(ms.rgba(WHITE))
+        p.drawText(QRectF(14 + 14 + 5, 0, r.width(), r.height()), Qt.AlignLeft | Qt.AlignVCenter, self.label)
 
 
 class HoldToConfirmButton(QWidget):
