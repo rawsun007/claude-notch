@@ -74,7 +74,7 @@ class Settings:
     # Pet mode: the mascot lives in the closed notch (off until switched on).
     pet_enabled: bool = False
     per_tool_sounds: bool = False
-    alert_sound: str = "Windows Notify System Generic"
+    alert_sound: str = "Funk"
     sound_events: dict = field(default_factory=dict)
     sound_tools: dict = field(default_factory=dict)
 
