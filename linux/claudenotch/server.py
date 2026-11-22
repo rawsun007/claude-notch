@@ -38,6 +38,9 @@ class _Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # noqa: D401
         pass
 
+    def version_string(self) -> str:
+        return self.app.server_name
+
     @property
     def app(self) -> "HookServer":
         return self.server.app  # type: ignore[attr-defined]
@@ -63,7 +66,7 @@ class _Handler(BaseHTTPRequestHandler):
         if urlsplit(self.path).path == "/ping" and protocol.is_local_request(dict(self.headers)):
             # The version lets a newer launch tell an older running copy apart.
             from . import __version__
-            self._reply(json.dumps({"ok": True, "app": "claudenotch-linux", "version": __version__}))
+            self._reply(json.dumps({"ok": True, "app": self.app.app_id, "version": __version__}))
         else:
             self._refuse()
 
@@ -109,8 +112,12 @@ class _Handler(BaseHTTPRequestHandler):
 
 class HookServer:
     def __init__(self, state: AppState, host: str = "127.0.0.1", port: int = hooks.PORT,
-                 window: float = protocol.DECISION_WINDOW):
+                 window: float = protocol.DECISION_WINDOW, app_id: str | None = None):
+        import sys
         self.state = state
+        # Which edition answers /ping and the Server header.
+        self.app_id = app_id or ("claudenotch-windows" if sys.platform == "win32" else "claudenotch-linux")
+        self.server_name = "ClaudeNotch-Windows" if self.app_id.endswith("windows") else "ClaudeNotch-Linux"
         self.window = window
         self._token_cache: tuple[float, str | None] = (-1.0, None)
         self._httpd = ThreadingHTTPServer((host, port), _Handler)
