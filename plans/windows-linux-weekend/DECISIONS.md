@@ -125,3 +125,36 @@ Fill in on Saturday.
 | Windows | | | Windows app (W-tickets) |
 | Ubuntu | | | Linux test pass and L-tickets |
 | Mac | | | Website, release notes, reviewing PRs |
+
+## D9. The overlay matches the Mac, still in Qt
+
+The first Windows overlay copied the Linux GTK look, a plain black box.
+The bar now is the Mac notch itself, the same down to the numbers.
+
+**Decision: keep PySide6 and the shared core; redraw the overlay with
+QPainter.** No spike against WinUI 3 or Tauri was needed, because Qt
+already meets every requirement on this PC:
+
+- **The shape:** `QPainterPath` draws NotchShape's quad curves exactly
+  (concave ears, round bottom corners), antialiased.
+- **The motion:** CardSizeAnimator is a hand-driven curve on the Mac too
+  (ease-out-back and cubic, sampled per frame), not a SwiftUI spring, so a
+  precise 8 ms QTimer sampling the same functions reproduces it exactly.
+  The window only resizes at the start and end of a motion; per frame
+  only the clip and the paint change.
+- **Per-pixel alpha and click-through:** a translucent top-level Qt window
+  on Windows is a layered window, so pixels outside the black shape pass
+  clicks to whatever is below (checked with `WindowFromPoint`).
+- **Focus:** `WS_EX_NOACTIVATE` keeps the terminal's keyboard, as before.
+- **Scaling:** everything is painted in logical pixels, so 125 % and
+  150 % render sharp (checked with `QT_SCALE_FACTOR`).
+
+Type: Segoe UI Variable (Display from 14 px, Text below) for SF Pro,
+Cascadia Mono for SF Mono, at the Mac's point sizes as DIPs; greyscale
+antialiasing, as macOS draws. Icons that carry meaning (warning
+triangle, speech bubbles, dollar coin) are drawn in SF Symbols' shapes;
+the rest use Segoe Fluent Icons. No Apple fonts or symbols are shipped.
+
+Not matched on purpose: the Mac's notch hides behind a hardware cutout
+or the menu bar; Windows has neither, so the closed notch is the Mac's
+"no notch" 200 x 28 shape, always visible at the top centre.
