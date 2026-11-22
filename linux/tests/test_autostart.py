@@ -1,4 +1,5 @@
 import os
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -6,6 +7,7 @@ from unittest import mock
 from claudenotch import autostart
 
 
+@unittest.skipIf(sys.platform == "win32", "XDG autostart is the Linux edition's; Windows has its own")
 class AutostartTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

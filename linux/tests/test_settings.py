@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import stat
 import tempfile
 import unittest
@@ -11,7 +12,7 @@ from claudenotch import settings
 class SettingsTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
-        self.env = mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": self.tmp.name})
+        self.env = mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": self.tmp.name, "APPDATA": self.tmp.name})
         self.env.start()
 
     def tearDown(self):
@@ -27,7 +28,8 @@ class SettingsTests(unittest.TestCase):
         again = settings.load()
         self.assertTrue(again.desktop_notifications)
         self.assertFalse(again.greeting)
-        self.assertEqual(stat.S_IMODE(os.stat(settings.path()).st_mode), 0o600)
+        if sys.platform != "win32":   # no POSIX modes on Windows; the profile ACL protects it
+            self.assertEqual(stat.S_IMODE(os.stat(settings.path()).st_mode), 0o600)
 
     def test_a_bad_file_never_stops_the_app(self):
         os.makedirs(os.path.dirname(settings.path()), exist_ok=True)

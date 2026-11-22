@@ -1,6 +1,7 @@
 import json
 import os
 import stat
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -48,7 +49,8 @@ class DiskTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         home = self.tmp.name
-        self.env = mock.patch.dict(os.environ, {"HOME": home, "CLAUDE_CONFIG_DIR": os.path.join(home, ".claude")})
+        self.env = mock.patch.dict(os.environ, {"HOME": home, "USERPROFILE": home, "APPDATA": os.path.join(home, "AppData", "Roaming"),
+                                                "CLAUDE_CONFIG_DIR": os.path.join(home, ".claude")})
         self.env.start()
 
     def tearDown(self):
@@ -66,8 +68,9 @@ class DiskTests(unittest.TestCase):
         self.assertTrue(hooks.installed())
         backups = [n for n in os.listdir(hooks.claude_dir()) if ".before-claudenotch." in n]
         self.assertEqual(len(backups), 1)
-        self.assertEqual(stat.S_IMODE(os.stat(hooks.token_path()).st_mode), 0o600)
-        self.assertEqual(stat.S_IMODE(os.stat(hooks.settings_path()).st_mode), 0o600)
+        if sys.platform != "win32":   # no POSIX modes on Windows; the profile ACL protects it
+            self.assertEqual(stat.S_IMODE(os.stat(hooks.token_path()).st_mode), 0o600)
+            self.assertEqual(stat.S_IMODE(os.stat(hooks.settings_path()).st_mode), 0o600)
 
     def test_an_unparseable_file_is_never_written(self):
         os.makedirs(hooks.claude_dir())
