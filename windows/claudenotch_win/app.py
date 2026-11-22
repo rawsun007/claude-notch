@@ -116,7 +116,30 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     return ap.parse_args(argv)
 
 
+def _attach_parent_console() -> None:
+    """The built exe is a GUI program, so it has no console and print() goes
+    nowhere. When it was started from a terminal with a flag like --status,
+    attach to that terminal so the answer shows up there."""
+    if sys.platform != "win32" or sys.stdout is not None:
+        return
+    try:
+        import ctypes
+        if ctypes.windll.kernel32.AttachConsole(-1):      # ATTACH_PARENT_PROCESS
+            sys.stdout = open("CONOUT$", "w", encoding="utf-8", buffering=1)
+            sys.stderr = sys.stdout
+            print()   # the prompt was already drawn; start on a fresh line
+    except OSError:
+        pass
+
+
+_CLI_FLAGS = ("--install-hooks", "--uninstall-hooks", "--status", "--quit-running", "--quit", "--version",
+              "--help", "-h", "--headless")
+
+
 def main(argv: list[str] | None = None) -> int:
+    raw = sys.argv[1:] if argv is None else argv
+    if any(a in _CLI_FLAGS for a in raw):
+        _attach_parent_console()
     args = parse_args(argv)
 
     # Flags that do one thing and exit. --uninstall-hooks with --quit-running

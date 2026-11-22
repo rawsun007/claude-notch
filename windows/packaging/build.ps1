@@ -11,13 +11,14 @@ if (-not (Test-Path $py)) { $py = "python" }    # CI uses the runner's Python
 Push-Location $win
 try {
     & $py (Join-Path $pkg "version_info.py") | Out-Null
-    $version = & $py -c "import re;print(re.search(r'__version__\s*=\s*\""([^\""]+)\""', open(r'..\linux\claudenotch\__init__.py').read()).group(1))"
+    $version = (& $py (Join-Path $pkg "version_info.py") --print-version).Trim()
     Write-Host "Building ClaudeNotch $version"
 
     & $py -m PyInstaller --noconfirm --clean --distpath dist --workpath build\pyinstaller (Join-Path $pkg "claudenotch.spec")
     if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed" }
-    & "dist\ClaudeNotch\ClaudeNotch.exe" --version
-    if ($LASTEXITCODE -ne 0) { throw "The built exe does not start" }
+    # A GUI exe returns to PowerShell at once; wait for it explicitly.
+    $p = Start-Process -FilePath "dist\ClaudeNotch\ClaudeNotch.exe" -ArgumentList "--status" -Wait -PassThru -NoNewWindow
+    if ($p.ExitCode -ne 0) { throw "The built exe does not start (exit $($p.ExitCode))" }
 
     $iscc = @(
         (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source,
