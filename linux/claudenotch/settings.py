@@ -32,6 +32,18 @@ class Settings:
     toasts: bool = True
     # Start with the desktop session (an autostart entry).
     start_at_login: bool = True
+    # Windows edition only; other editions ignore them. Where the pill sits:
+    # "top" (top centre, the default, as on Linux) or "bottom-right" (above
+    # the tray, D3).
+    position: str = "top"
+    # The idle pill can be hidden; cards and the tray icon still show.
+    show_pill: bool = True
+    # Hide the idle pill while a fullscreen game, video or presentation is in
+    # front. A card that needs an answer still shows.
+    hide_in_fullscreen: bool = True
+
+
+POSITIONS = ("top", "bottom-right")
 
 
 def path() -> str:
@@ -51,6 +63,8 @@ def load() -> Settings:
         value = raw.get(fld.name)
         if isinstance(value, type(getattr(out, fld.name))):
             setattr(out, fld.name, value)
+    if out.position not in POSITIONS:
+        out.position = "top"
     return out
 
 
