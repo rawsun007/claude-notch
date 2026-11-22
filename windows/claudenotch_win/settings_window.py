@@ -24,7 +24,9 @@ from PySide6.QtWidgets import (QButtonGroup, QComboBox, QDialog, QHBoxLayout, QR
 from claudenotch import autoapprove, hooks
 
 from . import __version__, autostart, hello, ownerauth, paths, winstatus
+from . import settingscharts as charts
 from . import settingskit as kit
+from claudenotch import usage as usage_mod
 
 GITHUB = "https://github.com/rawsun007/claude-notch"
 POSITIONS = [("top", "Top centre"), ("bottom-right", "Bottom right, above the tray")]
@@ -34,7 +36,8 @@ NAV = [
     ("Workspace", [("general", "General", "gearshape"), ("notch", "Notch", "menubar.rectangle")]),
     ("Session", [("session", "Session", "text.bubble")]),
     ("Alerts & Cost", [("alerts", "Alerts", "bell.badge")]),
-    ("Info", [("privacy", "Privacy", "lock.shield"), ("about", "About", "info.circle")]),
+    ("Info", [("usage", "Usage", "chart.bar"), ("privacy", "Privacy", "lock.shield"),
+              ("about", "About", "info.circle")]),
     ("Permissions", [("rules", "Rules", "checkmark.shield")]),
 ]
 
@@ -58,6 +61,11 @@ SEARCH = [
                    "bypass hello biometric hold dangerous destructive one click lock", "privacy"),
     kit.SearchItem("Always-allow rules", "allowlist permissions approved automatically rule", "rules"),
     kit.SearchItem("Version and logs", "about log folder github", "about"),
+    kit.SearchItem("Activity heatmap", "usage graph history days", "usage"),
+    kit.SearchItem("Token usage and cost", "spend dollars money tokens model", "usage"),
+    kit.SearchItem("Estimated cost, last 7 days", "trend chart spend week", "usage"),
+    kit.SearchItem("Top tools", "bash edit counts stats", "usage"),
+    kit.SearchItem("Export usage", "csv download", "usage"),
 ]
 
 TITLES = {key: title for _, items in NAV for key, title, _ in items}
@@ -65,6 +73,7 @@ TITLES = {key: title for _, items in NAV for key, title, _ in items}
 
 class _Bridge(QObject):
     authed = Signal(str, bool, object)     # what, ok, message
+    usage = Signal(object)                 # a usage.Usage, read off the GUI thread
 
 
 class SettingsWindow(QWidget):
@@ -99,6 +108,8 @@ class SettingsWindow(QWidget):
         self.messages: dict[str, kit.QLabel] = {}
         self._bridge = _Bridge()
         self._bridge.authed.connect(self._authed)
+        self._bridge.usage.connect(self._fill_usage)
+        self._usage_busy = False
         self.setWindowTitle("ClaudeNotch Settings")
         self.setWindowIcon(QIcon(paths.resource("ClaudeNotch.ico")))
         self.resize(880, 640)
@@ -116,6 +127,7 @@ class SettingsWindow(QWidget):
         root.addWidget(self.stack, 1)
         for key, build in (("general", self._page_general), ("notch", self._page_notch),
                            ("session", self._page_session), ("alerts", self._page_alerts),
+                           ("usage", self._page_usage),
                            ("privacy", self._page_privacy), ("about", self._page_about),
                            ("rules", self._page_rules)):
             self.pages[key] = self.stack.addWidget(self._scroll(build()))
@@ -195,6 +207,8 @@ class SettingsWindow(QWidget):
     def show_page(self, key: str) -> None:
         if key not in self.pages:
             return
+        if key == "usage":
+            self._load_usage()
         self.stack.setCurrentIndex(self.pages[key])
         for k, item in self.nav_items.items():
             item.setChecked(k == key)
@@ -460,6 +474,129 @@ class SettingsWindow(QWidget):
         v.addStretch(1)
         return page
 
+    # --- Usage ------------------------------------------------------------------------------
+
+    def _page_usage(self) -> QWidget:
+        page, v = self._page("Usage")
+        self.usage_box = QVBoxLayout()
+        self.usage_box.setSpacing(18)
+        v.addLayout(self.usage_box)
+        self.usage_box.addWidget(kit.label("Reading transcripts…", 13, color=self.t.secondary))
+        v.addStretch(1)
+        return page
+
+    def _load_usage(self) -> None:
+        """Read the transcripts on a worker thread; the page fills in when done."""
+        if self._usage_busy:
+            return
+        self._usage_busy = True
+        import threading
+
+        def run():
+            try:
+                result = usage_mod.compute()
+            except OSError:
+                result = None
+            self._bridge.usage.emit(result)
+        threading.Thread(target=run, daemon=True, name="usage").start()
+
+    def _fill_usage(self, u) -> None:
+        import datetime as _dt
+        self._usage_busy = False
+        self.last_usage = u
+        lay = self.usage_box
+        while lay.count():
+            w = lay.takeAt(0).widget()
+            if w is not None:
+                w.deleteLater()
+        t = self.t
+        today = _dt.date.today()
+        if u is not None:
+            trend = usage_mod.daily_series(u.daily_cost, 7, today)
+            if any(c > 0 for _, c in trend):
+                lay.addWidget(kit.section_label(t, "Estimated cost, last 7 days"))
+                lay.addWidget(kit.label("Estimated at public API (pay-as-you-go) prices. On a Pro, Max, Team, or "
+                                        "Enterprise subscription you pay a flat fee, so this is not your actual bill, "
+                                        "it is what the usage would cost per token.", 11, color=t.secondary,
+                                        wrap=True))
+                lay.addWidget(_padded(t, charts.BarChart(t, trend)))
+            weeks = usage_mod.weekly_cost_buckets(u.daily_cost, 4, today)
+            if any(c > 0 for _, c in weeks):
+                lay.addWidget(kit.section_label(t, "Estimated cost, last 4 weeks"))
+                lay.addWidget(_padded(t, charts.BarChart(t, weeks)))
+        lay.addWidget(kit.section_label(t, "Activity, last 7 weeks"))
+        lay.addWidget(_padded(t, charts.Heatmap(t, self.state.stats.value.daily_tools, today)))
+
+        lay.addWidget(kit.label("All-time counters for the notch itself, kept locally on this PC.", 12,
+                                color=t.secondary))
+        sv = self.state.stats.value
+        card = kit.Card(t)
+        for title, value in (("Permissions allowed", sv.allowed), ("Permissions denied", sv.denied),
+                             ("Auto-approved", sv.auto_approved),
+                             ("Dangerous commands flagged", sv.dangerous_flagged),
+                             ("Questions answered", sv.questions_answered), ("Active days", len(sv.active_days))):
+            card.add(charts.stat_row(t, title, str(value)))
+        lay.addWidget(card)
+        top = sv.top_tools(6)
+        if top:
+            lay.addWidget(kit.section_label(t, "Top tools"))
+            tools = kit.Card(t)
+            for name, n in top:
+                tools.add(charts.stat_row(t, name, str(n)))
+            lay.addWidget(tools)
+        if u is None:
+            lay.addWidget(kit.label("The transcripts could not be read.", 12, color=t.secondary))
+            return
+        leaders = sorted(((cwd, tk.cost_usd) for cwd, tk in u.week_by_project.items() if tk.cost_usd > 0),
+                         key=lambda kv: -kv[1])[:6]
+        if leaders:
+            from claudenotch.state import project_name
+            lay.addWidget(kit.section_label(t, "Top projects by estimated cost (7 days)"))
+            box = kit.Card(t)
+            for cwd, c in leaders:
+                box.add(charts.leader_row(t, project_name(cwd) or cwd, charts.usd(c), c / leaders[0][1]))
+            lay.addWidget(box)
+        lay.addWidget(kit.section_label(t, "Claude usage (from transcripts)"))
+        lay.addWidget(kit.label("Costs are estimates at public API prices, not your subscription bill.", 11,
+                                color=t.secondary))
+        f = usage_mod.fmt_tokens
+        box = kit.Card(t)
+        for title, value in (("Today", f"{f(u.today.total)} tok · {charts.usd(u.today.cost_usd)}"),
+                             ("Last 5 hours", f"{f(u.five_hour.total)} tok · {charts.usd(u.five_hour.cost_usd)}"),
+                             ("This week", f"{f(u.week.total)} tok · {charts.usd(u.week.cost_usd)}"),
+                             ("Sessions this week", str(u.sessions_week)),
+                             ("Cache hit rate", f"{int(u.cache_hit_rate * 100)}%"),
+                             ("Cache savings", charts.usd(u.cache_savings_usd))):
+            box.add(charts.stat_row(t, title, value))
+        lay.addWidget(box)
+        models = sorted(((m, tk.cost_usd) for m, tk in u.week_by_model.items() if tk.cost_usd > 0),
+                        key=lambda kv: -kv[1])
+        if models:
+            lay.addWidget(kit.section_label(t, "Model mix (last 7 days)"))
+            box = kit.Card(t)
+            for m, c in models:
+                box.add(charts.leader_row(t, m, charts.usd(c), c / models[0][1]))
+            lay.addWidget(box)
+        row = QHBoxLayout()
+        export = kit.PushButton(t, "Export usage (CSV)")
+        export.clicked.connect(self._export_usage)
+        row.addWidget(export)
+        row.addStretch(1)
+        holder = QWidget()
+        holder.setLayout(row)
+        lay.addWidget(holder)
+
+    def _export_usage(self) -> None:
+        from PySide6.QtWidgets import QFileDialog
+        u = getattr(self, "last_usage", None)
+        if u is None:
+            return
+        path, _ = QFileDialog.getSaveFileName(self, "Export usage", os.path.expanduser("~/claudenotch-usage.csv"),
+                                              "CSV (*.csv)")
+        if path:
+            with open(path, "w", encoding="utf-8", newline="") as fh:
+                fh.write(usage_mod.export_csv(u.daily_tokens, u.daily_cost))
+
     # --- Privacy ----------------------------------------------------------------------------
 
     def _page_privacy(self) -> QWidget:
@@ -625,6 +762,14 @@ class SettingsWindow(QWidget):
         # Closing hides; the app keeps running in the tray.
         event.ignore()
         self.hide()
+
+
+def _padded(t: kit.Theme, inner: QWidget) -> QWidget:
+    """A chart in a card with 14 of padding, as the Mac's .padding(14).cardChrome()."""
+    card = kit.Card(t)
+    card.lay.setContentsMargins(14, 14, 14, 14)
+    card.lay.addWidget(inner)
+    return card
 
 
 class AutoApproveSheet(QDialog):
