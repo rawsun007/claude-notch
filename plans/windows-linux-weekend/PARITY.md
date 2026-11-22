@@ -126,7 +126,14 @@ hooks from `%USERPROFILE%\.claude\settings.json`, `claude -p` with
 | PowerShell | Edit `hello.js` | Edit card with diff | Allow | File edited |
 | PowerShell | PowerShell tool: `Remove-Item -Recurse -Force old-cache` | Red destructive card, "Remove-Item -Recurse -Force, deletes a directory tree", Hold to Allow | 1.3 s press and hold | Hook returned `allow`; folder deleted |
 
+| (real server, Claude Code's AskUserQuestion payload) | One question, three described options | Question card | Real clicks: Blue, then Send | Hook answered in 2.3 s with "[ClaudeNotch, user replied via the notch] - Colour: Blue", the Mac's exact text |
+
 The terminal kept keyboard focus until the card was pressed, every time.
+
+`claude -p` does not use AskUserQuestion (with nobody to ask, it asks in
+plain text), so the question card was driven with the payload Claude Code
+sends from an interactive session. The notification, done and question
+cards were also checked on screen at 150 %.
 
 Seen along the way, not changed (both editions do it, the wire must stay
 identical): Grep, Glob, LS, BashOutput and KillShell are answered `ask`
