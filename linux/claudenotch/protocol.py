@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hmac
 import json
+import re
 from dataclasses import dataclass, field
 from urllib.parse import parse_qs
 
@@ -128,7 +129,8 @@ class Preview:
 def preview(tool: str, tool_input: dict) -> Preview:
     ti = tool_input if isinstance(tool_input, dict) else {}
     path = str(ti.get("file_path") or ti.get("notebook_path") or "")
-    name = path.rsplit("/", 1)[-1] if path else ""
+    # Either slash: Claude Code on Windows sends C:\\proj\\main.py.
+    name = re.split(r"[\\/]", path)[-1] if path else ""
     if tool == "Bash":
         return Preview("Bash", str(ti.get("command") or ""), extra=[str(ti.get("description") or "")] if ti.get("description") else [])
     if tool in ("Edit", "MultiEdit"):
