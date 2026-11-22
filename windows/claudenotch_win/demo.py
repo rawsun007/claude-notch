@@ -76,7 +76,7 @@ NOTICES = {
     "completed": {"hook_event_name": "Stop"},
     "failure": {"hook_event_name": "StopFailure", "failure_reason": "rate_limit", "message": "rate_limit"},
 }
-ALL = [*PERMISSIONS, "budget", "queue", "question", *NOTICES, "idle", "hover", "working", "sessions"]
+ALL = [*PERMISSIONS, "budget", "queue", "question", *NOTICES, "limit", "idle", "hover", "working", "sessions"]
 
 
 def load(state: AppState, name: str) -> SimpleNamespace:
@@ -95,6 +95,13 @@ def load(state: AppState, name: str) -> SimpleNamespace:
             state.enqueue_permission(permission())
     elif name == "question":
         state.enqueue_question(question())
+    elif name == "limit":
+        import time
+        from claudenotch.limits import Armed
+        from claudenotch.state import Toast
+        title, body = Armed().check("5-hour", 0.96, time.time() + 2400, time.time())
+        state.toasts = [Toast(title, body, kind="limit")]
+        state._changed()
     elif name in NOTICES:
         state.handle_event({**NOTICES[name], "session_id": "demo", "cwd": HOME + "\\proj"})
     elif name == "sessions":
@@ -138,6 +145,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="claudenotch_win.demo")
     ap.add_argument("name", nargs="?", default="permission", choices=ALL)
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--pet", action="store_true", help="as with Pet Mode on: the pet's badges on the cards")
     ap.add_argument("--shot", help="save a screenshot of the top of the screen here, then quit")
     ap.add_argument("--after", type=int, default=1200, help="ms to wait before --shot")
     ap.add_argument("--height", type=int, default=420, help="how much of the screen --shot keeps")
@@ -154,6 +162,11 @@ def main(argv: list[str] | None = None) -> int:
     app = QApplication.instance() or QApplication(sys.argv)
     state = AppState(persist=False)
     overlay = Overlay(state)
+    # Demo cards hold nothing private, so they stay visible to --shot and to
+    # screen recordings; --pet shows them as with Pet Mode on.
+    forced = {"hide_from_capture": False, **({"pet_enabled": True} if args.pet else {})}
+    real = overlay._setting
+    overlay._setting = lambda n, d: forced[n] if n in forced else real(n, d)
     app.processEvents()
     QTimer.singleShot(400, lambda: _show(state, overlay, args.name))
 
