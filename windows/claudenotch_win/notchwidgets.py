@@ -92,6 +92,68 @@ class Text(QWidget):
         p.drawText(QRectF(self.rect()), Qt.AlignLeft | Qt.AlignVCenter, text)
 
 
+class LinesText(QWidget):
+    """SwiftUI Text with `.lineLimit(n)`: wraps at word boundaries, and the
+    last allowed line ends in an ellipsis when there is more."""
+
+    def __init__(self, text: str, size: float, weight: str = "regular", rgb=WHITE, opacity: float = 1.0,
+                 max_lines: int = 2, parent=None):
+        super().__init__(parent)
+        self._text, self._font, self._max = text, ms.font(size, weight), max_lines
+        self._color = ms.rgba(rgb, opacity)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        sp = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        sp.setHeightForWidth(True)
+        self.setSizePolicy(sp)
+        self.setAccessibleName(text)
+
+    def text(self) -> str:
+        return self._text
+
+    def lines(self, width: float) -> list[str]:
+        fm = QFontMetricsF(self._font)
+        words = self._text.split()
+        out, cur = [], ""
+        for i, w in enumerate(words):
+            trial = f"{cur} {w}".strip()
+            if fm.horizontalAdvance(trial) <= width or not cur:
+                cur = trial
+                continue
+            out.append(cur)
+            cur = w
+            if len(out) == self._max - 1:
+                rest = " ".join([cur] + words[i + 1:])
+                out.append(fm.elidedText(rest, Qt.ElideRight, width))
+                return out
+        if cur:
+            out.append(fm.elidedText(cur, Qt.ElideRight, width) if len(out) == self._max - 1 else cur)
+        return out[: self._max] or [""]
+
+    def hasHeightForWidth(self) -> bool:
+        return True
+
+    def heightForWidth(self, w: int) -> int:
+        fm = QFontMetricsF(self._font)
+        return int(len(self.lines(w)) * fm.height() + 0.99)
+
+    def sizeHint(self) -> QSize:
+        fm = QFontMetricsF(self._font)
+        return QSize(int(fm.horizontalAdvance(self._text) + 1), int(fm.height() + 0.99))
+
+    def minimumSizeHint(self) -> QSize:
+        return QSize(40, self.heightForWidth(max(40, self.width())))
+
+    def paintEvent(self, _e) -> None:
+        p = QPainter(self)
+        p.setFont(self._font)
+        p.setPen(self._color)
+        fm = QFontMetricsF(self._font)
+        y = 0.0
+        for line in self.lines(self.width()):
+            p.drawText(QRectF(0, y, self.width(), fm.height()), Qt.AlignLeft | Qt.AlignVCenter, line)
+            y += fm.height()
+
+
 def wrap_label(text: str, size: float, weight: str = "regular", rgb=WHITE, opacity: float = 1.0,
                mono: bool = False) -> QLabel:
     """A Text that wraps (`.fixedSize(horizontal: false, vertical: true)`)."""
@@ -225,6 +287,100 @@ def draw_glyph(p: QPainter, name: str, r: QRectF, size: float, color: QColor) ->
         path = QPainterPath(QPointF(x0, cy + s * 0.15))
         path.cubicTo(x0, cy - s * 0.1, cx + s * 0.25, cy - s * 0.05, cx + s * 0.25, cy - s * 0.45)
         p.drawPath(path)
+        return
+    if name == "bell.fill":
+        path = QPainterPath()
+        w = s * 0.78
+        top = cy - s * 0.46
+        path.moveTo(cx - w / 2, cy + s * 0.22)
+        path.cubicTo(cx - w * 0.42, cy - s * 0.1, cx - w * 0.38, top, cx, top)
+        path.cubicTo(cx + w * 0.38, top, cx + w * 0.42, cy - s * 0.1, cx + w / 2, cy + s * 0.22)
+        path.closeSubpath()
+        p.setPen(Qt.NoPen)
+        p.setBrush(color)
+        p.drawPath(path)
+        p.drawRoundedRect(QRectF(cx - w * 0.6, cy + s * 0.16, w * 1.2, s * 0.13), s * 0.06, s * 0.06)
+        p.drawEllipse(QPointF(cx, cy + s * 0.4), s * 0.11, s * 0.11)
+        return
+    if name == "checkmark.seal.fill":
+        import math
+        path = QPainterPath()
+        n = 12
+        for i in range(n * 2 + 1):
+            a = math.pi * i / n - math.pi / 2
+            rad = s * (0.5 if i % 2 == 0 else 0.42)
+            pt = QPointF(cx + rad * math.cos(a), cy + rad * math.sin(a))
+            path.moveTo(pt) if i == 0 else path.lineTo(pt)
+        path.closeSubpath()
+        p.setPen(QPen(color, s * 0.06, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        p.setBrush(color)
+        p.drawPath(path)
+        p.save()
+        p.setCompositionMode(QPainter.CompositionMode_Clear)
+        tick = QPainterPath(QPointF(cx - s * 0.18, cy + s * 0.01))
+        tick.lineTo(cx - s * 0.04, cy + s * 0.15)
+        tick.lineTo(cx + s * 0.2, cy - s * 0.12)
+        p.setPen(QPen(Qt.black, s * 0.11, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        p.setBrush(Qt.NoBrush)
+        p.drawPath(tick)
+        p.restore()
+        return
+    if name in ("circle", "largecircle.fill.circle", "square", "checkmark.square.fill",
+                "pencil.circle", "pencil.circle.fill"):
+        d = s * 0.92
+        box = QRectF(cx - d / 2, cy - d / 2, d, d)
+        ring = QPen(color, max(1.0, s * 0.085))
+        if name in ("circle", "pencil.circle"):
+            p.setPen(ring)
+            p.setBrush(Qt.NoBrush)
+            p.drawEllipse(box.adjusted(0.5, 0.5, -0.5, -0.5))
+        elif name == "square":
+            p.setPen(ring)
+            p.setBrush(Qt.NoBrush)
+            p.drawRoundedRect(box.adjusted(0.5, 0.5, -0.5, -0.5), d * 0.22, d * 0.22)
+        elif name == "largecircle.fill.circle":
+            p.setPen(ring)
+            p.setBrush(Qt.NoBrush)
+            p.drawEllipse(box.adjusted(0.5, 0.5, -0.5, -0.5))
+            p.setPen(Qt.NoPen)
+            p.setBrush(color)
+            p.drawEllipse(QPointF(cx, cy), d * 0.27, d * 0.27)
+        elif name == "checkmark.square.fill":
+            p.setPen(Qt.NoPen)
+            p.setBrush(color)
+            p.drawRoundedRect(box, d * 0.22, d * 0.22)
+            p.save()
+            p.setCompositionMode(QPainter.CompositionMode_Clear)
+            tick = QPainterPath(QPointF(cx - d * 0.24, cy + d * 0.0))
+            tick.lineTo(cx - d * 0.06, cy + d * 0.18)
+            tick.lineTo(cx + d * 0.26, cy - d * 0.18)
+            p.setPen(QPen(Qt.black, d * 0.13, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+            p.setBrush(Qt.NoBrush)
+            p.drawPath(tick)
+            p.restore()
+        else:   # pencil.circle.fill
+            p.setPen(Qt.NoPen)
+            p.setBrush(color)
+            p.drawEllipse(box)
+        if name.startswith("pencil"):
+            # A pencil, not a stroke: a slash in a circle reads as "not
+            # allowed". Body and point, tilted 45 degrees, tip at bottom left.
+            p.save()
+            if name.endswith("fill"):
+                p.setCompositionMode(QPainter.CompositionMode_Clear)
+            p.translate(cx, cy)
+            p.rotate(-45)
+            pencil = QPainterPath()
+            pencil.moveTo(-d * 0.3, 0)
+            pencil.lineTo(-d * 0.16, -d * 0.075)
+            pencil.lineTo(d * 0.26, -d * 0.075)
+            pencil.lineTo(d * 0.26, d * 0.075)
+            pencil.lineTo(-d * 0.16, d * 0.075)
+            pencil.closeSubpath()
+            p.setPen(Qt.NoPen)
+            p.setBrush(Qt.black if name.endswith("fill") else color)
+            p.drawPath(pencil)
+            p.restore()
         return
     glyph = _FLUENT.get(name)
     if glyph:
