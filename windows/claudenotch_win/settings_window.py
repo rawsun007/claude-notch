@@ -35,7 +35,8 @@ POSITIONS = [("top", "Top centre"), ("bottom-right", "Bottom right, above the tr
 NAV = [
     ("Workspace", [("general", "General", "gearshape"), ("notch", "Notch", "menubar.rectangle")]),
     ("Session", [("session", "Session", "text.bubble")]),
-    ("Alerts & Cost", [("alerts", "Alerts", "bell.badge"), ("budget", "Budget", "dollarsign.circle"),
+    ("Alerts & Cost", [("alerts", "Alerts", "bell.badge"), ("sounds", "Sounds", "speaker.wave.2"),
+                       ("budget", "Budget", "dollarsign.circle"),
                        ("plan", "Plan", "creditcard")]),
     ("Info", [("usage", "Usage", "chart.bar"), ("history", "History", "clock.arrow.circlepath"),
               ("privacy", "Privacy", "lock.shield"),
@@ -61,6 +62,9 @@ SEARCH = [
     kit.SearchItem("Plan-limit warnings", "rate limit 80 95 percent", "alerts"),
     kit.SearchItem("Plan limits", "5 hour weekly limit resets percent pro max", "plan"),
     kit.SearchItem("Cost caps", "budget session day dollars limit", "budget"),
+    kit.SearchItem("Mute all sounds", "silence quiet", "sounds"),
+    kit.SearchItem("Per-tool sounds", "pop up chime bash edit powershell", "sounds"),
+    kit.SearchItem("Alert sound", "chime ding notify", "sounds"),
     kit.SearchItem("Hard-stop at the cap", "block enforce budget", "budget"),
     kit.SearchItem("Hide from screen capture", "recording screenshot privacy share", "privacy"),
     kit.SearchItem("Require Windows Hello", "biometric fingerprint face pin touch id", "privacy"),
@@ -138,6 +142,7 @@ class SettingsWindow(QWidget):
         for key, build in (("general", self._page_general), ("notch", self._page_notch),
                            ("session", self._page_session), ("alerts", self._page_alerts),
                            ("plan", self._page_plan), ("budget", self._page_budget),
+                           ("sounds", self._page_sounds),
                            ("usage", self._page_usage), ("history", self._page_history),
                            ("privacy", self._page_privacy), ("about", self._page_about),
                            ("rules", self._page_rules), ("developer", self._page_developer)):
@@ -697,6 +702,87 @@ class SettingsWindow(QWidget):
             self.state.archive.clear()
             self._fill_history()
 
+    # --- Sounds -----------------------------------------------------------------------------
+
+    def _page_sounds(self) -> QWidget:
+        from claudenotch import sounds
+        from . import soundplay
+        page, v = self._page("Sounds")
+        card = kit.Card(self.t)
+        self._toggle_row(card, "sound_muted", "Mute all sounds", "Silence every notch sound.")
+        self._toggle_row(card, "per_tool_sounds", "Per-tool sounds",
+                         "Different sound for different kinds of tool request.")
+        v.addWidget(card)
+        names = [sounds.SILENT] + soundplay.available(sounds.CHOICES)
+        self.sound_pickers = {}
+
+        def picker(kind: str, key: str, default) -> QComboBox:
+            combo = QComboBox()
+            for n in names:
+                combo.addItem(n, n)
+            combo.currentIndexChanged.connect(lambda _i, c=combo: self._set_sound(kind, key, c.currentData(), default))
+            self.sound_pickers[(kind, key)] = (combo, default)
+            return combo
+
+        self.alert_label = kit.section_label(self.t, "Alert sound")
+        v.addWidget(self.alert_label)
+        self.alert_card = kit.Card(self.t)
+        self.alert_card.add(kit.Row(self.t, "Alert sound", None, picker("alert", "", sounds.DEFAULT_ALERT)))
+        v.addWidget(self.alert_card)
+        self.tools_label = kit.section_label(self.t, "Sound per pop-up type")
+        v.addWidget(self.tools_label)
+        self.tools_card = kit.Card(self.t)
+        for key, title, detail, default in sounds.CATEGORIES:
+            self.tools_card.add(kit.Row(self.t, title, detail, picker("tool", key, default)))
+        v.addWidget(self.tools_card)
+        v.addWidget(kit.section_label(self.t, "Sound per event"))
+        v.addWidget(kit.label("Every noise the app makes, one row each. Pick a different sound, or pick None to "
+                              "silence just that one. The prompts follow the alert sound above until you give them "
+                              "one of their own.", 12, color=self.t.secondary, wrap=True))
+        events = kit.Card(self.t)
+        for key, title, detail, default in sounds.EVENTS:
+            events.add(kit.Row(self.t, title, detail, picker("event", key, default)))
+        v.addWidget(events)
+        v.addStretch(1)
+        return page
+
+    def _sound_value(self, kind: str, key: str, default) -> str:
+        from claudenotch import sounds
+        v = self.store.value
+        if kind == "alert":
+            return v.alert_sound
+        if kind == "tool":
+            return v.sound_tools.get(key, default)
+        return v.sound_events.get(key, default if default is not None else v.alert_sound)
+
+    def _refresh_sounds(self) -> None:
+        v = self.store.value
+        for (kind, key), (combo, default) in self.sound_pickers.items():
+            want = self._sound_value(kind, key, default)
+            idx = combo.findData(want)
+            if idx >= 0 and idx != combo.currentIndex():
+                combo.blockSignals(True)
+                combo.setCurrentIndex(idx)
+                combo.blockSignals(False)
+            combo.setEnabled(not v.sound_muted)
+        self.tools_label.setVisible(v.per_tool_sounds)
+        self.tools_card.setVisible(v.per_tool_sounds)
+        self.alert_label.setVisible(not v.per_tool_sounds)
+        self.alert_card.setVisible(not v.per_tool_sounds)
+
+    def _set_sound(self, kind: str, key: str, name: str, default) -> None:
+        from claudenotch import sounds
+        from . import soundplay
+        v = self.store.value
+        if kind == "alert":
+            self.store.update(alert_sound=name)
+        elif kind == "tool":
+            self.store.update(sound_tools=sounds.set_override(v.sound_tools, key, name, default))
+        else:
+            self.store.update(sound_events=sounds.set_override(v.sound_events, key, name, default))
+        if name != sounds.SILENT:
+            soundplay.play(name)              # a preview, as the Mac's picker plays one
+
     # --- Budget -----------------------------------------------------------------------------
 
     def _page_budget(self) -> QWidget:
@@ -894,7 +980,7 @@ class SettingsWindow(QWidget):
         for key in ("greeting", "hover_sessions", "toasts", "show_pill", "hide_in_fullscreen",
                     "desktop_notifications", "notify_dangerous_only", "keep_open", "hide_from_capture",
                     "require_hello", "skip_destructive_confirm", "auto_approve", "limit_warnings",
-                    "enforce_budget"):
+                    "enforce_budget", "sound_muted", "per_tool_sounds"):
             values[key] = getattr(v, key, False)
         for key, value in values.items():
             sw = self.switches.get(key)
@@ -915,6 +1001,8 @@ class SettingsWindow(QWidget):
                 combo.blockSignals(True)
                 combo.setCurrentIndex(idx)
                 combo.blockSignals(False)
+        if hasattr(self, "sound_pickers"):
+            self._refresh_sounds()
         scope_title = autoapprove.SCOPE_LABELS.get(v.auto_approve_scope, ("", ""))[0]
         danger_title = autoapprove.DANGEROUS_LABELS.get(v.auto_approve_dangerous, ("", ""))[0]
         self.auto_summary.setText(f"{scope_title}. Destructive commands: {danger_title.lower()}.")
