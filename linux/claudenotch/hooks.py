@@ -49,6 +49,13 @@ def settings_path() -> str:
 
 
 def token_path() -> str:
+    """The hook token. Linux and Mac: ~/.claudenotch/hook-token. Windows:
+    %APPDATA%\\ClaudeNotch\\hook-token. On Windows the 0600/0700 modes below are
+    a no-op; files under the user profile are already ACL'd to that user,
+    which is the protection we want, so no icacls."""
+    from .state import config_dir, is_windows
+    if is_windows():
+        return os.path.join(config_dir(), "hook-token")
     return os.path.expanduser("~/.claudenotch/hook-token")
 
 

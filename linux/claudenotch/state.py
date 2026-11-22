@@ -14,6 +14,7 @@ from __future__ import annotations
 import itertools
 import json
 import os
+import sys
 import threading
 import time
 from dataclasses import dataclass, field
@@ -116,7 +117,21 @@ class AllowRule:
         return f"{self.tool}: {redact(self.exact)}" if self.exact else self.tool
 
 
+def is_windows() -> bool:
+    """Read at call time, not import time, so tests can switch platforms."""
+    return sys.platform == "win32"
+
+
+def windows_appdata() -> str:
+    """%APPDATA% (Roaming), where Windows apps keep per-user settings."""
+    return os.environ.get("APPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Roaming")
+
+
 def config_dir() -> str:
+    """Settings and always-allow rules. Windows: %APPDATA%\\ClaudeNotch.
+    Linux: $XDG_CONFIG_HOME/claudenotch."""
+    if is_windows():
+        return os.path.join(windows_appdata(), "ClaudeNotch")
     base = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
     return os.path.join(base, "claudenotch")
 
