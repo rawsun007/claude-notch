@@ -76,7 +76,7 @@ NOTICES = {
     "completed": {"hook_event_name": "Stop"},
     "failure": {"hook_event_name": "StopFailure", "failure_reason": "rate_limit", "message": "rate_limit"},
 }
-ALL = [*PERMISSIONS, "queue", "question", *NOTICES, "idle", "hover", "working"]
+ALL = [*PERMISSIONS, "queue", "question", *NOTICES, "idle", "hover", "working", "sessions"]
 
 
 def load(state: AppState, name: str) -> SimpleNamespace:
@@ -92,6 +92,28 @@ def load(state: AppState, name: str) -> SimpleNamespace:
         state.enqueue_question(question())
     elif name in NOTICES:
         state.handle_event({**NOTICES[name], "session_id": "demo", "cwd": HOME + "\\proj"})
+    elif name == "sessions":
+        # Three live sessions: the top one is the header, two more are rows.
+        for sid, folder, model, pct, tokens, cost in (
+                ("s3", "api-server", "gpt-5-codex", 0, 0, 0.0),
+                ("s2", "notch-website", "claude-sonnet-5-5", 71, 142000, 3.12),
+                ("demo", "claude-notch", "claude-opus-5-5", 42, 84000, 1.84)):
+            state.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": sid,
+                                "cwd": f"{HOME}\\{folder}", "prompt": "go"})
+            state.note_status(statusline.parse(statusline.flatten({
+                "session_id": sid, "model": {"id": model}, "effort": {"level": "high"},
+                "context_window": {"used_percentage": pct, "context_window_size": 200000,
+                                   "total_input_tokens": tokens},
+                "cost": {"total_cost_usd": cost}, "workspace": {"git_worktree": "docs-refresh" if sid == "s2" else ""}})))
+        state.handle_event({"hook_event_name": "Stop", "session_id": "s2", "cwd": f"{HOME}\\notch-website"})
+        state.handle_event({"hook_event_name": "SubagentStart", "session_id": "s3", "cwd": f"{HOME}\\api-server"})
+        state.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "demo",
+                            "cwd": f"{HOME}\\claude-notch", "prompt": "go"})
+        state.toasts = []
+        # The clock is coarse on Windows: make "most recent hook" explicit.
+        for i, sid in enumerate(("s3", "s2", "demo")):
+            state.sessions[sid].updated += i
+        out.hover = True
     elif name in ("hover", "working"):
         state.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "demo", "cwd": HOME,
                             "prompt": "fix the build"})
