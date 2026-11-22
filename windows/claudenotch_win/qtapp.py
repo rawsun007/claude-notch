@@ -23,7 +23,7 @@ from claudenotch import settings as settings_mod
 from claudenotch.server import HookServer
 from claudenotch.state import AppState
 
-from . import __version__, autostart, instance, paths, winutil
+from . import __version__, autostart, instance, paths, winstatus, winutil
 from .app import control, quit_running, running_version, say
 
 FIRST_RUN_TIP = ("It sits at the top centre of your screen and in the tray. Windows may tuck new tray icons "
@@ -70,7 +70,7 @@ def run(args) -> int:
     hook_error = ""
     if not args.no_install:
         try:
-            hooks.install()
+            winstatus.install_hooks()
         except hooks.UnreadableSettings as e:
             hook_error = str(e)
     state = AppState()
