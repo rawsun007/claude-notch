@@ -28,7 +28,7 @@ Order within each section is roughly by how often a user meets it.
 | Multi-monitor: notch follows the cursor's screen, mirrors | NotchWindowController, MouseTracker | todo | Primary screen only today. |
 | Minimized question stub left of the notch | MinimizedQuestionTab | todo | |
 | Drop a folder on the notch to open Claude there | NotchDrop | todo | |
-| Pet mode (stage, rope, costumes, moods) | NotchPetViews, PetEngine, PetRig | partial | The 15 pt mascot with mood bob and blink is drawn from PetBody's grid; the stage and activities are todo. |
+| Pet mode (stage, rope, costumes, moods) | NotchPetViews, PetEngine, PetRig | partial | PetEngine ported (moods, weights, durations, duty cycle, entry spring, poses for peek, look around, hang either corner, stroll, sleep, celebrate, boop, backflip, watch, flinch, fret); the closed notch is its stage; boop on click; Settings > Pet. Not ported: the rope physics, limb rigging (arms and legs swinging), the pet badges on the danger and done cards, and the guest costumes, which recreate third-party characters. |
 
 ## Cards
 
@@ -91,8 +91,8 @@ Order within each section is roughly by how often a user meets it.
 | Git branch, diff stat, worktrees | Git, AppState+Git, Worktree | todo | |
 | Codex CLI | CodexReader, AgentAdapter | todo | |
 | Model switch gate, model drift | AppState+ModelSwitch, ModelDrift | todo | |
-| Skills page | SkillsReader, SkillSettings, SkillTrash | todo | |
-| Sounds | AppState+Sound | todo | |
+| Skills page | SkillsReader, SkillSettings, SkillTrash | partial | Personal, claude.ai, project and plugin skills; listing cost; On, Name only, Only when I type it, Off (skillOverrides); trash and restore. Per-project overrides (settings.local.json), plugin on/off switches, usage counts and Free up context are todo. |
+| Sounds | AppState+Sound | done | The Mac's events, per-tool sounds (PowerShell counts as shell), per-event overrides and None, mute; Windows' own sounds stand in for the macOS ones. Settings > Sounds. |
 | Notifications mirrored to the OS | NotificationBridge | done | Windows toasts. |
 | URL scheme `claudenotch://` | URLScheme | partial | open, settings, settings/<page>, history; registered per user by the installer. compose, resume and standup are todo. |
 | Global hotkey for Settings | GlobalHotkey | todo | `RegisterHotKey`. |
@@ -162,7 +162,7 @@ and status line), Notch, Session (Auto-approve for a while, snooze),
 Alerts (cards, plan-limit warnings, Windows notifications), Budget, Plan,
 Usage, History, Privacy (hide from capture, Windows Hello, skip
 confirmation behind owner authentication), About, Rules, Developer (demo
-cards). Still to come from the Mac: Pet, Sounds, Skills.
+cards), Pet, Sounds and Skills.
 
 ## VS Code (22 Nov 2026)
 

@@ -100,6 +100,14 @@ app's: a sidebar with search, and these pages:
 - **Privacy:** hide the notch from screen capture (on by default), require
   Windows Hello for destructive commands, and skip that confirmation
   (asks for Windows Hello or your password).
+- **Pet:** Pet Mode, the mascot living in the closed notch (it naps,
+  strolls, keeps Claude company, celebrates and flinches; click the notch
+  to boop it), and a Play button for each thing it does.
+- **Sounds:** mute, the alert sound or a sound per kind of tool, and a
+  sound per event, using Windows' own sounds.
+- **Skills:** your Claude Code skills (personal, claude.ai, projects,
+  plugins) with what each costs in every turn; set each to On, Name only,
+  Only when I type it, or Off, or move it to the trash and restore it.
 - **Rules**, **About**, and **Developer** (show any card on demand).
 
 ## Updating
