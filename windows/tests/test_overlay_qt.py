@@ -193,6 +193,8 @@ class OverlayTests(unittest.TestCase):
     def _with_settings(self, **values):
         from types import SimpleNamespace
         defaults = dict(auto_approve=False, auto_approve_scope="everything", auto_approve_dangerous="ask",
+                        enforce_budget=False, daily_cost_cap=0.0, session_cost_cap=0.0, limit_warnings=True,
+                        keep_open=False, hide_from_capture=False,
                         require_hello=True, skip_destructive_confirm=False, hover_sessions=True, toasts=True,
                         position="top", show_pill=True, hide_in_fullscreen=True)
         defaults.update(values)
@@ -229,6 +231,23 @@ class OverlayTests(unittest.TestCase):
                                                               "new_string": "b"}, "C:/p", protocol.PERMISSION,
                                                      "s1", resolve=lambda d, r: got2.append(d)))
         self.assertEqual(got2, [])
+
+    def test_over_budget_holds_the_card_and_raise_saves_the_next_cap(self):
+        from types import SimpleNamespace
+        saved = {}
+        self._with_settings(auto_approve=True, enforce_budget=True, session_cost_cap=5.0, daily_cost_cap=0.0)
+        self.overlay.store.update = lambda **kw: saved.update(kw)
+        self.state.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "s1", "cwd": "C:/p",
+                                 "prompt": "x"})
+        self.state.sessions["s1"].cost_usd = 6.2
+        _, got = self.perm("npm test")
+        self.assertEqual(got, [])                      # Auto-Approve does not answer it
+        self.assertIn("raise", self.overlay.buttons)
+        self.assertEqual(self.overlay.buttons["raise"].label, "Raise to $10.00")
+        self.overlay.buttons["raise"].click()
+        self.app.processEvents()
+        self.assertEqual(got, ["allow"])
+        self.assertEqual(saved, {"session_cost_cap": 10.0})
 
 if __name__ == "__main__":
     unittest.main()

@@ -43,7 +43,7 @@ from claudenotch import gitinfo, protocol
 from claudenotch.state import AppState
 
 from . import cardmodel, hello
-from claudenotch import autoapprove
+from claudenotch import autoapprove, budget, usage
 from . import macstyle as ms
 from . import notchgeom as geom
 from . import view, winutil
@@ -94,6 +94,13 @@ class Overlay(QWidget):
         self._hello = hello.Availability()
         self.auto_until: float | None = None
         self.snooze_until: float | None = None
+        # Today's estimated spend from the transcripts, for the daily cap;
+        # refreshed off the GUI thread once a minute.
+        self.today_cost = 0.0
+        self._cost_timer = QTimer(self, interval=60_000)
+        self._cost_timer.timeout.connect(self._refresh_today_cost)
+        self._cost_timer.start()
+        QTimer.singleShot(2000, self._refresh_today_cost)
         self._capture_hidden = None
         state.approver = self._approve
         self._sizer = geom.SizeAnimator()
@@ -413,6 +420,14 @@ class Overlay(QWidget):
         return w
 
     def _decide(self, card, decision: str, scope: str = "") -> None:
+        block = getattr(card, "budget_block", None)
+        if scope == "raise" and block is not None and self.store is not None:
+            key = "daily_cost_cap" if block.scope == "daily" else "session_cost_cap"
+            self.store.update(**{key: budget.next_cap(block.cost, block.cap)})
+            scope = ""
+        elif scope == "turn_off" and self.store is not None:
+            self.store.update(enforce_budget=False)
+            scope = ""
         if scope == "all":
             self.state.resolve_all_permissions(decision)
             return
@@ -436,14 +451,33 @@ class Overlay(QWidget):
     # --- Auto-Approve ----------------------------------------------------------------
 
     def _approve(self, card) -> str:
-        """state.approver: the Mac's AutoApprovePolicy with this PC's settings.
-        Called on a server thread; reads settings only."""
+        """state.approver: the budget check, then the Mac's AutoApprovePolicy
+        with this PC's settings. Called on a server thread; reads only."""
+        session = self.state.sessions.get(card.session_id or card.cwd)
+        block = budget.block_for(self._setting("enforce_budget", False), self.today_cost,
+                                 (session.cost_usd or 0.0) if session else 0.0,
+                                 self._setting("daily_cost_cap", 0.0), self._setting("session_cost_cap", 0.0))
+        card.budget_block = block
+        if block is not None:
+            return autoapprove.SHOW_CARD          # over budget: explicit choices only
         dangerous = self._setting("auto_approve_dangerous", autoapprove.ASK)
         if dangerous == autoapprove.CONFIRM and not self._hello.available:
             dangerous = autoapprove.ASK          # no Hello: nothing to bring up on its own
         return autoapprove.verdict(
             autoapprove.active(self._setting("auto_approve", False), self.auto_until, time.time()),
             self._setting("auto_approve_scope", autoapprove.EVERYTHING), dangerous, card.tool, bool(card.dangers))
+
+    def _refresh_today_cost(self) -> None:
+        if not self._setting("enforce_budget", False) or not self._setting("daily_cost_cap", 0.0):
+            return
+        import threading
+
+        def run():
+            try:
+                self.today_cost = usage.compute().today.cost_usd
+            except OSError:
+                pass
+        threading.Thread(target=run, daemon=True, name="today-cost").start()
 
     def enable_auto_approve_for(self, minutes: int) -> None:
         """"Auto-approve for a while": on now, off again by itself after
