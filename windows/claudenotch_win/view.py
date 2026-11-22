@@ -18,6 +18,8 @@ DIFF_LINES = 12
 DETAIL_LINES = 10
 
 PILL, SESSIONS, TOAST, PERMISSION, QUESTION, HIDDEN = "pill", "sessions", "toast", "perm", "question", "hidden"
+AUTO = "auto"            # the button-less "Auto-allowed" card
+AUTO_INFO_SECONDS = 4.0  # an approval is a receipt; the Mac shows it 4 s
 
 
 def place(position: str, avail: tuple[int, int, int, int], width: int, height: int) -> tuple[int, int]:
@@ -91,7 +93,7 @@ def allow_label(dangerous: bool, confirming: bool) -> str:
     return "Allow  ⏎"
 
 
-def choose(perms, questions, toasts, hovering: bool, hover_sessions: bool) -> str:
+def choose(perms, questions, toasts, hovering: bool, hover_sessions: bool, auto_info=None) -> str:
     """Which card wins, in AppState.recompute's order: a question, then a
     permission, then a notification or done card, and only then the open
     card on hover. A card that is waiting for you is not hidden by
@@ -102,6 +104,8 @@ def choose(perms, questions, toasts, hovering: bool, hover_sessions: bool) -> st
         return PERMISSION
     if toasts:
         return TOAST
+    if auto_info is not None:
+        return AUTO
     if hovering and hover_sessions:
         return SESSIONS
     return PILL
