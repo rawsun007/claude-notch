@@ -49,7 +49,7 @@ class PermissionTests(unittest.TestCase):
         st.resolve_permission(first.id, protocol.ALLOW, always=True, scope="tool")
         self.assertIn(AllowRule("Bash", ""), st.rules)
         got = []
-        self.assertFalse(st.enqueue_permission(card(command="npm publish", answers=got)))
+        self.assertFalse(st.enqueue_permission(card(command="npm run lint", answers=got)))
         self.assertEqual(got, ["allow"])
 
     def test_allow_all_skips_dangerous_cards(self):
