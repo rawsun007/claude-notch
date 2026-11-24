@@ -76,7 +76,8 @@ NOTICES = {
     "completed": {"hook_event_name": "Stop"},
     "failure": {"hook_event_name": "StopFailure", "failure_reason": "rate_limit", "message": "rate_limit"},
 }
-ALL = [*PERMISSIONS, "budget", "queue", "question", "expired", "expired-question", *NOTICES, "limit", "idle", "hover", "working", "sessions"]
+HISTORY_TABS = ("history", "history-projects", "history-activity")
+ALL = [*HISTORY_TABS, *PERMISSIONS, "budget", "queue", "question", "expired", "expired-question", *NOTICES, "limit", "idle", "hover", "working", "sessions"]
 
 
 def load(state: AppState, name: str) -> SimpleNamespace:
@@ -206,7 +207,41 @@ def main(argv: list[str] | None = None) -> int:
     return app.exec()
 
 
+def _history(state: AppState) -> None:
+    """The drawer's demo: a week of sessions in three projects, and the
+    activity log's every outcome."""
+    import time as _time
+    now = _time.time()
+    for sid, folder, prompt, model, cost, ago, turns in (
+            ("a1", "claude-notch", "Port the history drawer from the Mac", "claude-opus-5-5", 4.12, 600, 9),
+            ("a2", "notch-website", "Fix the changelog page on mobile", "claude-sonnet-5-5", 0.86, 7200, 3),
+            ("a3", "claude-notch", "Add the jump list and the hotkeys", "claude-opus-5-5", 6.40, 26 * 3600, 14),
+            ("a4", "api-server", "Rate limit the export endpoint", "claude-sonnet-5-5", 1.95, 3 * 86400, 5)):
+        for i in range(turns):
+            state.archive.note_turn(sid, f"{HOME}\\{folder}", folder, prompt=prompt, model=model,
+                                    branch="windows" if folder == "claude-notch" else "main", cost_usd=cost,
+                                    now=now - ago - (turns - i) * 300)
+    for what, title, detail, project, ago in (
+            ("notice", "Claude is done", "claude-notch", "claude-notch", 30),
+            ("allowed", "Run PowerShell", "npm test", "claude-notch", 90),
+            ("auto-approved", "Edit overlay.py", f"{HOME}\\claude-notch\\overlay.py", "claude-notch", 200),
+            ("allowed, destructive", "Run PowerShell", "Remove-Item -Recurse -Force .\\build", "claude-notch", 400),
+            ("denied", "Run shell command", "git push --force origin main", "api-server", 1800),
+            ("answered", "Question", "Which formats should the export include?", "api-server", 3600),
+            ("sent to terminal", "Fetch a web page", "https://example.com/docs", "notch-website", 7200)):
+        state.history.append({"at": now - ago, "what": what, "title": title, "detail": detail, "project": project})
+    state.history.sort(key=lambda e: e["at"])
+    state.limits.update({"five_hour_pct": 0.42, "five_hour_resets_at": now + 2 * 3600 + 300,
+                         "seven_day_pct": 0.18, "seven_day_resets_at": now + 3 * 86400 + 4 * 3600})
+
+
 def _show(state: AppState, overlay, name: str) -> None:
+    if name in HISTORY_TABS:
+        _history(state)
+        overlay.open_history()
+        if overlay._history_view is not None and name != "history":
+            overlay._history_view.set_tab("projects" if name == "history-projects" else "events")
+        return
     info = load(state, name)
     if info.hover:
         overlay.show_sessions(3600)
