@@ -77,7 +77,24 @@ NOTICES = {
     "failure": {"hook_event_name": "StopFailure", "failure_reason": "rate_limit", "message": "rate_limit"},
 }
 HISTORY_TABS = ("history", "history-projects", "history-activity")
-COMPOSE = ("compose", "deny-reason")
+COMPOSE = ("compose", "deny-reason", "reply")
+DEMO_REPLY = """## Fixed the history drawer
+
+The search lost its text whenever **new activity** arrived, because the drawer was rebuilt on every
+change. It now refreshes in place.
+
+- `overlay.py`: refresh the open drawer instead of rebuilding it
+- `historydrawer.py`: keep the tab, the filter and the search
+- added a test for both
+
+1. Open the notch and press the clock
+2. Type in the search, then run something in Claude
+
+```powershell
+pytest windows/tests -k history
+```
+
+All 31 tests pass."""
 ALL = [*HISTORY_TABS, *COMPOSE, *PERMISSIONS, "budget", "queue", "question", "expired", "expired-question", *NOTICES, "limit", "idle", "hover", "working", "sessions"]
 
 
@@ -237,6 +254,14 @@ def _history(state: AppState) -> None:
 
 
 def _show(state: AppState, overlay, name: str) -> None:
+    if name == "reply":
+        state.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "demo",
+                            "cwd": HOME + "\\claude-notch", "prompt": "fix the drawer"})
+        state.handle_event({"hook_event_name": "Stop", "session_id": "demo", "cwd": HOME + "\\claude-notch",
+                            "last_assistant_message": DEMO_REPLY})
+        state.toasts = []
+        overlay.show_reply()
+        return
     if name == "compose":
         _history(state)                       # recent projects for the target menu
         overlay.begin_compose()
