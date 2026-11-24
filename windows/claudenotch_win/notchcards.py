@@ -282,6 +282,8 @@ class IdleCardView(QWidget):
     or a click on the name, opens the history drawer (`history`)."""
 
     history = Signal()
+    #: The expand button: Claude's last reply in full.
+    expand = Signal()
 
     def __init__(self, sessions, branch: str = "", rows=None, parent=None):
         super().__init__(parent)
@@ -310,6 +312,15 @@ class IdleCardView(QWidget):
         clock.mouseReleaseEvent = lambda e: self.history.emit() if e.button() == Qt.LeftButton else None
         r1.addWidget(clock)
         self.history_button = clock
+        self.expand_button = None
+        if sessions and getattr(sessions[0], "last_reply", ""):
+            grow = nw.Glyph("expand", 11, opacity=0.45)
+            grow.setCursor(Qt.PointingHandCursor)
+            grow.setToolTip("Show Claude's last reply")
+            grow.setAccessibleName("Show Claude's last reply")
+            grow.mouseReleaseEvent = lambda e: self.expand.emit() if e.button() == Qt.LeftButton else None
+            r1.addWidget(grow)
+            self.expand_button = grow
         v.addLayout(r1)
 
         # Row 2: the TOP session's model, effort, branch and meter, all from
@@ -413,12 +424,32 @@ def _icon_text(icon: str, text: str, size: float = 9, icon_size: float = 7, opac
     return row
 
 
+class _ClickRow(QWidget):
+    """A session row you can click (showSessionResponse)."""
+
+    clicked = Signal(str)
+
+    def __init__(self, sid: str, parent=None):
+        super().__init__(parent)
+        self.sid = sid
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setToolTip("Show this session's last reply")
+
+    def mouseReleaseEvent(self, e) -> None:
+        if e.button() == Qt.LeftButton:
+            self.clicked.emit(self.sid)
+
+
 class SessionsListView(QWidget):
     """SessionsList: a hairline, then one row per other session, 3 pt of
     padding above and below each: the status dot (6 pt, blue and pulsing
     while working, else green), a CLI chip, the folder at 11 pt medium, its
     branch and worktree, the hourglass, agents, and the status word at
     10 pt, with the session's context meter 14 in on a second line."""
+
+    #: A row was clicked: that session's id.
+    selected = Signal(str)
 
     def __init__(self, rows, parent=None):
         super().__init__(parent)
@@ -458,7 +489,10 @@ class SessionsListView(QWidget):
                                                     r.meter.cost))
                 meter.addStretch(1)
                 box.addLayout(meter)
-            v.addLayout(box)
+            holder = _ClickRow(r.id)
+            holder.setLayout(box)
+            holder.clicked.connect(self.selected.emit)
+            v.addWidget(holder)
 
     def natural_width(self) -> float:
         """NotchView.idleContentWidth's estimate for these rows."""

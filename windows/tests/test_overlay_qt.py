@@ -466,5 +466,40 @@ class OverlayTests(unittest.TestCase):
         self.app.processEvents()
         self.assertIsNone(self.overlay.compose)
 
+    def test_the_full_reply(self):
+        from claudenotch_win import view
+        from PySide6.QtCore import QEvent, Qt
+        from PySide6.QtGui import QKeyEvent
+        reply = "# Done\n\nI fixed **two** bugs.\n\n- one\n- two\n\n```python\nprint('ok')\n```"
+        self.state.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "s1", "cwd": os.getcwd(),
+                                 "prompt": "go"})
+        self.state.handle_event({"hook_event_name": "Stop", "session_id": "s1", "cwd": os.getcwd(),
+                                 "last_assistant_message": reply})
+        self.state.toasts = []
+        self.overlay.show_sessions(30)
+        self.app.processEvents()
+        from claudenotch_win.notchcards import IdleCardView
+        idle = self.overlay.findChildren(IdleCardView)[0]
+        self.assertIsNotNone(idle.expand_button)
+        idle.expand.emit()
+        self.app.processEvents()
+        self.assertEqual(self.overlay._view, view.DETAIL)
+        d = self.overlay._detail_view
+        self.assertEqual([b.kind for b in d.blocks][:3], ["heading", "blank", "paragraph"])
+        d.buttons["copy"].click()
+        self.assertEqual(self.app.clipboard().text(), reply)                 # as Claude wrote it
+        d.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_Escape, Qt.NoModifier))
+        self.app.processEvents()
+        self.assertNotEqual(self.overlay._view, view.DETAIL)
+
+    def test_no_reply_no_expand(self):
+        from claudenotch_win.notchcards import IdleCardView
+        self.overlay.show_reply()                                         # nothing yet: no card
+        self.assertIsNone(self.overlay.detail)
+        self.state.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "s2", "cwd": os.getcwd(),
+                                 "prompt": "go"})
+        _, _, _, sessions = self.state.snapshot()
+        self.assertIsNone(IdleCardView(sessions).expand_button)
+
 if __name__ == "__main__":
     unittest.main()
