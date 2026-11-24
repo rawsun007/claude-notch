@@ -173,3 +173,13 @@ def test_question_size_budgets_rows_and_caps():
     assert g.question_size([(["", ""], False)])[1] == g.INSET + 104 + 32 + 76
     tall = g.question_size([(["d"] * 4, True)] * 5, screen_h=800)
     assert tall[1] == g.INSET + 800 * 0.85 - g.INSET
+
+
+def test_the_notch_follows_the_pointer_to_another_screens_top():
+    laptop, external = (0, 0, 1920, 1080), (1920, -200, 2560, 1440)
+    screens = [laptop, external]
+    top_of_external = (1920 + 1280, -200 + 10)
+    assert g.screen_to_follow(screens, 0, *top_of_external, busy=False) == 1
+    assert g.screen_to_follow(screens, 0, 1920 + 1280, 400, busy=False) == 0     # mid-screen: stays
+    assert g.screen_to_follow(screens, 0, *top_of_external, busy=True) == 0      # a card is up: stays
+    assert g.screen_to_follow(screens, 1, 960, 10, busy=False) == 0

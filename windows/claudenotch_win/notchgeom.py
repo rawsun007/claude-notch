@@ -173,6 +173,19 @@ def trigger_zone(screen: tuple[int, int, int, int]) -> tuple[float, float, float
     return (sx + sw / 2 - width / 2, float(sy), width, height)
 
 
+def screen_to_follow(screens: list, current: int, px: float, py: float, busy: bool) -> int:
+    """NotchWindowController.currentScreen, gated as the Mac gates it: the
+    notch moves to another screen only when the pointer reaches that
+    screen's trigger zone (its top centre), and never while a card is on
+    screen. `screens` are (x, y, w, h); returns the index to use."""
+    if busy:
+        return current
+    for i, rect in enumerate(screens):
+        if i != current and contains(trigger_zone(rect), px, py):
+            return i
+    return current
+
+
 def keep_region(screen: tuple[int, int, int, int], target_w: float, target_h: float):
     """Where the cursor may wander without the open card closing: the target
     card padded by 140 x 90, at least 460 x 160, hung from the top."""
