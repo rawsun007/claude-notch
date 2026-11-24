@@ -562,8 +562,53 @@ class SettingsWindow(QWidget):
                                              "Finished-turn cards and notifications are logged quietly instead of "
                                              "shown. Permission cards and questions still show.", box))
         v.addWidget(snooze)
+        # This session's work (SettingsPage+Session): lines changed and the
+        # files touched, for the most recent session. Refilled on changes.
+        self.work_box = QWidget()
+        self.work_lay = QVBoxLayout(self.work_box)
+        self.work_lay.setContentsMargins(0, 0, 0, 0)
+        self.work_lay.setSpacing(8)
+        v.addWidget(self.work_box)
+        self._refresh_work()
         v.addStretch(1)
         return page
+
+    def _refresh_work(self) -> None:
+        import os
+        from . import cardmodel
+        lay = self.work_lay
+        while lay.count():
+            w = lay.takeAt(0).widget()
+            if w is not None:
+                w.deleteLater()
+        _, _, _, sessions = self.state.snapshot()
+        top = sessions[0] if sessions else None
+        if top is None:
+            return
+        added, removed = top.lines_added or 0, top.lines_removed or 0
+        if added or removed:
+            lay.addWidget(kit.section_label(self.t, "Lines changed this session"))
+            card = kit.Card(self.t)
+            counts = QWidget()
+            h = QHBoxLayout(counts)
+            h.setContentsMargins(0, 0, 0, 0)
+            h.setSpacing(12)
+            h.addWidget(kit.label(f"+{added}", 13, color=kit.QColor(48, 209, 88)))
+            h.addWidget(kit.label(f"-{removed}", 13, color=kit.QColor(255, 69, 58)))
+            card.add(kit.Row(self.t, top.project, cardmodel.net_lines(added, removed), counts))
+            lay.addWidget(card)
+        files = sorted(getattr(top, "edited_files", ()) or ())[:10]
+        if files:
+            lay.addWidget(kit.section_label(self.t, "Files touched this session"))
+            card = kit.Card(self.t)
+            for path in files:
+                show = kit.PushButton(self.t, "Show")
+                show.setToolTip("Show it in File Explorer")
+                show.setEnabled(os.path.isfile(path))
+                show.clicked.connect(lambda _=False, p=path: _reveal(p))
+                card.add(kit.Row(self.t, os.path.basename(path) or path, os.path.dirname(path), show))
+            lay.addWidget(card)
+
 
     def _timed(self, minutes: int) -> None:
         if self.overlay is not None:
@@ -1136,6 +1181,8 @@ class SettingsWindow(QWidget):
     def _refresh_rules_if_open(self) -> None:
         if self.isVisible():
             self._refresh_rules()
+            if hasattr(self, "work_lay"):
+                self._refresh_work()
 
     def _refresh_rules(self) -> None:
         lay = self.rules_card.lay
@@ -1400,6 +1447,15 @@ class AutoApproveSheet(QDialog):
         self.danger_note.setText(autoapprove.DANGEROUS_LABELS[d][1])
         red = kit.QColor(255, 69, 58) if d == autoapprove.ALLOW_TOO else self._t.secondary
         self.danger_note.setStyleSheet(f"color: {kit.css(red)}; background: transparent;")
+
+
+def _reveal(path: str) -> None:
+    """Select a file in File Explorer. It is never opened or run: the path
+    came from a hook payload (AppState.openEditedFile reveals risky ones)."""
+    import os
+    import subprocess
+    if os.path.isfile(path):
+        subprocess.Popen(["explorer.exe", "/select,", os.path.normpath(path)])
 
 
 def _open(path: str) -> None:

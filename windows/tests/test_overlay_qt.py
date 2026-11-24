@@ -544,5 +544,35 @@ class OverlayTests(unittest.TestCase):
         self.assertEqual(self.overlay._view, view.QUESTION)          # back
         self.assertIsNone(self.overlay._stub_rect())
 
+    def test_session_page_lines_and_files_and_the_advice_card(self):
+        from claudenotch import statusline
+        from claudenotch.settings import Store
+        from claudenotch_win import settings_window
+        from claudenotch_win.notchcards import NoticeCardView
+        from claudenotch_win import notchwidgets as nw
+        self.state.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "a", "cwd": os.getcwd(),
+                                 "prompt": "go"})
+        self.state.note_status(statusline.parse(statusline.flatten({
+            "session_id": "a", "model": {"id": "claude-opus-5-5"},
+            "cost": {"total_cost_usd": 1.0, "total_lines_added": 120, "total_lines_removed": 34}})))
+        self.state.handle_event({"hook_event_name": "PostToolUse", "session_id": "a", "cwd": os.getcwd(),
+                                 "tool_name": "Edit", "tool_input": {"file_path": os.path.abspath(__file__)}})
+        w = settings_window.SettingsWindow(self.state, Store(persist=False), None, self.overlay)
+        try:
+            texts = [l.text() for l in w.work_box.findChildren(settings_window.kit.QLabel)]
+            self.assertIn("+120", texts)
+            self.assertIn("net +86", texts)
+            self.assertIn(os.path.basename(__file__), texts)
+        finally:
+            w.close()
+            w.deleteLater()
+        # A second session in the same folder: the advice, as a ClaudeNotch card that wraps.
+        self.state.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "b", "cwd": os.getcwd(),
+                                 "prompt": "go"})
+        advice = [t for t in self.state.toasts if t.kind == "advice"]
+        self.assertEqual(len(advice), 1)
+        view = NoticeCardView(advice[0], 444)
+        self.assertTrue(view.findChildren(nw.LinesText))
+
 if __name__ == "__main__":
     unittest.main()

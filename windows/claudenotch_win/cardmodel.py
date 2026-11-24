@@ -246,6 +246,11 @@ PERMISSION_MODES = {
 STALE_AFTER = 5 * 60
 
 
+def net_lines(added: int, removed: int) -> str:
+    net = added - removed
+    return f"net {'+' if net >= 0 else ''}{net}"
+
+
 def permission_mode_badge(mode: str):
     return PERMISSION_MODES.get(mode or "")
 
