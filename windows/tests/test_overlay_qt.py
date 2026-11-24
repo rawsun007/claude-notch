@@ -350,5 +350,20 @@ class OverlayTests(unittest.TestCase):
         texts = [t._text for t in self.overlay.findChildren(nw.Text)]
         self.assertIn("allowed 3 times", texts)
 
+    def test_dropping_a_folder_starts_claude_there_once(self):
+        import tempfile
+        from unittest import mock
+        from PySide6.QtCore import QMimeData, QPointF, Qt, QUrl
+        from PySide6.QtGui import QDropEvent
+        from claudenotch_win import terminal
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(terminal, "launch") as launch:
+            mime = QMimeData()
+            mime.setUrls([QUrl.fromLocalFile(d)])
+            for _ in range(2):                               # delivered twice: one terminal
+                ev = QDropEvent(QPointF(10, 10), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier)
+                self.overlay.dropEvent(ev)
+            launch.assert_called_once()
+            self.assertEqual(launch.call_args.args[0], os.path.abspath(d))
+
 if __name__ == "__main__":
     unittest.main()

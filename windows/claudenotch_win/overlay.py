@@ -119,6 +119,7 @@ class Overlay(QWidget):
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
                             | Qt.NoDropShadowWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAcceptDrops(True)        # NotchDrop
         self.setAttribute(Qt.WA_ShowWithoutActivating)
         self.setAutoFillBackground(False)
 
@@ -471,6 +472,28 @@ class Overlay(QWidget):
         if self._pet_on():
             self.pet.boop(time.monotonic())
             self._retarget()
+
+    # --- NotchDrop: drop a folder (or a file) to start Claude there ----------------------
+
+    def dragEnterEvent(self, event) -> None:
+        urls = event.mimeData().urls() if event.mimeData().hasUrls() else []
+        if urls and urls[0].isLocalFile():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event) -> None:
+        from . import terminal
+        urls = event.mimeData().urls() if event.mimeData().hasUrls() else []
+        launch = terminal.drop_launch(urls[0].toLocalFile()) if urls and urls[0].isLocalFile() else None
+        now = time.monotonic()
+        # One drop can arrive twice; never open two terminals for it.
+        if launch is None or now - getattr(self, "_last_drop", 0.0) < 1.0:
+            event.ignore()
+            return
+        self._last_drop = now
+        event.acceptProposedAction()
+        terminal.launch(launch[0], message=launch[1])
 
     def mousePressEvent(self, event) -> None:
         # Clicking the bare notch wakes the pet, as on the Mac.
