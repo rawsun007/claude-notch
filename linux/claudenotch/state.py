@@ -117,6 +117,10 @@ class Session:
     context_window: int | None = None
     context_tokens: int | None = None
     cost_usd: float | None = None       # Claude Code's own figure
+    # The tool running now (the Mac's lastActivity): "Bash: npm test", and
+    # when it started, for the open notch's command strip and its timer.
+    activity: str = ""
+    activity_started: float | None = None
 
     @property
     def project(self) -> str:
@@ -147,6 +151,25 @@ class AllowRule:
 
     def label(self) -> str:
         return f"{self.tool}: {redact(self.exact)}" if self.exact else self.tool
+
+
+def activity_label(tool: str, detail: str) -> str:
+    """EventServer's label: "Tool: detail", the detail already redacted and
+    on one line, 80 characters at most."""
+    detail = " ".join((detail or "").split())
+    return (f"{tool}: {detail}" if detail else tool)[:80]
+
+
+def running_duration(seconds: float) -> str:
+    """AppState.runningDuration: 42s, 3m 07s, 2h 05m, 1d 03h."""
+    s = max(0, int(seconds))
+    if s < 60:
+        return f"{s}s"
+    if s < 3600:
+        return f"{s // 60}m {s % 60:02d}s"
+    if s < 86_400:
+        return f"{s // 3600}h {(s % 3600) // 60:02d}m"
+    return f"{s // 86_400}d {(s % 86_400) // 3600:02d}h"
 
 
 def is_windows() -> bool:
@@ -232,6 +255,12 @@ class AppState:
         if card.dangers:
             self.stats.record("dangerous")
         with self._lock:
+            if card.kind == protocol.PERMISSION:
+                # Every PreToolUse passes here, answered by a card or not.
+                s = self._touch(card.session_id, card.cwd)
+                if s is not None:
+                    s.activity = activity_label(card.tool, card.detail)
+                    s.activity_started = time.time()
             if not card.dangers and any(r.matches(card) for r in self.rules):
                 self._log("auto-allowed", card.title, card.detail, card.project)
                 decided = protocol.ALLOW
@@ -419,6 +448,7 @@ class AppState:
                 s = self._touch(sid, cwd, "ready")
                 if s:
                     s.agents = 0
+                    s.activity, s.activity_started = "", None
                     self.archive.note_turn(sid, s.cwd, s.project, prompt=s.last_prompt, model=s.model,
                                            branch=gitinfo.branch(s.cwd), cost_usd=s.cost_usd)
                 toast = Toast("Claude is done", s.project if s else "", kind="done", cwd=cwd)
