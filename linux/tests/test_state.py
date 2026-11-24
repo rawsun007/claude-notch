@@ -68,6 +68,21 @@ class PermissionTests(unittest.TestCase):
         self.assertEqual(st.approval_count(card()), 0)
         self.assertFalse(st.suggests_rule(card()))
 
+    def test_the_running_tool_and_its_clock(self):
+        from claudenotch.state import activity_label, running_duration
+        st = AppState(persist=False)
+        st.rules = [AllowRule("Bash", "")]
+        st.enqueue_permission(card(command="npm   test\n--watch"))       # answered by the rule, still noted
+        s = st.sessions["s1"]
+        self.assertEqual(s.activity, "Bash: npm test --watch")
+        self.assertIsNotNone(s.activity_started)
+        st.handle_event({"hook_event_name": "Stop", "session_id": "s1", "cwd": "/home/a/proj"})
+        self.assertEqual((s.activity, s.activity_started), ("", None))
+        self.assertEqual(activity_label("Read", ""), "Read")
+        self.assertEqual(len(activity_label("Bash", "x" * 200)), 80)
+        self.assertEqual([running_duration(x) for x in (0.4, 42, 187, 7500, 97_200)],
+                         ["0s", "42s", "3m 07s", "2h 05m", "1d 03h"])
+
     def test_always_allow_answers_the_next_identical_call(self):
         st = AppState(persist=False)
         first = card()
