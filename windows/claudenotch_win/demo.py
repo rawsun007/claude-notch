@@ -78,7 +78,7 @@ NOTICES = {
 }
 HISTORY_TABS = ("history", "history-projects", "history-activity")
 COMPOSE = ("compose", "deny-reason", "reply")
-MINIMIZED = ("question-minimized",)
+MINIMIZED = ("question-minimized", "worktree-advice")
 DEMO_REPLY = """## Fixed the history drawer
 
 The search lost its text whenever **new activity** arrived, because the drawer was rebuilt on every
@@ -257,6 +257,12 @@ def _history(state: AppState) -> None:
 
 
 def _show(state: AppState, overlay, name: str) -> None:
+    if name == "worktree-advice":
+        for sid in ("w1", "w2"):
+            state.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": sid,
+                                "cwd": HOME + "\\claude-notch", "prompt": "go"})
+        state.toasts = [t for t in state.toasts if t.kind == "advice"]
+        return
     if name == "question-minimized":
         # Two questions put away: the stub on the notch's left, with its count.
         for _ in range(2):
