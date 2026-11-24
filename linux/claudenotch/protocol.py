@@ -131,8 +131,11 @@ def preview(tool: str, tool_input: dict) -> Preview:
     path = str(ti.get("file_path") or ti.get("notebook_path") or "")
     # Either slash: Claude Code on Windows sends C:\\proj\\main.py.
     name = re.split(r"[\\/]", path)[-1] if path else ""
-    if tool == "Bash":
-        return Preview("Bash", str(ti.get("command") or ""), extra=[str(ti.get("description") or "")] if ti.get("description") else [])
+    if tool in ("Bash", "PowerShell"):
+        # Claude Code on Windows runs commands through a PowerShell tool with
+        # the same input; without this its cards, rules and history showed
+        # "command: npm test" instead of the command.
+        return Preview(tool, str(ti.get("command") or ""), extra=[str(ti.get("description") or "")] if ti.get("description") else [])
     if tool in ("Edit", "MultiEdit"):
         if tool == "MultiEdit" and isinstance(ti.get("edits"), list) and ti["edits"]:
             first = ti["edits"][0] if isinstance(ti["edits"][0], dict) else {}

@@ -83,6 +83,16 @@ class PermissionTests(unittest.TestCase):
         self.assertEqual([running_duration(x) for x in (0.4, 42, 187, 7500, 97_200)],
                          ["0s", "42s", "3m 07s", "2h 05m", "1d 03h"])
 
+    def test_powershell_cards_show_the_command_and_old_rules_still_match(self):
+        from claudenotch.state import migrate_exact
+        c = card(tool="PowerShell", command="npm test, then lint")
+        self.assertEqual((c.title, c.detail, c.match_text), ("PowerShell", "npm test, then lint", "npm test, then lint"))
+        self.assertEqual(migrate_exact("PowerShell", "command: npm test, then lint"), "npm test, then lint")
+        kept = "command: npm test, description: run tests"
+        self.assertEqual(migrate_exact("PowerShell", kept), kept)
+        self.assertEqual(migrate_exact("Bash", "command: x"), "command: x")
+        self.assertTrue(AllowRule("PowerShell", migrate_exact("PowerShell", "command: npm test, then lint")).matches(c))
+
     def test_always_allow_answers_the_next_identical_call(self):
         st = AppState(persist=False)
         first = card()

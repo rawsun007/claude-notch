@@ -153,6 +153,18 @@ class AllowRule:
         return f"{self.tool}: {redact(self.exact)}" if self.exact else self.tool
 
 
+def migrate_exact(tool: str, exact: str) -> str:
+    """A PowerShell rule saved before its cards knew the tool was keyed on
+    "command: <cmd>"; keyed on the command now, so it keeps matching. Only a
+    rule that held nothing but the command is changed."""
+    if tool != "PowerShell" or not exact.startswith("command: "):
+        return exact
+    rest = exact[len("command: "):]
+    if any(f", {k}: " in rest for k in ("description", "timeout", "run_in_background", "dangerouslyDisableSandbox")):
+        return exact
+    return rest
+
+
 def activity_label(tool: str, detail: str) -> str:
     """EventServer's label: "Tool: detail", the detail already redacted and
     on one line, 80 characters at most."""
@@ -619,7 +631,7 @@ class AppState:
         try:
             with open(self._rules_path(), encoding="utf-8") as f:
                 raw = json.load(f)
-            self.rules = [AllowRule(str(r["tool"]), str(r.get("exact") or ""))
+            self.rules = [AllowRule(str(r["tool"]), migrate_exact(str(r["tool"]), str(r.get("exact") or "")))
                           for r in raw if isinstance(r, dict) and r.get("tool")][:MAX_RULES]
         except (OSError, ValueError, TypeError):
             self.rules = []
