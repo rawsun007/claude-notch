@@ -45,6 +45,8 @@ def parse(url: str) -> tuple[str, str] | None:
         return ("open", "")
     if verb == "history":
         return ("settings", "history")
+    if verb == "standup":
+        return ("standup", "")
     if verb == "settings":
         page = segments[0].lower() if segments else ""
         return ("settings", page if page in PAGES else "")
