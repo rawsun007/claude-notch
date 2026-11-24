@@ -319,6 +319,12 @@ class IdleCardView(QWidget):
         if top is not None and top.status == "working" and getattr(top, "activity", ""):
             self.strip = nw.CommandStrip(top.activity, getattr(top, "activity_started", None))
             v.addWidget(self.strip)
+        # The task list, when there is a real one (a lone 1/1 says nothing).
+        self.tasks = None
+        done, total = getattr(top, "task_progress", (0, 0)) if top is not None else (0, 0)
+        if total > 1:
+            self.tasks = nw.TaskProgress(done, total)
+            v.addWidget(self.tasks)
         self.meter = m
         self.content_width = self._natural_width(name, status, agents, m)
         self.list_view = None

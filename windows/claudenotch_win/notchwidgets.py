@@ -181,6 +181,7 @@ _FLUENT = {
     "magnifyingglass": "",
     "globe": "",
     "checklist": "",
+    "checkmark.circle.fill": "",   # CompletedSolid
     "person.fill": "",
     "book": "",
     "wand.and.stars": "",
@@ -976,6 +977,44 @@ def parse_activity(activity: str) -> tuple[str, str]:
     tool, _, arg = activity.partition(":")
     tool, arg = tool.strip(), arg.strip()
     return _ACTIVITY_ICONS.get(tool.lower(), "bolt.fill"), arg or tool
+
+
+class TaskProgress(QWidget):
+    """The task-list bar: a checklist glyph, a 4 pt capsule (blue, green
+    when every task is done) and "done/total" at 9 pt."""
+
+    BLUE = (74, 143, 255)
+
+    def __init__(self, done: int, total: int, parent=None):
+        super().__init__(parent)
+        self.done, self.total = min(done, total), total
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setFixedHeight(12)
+        self.setMinimumWidth(1)
+
+    def paintEvent(self, _e) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing, True)
+        full = self.done >= self.total
+        cy = self.height() / 2
+        draw_glyph(p, "checkmark.circle.fill" if full else "checklist", QRectF(0, cy - 5, 10, 10), 9,
+                   ms.rgba(ms.GREEN, 0.8) if full else ms.rgba(WHITE, 0.5))
+        label = f"{self.done}/{self.total}"
+        f = ms.font(9, "medium")
+        lw = QFontMetricsF(f).horizontalAdvance(label)
+        x0, x1 = 16, self.width() - lw - 6
+        bar = QRectF(x0, cy - 2, max(0.0, x1 - x0), 4)
+        track = QPainterPath()
+        track.addRoundedRect(bar, 2, 2)
+        p.fillPath(track, ms.rgba(WHITE, 0.12))
+        fill = QPainterPath()
+        fill.addRoundedRect(QRectF(bar.left(), bar.top(), max(3.0, bar.width() * self.done / max(1, self.total)), 4),
+                            2, 2)
+        p.fillPath(fill, ms.rgba(ms.GREEN if full else self.BLUE, 1.0))
+        p.setFont(f)
+        p.setPen(ms.rgba(WHITE, 0.55))
+        p.drawText(QRectF(x1 + 6, 0, lw + 1, self.height()), Qt.AlignVCenter, label)
+        p.end()
 
 
 class CommandStrip(QWidget):
