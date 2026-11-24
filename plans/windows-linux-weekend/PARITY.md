@@ -55,7 +55,7 @@ Order within each section is roughly by how often a user meets it.
 | Thinking pill | ThinkingPill | n/a | On the Mac only the Demos menu and a Settings button ever show it (pingThinking); no hook raises it, so there is nothing user-facing to port. The running command strip covers "what is it doing". |
 | Compose / reply card | NotchComposeCards | todo | |
 | Response detail (full reply, markdown) | ResponseDetailCard, NotchMarkdown | todo | |
-| History drawer (search, filters) | NotchHistoryCard | todo | |
+| History drawer (search, filters) | NotchHistoryCard | done | Sessions (Resume under the pointer), Projects (7-day spend sparkline, money from the transcripts), Activity (the Mac's outcome colours and labels); search, All / Allowed / Denied / Risky / Q&A, Export, Clear, plan limits, Close. Opens from the clock on the open notch, Ctrl+Alt+H (the Mac's Option-Command-Space; the Claude desktop app holds Ctrl+Alt+Space), the tray, the jump list and claudenotch://history; takes the keyboard for its search. |
 
 ## The open (hover) card
 
