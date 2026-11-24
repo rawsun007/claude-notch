@@ -114,6 +114,16 @@ class PermissionTests(unittest.TestCase):
         st.resolve_permission(c.id, protocol.ALLOW)
         self.assertEqual(st.history[-1]["what"], "allowed, destructive")
 
+    def test_the_last_reply_is_kept_from_the_stop_payload(self):
+        st = AppState(persist=False)
+        st.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "s1", "cwd": "/p", "prompt": "go"})
+        st.handle_event({"hook_event_name": "Stop", "session_id": "s1", "cwd": "/p",
+                         "last_assistant_message": "## Done\n\n- fixed it"})
+        self.assertEqual(st.sessions["s1"].last_reply, "## Done\n\n- fixed it")
+        st.handle_event({"hook_event_name": "Stop", "session_id": "s1", "cwd": "/p",
+                         "transcript_path": "/etc/passwd"})                    # refused, the old reply stays
+        self.assertEqual(st.sessions["s1"].last_reply, "## Done\n\n- fixed it")
+
     def test_always_allow_answers_the_next_identical_call(self):
         st = AppState(persist=False)
         first = card()
