@@ -236,6 +236,9 @@ class Overlay(QWidget):
         cw, ch = self._sizer.size
         tw, th = self._sizer.target
         w = max(cw, tw) * 1.06 + 8
+        if self.top and getattr(self, "_minimized", 0):
+            # Room for the stub on the left; the window stays centred.
+            w = max(w, geom.COLLAPSED_W + 2 * (geom.stub_width(self._minimized) - geom.STUB_OVERLAP) + 8)
         h = max(ch, th) * 1.06 + 8
         return int(w + 0.99), int(h + 0.99)
 
@@ -304,6 +307,9 @@ class Overlay(QWidget):
         w, h = self._sizer.size
         r = self._card_rect(w, h)
         collapsed = self.collapsed and not self._sizer.running
+        stub = self._stub_rect()
+        if stub is not None:
+            self._paint_stub(p, stub)
         path = QPainterPath()
         if self.top:
             for cmd in geom.notch_path(r.x(), r.y(), r.width(), r.height(),
@@ -332,6 +338,13 @@ class Overlay(QWidget):
     def render(self) -> None:
         self.state.limit_warnings = self._setting("limit_warnings", True)
         perms, questions, toasts, sessions = self.state.snapshot()
+        # The visible question (visibleQuestion): never one that was put away.
+        minimized = sum(1 for q in questions if q.minimized)
+        if minimized != getattr(self, "_minimized", 0):
+            self._minimized = minimized
+            self._place()                 # room for the stub, or none
+            self.update()
+        questions = [q for q in questions if not q.minimized]
         if not self._setting("toasts", True) or self.snoozed:
             # Snoozed (or switched off): passive cards are logged, not shown.
             for t in toasts:
@@ -537,7 +550,48 @@ class Overlay(QWidget):
         event.acceptProposedAction()
         terminal.launch(launch[0], message=launch[1])
 
+    def _stub_rect(self):
+        """The minimized-question stub, in window coordinates, or None."""
+        if not self.top or not getattr(self, "_minimized", 0):
+            return None
+        w, h = self._sizer.size
+        r = self._card_rect(w, h)
+        return QRectF(*geom.stub_rect(r.center().x(), r.top(), self._minimized))
+
+    def _paint_stub(self, p: QPainter, rect: QRectF) -> None:
+        """MinimizedQuestionTab: the notch a little longer on its left, square
+        along the top and right, curved only at the bottom left like the
+        notch itself; a purple question bubble and, for several, how many."""
+        path = QPainterPath()
+        rad = 10.0
+        path.moveTo(rect.left(), rect.top())
+        path.lineTo(rect.right(), rect.top())
+        path.lineTo(rect.right(), rect.bottom())
+        path.lineTo(rect.left() + rad, rect.bottom())
+        path.quadTo(rect.left(), rect.bottom(), rect.left(), rect.bottom() - rad)
+        path.closeSubpath()
+        p.fillPath(path, QColor(0, 0, 0))
+        visible = QRectF(rect.left(), rect.top(), rect.width() - geom.STUB_OVERLAP, rect.height())
+        count = self._minimized
+        glyph_w = 13.0
+        text = str(count) if count > 1 else ""
+        f = ms.font(11, "bold")
+        from PySide6.QtGui import QFontMetricsF
+        tw = QFontMetricsF(f).horizontalAdvance(text) + 3 if text else 0
+        x = visible.center().x() - (glyph_w + tw) / 2
+        nw.draw_glyph(p, "questionmark.bubble.fill", QRectF(x, visible.center().y() - 6.5, 13, 13), 11,
+                      ms.rgba(ms.PURPLE))
+        if text:
+            p.setFont(f)
+            p.setPen(ms.rgba(ms.PURPLE))
+            p.drawText(QRectF(x + glyph_w + 3, visible.top(), tw, visible.height()), Qt.AlignVCenter, text)
+
     def mousePressEvent(self, event) -> None:
+        stub = self._stub_rect()
+        if stub is not None and event.button() == Qt.LeftButton and stub.contains(event.position()):
+            # Bring the question back: one gesture for all of them.
+            self.state.restore_minimized_questions()
+            return
         # Clicking the bare notch wakes the pet, as on the Mac.
         if self.collapsed and event.button() == Qt.LeftButton:
             self.boop_pet()
@@ -982,6 +1036,7 @@ class Overlay(QWidget):
         inner_h = self._formula_h - top - geom.CONTENT_BOTTOM_PAD
         w = QuestionCardView(card, self._card_w - 2 * geom.CONTENT_H_PAD, inner_h)
         w.answered.connect(lambda answers: self.state.resolve_question(card.id, answers))
+        w.minimize.connect(lambda: self.state.minimize_question(card.id))
         self._question_view = w
         self.buttons = w.buttons
         return w
@@ -1019,6 +1074,7 @@ class Overlay(QWidget):
         if self.detail is not None and self._detail_view is not None:
             return self._detail_view.keyPressEvent(event)
         perms, questions, _, _ = self.state.snapshot()
+        questions = [q for q in questions if not q.minimized]
         key = event.key()
         enter = key in (Qt.Key_Return, Qt.Key_Enter)
         if perms:

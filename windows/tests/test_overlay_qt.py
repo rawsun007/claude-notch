@@ -516,5 +516,33 @@ class OverlayTests(unittest.TestCase):
         self.assertIsNone(plain.mode_badge)
         self.assertGreater(card.content_width, plain.content_width)
 
+    def test_minimize_a_question_to_the_stub_and_back(self):
+        from PySide6.QtCore import QEvent, QPointF, Qt
+        from PySide6.QtGui import QMouseEvent
+        from claudenotch_win import view
+        card = QuestionCard(protocol.parse_questions({"tool_input": {"questions": [
+            {"question": "Which one?", "header": "Pick", "options": [{"label": "A"}, {"label": "B"}]}]}}),
+            os.getcwd(), "s1")
+        self.state.enqueue_question(card)
+        self.app.processEvents()
+        self.assertEqual(self.overlay._view, view.QUESTION)
+        self.overlay.buttons["minimize"].mouseReleaseEvent(
+            QMouseEvent(QEvent.MouseButtonRelease, QPointF(2, 2), QPointF(2, 2), Qt.LeftButton, Qt.NoButton,
+                        Qt.NoModifier))
+        self.app.processEvents()
+        self.assertNotEqual(self.overlay._view, view.QUESTION)       # put away, not answered
+        self.assertEqual(self.state.questions, [card])
+        stub = self.overlay._stub_rect()
+        self.assertIsNotNone(stub)
+        r = self.overlay._card_rect(*self.overlay._sizer.size)
+        self.assertLess(stub.left(), r.left())                       # to the notch's left
+        self.assertLessEqual(stub.width() + r.width(), self.overlay._window_size()[0])
+        click = QMouseEvent(QEvent.MouseButtonPress, stub.center(), stub.center(), Qt.LeftButton, Qt.LeftButton,
+                            Qt.NoModifier)
+        self.overlay.mousePressEvent(click)
+        self.app.processEvents()
+        self.assertEqual(self.overlay._view, view.QUESTION)          # back
+        self.assertIsNone(self.overlay._stub_rect())
+
 if __name__ == "__main__":
     unittest.main()
