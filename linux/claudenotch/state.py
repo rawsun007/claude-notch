@@ -121,6 +121,19 @@ class Session:
     # when it started, for the open notch's command strip and its timer.
     activity: str = ""
     activity_started: float | None = None
+    # The task list (AppState+TaskMeter): TodoWrite's whole checklist, or
+    # the ids TaskUpdate reports, for the open notch's progress bar.
+    todo_total: int = 0
+    todo_done: int = 0
+    task_ids: set = field(default_factory=set)
+    task_done_ids: set = field(default_factory=set)
+
+    @property
+    def task_progress(self) -> tuple[int, int]:
+        """(done, total), the Mac's taskDone / taskTotal."""
+        if self.todo_total > 0:
+            return min(self.todo_done, self.todo_total), self.todo_total
+        return len(self.task_done_ids & self.task_ids), len(self.task_ids)
 
     @property
     def project(self) -> str:
@@ -151,6 +164,37 @@ class AllowRule:
 
     def label(self) -> str:
         return f"{self.tool}: {redact(self.exact)}" if self.exact else self.tool
+
+
+MAX_TASK_IDS = 64
+
+
+def note_tasks(s: "Session", tool: str, tool_input) -> None:
+    """EventServer's task feed. TodoWrite sends the whole checklist each
+    time; TaskUpdate carries one task's id and status (counted as created
+    whatever the status: it is often the first time the id is seen)."""
+    ti = tool_input if isinstance(tool_input, dict) else {}
+    if tool == "TodoWrite":
+        todos = ti.get("todos") if isinstance(ti.get("todos"), list) else []
+        todos = [t for t in todos if isinstance(t, dict)][:500]
+        s.todo_total = len(todos)
+        s.todo_done = sum(1 for t in todos if t.get("status") == "completed")
+    elif tool == "TaskUpdate":
+        tid = str(ti.get("taskId") or "")[:64]
+        if not tid:
+            return
+        status = ti.get("status")
+        if status == "deleted":
+            s.task_ids.discard(tid)
+            s.task_done_ids.discard(tid)
+            return
+        if tid not in s.task_ids and len(s.task_ids) >= MAX_TASK_IDS:
+            return
+        s.task_ids.add(tid)
+        if status == "completed":
+            s.task_done_ids.add(tid)
+        else:
+            s.task_done_ids.discard(tid)
 
 
 def migrate_exact(tool: str, exact: str) -> str:
@@ -451,7 +495,9 @@ class AppState:
                 if s:
                     s.last_prompt = redact(str(payload.get("prompt") or ""))[:200]
             elif event in ("PostToolUse", "SubagentStop"):
-                self._touch(sid, cwd, "working")
+                s = self._touch(sid, cwd, "working")
+                if s is not None and event == "PostToolUse":
+                    note_tasks(s, str(payload.get("tool_name") or ""), payload.get("tool_input"))
             elif event == "SubagentStart":
                 s = self._touch(sid, cwd, "working")
                 if s:
