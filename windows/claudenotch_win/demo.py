@@ -142,6 +142,15 @@ def load(state: AppState, name: str) -> SimpleNamespace:
         if name == "hover":
             state.handle_event({"hook_event_name": "Stop", "session_id": "demo", "cwd": HOME})
             state.toasts = []
+        if name == "working":
+            # A tool running for a while, for the command strip and its clock.
+            import time as _time
+            from claudenotch.state import PermissionCard
+            from claudenotch import protocol as _protocol
+            state.rules.append(__import__("claudenotch.state", fromlist=["AllowRule"]).AllowRule("PowerShell", ""))
+            state.enqueue_permission(PermissionCard("PowerShell", {"command": "npm run build -- --watch"}, HOME,
+                                                    _protocol.PERMISSION, "demo"))
+            state.sessions["demo"].activity_started = _time.time() - 75
         # What Claude Code's status line reports, as the forwarder posts it.
         state.note_status(statusline.parse(statusline.flatten({
             "session_id": "demo", "model": {"id": "claude-opus-5-5"}, "effort": {"level": "high"},
