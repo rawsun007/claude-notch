@@ -135,6 +135,7 @@ def run(args) -> int:
         class _Controls(QObject):
             settings = Signal(str)
             open_notch = Signal()
+            standup = Signal()
             quit = Signal()
 
         controls = _Controls()
@@ -143,6 +144,8 @@ def run(args) -> int:
         controls.quit.connect(quit_app)
         server.controls["settings"] = lambda page="": controls.settings.emit(page)
         server.controls["open"] = controls.open_notch.emit
+        controls.standup.connect(tray.copy_standup)
+        server.controls["standup"] = controls.standup.emit
         server.controls["quit"] = controls.quit.emit
         server.start()
     else:
@@ -176,6 +179,7 @@ def run(args) -> int:
     if link is not None:
         verb, page = link
         QTimer.singleShot(300, (lambda: open_settings(page or None)) if verb == "settings"
+                          else tray.copy_standup if verb == "standup"
                           else (lambda: overlay.show_sessions(8)))
 
     # Ctrl+C in a console run: let Python see the signal now and then.
