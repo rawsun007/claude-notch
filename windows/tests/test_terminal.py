@@ -28,6 +28,19 @@ class TerminalTests(unittest.TestCase):
         self.assertIsNone(terminal.plan(r"C:\does\not\exist", None, wt=None))
         self.assertIsNone(terminal.plan(".", "bad id", wt=None))
 
+    def test_a_dropped_file_starts_claude_with_it_quoted(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = os.path.join(d, "it's $(evil); x.txt")
+            open(f, "w").close()
+            self.assertEqual(terminal.drop_launch(d), (os.path.abspath(d), None))
+            folder, msg = terminal.drop_launch(f)
+            self.assertEqual((folder, msg), (os.path.abspath(d), "@it's $(evil); x.txt"))
+            argv, _ = terminal.plan(folder, wt=r"C:\wt.exe", message=msg)
+            self.assertEqual(argv[0], "powershell.exe")                  # the ; keeps wt out
+            self.assertEqual(argv[-1], "claude '@it''s $(evil); x.txt'")  # single-quoted: nothing expands
+            self.assertIsNone(terminal.drop_launch(os.path.join(d, "missing")))
+        self.assertEqual(terminal.ps_quote("a’; calc"), "'a’’; calc'")
+
 
 if __name__ == "__main__":
     unittest.main()
