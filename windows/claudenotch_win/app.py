@@ -48,7 +48,18 @@ def running_version() -> str | None:
 
 
 def control(action: str, timeout: float = 2.0) -> bool:
-    """POST /control/<action> to the running copy, with the hook token."""
+    """POST /control/<action> to the running copy, with the hook token.
+
+    This process was started by the user (Start, a link, the jump list), so
+    Windows lets it bring a window to the front; the running copy, in the
+    background, is not allowed to. Passing that right on lets Settings and
+    the history drawer open in front, with the keyboard."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.user32.AllowSetForegroundWindow(-1)      # ASFW_ANY, for the next activation
+        except (AttributeError, OSError):
+            pass
     token = hooks.expected_token()
     url = f"http://127.0.0.1:{hooks.PORT}/control/{action}" + (f"?t={token}" if token else "")
     try:
