@@ -124,6 +124,27 @@ class PermissionTests(unittest.TestCase):
                          "transcript_path": "/etc/passwd"})                    # refused, the old reply stays
         self.assertEqual(st.sessions["s1"].last_reply, "## Done\n\n- fixed it")
 
+    def test_permission_mode_edited_files_and_limit_age(self):
+        from claudenotch import statusline
+        st = AppState(persist=False)
+        st.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "s1", "cwd": "/p", "prompt": "go",
+                         "permission_mode": "plan"})
+        self.assertEqual(st.sessions["s1"].permission_mode, "plan")
+        c = card()
+        c.permission_mode = "bypassPermissions"
+        st.enqueue_permission(c)
+        self.assertEqual(st.sessions["s1"].permission_mode, "bypassPermissions")
+        for tool, ti in (("Edit", {"file_path": "/p/a.py"}), ("Write", {"file_path": "/p/b.py"}),
+                         ("Edit", {"file_path": "/p/a.py"}), ("Read", {"file_path": "/p/c.py"}),
+                         ("NotebookEdit", {"notebook_path": "/p/n.ipynb"})):
+            st.handle_event({"hook_event_name": "PostToolUse", "session_id": "s1", "cwd": "/p",
+                             "tool_name": tool, "tool_input": ti})
+        self.assertEqual(st.sessions["s1"].edited_files, {"/p/a.py", "/p/b.py", "/p/n.ipynb"})
+        self.assertNotIn("updated_at", st.limits)
+        st.note_status(statusline.parse(statusline.flatten({"session_id": "s1", "model": {"id": "claude-opus-5-5"},
+                       "rate_limits": {"five_hour": {"used_percentage": 30, "resets_at": 9999999999}}})))
+        self.assertIn("updated_at", st.limits)
+
     def test_always_allow_answers_the_next_identical_call(self):
         st = AppState(persist=False)
         first = card()
