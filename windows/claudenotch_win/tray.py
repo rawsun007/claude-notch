@@ -38,6 +38,10 @@ class Tray(QSystemTrayIcon):
         self.status_action = QAction("Listening on 127.0.0.1:53127", menu)
         self.status_action.setEnabled(False)
         menu.addAction(self.status_action)
+        # The Mac's "Update available" item: hidden until a check finds one.
+        self.update_action = menu.addAction("Update available", self._open_update)
+        self.update_action.setVisible(False)
+        self._update_page = ""
         menu.addSeparator()
         # The Mac's quick task actions, above Settings.
         menu.addAction("Start Claude in Folder…", self.start_in_folder)
@@ -66,6 +70,23 @@ class Tray(QSystemTrayIcon):
         self._theme_timer = QTimer(self, interval=5000)
         self._theme_timer.timeout.connect(lambda: self.setIcon(tray_icon()))
         self._theme_timer.start()
+
+    def show_update(self, version: str, page: str) -> None:
+        from claudenotch import updatecheck
+        if not page.startswith(updatecheck.PAGE_PREFIX):
+            return
+        first = not self.update_action.isVisible()
+        self._update_page = page
+        self.update_action.setText(f"Update available: {version}")
+        self.update_action.setVisible(True)
+        if first:
+            self.showMessage("ClaudeNotch update", f"ClaudeNotch {version} is out. Open the tray menu to get it.")
+
+    def _open_update(self) -> None:
+        from claudenotch import updatecheck
+        if self._update_page.startswith(updatecheck.PAGE_PREFIX):
+            import webbrowser
+            webbrowser.open(self._update_page)
 
     # --- quick task actions (MenuBarController) -------------------------------------------
 

@@ -121,6 +121,12 @@ def run(args) -> int:
         tray.set_shortcuts(store.value.settings_hotkey, store.value.notch_hotkey)
 
     apply_hotkeys()
+    # Is a newer ClaudeNotch out? At start, then daily (the Mac's UpdateChecker).
+    from . import updater
+    updater.APP = updater.Updater(app)
+    updater.APP.available.connect(tray.show_update)
+    updater.APP.start()
+
     # The taskbar and Start jump list: Open the Notch, Settings, Usage, History.
     from . import jumplist
     QTimer.singleShot(1500, jumplist.install)
