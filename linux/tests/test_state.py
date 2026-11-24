@@ -21,6 +21,28 @@ class PermissionTests(unittest.TestCase):
         self.assertEqual(got, ["allow"])
         self.assertEqual(st.permissions, [])
 
+    def test_a_card_too_late_to_answer_stays_until_dismissed(self):
+        # The Mac's expired card: kept, never answered, never a rule.
+        st, got = AppState(persist=False), []
+        st.keep_expired = True
+        old, live = card(answers=got), card(command="npm run lint")
+        st.enqueue_permission(old)
+        st.enqueue_permission(live)
+        st.drop_permission(old.id)
+        perms = st.snapshot()[0]
+        self.assertEqual([c.id for c in perms], [live.id, old.id])     # the live card first
+        self.assertTrue(old.stale)
+        st.resolve_all_permissions(protocol.ALLOW)
+        self.assertEqual([c.id for c in st.permissions], [old.id])      # Allow All leaves it
+        st.resolve_permission(old.id, protocol.ALLOW, always=True)
+        self.assertEqual((st.permissions, st.rules, got), ([], [], []))
+        # Without keep_expired (Linux), the card just goes.
+        st2 = AppState(persist=False)
+        c = card()
+        st2.enqueue_permission(c)
+        st2.drop_permission(c.id)
+        self.assertEqual(st2.permissions, [])
+
     def test_always_allow_answers_the_next_identical_call(self):
         st = AppState(persist=False)
         first = card()
