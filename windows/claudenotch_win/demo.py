@@ -162,6 +162,8 @@ def load(state: AppState, name: str) -> SimpleNamespace:
             state.handle_event({"hook_event_name": "Stop", "session_id": "demo", "cwd": HOME})
             state.toasts = []
         if name == "working":
+            state.sessions["demo"].permission_mode = "plan"
+            state.sessions["demo"].edited_files.update({"overlay.py", "historydrawer.py", "test_overlay_qt.py"})
             # A tool running for a while, for the command strip and its clock.
             import time as _time
             from claudenotch.state import PermissionCard
