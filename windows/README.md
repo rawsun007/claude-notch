@@ -56,6 +56,9 @@ hooks when they start, so restart those.
 - **Claude's last reply:** the expand button on the open notch (or a
   session in its list) shows the reply in full, with headings, lists and
   code, and Copy.
+- **Question cards:** the shrink button at the top right puts a question
+  away without answering it; Claude keeps waiting, and the notch grows a
+  small purple tab on its left. Click the tab to bring it back.
 - **History:** the clock on the open notch, Ctrl+Alt+H, the tray or the
   jump list opens the history drawer: past sessions (Resume reopens one),
   spend per project with the last seven days, and every card you answered,
