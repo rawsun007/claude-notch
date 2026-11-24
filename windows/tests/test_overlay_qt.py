@@ -365,5 +365,56 @@ class OverlayTests(unittest.TestCase):
             launch.assert_called_once()
             self.assertEqual(launch.call_args.args[0], os.path.abspath(d))
 
+    def test_the_history_drawer(self):
+        from unittest import mock
+        from claudenotch_win import terminal, view
+        self.state.archive.note_turn("abc", os.getcwd(), "claude-notch", prompt="Port the drawer")
+        self.state.history.append({"at": 1.0, "what": "denied", "title": "Run PowerShell",
+                                   "detail": "git push --force", "project": "api"})
+        self.state.history.append({"at": 2.0, "what": "allowed", "title": "Run PowerShell",
+                                   "detail": "npm test", "project": "claude-notch"})
+        self.overlay.open_history()
+        self.app.processEvents()
+        d = self.overlay._history_view
+        self.assertEqual(self.overlay._view, view.HISTORY)
+        self.assertEqual(d.rows, 1)                                  # one session
+        d.set_tab("events")
+        self.assertEqual(d.rows, 2)
+        d.set_filter("denied")
+        self.assertEqual((d.rows, d.count_label._text), (1, "1 of 2"))
+        d.set_filter("all")
+        d.search.setText("NPM")
+        self.assertEqual(d.rows, 1)
+        # It stays open whatever the pointer does, until Close.
+        self.overlay.hovering = False
+        self.overlay.render()
+        self.assertEqual(self.overlay._view, view.HISTORY)
+        d.set_tab("sessions")
+        d.search.clear()
+        with mock.patch.object(terminal, "launch") as launch:
+            d.resume.emit(os.getcwd(), "abc")
+            launch.assert_called_once_with(os.getcwd(), "abc")
+        self.assertFalse(self.overlay.history_open)                  # Resume closes it
+        self.overlay.open_history()
+        self.app.processEvents()
+        self.overlay._history_view.clear.emit("events")
+        self.assertEqual(self.state.history, [])
+        self.overlay.buttons["close"].click()
+        self.app.processEvents()
+        self.assertNotEqual(self.overlay._view, view.HISTORY)
+
+    def test_the_clock_on_the_open_card_opens_history(self):
+        from claudenotch_win.notchcards import IdleCardView
+        card = IdleCardView([])
+        got = []
+        card.history.connect(lambda: got.append(1))
+        from PySide6.QtCore import QPointF, Qt
+        from PySide6.QtGui import QMouseEvent
+        from PySide6.QtCore import QEvent
+        ev = QMouseEvent(QEvent.MouseButtonRelease, QPointF(2, 2), QPointF(2, 2), Qt.LeftButton, Qt.NoButton,
+                         Qt.NoModifier)
+        card.history_button.mouseReleaseEvent(ev)
+        self.assertEqual(got, [1])
+
 if __name__ == "__main__":
     unittest.main()

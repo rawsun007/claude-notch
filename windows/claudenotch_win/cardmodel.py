@@ -233,6 +233,23 @@ class CardText:
     preview: Preview | None
 
 
+def limits_line(limits: dict, now: float) -> str:
+    """The drawer's limits row (StatusBarRow): each plan limit Claude Code
+    has reported, with its reset countdown; "" before any arrives."""
+    from claudenotch.limits import reset_countdown
+    parts = []
+    for key, name in (("five_hour", "5-hour limit"), ("seven_day", "Weekly limit")):
+        pct = limits.get(key + "_pct") if isinstance(limits, dict) else None
+        if not isinstance(pct, (int, float)):
+            continue
+        text = f"{name} {int(round(pct * 100))}%"
+        reset = limits.get(key + "_resets_at")
+        if isinstance(reset, (int, float)) and reset > now:
+            text += f", resets in {reset_countdown(reset - now)}"
+        parts.append(text)
+    return "   ·   ".join(parts)
+
+
 def card_text(card) -> CardText:
     """Everything the permission card prints, from a core PermissionCard."""
     return CardText(

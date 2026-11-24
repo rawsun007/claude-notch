@@ -19,6 +19,7 @@ DETAIL_LINES = 10
 
 PILL, SESSIONS, TOAST, PERMISSION, QUESTION, HIDDEN = "pill", "sessions", "toast", "perm", "question", "hidden"
 AUTO = "auto"            # the button-less "Auto-allowed" card
+HISTORY = "history"      # the history drawer (NotchHistoryCard)
 AUTO_INFO_SECONDS = 4.0  # an approval is a receipt; the Mac shows it 4 s
 
 
@@ -93,11 +94,15 @@ def allow_label(dangerous: bool, confirming: bool) -> str:
     return "Allow  ⏎"
 
 
-def choose(perms, questions, toasts, hovering: bool, hover_sessions: bool, auto_info=None) -> str:
-    """Which card wins, in AppState.recompute's order: a question, then a
-    permission, then a notification or done card, and only then the open
-    card on hover. A card that is waiting for you is not hidden by
-    pointing at the notch."""
+def choose(perms, questions, toasts, hovering: bool, hover_sessions: bool, auto_info=None,
+           history: bool = False) -> str:
+    """Which card wins, in AppState.recompute's order: the history drawer
+    while it is open (you asked for it), a question, then a permission,
+    then a notification or done card, and only then the open card on
+    hover. A card that is waiting for you is not hidden by pointing at
+    the notch."""
+    if history:
+        return HISTORY
     if questions:
         return QUESTION
     if perms:
