@@ -92,6 +92,9 @@ class QuestionCard:
     id: int = field(default_factory=lambda: next(_ids))
     created: float = field(default_factory=time.monotonic)
     stale: bool = False
+    # Put away without an answer (minimizeVisibleQuestion): still queued,
+    # since the hook is still waiting, but not on screen.
+    minimized: bool = False
 
     @property
     def project(self) -> str:
@@ -472,6 +475,28 @@ class AppState:
                 self.stats.record("question")
         card.resolve(answers)
         self._changed()
+
+    def minimize_question(self, card_id: int) -> None:
+        """Put a question away without answering it; the session keeps
+        waiting and the notch shows whatever it otherwise would."""
+        with self._lock:
+            for c in self.questions:
+                if c.id == card_id:
+                    c.minimized = True
+        self._changed()
+
+    def restore_minimized_questions(self) -> None:
+        """Bring them all back: one gesture, as the stub is one target."""
+        with self._lock:
+            any_hidden = any(c.minimized for c in self.questions)
+            for c in self.questions:
+                c.minimized = False
+        if any_hidden:
+            self._changed()
+
+    @property
+    def minimized_question_count(self) -> int:
+        return sum(1 for c in self.questions if c.minimized)
 
     def drop_question(self, card_id: int) -> None:
         with self._lock:
