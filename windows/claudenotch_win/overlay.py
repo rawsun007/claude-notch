@@ -99,6 +99,8 @@ class Overlay(QWidget):
         self._history_view = None
         self.compose: dict | None = None
         self._compose_view = None
+        self.detail: tuple[str, str] | None = None
+        self._detail_view = None
         self._usage_ready.connect(self._usage_arrived)
         self._focus_return = 0
         self.buttons: dict[str, QWidget] = {}
@@ -342,10 +344,14 @@ class Overlay(QWidget):
         if auto is not None and time.monotonic() - self.state.auto_info_at > view.AUTO_INFO_SECONDS:
             auto = None
         v = view.choose(perms, questions, toasts, hovering, self._setting("hover_sessions", True), auto,
-                        history=self.history_open, compose=self.compose is not None)
+                        history=self.history_open, compose=self.compose is not None,
+                        detail=self.detail is not None)
         if v == view.HISTORY:
             key = (v, self.position)
             build = self._history_card
+        elif v == view.DETAIL:
+            key = (v, id(self.detail), self.position)
+            build = self._detail_card
         elif v == view.COMPOSE:
             key = (v, id(self.compose), self.position)
             build = self._compose_card
@@ -389,7 +395,7 @@ class Overlay(QWidget):
         if key != self._shown_key:
             self._sound_for_view(v, key, perms, questions, toasts, auto)
             self._shown_key = key
-            was_card = self._view in (view.PERMISSION, view.QUESTION, view.HISTORY, view.COMPOSE)
+            was_card = self._view in (view.PERMISSION, view.QUESTION, view.HISTORY, view.COMPOSE, view.DETAIL)
             self._view = v
             self.buttons = {}
             if self._content is not None:
@@ -406,8 +412,12 @@ class Overlay(QWidget):
                 self._history_view = None
             if v != view.COMPOSE:
                 self._compose_view = None
-            if was_card and v not in (view.PERMISSION, view.QUESTION, view.HISTORY, view.COMPOSE):
+            if was_card and v not in (view.PERMISSION, view.QUESTION, view.HISTORY, view.COMPOSE, view.DETAIL):
                 self._give_keyboard_back()
+            if v == view.DETAIL:
+                self._take_keyboard()
+                if self._content is not None:
+                    self._detail_view.setFocus(Qt.OtherFocusReason)
             if v == view.COMPOSE:
                 self._take_keyboard()
                 if self._compose_view is not None:
@@ -592,6 +602,43 @@ class Overlay(QWidget):
         winutil.exclude_from_capture(self._hwnd(), self._capture_hidden)
 
     # --- cards ------------------------------------------------------------------------
+
+    # --- Claude's last reply in full (ResponseDetailCard) ----------------------------------
+
+    def show_reply(self, session=None) -> None:
+        """showResponseDetail / showSessionResponse: the session's last reply,
+        or the top session's; nothing when there is none yet."""
+        if session is None:
+            _, _, _, sessions = self.state.snapshot()
+            session = next((s for s in sessions if s.last_reply), None)
+        if session is None or not session.last_reply:
+            return
+        self.history_open = False
+        self.detail = (session.last_reply, session.project)
+        self.render()
+
+    def _show_row_reply(self, sessions, sid: str) -> None:
+        """A session row: that session's reply, or nothing if it has none."""
+        hit = next((s for s in sessions if s.id == sid and s.last_reply), None)
+        if hit is not None:
+            self.show_reply(hit)
+
+    def close_reply(self) -> None:
+        if self.detail is not None:
+            self.detail = None
+            self.render()
+
+    def _detail_card(self) -> QWidget:
+        from .replycard import ResponseDetailView
+        text, project = self.detail
+        self._card_w, self._formula_h = geom.detail_size()
+        top = geom.INSET + geom.CONTENT_TOP_GAP if self.top else 14
+        inner_h = self._formula_h - top - geom.CONTENT_BOTTOM_PAD
+        w = ResponseDetailView(text, project, self._card_w - 2 * geom.CONTENT_H_PAD, inner_h)
+        w.closed.connect(self.close_reply)
+        self._detail_view = w
+        self.buttons = w.buttons
+        return w
 
     # --- compose (ComposeCard, AppState+Compose) ------------------------------------------
 
@@ -794,6 +841,10 @@ class Overlay(QWidget):
     def _idle_card(self, sessions, branch: str = "", rows=None) -> QWidget:
         card = IdleCardView(sessions, branch, rows)
         card.history.connect(self.open_history)
+        card.expand.connect(lambda: self.show_reply(sessions[0] if sessions else None))
+        if card.list_view is not None:
+            card.list_view.selected.connect(
+                lambda sid: self._show_row_reply(sessions, sid))
         self._card_w, self._formula_h = geom.idle_open_size(card.content_width)
         return card
 
@@ -941,7 +992,8 @@ class Overlay(QWidget):
 
     def _take_keyboard(self) -> None:
         """First click on a card: let it have the keyboard for Enter / Esc."""
-        if self._keyboard or self._view not in (view.PERMISSION, view.QUESTION, view.HISTORY, view.COMPOSE):
+        if self._keyboard or self._view not in (view.PERMISSION, view.QUESTION, view.HISTORY, view.COMPOSE,
+                                                view.DETAIL):
             return
         self._focus_return = winutil.foreground_window()
         self._keyboard = True
@@ -962,6 +1014,8 @@ class Overlay(QWidget):
     def keyPressEvent(self, event) -> None:
         if self.history_open and event.key() in (Qt.Key_Escape, Qt.Key_Return, Qt.Key_Enter):
             return self.close_history()
+        if self.detail is not None and self._detail_view is not None:
+            return self._detail_view.keyPressEvent(event)
         perms, questions, _, _ = self.state.snapshot()
         key = event.key()
         enter = key in (Qt.Key_Return, Qt.Key_Enter)
