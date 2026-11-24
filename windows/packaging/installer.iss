@@ -45,6 +45,13 @@ Source: "..\dist\ClaudeNotch\*"; DestDir: "{app}"; Flags: ignoreversion recurses
 ; The AppUserModelID must match paths.AUMID, so toasts carry our name and
 ; icon now and actionable toasts can come later without a reinstall.
 Name: "{userprograms}\ClaudeNotch"; Filename: "{app}\{#AppExe}"; AppUserModelID: "Rawsun.ClaudeNotch"
+; Search Start for "ClaudeNotch Settings" to land straight in Settings (the
+; running copy opens it; otherwise the app starts there).
+Name: "{userprograms}\ClaudeNotch Settings"; Filename: "{app}\{#AppExe}"; Parameters: "--url ""claudenotch://settings"""; IconFilename: "{app}\{#AppExe}"; Comment: "Open ClaudeNotch Settings (Ctrl+Alt+,)"
+Name: "{userdesktop}\ClaudeNotch"; Filename: "{app}\{#AppExe}"; AppUserModelID: "Rawsun.ClaudeNotch"; Tasks: desktopicon
+
+[Tasks]
+Name: "desktopicon"; Description: "Put a ClaudeNotch icon on the desktop"; Flags: unchecked
 
 [Registry]
 ; claudenotch:// links (Settings pages, open the notch), per user: no admin.
