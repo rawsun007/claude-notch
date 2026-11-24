@@ -76,7 +76,7 @@ NOTICES = {
     "completed": {"hook_event_name": "Stop"},
     "failure": {"hook_event_name": "StopFailure", "failure_reason": "rate_limit", "message": "rate_limit"},
 }
-ALL = [*PERMISSIONS, "budget", "queue", "question", *NOTICES, "limit", "idle", "hover", "working", "sessions"]
+ALL = [*PERMISSIONS, "budget", "queue", "question", "expired", "expired-question", *NOTICES, "limit", "idle", "hover", "working", "sessions"]
 
 
 def load(state: AppState, name: str) -> SimpleNamespace:
@@ -88,6 +88,16 @@ def load(state: AppState, name: str) -> SimpleNamespace:
         card = permission()
         state.approver = lambda c: (setattr(c, "budget_block", BudgetBlock("daily", 12.4, 10.0)), "card")[1]
         state.enqueue_permission(card)
+    elif name in ("expired", "expired-question"):
+        # The Mac's "Expired Card (Too Late)": the hook gave up waiting.
+        if name == "expired":
+            card = permission()
+            state.enqueue_permission(card)
+            state.drop_permission(card.id)
+        else:
+            card = question()
+            state.enqueue_question(card)
+            state.drop_question(card.id)
     elif name in PERMISSIONS:
         state.enqueue_permission(PERMISSIONS[name]())
     elif name == "queue":
