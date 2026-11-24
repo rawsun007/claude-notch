@@ -10,7 +10,7 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(u.parse("claudenotch://settings/privacy"), ("settings", "privacy"))
         self.assertEqual(u.parse("CLAUDENOTCH://Settings/Usage"), ("settings", "usage"))
         self.assertEqual(u.parse("claudenotch:///settings/budget"), ("settings", "budget"))
-        self.assertEqual(u.parse("claudenotch://history"), ("settings", "history"))
+        self.assertEqual(u.parse("claudenotch://history"), ("history", ""))
         self.assertEqual(u.parse("claudenotch://standup"), ("standup", ""))
 
     def test_unknown_page_opens_settings_and_unknown_verb_nothing(self):
