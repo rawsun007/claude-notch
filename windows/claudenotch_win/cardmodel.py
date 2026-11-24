@@ -233,21 +233,86 @@ class CardText:
     preview: Preview | None
 
 
-def limits_line(limits: dict, now: float) -> str:
-    """The drawer's limits row (StatusBarRow): each plan limit Claude Code
-    has reported, with its reset countdown; "" before any arrives."""
+# --- the status bar and badges (NotchStatusBar, NotchIdlePill) --------------------------
+
+#: permissionModeBadge: label, colour, tooltip. "default" and "acceptEdits" get none.
+PERMISSION_MODES = {
+    "bypassPermissions": ("BYPASS", (255, 69, 58), "Permissions are bypassed, every action runs without asking"),
+    "plan": ("PLAN", (10, 132, 255), "Plan mode, Claude is planning, not editing"),
+    "auto": ("AUTO", (64, 200, 224), "Auto mode, background safety checks approve safe actions"),
+    "dontAsk": ("DON'T ASK", (255, 159, 10), "Don't-ask mode, most actions run without prompting"),
+}
+
+STALE_AFTER = 5 * 60
+
+
+def permission_mode_badge(mode: str):
+    return PERMISSION_MODES.get(mode or "")
+
+
+def files_badge(count: int) -> str:
+    return "" if count <= 0 else ("1 file" if count == 1 else f"{count} files")
+
+
+def age_description(seconds: float) -> str:
+    """ClaudeUsageReader.ageDescription: "just now", "12m", "2h 5m", "3d 4h"."""
+    if seconds < 60:
+        return "just now"
+    minutes = int(seconds // 60)
+    if minutes < 60:
+        return f"{minutes}m"
+    hours, rest = divmod(minutes, 60)
+    if hours >= 24:
+        days, rest_h = divmod(hours, 24)
+        return f"{days}d {rest_h}h" if rest_h else f"{days}d"
+    return f"{hours}h {rest}m" if rest else f"{hours}h"
+
+
+@dataclass
+class StatusItem:
+    label: str               # "5H", "WK", "$"
+    pct: float | None        # 0..1 for the bar, None when there is no live reading
+    text: str                # "38%", "$0.42" or "—"
+    show_bar: bool = True
+    reset_in: str = ""       # "1h 12m" until the window resets
+    age: str = ""            # how old the reading is, once that matters
+    tooltip: str = ""
+
+
+def bar_tint(pct: float) -> tuple[int, int, int]:
+    if pct < 0.6:
+        return (100, 179, 237)
+    return (255, 159, 10) if pct < 0.85 else (255, 69, 58)
+
+
+def status_items(limits: dict, now: float, session_cost: float | None = None) -> list[StatusItem]:
+    """StatusBarRow: the 5-hour and weekly limits (and the session's cost
+    when asked). A reading whose window has already reset says "—", not a
+    confident 0 %; one more than five minutes old says how old it is."""
     from claudenotch.limits import reset_countdown
-    parts = []
-    for key, name in (("five_hour", "5-hour limit"), ("seven_day", "Weekly limit")):
-        pct = limits.get(key + "_pct") if isinstance(limits, dict) else None
-        if not isinstance(pct, (int, float)):
-            continue
-        text = f"{name} {int(round(pct * 100))}%"
-        reset = limits.get(key + "_resets_at")
-        if isinstance(reset, (int, float)) and reset > now:
-            text += f", resets in {reset_countdown(reset - now)}"
-        parts.append(text)
-    return "   ·   ".join(parts)
+    limits = limits if isinstance(limits, dict) else {}
+    updated = limits.get("updated_at")
+    age = age_description(now - updated) if isinstance(updated, (int, float)) and now - updated >= STALE_AFTER         else ""
+    out = []
+    for key, label, name in (("five_hour", "5H", "5-hour limit"), ("seven_day", "WK", "Weekly limit")):
+        pct, reset = limits.get(key + "_pct"), limits.get(key + "_resets_at")
+        live = isinstance(pct, (int, float)) and pct >= 0 and not (isinstance(reset, (int, float)) and reset <= now)
+        reset_in = reset_countdown(reset - now) if isinstance(reset, (int, float)) and reset > now else ""
+        tip = [name]
+        if live:
+            tip.append(f"{int(round(pct * 100))}% used")
+        if reset_in:
+            tip.append(f"resets in {reset_in}")
+        if age:
+            tip.append(f"last reported {age} ago")
+        tip.append("Claude Code only reports usage while a session is running")
+        out.append(StatusItem(label, float(pct) if live else None, f"{int(round(pct * 100))}%" if live else "—",
+                              True, reset_in, age, " · ".join(tip)))
+    if session_cost is not None:
+        from claudenotch import budget
+        out.append(StatusItem("$", None, budget.money(session_cost), False,
+                              tooltip="Estimated cost of this session"))
+    return out
 
 
 def card_text(card) -> CardText:
