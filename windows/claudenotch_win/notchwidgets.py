@@ -172,6 +172,9 @@ def wrap_label(text: str, size: float, weight: str = "regular", rgb=WHITE, opaci
 
 FLUENT = "Segoe Fluent Icons"
 _FLUENT = {
+    "paperplane.fill": "",
+    "hand.raised.fill": "",   # no stop hand in Segoe; a circled x
+    "terminal.fill": "",
     "list.bullet.rectangle.portrait": "",
     "chart.bar.fill": "",
     "xmark.circle.fill": "",
