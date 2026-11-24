@@ -49,6 +49,7 @@ class Tray(QSystemTrayIcon):
         menu.addAction("Copy Today's Standup", self.copy_standup)
         menu.addSeparator()
         self.notch_action = menu.addAction("Open the Notch", lambda: overlay.show_sessions(8))
+        self.history_action = menu.addAction("History", overlay.open_history)
         self.settings_action = menu.addAction("Settings…", on_settings)
         self.pause_action = QAction("Pause ClaudeNotch", menu, checkable=True)
         self.pause_action.toggled.connect(self._set_paused)
@@ -139,12 +140,13 @@ class Tray(QSystemTrayIcon):
                                                       "clipboard.", kind="done")])[-8:]
         state._changed()
 
-    def set_shortcuts(self, settings: str, notch: str) -> None:
+    def set_shortcuts(self, settings: str, notch: str, history: str = "") -> None:
         """Show the system-wide shortcuts beside their items, as a Mac menu
         shows key equivalents (a tab puts them in the shortcut column)."""
         from . import hotkeys
         for action, title, text in ((self.settings_action, "Settings…", settings),
-                                    (self.notch_action, "Open the Notch", notch)):
+                                    (self.notch_action, "Open the Notch", notch),
+                                    (self.history_action, "History", history)):
             key = hotkeys.label(text)
             action.setText(f"{title}\t{key}" if key else title)
 

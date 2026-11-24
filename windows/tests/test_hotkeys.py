@@ -9,6 +9,8 @@ class HotkeyTests(unittest.TestCase):
         self.assertEqual(hk.parse(hk.NOTCH_DEFAULT), (hk.MOD_CONTROL | hk.MOD_ALT, ord("N")))
         self.assertEqual(hk.parse("win+shift+f5"), (hk.MOD_WIN | hk.MOD_SHIFT, 0x74))
         self.assertEqual(hk.parse("Ctrl+Alt++"), (hk.MOD_CONTROL | hk.MOD_ALT, 0xBB))
+        self.assertEqual(hk.parse(hk.HISTORY_DEFAULT), (hk.MOD_CONTROL | hk.MOD_ALT, 0x20))
+        self.assertEqual(hk.label("ctrl+alt+space"), "Ctrl+Alt+Space")
 
     def test_rejects_what_would_steal_typing_or_is_not_a_key(self):
         for bad in ("", "N", "Shift+N", "Ctrl+", "Ctrl+Ctrl+N", "Ctrl+Hyper+N", "Ctrl+Alt+Enterprise", None, "Ctrl+F25"):
