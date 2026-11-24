@@ -44,7 +44,7 @@ Order within each section is roughly by how often a user meets it.
 | Allow All (n) for a queue | PermissionCard | done | Never sweeps up a destructive card. |
 | Deny with a reason | onDenyReason, compose card | done | The bubble beside Deny opens the compose card in red; the note goes back to Claude as the deny reason (folded to one line). |
 | "allowed N times" nudge | priorApprovals | done | From the third hand approval of the same exact command, never for a dangerous one or one a rule covers; making the rule spends the tally. Kept in approvals.json as hashes, capped at 64. |
-| Sandbox badge | SandboxReader | todo | |
+| Sandbox badge | SandboxReader | n/a | Claude Code's sandbox (bubblewrap / Seatbelt) is macOS and Linux only; on native Windows it would be a false promise. |
 | Too late to answer here (expired card) | PermissionCard.expiredBanner | done | The card stays with the Mac's orange banner and only Dismiss (questions too); pressing anything only dismisses it, Allow All passes over it, a live card always shows first. Opt-in in the core (keep_expired), so Linux is unchanged. |
 | Budget block banner, Allow once, Raise to $X | BudgetBanner, AppState+Budget | done | Orange banner, Allow once, Raise to the Mac's next cap, Turn off. "Turn off" is a small button where the Mac draws plain text. |
 | Question card (AskUserQuestion), multi-question, Other text | QuestionCard | partial | Header, header pills, option rows (nothing picked at start), "Something else" field, Cancel / Send, the Mac's height budget and answer rules. Not yet: minimize and the stub beside the notch, the expired banner, the MCP sign-in link row. The Mac makes this card key at once; Windows waits for a click, so typing in the terminal is never caught. |
@@ -62,14 +62,14 @@ Order within each section is roughly by how often a user meets it.
 | Mac feature | Source | Windows | Notes |
 |---|---|---|---|
 | Mascot, name, status dot (pulse) and word (shimmer) | IdlePill | done | |
-| Agent and file badges | IdlePill | partial | Agents done; edited-file count needs PostToolUse paths. |
+| Agent and file badges | IdlePill | done | Agents, and the files Claude edited this session (Edit, MultiEdit, Write, NotebookEdit). |
 | Model, effort, branch, /add-dir chip | IdlePill row 2 | partial | Model and version, effort and the branch chip (from .git/HEAD, worktrees followed) are done, from the top session only. The /add-dir chip is todo. |
 | Context and cost meter | ContextCostBar | done | From the status line: capsule warming blue, orange, red, "84k/200k", Claude Code's own cost. The cost-cap tint waits on spending caps; the window guess for sessions without a status line is todo. |
 | Running command strip with timer | CommandLineBlock | done | From every PreToolUse (card, rule or Auto-Approve): icon, command cut in the middle, shimmering hairline, clock that turns orange past a minute. |
 | Task-list progress bar | AppState+TaskMeter | done | TodoWrite's checklist, else TaskUpdate ids; shown for more than one task, green with a check when done. |
 | Session list (2+ sessions) | NotchSessionList | partial | Rows for every session after the top one: dot, CODEX/GROK chip, folder, branch and worktree chips, hourglass while a card waits, agents, status, own meter; title names the agent or says ClaudeNotch for a mix. Not yet: clicking a row (opens the reply card), task meter, fork, sandbox, cache, permission-mode and PR chips, background-agent Attach/Reply, the live reply line, stale sessions dropping off. |
-| Status bar | NotchStatusBar | todo | |
-| Permission-mode and sandbox badges | IdlePill | todo | |
+| Status bar | NotchStatusBar | done | In the history drawer, as on the Mac: 5H and WK with bar, percentage, reset countdown and the reading's age once it is over five minutes old; "—" once a window has reset. Redraws every 30 s. Credits are todo (no plan reader yet). |
+| Permission-mode and sandbox badges | IdlePill | partial | BYPASS / PLAN / AUTO / DON'T ASK from the permission_mode every hook reports. No sandbox badge: Claude Code's sandboxing does not run on native Windows, so a SANDBOXED badge would promise a protection that is not there. |
 
 ## Behind the cards
 
