@@ -107,6 +107,13 @@ class PermissionTests(unittest.TestCase):
         post("TodoWrite", {"todos": "nonsense"})
         self.assertEqual(st.sessions["s1"].task_progress, (1, 2))
 
+    def test_a_destructive_allow_is_logged_as_such(self):
+        st = AppState(persist=False)
+        c = card(command="rm -rf build")
+        st.enqueue_permission(c)
+        st.resolve_permission(c.id, protocol.ALLOW)
+        self.assertEqual(st.history[-1]["what"], "allowed, destructive")
+
     def test_always_allow_answers_the_next_identical_call(self):
         st = AppState(persist=False)
         first = card()
