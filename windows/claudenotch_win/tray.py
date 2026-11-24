@@ -10,7 +10,7 @@ own terminal, as if ClaudeNotch were not running. Nothing is queued.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, Signal
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
@@ -23,6 +23,9 @@ def tray_icon() -> QIcon:
 
 
 class Tray(QSystemTrayIcon):
+    #: The standup text, built on a worker thread (git), back on the GUI thread.
+    standup_ready = Signal(str)
+
     def __init__(self, overlay, store, on_settings, on_quit, paused=None):
         super().__init__(tray_icon())
         self.overlay = overlay
@@ -36,6 +39,11 @@ class Tray(QSystemTrayIcon):
         self.status_action.setEnabled(False)
         menu.addAction(self.status_action)
         menu.addSeparator()
+        # The Mac's quick task actions, above Settings.
+        menu.addAction("Start Claude in Folder…", self.start_in_folder)
+        self.resume_action = menu.addAction("Resume Last Session", self.resume_last)
+        menu.addAction("Copy Today's Standup", self.copy_standup)
+        menu.addSeparator()
         self.notch_action = menu.addAction("Open the Notch", lambda: overlay.show_sessions(8))
         self.settings_action = menu.addAction("Settings…", on_settings)
         self.pause_action = QAction("Pause ClaudeNotch", menu, checkable=True)
@@ -47,6 +55,8 @@ class Tray(QSystemTrayIcon):
         menu.addAction(self.pill_action)
         menu.addSeparator()
         menu.addAction("Quit ClaudeNotch", on_quit)
+        menu.aboutToShow.connect(self._refresh_resume)
+        self.standup_ready.connect(self._standup_done)
         self._menu = menu               # QSystemTrayIcon does not own the menu
         self.setContextMenu(menu)
         self.activated.connect(self._activated)
@@ -56,6 +66,57 @@ class Tray(QSystemTrayIcon):
         self._theme_timer = QTimer(self, interval=5000)
         self._theme_timer.timeout.connect(lambda: self.setIcon(tray_icon()))
         self._theme_timer.start()
+
+    # --- quick task actions (MenuBarController) -------------------------------------------
+
+    def _last(self):
+        """The newest archived session that can be resumed here."""
+        import os
+        from . import terminal
+        archive = getattr(self.overlay.state, "archive", None)
+        for r in (archive.newest_first() if archive is not None else [])[:20]:
+            if r.id and terminal.claude_command(r.id) and os.path.isdir(r.cwd or ""):
+                return r
+        return None
+
+    def _refresh_resume(self) -> None:
+        r = self._last()
+        self.resume_action.setEnabled(r is not None)
+        self.resume_action.setText(f"Resume Last Session: {r.project}" if r else "Resume Last Session")
+
+    def resume_last(self) -> None:
+        from . import terminal
+        r = self._last()
+        if r is not None and not terminal.launch(r.cwd, r.id):
+            self.showMessage("ClaudeNotch", "Could not open a terminal to resume that session.")
+
+    def start_in_folder(self) -> None:
+        from PySide6.QtWidgets import QFileDialog
+        from . import terminal
+        folder = QFileDialog.getExistingDirectory(None, "Start Claude here")
+        if folder and not terminal.launch(folder):
+            self.showMessage("ClaudeNotch", "Could not open a terminal in that folder.")
+
+    def copy_standup(self) -> None:
+        import threading
+        from claudenotch import standup
+        state = self.overlay.state
+        records = list(state.archive.newest_first()) if getattr(state, "archive", None) else []
+
+        def work() -> None:
+            self.standup_ready.emit(standup.text(records, standup.commits))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _standup_done(self, text: str) -> None:
+        from PySide6.QtGui import QGuiApplication
+        from claudenotch.state import Toast as toast_cls
+        QGuiApplication.clipboard().setText(text)
+        state = self.overlay.state
+        with state._lock:
+            state.toasts = (state.toasts + [toast_cls("Standup copied", "Today's \"what I shipped\" is on your "
+                                                      "clipboard.", kind="done")])[-8:]
+        state._changed()
 
     def set_shortcuts(self, settings: str, notch: str) -> None:
         """Show the system-wide shortcuts beside their items, as a Mac menu
