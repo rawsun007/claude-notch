@@ -45,6 +45,8 @@ def parse(url: str) -> tuple[str, str] | None:
         return ("open", "")
     if verb == "history":
         return ("history", "")         # the notch's history drawer, as on the Mac
+    if verb == "compose":
+        return ("compose", "")
     if verb == "standup":
         return ("standup", "")
     if verb == "settings":
