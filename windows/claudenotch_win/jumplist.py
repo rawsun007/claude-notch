@@ -18,6 +18,7 @@ from . import paths
 
 #: (title, link, description), in the order the jump list shows them.
 TASKS = (
+    ("Send to Claude", "claudenotch://compose", "Type a message for Claude (Ctrl+Alt+N)"),
     ("Open the Notch", "claudenotch://open", "Show the notch and your sessions"),
     ("Settings", "claudenotch://settings", "Open ClaudeNotch Settings (Ctrl+Alt+,)"),
     ("Usage", "claudenotch://settings/usage", "Tokens, cost and limits"),

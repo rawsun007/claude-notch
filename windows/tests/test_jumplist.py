@@ -7,7 +7,7 @@ from claudenotch_win import jumplist, urlscheme
 class JumpListTests(unittest.TestCase):
     def test_every_task_is_one_of_our_links(self):
         lines = jumplist.task_lines(r"C:\Apps\ClaudeNotch.exe")
-        self.assertEqual([t for t, *_ in lines], ["Open the Notch", "Settings", "Usage", "History"])
+        self.assertEqual([t for t, *_ in lines], ["Send to Claude", "Open the Notch", "Settings", "Usage", "History"])
         for _, exe, args, _ in lines:
             self.assertEqual(exe, r"C:\Apps\ClaudeNotch.exe")
             link = args.split('"')[1]
