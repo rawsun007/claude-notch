@@ -251,7 +251,9 @@ own sounds under the Mac's names) and **petengine.py**
 (PetEngine: moods, schedule, poses, rope physics; PetRig: limbs, blink,
 dance; drawn by `notchwidgets.draw_pet` in the overlay's closed notch,
 and on cards by `notchwidgets.PetBadge`).
-**tray.py**, **notify.py**, **settings_window.py**, **autostart.py** (HKCU Run
+**hotkeys.py** (Ctrl+Alt+, / Ctrl+Alt+N via RegisterHotKey and a native
+event filter), **jumplist.py** (taskbar/Start tasks via
+ICustomDestinationList through ctypes), **tray.py**, **notify.py**, **settings_window.py**, **autostart.py** (HKCU Run
 key + StartupApproved). Packaging: `windows/packaging/` (PyInstaller onedir,
 per-user Inno Setup, build.ps1). Dev: `windows/dev/setup.ps1`, `run.ps1`.
 Tests: `pytest linux/tests windows/tests` with both folders on PYTHONPATH;

@@ -95,7 +95,7 @@ Order within each section is roughly by how often a user meets it.
 | Sounds | AppState+Sound | done | The Mac's events, per-tool sounds (PowerShell counts as shell), per-event overrides and None, mute; the app's own sounds under the Mac's names, or the user's copies of the macOS sounds (.aiff or .wav) from %APPDATA%\ClaudeNotch\Sounds. Settings > Sounds. |
 | Notifications mirrored to the OS | NotificationBridge | done | Windows toasts. |
 | URL scheme `claudenotch://` | URLScheme | partial | open, settings, settings/<page>, history; registered per user by the installer. compose, resume and standup are todo. |
-| Global hotkey for Settings | GlobalHotkey | todo | `RegisterHotKey`. |
+| Global hotkey for Settings | GlobalHotkey | done | Ctrl+Alt+, opens Settings and Ctrl+Alt+N the notch from any app (the Mac's Option-Command-Comma and Option-Command-N), `RegisterHotKey`; both changeable in Settings > General, which says when another program holds one. Plus the Windows places a Mac app lives: tray menu with the shortcuts shown, Start entries (ClaudeNotch, ClaudeNotch Settings), a taskbar/Start jump list (Open the Notch, Settings, Usage, History), relaunch opens Settings. |
 | Start at login | (LaunchAgent) | done | HKCU Run. |
 | Single instance, take over an older copy | SingleInstance | done | |
 | Update check | UpdateChecker | todo | |
