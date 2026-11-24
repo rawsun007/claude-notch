@@ -106,6 +106,24 @@ def run(args) -> int:
     tray.show()
     Notifier(state, store, tray, overlay)
 
+    # --- system-wide shortcuts (the Mac's GlobalHotkey) -------------------------------------
+    from . import hotkeys
+    keys = hotkeys.APP = hotkeys.GlobalHotkeys()
+    bound: dict = {}
+
+    def apply_hotkeys() -> None:
+        want = {hotkeys.SETTINGS_ID: (store.value.settings_hotkey, lambda: open_settings()),
+                hotkeys.NOTCH_ID: (store.value.notch_hotkey, lambda: overlay.show_sessions(8))}
+        for ident, (text, action) in want.items():
+            if bound.get(ident) != text:
+                bound[ident] = text
+                keys.register(ident, text, action)
+        tray.set_shortcuts(store.value.settings_hotkey, store.value.notch_hotkey)
+
+    apply_hotkeys()
+    store.subscribe(lambda _s: QTimer.singleShot(0, apply_hotkeys))
+    app.aboutToQuit.connect(keys.unregister_all)
+
     if server is not None:
         # Called on server threads: hop to the GUI thread with a 0 ms timer
         # posted through a queued signal on the overlay's bridge.
