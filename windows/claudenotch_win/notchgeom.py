@@ -379,6 +379,11 @@ def question_size(questions, screen_h: float = 900.0, link: bool = False) -> tup
     return (600.0, INSET + min(want, cap))
 
 
+def compose_size() -> tuple[float, float]:
+    """NotchView.size(for: .compose): 580 x inset + 200."""
+    return (580.0, float(INSET + 200))
+
+
 def history_size(screen_h: float = 900.0) -> tuple[float, float]:
     """NotchView.size(for: .history): a tall drawer, 640 wide, inset + 520,
     capped at 72 % of the screen on small displays."""

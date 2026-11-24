@@ -416,5 +416,55 @@ class OverlayTests(unittest.TestCase):
         card.history_button.mouseReleaseEvent(ev)
         self.assertEqual(got, [1])
 
+    def test_deny_with_a_reason(self):
+        from claudenotch_win import view
+        card, got = self.perm("npm publish")
+        self.overlay.buttons["deny_reason"].click()
+        self.app.processEvents()
+        self.assertEqual(self.overlay._view, view.COMPOSE)
+        self.overlay._compose_view.edit.setPlainText("Run the tests first,\nthen ask again")
+        reasons = []
+        card.resolve = lambda d, r: reasons.append((d, r))
+        self.overlay.buttons["send"].click()
+        self.app.processEvents()
+        self.assertEqual(reasons, [("deny", "Run the tests first, then ask again")])
+        self.assertNotEqual(self.overlay._view, view.COMPOSE)
+
+    def test_reply_goes_to_the_project_when_its_terminal_is_gone(self):
+        from unittest import mock
+        from claudenotch_win import terminal, view
+        self.state.handle_event({"hook_event_name": "Stop", "session_id": "s9", "cwd": os.getcwd()})
+        self.app.processEvents()
+        self.overlay.render()
+        self.overlay.buttons["reply"].click()
+        self.app.processEvents()
+        self.assertEqual(self.overlay._view, view.COMPOSE)
+        self.assertEqual(self.overlay.compose["project"], os.getcwd())
+        self.overlay._compose_view.edit.setPlainText("now add tests")
+        with mock.patch.object(terminal, "launch", return_value=True) as launch:
+            self.overlay.buttons["send"].click()
+            launch.assert_called_once_with(os.getcwd(), message="now add tests")
+        self.assertIsNone(self.overlay.compose)
+        self.assertEqual(self.state.toasts, [])                     # the done card it answered is gone
+
+    def test_compose_without_a_terminal_says_so_and_keeps_the_text(self):
+        from claudenotch_win import view
+        self.overlay._originators.clear()
+        self.overlay._last_foreign = 0
+        self.overlay.begin_compose()
+        self.app.processEvents()
+        self.overlay._compose_view.edit.setPlainText("hello")
+        self.overlay.buttons["send"].click()
+        self.app.processEvents()
+        self.assertEqual(self.overlay._view, view.COMPOSE)
+        self.assertIn("No terminal found", self.overlay._compose_view.error.text())
+        self.assertEqual(self.overlay._compose_view.text(), "hello")
+        from PySide6.QtCore import QEvent, Qt
+        from PySide6.QtGui import QKeyEvent
+        self.overlay._compose_view.eventFilter(self.overlay._compose_view.edit,
+                                              QKeyEvent(QEvent.KeyPress, Qt.Key_Escape, Qt.NoModifier))
+        self.app.processEvents()
+        self.assertIsNone(self.overlay.compose)
+
 if __name__ == "__main__":
     unittest.main()

@@ -40,7 +40,7 @@ from PySide6.QtGui import QColor, QCursor, QGuiApplication, QPainter, QPainterPa
 from PySide6.QtWidgets import QApplication, QLabel, QMenu, QVBoxLayout, QWidget
 
 from claudenotch import gitinfo, protocol
-from claudenotch.state import AppState
+from claudenotch.state import AppState, project_name
 
 from . import cardmodel, hello
 from claudenotch import autoapprove, budget, sounds, usage
@@ -97,6 +97,8 @@ class Overlay(QWidget):
         self._keyboard = False
         self.history_open = False
         self._history_view = None
+        self.compose: dict | None = None
+        self._compose_view = None
         self._usage_ready.connect(self._usage_arrived)
         self._focus_return = 0
         self.buttons: dict[str, QWidget] = {}
@@ -340,10 +342,13 @@ class Overlay(QWidget):
         if auto is not None and time.monotonic() - self.state.auto_info_at > view.AUTO_INFO_SECONDS:
             auto = None
         v = view.choose(perms, questions, toasts, hovering, self._setting("hover_sessions", True), auto,
-                        history=self.history_open)
+                        history=self.history_open, compose=self.compose is not None)
         if v == view.HISTORY:
             key = (v, self.position)
             build = self._history_card
+        elif v == view.COMPOSE:
+            key = (v, id(self.compose), self.position)
+            build = self._compose_card
         elif v == view.AUTO:
             key = (v, auto.id, self.position)
             build = lambda: self._auto_info_card(auto)  # noqa: E731
@@ -384,7 +389,7 @@ class Overlay(QWidget):
         if key != self._shown_key:
             self._sound_for_view(v, key, perms, questions, toasts, auto)
             self._shown_key = key
-            was_card = self._view in (view.PERMISSION, view.QUESTION, view.HISTORY)
+            was_card = self._view in (view.PERMISSION, view.QUESTION, view.HISTORY, view.COMPOSE)
             self._view = v
             self.buttons = {}
             if self._content is not None:
@@ -399,8 +404,14 @@ class Overlay(QWidget):
             self._retarget()
             if v != view.HISTORY:
                 self._history_view = None
-            if was_card and v not in (view.PERMISSION, view.QUESTION, view.HISTORY):
+            if v != view.COMPOSE:
+                self._compose_view = None
+            if was_card and v not in (view.PERMISSION, view.QUESTION, view.HISTORY, view.COMPOSE):
                 self._give_keyboard_back()
+            if v == view.COMPOSE:
+                self._take_keyboard()
+                if self._compose_view is not None:
+                    self._compose_view.edit.setFocus(Qt.OtherFocusReason)
             if v == view.HISTORY:
                 self._take_keyboard()
                 if self._history_view is not None:
@@ -582,6 +593,117 @@ class Overlay(QWidget):
 
     # --- cards ------------------------------------------------------------------------
 
+    # --- compose (ComposeCard, AppState+Compose) ------------------------------------------
+
+    def _terminal_target(self, *candidates) -> int:
+        """The first candidate window that is a live terminal, else the last
+        terminal a card came from (pickComposeTarget)."""
+        from . import typer
+        for hwnd in list(candidates) + list(reversed(list(self._originators.values()))):
+            if hwnd and typer.usable(hwnd):
+                return hwnd
+        return 0
+
+    def begin_compose(self, project: str = "") -> None:
+        """Ctrl+Alt+N (the Mac's Option-Command-N), the tray, a link. Not over
+        a card that is waiting for an answer, as on the Mac."""
+        perms, questions, _, _ = self.state.snapshot()
+        if (perms or questions) and not self.history_open:
+            self.show_sessions(0.1)
+            return
+        self.history_open = False
+        self.compose = {"deny": None, "hwnd": self._terminal_target(self._last_foreign),
+                        "project": project, "context": "", "text": "", "error": None}
+        self.render()
+
+    def begin_reply(self, toast) -> None:
+        """Reply on a done card: into the terminal that ran the session when it
+        is still there, else a fresh terminal in the project folder."""
+        import os
+        hwnd = self._terminal_target(self._originators.get(toast.id) or 0)
+        self._originators.pop(toast.id, None)
+        self.state.dismiss_toast(toast.id)
+        cwd = getattr(toast, "cwd", "") or ""
+        self.compose = {"deny": None, "hwnd": hwnd, "project": "" if hwnd or not os.path.isdir(cwd) else cwd,
+                        "context": project_name(cwd) if cwd else "", "text": "", "error": None}
+        self.render()
+
+    def begin_deny_reason(self, card) -> None:
+        self.compose = {"deny": card, "hwnd": 0, "project": "", "context": "", "text": "", "error": None}
+        self.render()
+
+    def cancel_compose(self) -> None:
+        if self.compose is not None:
+            self.compose = None
+            self.render()
+
+    def _recent_projects(self) -> list[tuple[str, str]]:
+        import os
+        out, seen = [], set()
+        for r in self.state.archive.newest_first():
+            if r.cwd and r.cwd not in seen and os.path.isdir(r.cwd):
+                seen.add(r.cwd)
+                out.append((r.project, r.cwd))
+            if len(out) >= 8:
+                break
+        return out
+
+    def _compose_card(self) -> QWidget:
+        from . import typer, terminal
+        from .composecard import ComposeCardView
+        c = self.compose
+        self._card_w, self._formula_h = geom.compose_size()
+        top = geom.INSET + geom.CONTENT_TOP_GAP if self.top else 14
+        inner_h = self._formula_h - top - geom.CONTENT_BOTTOM_PAD
+        label = terminal.terminal_name(typer.window_program(c["hwnd"])) if c["hwnd"] else ""
+        w = ComposeCardView(self._card_w - 2 * geom.CONTENT_H_PAD, inner_h, deny=c["deny"] is not None,
+                            terminal_label=label, context_label=c["context"], project_cwd=c["project"],
+                            projects=self._recent_projects())
+        if c["text"]:
+            w.edit.setPlainText(c["text"])
+        w.say(c["error"])
+        w.send.connect(self._send_compose)
+        w.cancel.connect(self.cancel_compose)
+        w.target.connect(lambda cwd: c.__setitem__("project", cwd))
+        self._compose_view = w
+        self.buttons = w.buttons
+        return w
+
+    def _send_compose(self, text: str) -> None:
+        """sendCompose: a deny resolves the held card with the note; a message
+        opens a fresh terminal in the chosen project, or is typed into the
+        terminal, and the card stays open with the reason if it cannot be."""
+        from . import terminal, typer
+        c = self.compose
+        if c is None:
+            return
+        note = terminal.one_line(text)
+        if c["deny"] is not None:
+            card = c["deny"]
+            self.compose = None
+            self._sound("dismissed")
+            self.state.resolve_permission(card.id, protocol.DENY, reason=note or "Denied in ClaudeNotch")
+            return
+        if not note:
+            return self.cancel_compose()
+        error = None
+        if c["project"]:
+            if not terminal.launch(c["project"], message=note):
+                error = "Could not open a terminal in that folder."
+        elif not c["hwnd"]:
+            error = "No terminal found. Pick a project above, or open a Claude session first."
+        else:
+            # The keyboard goes to the terminal, and stays there afterwards.
+            self._focus_return = c["hwnd"]
+            error = typer.type_into(c["hwnd"], note)
+        if error:
+            c["text"], c["error"] = text, error
+            if self._compose_view is not None:
+                self._compose_view.say(error)
+            return
+        self.compose = None
+        self.render()
+
     # --- the history drawer (NotchHistoryCard) ------------------------------------------------
 
     def open_history(self) -> None:
@@ -705,6 +827,9 @@ class Overlay(QWidget):
         if scope == "all":
             self.state.resolve_all_permissions(decision)
             return
+        if scope == "reason":
+            self.begin_deny_reason(card)
+            return
         self.state.resolve_permission(card.id, decision, always=scope in ("exact", "tool"),
                                       scope=scope or "exact",
                                       reason="Denied in ClaudeNotch" if decision == protocol.DENY else None)
@@ -786,6 +911,9 @@ class Overlay(QWidget):
             self._originators = dict(list(self._originators.items())[-16:])
 
     def _notice_action(self, t, what: str) -> None:
+        if what == "reply":
+            self.begin_reply(t)
+            return
         if what == "open":
             hwnd = self._originators.get(t.id) or 0
             if hwnd:
@@ -813,7 +941,7 @@ class Overlay(QWidget):
 
     def _take_keyboard(self) -> None:
         """First click on a card: let it have the keyboard for Enter / Esc."""
-        if self._keyboard or self._view not in (view.PERMISSION, view.QUESTION, view.HISTORY):
+        if self._keyboard or self._view not in (view.PERMISSION, view.QUESTION, view.HISTORY, view.COMPOSE):
             return
         self._focus_return = winutil.foreground_window()
         self._keyboard = True

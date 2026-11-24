@@ -131,6 +131,13 @@ class PermissionCardView(QWidget):
         deny.clicked.connect(lambda: self.decided.emit(protocol.DENY, ""))
         row.addWidget(deny)
         self.buttons["deny"] = deny
+        # Deny with a reason: tell Claude what to do instead (onDenyReason).
+        why = nw.CapsuleButton(icon="text.bubble", fill=0.10)
+        why.setToolTip("Deny with a reason, tell Claude what to do instead")
+        why.setAccessibleName("Deny with a reason")
+        why.clicked.connect(lambda: self.decided.emit(protocol.DENY, "reason"))
+        row.addWidget(why)
+        self.buttons["deny_reason"] = why
         if not dangerous and block is None:
             always = nw.CapsuleButton("Always Allow…", chevron=True)
             always.clicked.connect(self._always_menu)
@@ -563,6 +570,11 @@ class NoticeCardView(QWidget):
         body.addLayout(col, 1)
         buttons = _row(8)
         if done:
+            reply = nw.NotchButton("Reply", "secondary")
+            reply.setToolTip("Send Claude a follow-up message")
+            reply.clicked.connect(lambda: self.action.emit("reply"))
+            buttons.addWidget(reply)
+            self.buttons["reply"] = reply
             opener, close = nw.NotchButton("Open IDE", "secondary"), nw.NotchButton("Done", "primary")
             buttons.addWidget(opener)
             buttons.addWidget(close)
