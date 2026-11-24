@@ -936,6 +936,34 @@ def danger_banner(reasons: list[str], pet: bool = False) -> QWidget:
     return box
 
 
+TOO_LATE_PERMISSION = ("Claude stopped waiting after about five minutes and asked again where the session is "
+                       "running: your terminal, the VS Code extension, or a cloud session. Allowing or denying "
+                       "here would not reach it.")
+TOO_LATE_QUESTION = ("Claude stopped waiting after about five minutes and asked again where the session is "
+                     "running. Answering here would not reach it.")
+
+
+def expired_banner(body: str) -> QWidget:
+    """PermissionCard.expiredBanner: an orange clock, "Too late to answer
+    here" at 12 pt semibold and why at 11 pt, on an orange 12 % fill."""
+    box = RoundedBox(ms.rgba(ms.ORANGE, 0.12), 8, ms.rgba(ms.ORANGE, 0.3))
+    row = QHBoxLayout(box)
+    row.setContentsMargins(10, 8, 10, 8)
+    row.setSpacing(8)
+    icon = QVBoxLayout()
+    icon.setContentsMargins(0, 1, 0, 0)
+    icon.addWidget(Glyph("clock.arrow.circlepath", 13, ms.ORANGE))
+    icon.addStretch(1)
+    row.addLayout(icon)
+    col = QVBoxLayout()
+    col.setSpacing(2)
+    col.addWidget(Text("Too late to answer here", 12, "semibold", ms.ORANGE, 1.0))
+    col.addWidget(wrap_label(body, 11, "medium", WHITE, 0.7))
+    row.addLayout(col, 1)
+    box.setAccessibleName("Too late to answer here. " + body)
+    return box
+
+
 def code_box(detail: str) -> QWidget:
     """The command or path: 12 pt monospaced at 78 % white, two lines at
     most, cut in the middle, in a 6 % white box with 8 pt corners."""

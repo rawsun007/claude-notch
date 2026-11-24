@@ -327,5 +327,16 @@ class OverlayTests(unittest.TestCase):
         self.assertFalse(host.findChildren(nw.PetBadge))
         host.close()
 
+    def test_a_card_too_late_to_answer_only_dismisses(self):
+        card, got = self.perm("npm test")
+        self.state.drop_permission(card.id)
+        self.app.processEvents()
+        self.overlay.render()
+        self.app.processEvents()
+        self.assertEqual(set(self.overlay.buttons), {"dismiss"})
+        self.overlay.buttons["dismiss"].click()
+        self.app.processEvents()
+        self.assertEqual((self.state.permissions, got, self.state.rules), ([], [], []))
+
 if __name__ == "__main__":
     unittest.main()
