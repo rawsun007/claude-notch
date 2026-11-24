@@ -57,6 +57,8 @@ class PermissionCard:
 
     def __post_init__(self):
         self.confirm_now = False
+        # Claude Code stopped waiting (see AppState.keep_expired).
+        self.stale = False
         pv = protocol.preview(self.tool, self.tool_input)
         # Redacted once, here: nothing downstream (card, notification,
         # history) ever sees the raw text.
@@ -86,6 +88,7 @@ class QuestionCard:
     resolve: Callable[[list | None], None] = lambda a: None
     id: int = field(default_factory=lambda: next(_ids))
     created: float = field(default_factory=time.monotonic)
+    stale: bool = False
 
     @property
     def project(self) -> str:
@@ -182,6 +185,10 @@ class AppState:
         # Plan-limit warnings at 80 % and 95 % (limits.py); the app switches
         # them off from Settings > Alerts.
         self.limit_warnings = True
+        # The Mac keeps a card whose hook gave up ("Too late to answer
+        # here", only Dismiss) instead of letting it vanish. A UI that draws
+        # that turns this on; otherwise such a card is simply removed.
+        self.keep_expired = False
         self._armed = {"five_hour": Armed(), "seven_day": Armed()}
         self.sessions: dict[str, Session] = {}
         self.history: list[dict] = []
@@ -256,6 +263,16 @@ class AppState:
             if card is None:
                 return
             self.permissions.remove(card)
+            if card.stale:
+                # Too late: whatever was pressed cannot reach the session, so
+                # it is only dismissed, never logged or turned into a rule.
+                stale = True
+            else:
+                stale = False
+        if stale:
+            self._changed()
+            return
+        with self._lock:
             if always and decision == protocol.ALLOW and not card.dangers:
                 rule = AllowRule(card.tool, "" if scope == "tool" else card.match_text)
                 if rule not in self.rules:
@@ -274,7 +291,8 @@ class AppState:
         A dangerous card is never swept up by it; it stays for its own
         deliberate answer."""
         with self._lock:
-            ids = [c.id for c in self.permissions if not (decision == protocol.ALLOW and c.dangers)]
+            ids = [c.id for c in self.permissions
+                   if not c.stale and not (decision == protocol.ALLOW and c.dangers)]
         for card_id in ids:
             self.resolve_permission(card_id, decision)
 
@@ -282,7 +300,13 @@ class AppState:
         """The hook gave up waiting (Claude Code asked in the terminal)."""
         with self._lock:
             before = len(self.permissions)
-            self.permissions = [c for c in self.permissions if c.id != card_id]
+            if self.keep_expired:
+                for c in self.permissions:
+                    if c.id == card_id and not c.stale:
+                        c.stale = True
+                        before = -1
+            else:
+                self.permissions = [c for c in self.permissions if c.id != card_id]
             changed = len(self.permissions) != before
         if changed:
             self._changed()
@@ -309,6 +333,15 @@ class AppState:
             if card is None:
                 return
             self.questions.remove(card)
+            if card.stale:
+                answers = None
+                stale = True
+            else:
+                stale = False
+        if stale:
+            self._changed()
+            return
+        with self._lock:
             self._log("answered" if answers else "question skipped", "Question",
                       card.questions[0].text if card.questions else "", card.project)
             if answers:
@@ -318,7 +351,12 @@ class AppState:
 
     def drop_question(self, card_id: int) -> None:
         with self._lock:
-            self.questions = [c for c in self.questions if c.id != card_id]
+            if self.keep_expired:
+                for c in self.questions:
+                    if c.id == card_id:
+                        c.stale = True
+            else:
+                self.questions = [c for c in self.questions if c.id != card_id]
         self._changed()
 
     # --- sessions and informational events -----------------------------------
@@ -503,5 +541,7 @@ class AppState:
     def snapshot(self):
         """A consistent copy for one draw."""
         with self._lock:
-            return (list(self.permissions), list(self.questions), list(self.toasts),
+            # A card nobody can answer any more never holds up a live one.
+            return (sorted(self.permissions, key=lambda c: c.stale), sorted(self.questions, key=lambda c: c.stale),
+                    list(self.toasts),
                     sorted(self.sessions.values(), key=lambda s: -s.updated))
