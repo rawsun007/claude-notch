@@ -271,7 +271,10 @@ def idle_header(sessions) -> tuple[str, str, tuple, bool]:
 
 class IdleCardView(QWidget):
     """The open hover card: the mascot, the name, the status dot and word,
-    then the model and the context and cost meter."""
+    then the model and the context and cost meter. The clock on the right,
+    or a click on the name, opens the history drawer (`history`)."""
+
+    history = Signal()
 
     def __init__(self, sessions, branch: str = "", rows=None, parent=None):
         super().__init__(parent)
@@ -293,6 +296,13 @@ class IdleCardView(QWidget):
         if agents:
             r1.addWidget(_badge("1 agent" if agents == 1 else f"{agents} agents", ms.PURPLE, 0.18))
         r1.addStretch(1)
+        clock = nw.Glyph("clock.arrow.circlepath", 11, opacity=0.45)
+        clock.setCursor(Qt.PointingHandCursor)
+        clock.setToolTip("Show history")
+        clock.setAccessibleName("Show history")
+        clock.mouseReleaseEvent = lambda e: self.history.emit() if e.button() == Qt.LeftButton else None
+        r1.addWidget(clock)
+        self.history_button = clock
         v.addLayout(r1)
 
         # Row 2: the TOP session's model, effort, branch and meter, all from

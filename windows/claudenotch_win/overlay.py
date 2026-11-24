@@ -71,6 +71,9 @@ def label(text: str, size: float = 12, weight: str = "regular", opacity: float =
 
 
 class Overlay(QWidget):
+    #: The history drawer's week of usage, read off the GUI thread.
+    _usage_ready = Signal()
+
     def __init__(self, state: AppState, store=None, on_settings=None, on_quit=None):
         super().__init__(None)
         self.state = state
@@ -92,6 +95,9 @@ class Overlay(QWidget):
         self._originators: dict[int, int] = {}
         self._last_foreign = 0
         self._keyboard = False
+        self.history_open = False
+        self._history_view = None
+        self._usage_ready.connect(self._usage_arrived)
         self._focus_return = 0
         self.buttons: dict[str, QWidget] = {}
         self._hello = hello.Availability()
@@ -333,8 +339,12 @@ class Overlay(QWidget):
         auto = self.state.auto_info
         if auto is not None and time.monotonic() - self.state.auto_info_at > view.AUTO_INFO_SECONDS:
             auto = None
-        v = view.choose(perms, questions, toasts, hovering, self._setting("hover_sessions", True), auto)
-        if v == view.AUTO:
+        v = view.choose(perms, questions, toasts, hovering, self._setting("hover_sessions", True), auto,
+                        history=self.history_open)
+        if v == view.HISTORY:
+            key = (v, self.position)
+            build = self._history_card
+        elif v == view.AUTO:
             key = (v, auto.id, self.position)
             build = lambda: self._auto_info_card(auto)  # noqa: E731
         elif v == view.PERMISSION:
@@ -367,10 +377,14 @@ class Overlay(QWidget):
             key = (v, self.position)
             build = None
 
+        if key == self._shown_key and v == view.HISTORY and self._history_view is not None:
+            # New activity while the drawer is open: refresh the list in place,
+            # keeping the tab, the filter and what is typed in the search.
+            self._history_view.refresh()
         if key != self._shown_key:
             self._sound_for_view(v, key, perms, questions, toasts, auto)
             self._shown_key = key
-            was_card = self._view in (view.PERMISSION, view.QUESTION)
+            was_card = self._view in (view.PERMISSION, view.QUESTION, view.HISTORY)
             self._view = v
             self.buttons = {}
             if self._content is not None:
@@ -383,8 +397,14 @@ class Overlay(QWidget):
             else:
                 self._card_w, self._formula_h = geom.collapsed_size()
             self._retarget()
-            if was_card and v not in (view.PERMISSION, view.QUESTION):
+            if v != view.HISTORY:
+                self._history_view = None
+            if was_card and v not in (view.PERMISSION, view.QUESTION, view.HISTORY):
                 self._give_keyboard_back()
+            if v == view.HISTORY:
+                self._take_keyboard()
+                if self._history_view is not None:
+                    self._history_view.search.setFocus(Qt.OtherFocusReason)
         self._update_visibility()
         if self.isVisible() and self._setting("hide_from_capture", True) != self._capture_hidden:
             self._apply_native_style()
@@ -562,8 +582,96 @@ class Overlay(QWidget):
 
     # --- cards ------------------------------------------------------------------------
 
+    # --- the history drawer (NotchHistoryCard) ------------------------------------------------
+
+    def open_history(self) -> None:
+        if not self.history_open:
+            self.history_open = True
+            self._load_week_usage()
+            self.render()
+
+    def close_history(self) -> None:
+        if self.history_open:
+            self.history_open = False
+            self.render()
+
+    def toggle_history(self) -> None:
+        (self.close_history if self.history_open else self.open_history)()
+
+    def _load_week_usage(self) -> None:
+        """The Projects tab's money, from the transcripts as on the Mac; read
+        off the GUI thread and filled in when it arrives."""
+        import threading
+
+        def run():
+            try:
+                u = usage.compute()
+            except OSError:
+                return
+            self._week_usage = ({cwd: t.cost_usd for cwd, t in u.week_by_project.items()}, dict(u.daily_cost))
+            self._usage_ready.emit()
+
+        threading.Thread(target=run, daemon=True, name="history-usage").start()
+
+    def _usage_arrived(self) -> None:
+        if self._history_view is not None:
+            self._history_view.week_costs, self._history_view.daily_cost = self._week_usage
+            self._history_view.refresh()
+
+    def _history_card(self) -> QWidget:
+        from .historydrawer import HistoryDrawerView
+        sx, sy, sw, sh = self._screen_rect()
+        self._card_w, self._formula_h = geom.history_size(sh)
+        top = geom.INSET + geom.CONTENT_TOP_GAP if self.top else 14
+        inner_h = self._formula_h - top - geom.CONTENT_BOTTOM_PAD
+        week, daily = getattr(self, "_week_usage", ({}, {}))
+        w = HistoryDrawerView(self.state, self._card_w - 2 * geom.CONTENT_H_PAD, inner_h,
+                              limits_line=cardmodel.limits_line(self.state.limits, time.time()),
+                              week_costs=week, daily_cost=daily)
+        w.closed.connect(self.close_history)
+        w.resume.connect(self._history_resume)
+        w.export.connect(self._history_export)
+        w.clear.connect(self._history_clear)
+        self._history_view = w
+        self.buttons = w.buttons
+        return w
+
+    def _history_resume(self, cwd: str, session_id: str) -> None:
+        """Resume the exact session behind a row, or start Claude fresh in a
+        project's folder; the drawer closes, as on the Mac."""
+        from . import terminal
+        self.close_history()
+        terminal.launch(cwd, session_id or None) if session_id and terminal.claude_command(session_id) \
+            else terminal.launch(cwd)
+
+    def _history_export(self, tab: str) -> None:
+        from PySide6.QtWidgets import QFileDialog
+        from claudenotch import archive as archive_mod
+        from . import historymodel
+        name = "claudenotch-sessions.csv" if tab == "sessions" else "claudenotch-activity.csv"
+        path, _ = QFileDialog.getSaveFileName(self, "Export history", name, "CSV (*.csv)")
+        if not path:
+            return
+        text = archive_mod.export_csv(self.state.archive.newest_first()) if tab == "sessions" \
+            else historymodel.events_csv(list(self.state.history))
+        try:
+            with open(path, "w", encoding="utf-8", newline="") as f:
+                f.write(text)
+        except OSError:
+            pass
+
+    def _history_clear(self, tab: str) -> None:
+        if tab == "sessions":
+            self.state.archive.clear()
+        else:
+            with self.state._lock:
+                self.state.history.clear()
+        if self._history_view is not None:
+            self._history_view.refresh()
+
     def _idle_card(self, sessions, branch: str = "", rows=None) -> QWidget:
         card = IdleCardView(sessions, branch, rows)
+        card.history.connect(self.open_history)
         self._card_w, self._formula_h = geom.idle_open_size(card.content_width)
         return card
 
@@ -705,7 +813,7 @@ class Overlay(QWidget):
 
     def _take_keyboard(self) -> None:
         """First click on a card: let it have the keyboard for Enter / Esc."""
-        if self._keyboard or self._view not in (view.PERMISSION, view.QUESTION):
+        if self._keyboard or self._view not in (view.PERMISSION, view.QUESTION, view.HISTORY):
             return
         self._focus_return = winutil.foreground_window()
         self._keyboard = True
@@ -724,6 +832,8 @@ class Overlay(QWidget):
         self._focus_return = 0
 
     def keyPressEvent(self, event) -> None:
+        if self.history_open and event.key() in (Qt.Key_Escape, Qt.Key_Return, Qt.Key_Enter):
+            return self.close_history()
         perms, questions, _, _ = self.state.snapshot()
         key = event.key()
         enter = key in (Qt.Key_Return, Qt.Key_Enter)

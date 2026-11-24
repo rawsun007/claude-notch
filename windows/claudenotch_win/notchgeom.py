@@ -379,6 +379,12 @@ def question_size(questions, screen_h: float = 900.0, link: bool = False) -> tup
     return (600.0, INSET + min(want, cap))
 
 
+def history_size(screen_h: float = 900.0) -> tuple[float, float]:
+    """NotchView.size(for: .history): a tall drawer, 640 wide, inset + 520,
+    capped at 72 % of the screen on small displays."""
+    return (640.0, float(min(INSET + 520, screen_h * 0.72)))
+
+
 def auto_info_size() -> tuple[float, float]:
     """AutoInfoCard: compact and button-less, 460 x inset + 96."""
     return (460.0, float(INSET + 96))
