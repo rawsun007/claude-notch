@@ -26,15 +26,46 @@ def ps_quote(text: str) -> str:
     return "'" + text + "'"
 
 
+#: Windows whose keyboard goes to a shell, the only kind compose will type
+#: into (the Mac's terminal bundle ids). Never an editor such as VS Code,
+#: where keystrokes could land in a source file.
+TERMINAL_EXES = frozenset({
+    "windowsterminal.exe", "openconsole.exe", "conhost.exe", "powershell.exe", "pwsh.exe", "cmd.exe",
+    "wezterm-gui.exe", "alacritty.exe", "mintty.exe", "tabby.exe", "hyper.exe", "conemu.exe", "conemu64.exe",
+    "kitty.exe", "wsl.exe", "bash.exe", "warp.exe",
+})
+
+
+def is_terminal(exe_path: str) -> bool:
+    return os.path.basename(exe_path or "").lower() in TERMINAL_EXES
+
+
+def terminal_name(exe_path: str) -> str:
+    """How the compose card names a terminal: "Windows Terminal", "PowerShell"."""
+    base = os.path.basename(exe_path or "").lower()
+    return {"windowsterminal.exe": "Windows Terminal", "powershell.exe": "PowerShell", "pwsh.exe": "PowerShell",
+            "cmd.exe": "Command Prompt", "mintty.exe": "Git Bash", "conhost.exe": "Console",
+            "openconsole.exe": "Windows Terminal", "wezterm-gui.exe": "WezTerm", "alacritty.exe": "Alacritty",
+            "wsl.exe": "WSL", "bash.exe": "Bash"}.get(base, os.path.splitext(os.path.basename(exe_path or ""))[0])
+
+
+def one_line(text: str, limit: int = 4000) -> str:
+    """A message as one line, the way it is typed or passed: whitespace and
+    line breaks folded to single spaces (a typed line break would send half
+    of it early), control characters dropped."""
+    clean = "".join(ch if ch.isprintable() else " " for ch in (text or ""))
+    return " ".join(clean.split())[:limit]
+
+
 def claude_command(session_id: str | None = None, message: str | None = None) -> str | None:
     """The PowerShell command to run, or None for an id we will not pass.
-    `message` is a first prompt (a dropped file's "@name"), quoted."""
-    if session_id is not None:
-        return f"claude --resume {session_id}" if _ID.match(session_id or "") else None
-    if message:
-        clean = " ".join(message.split())[:300]
-        return f"claude {ps_quote(clean)}" if clean else "claude"
-    return "claude"
+    `message` is a first prompt (a dropped file's "@name", or a reply),
+    single-quoted so nothing in it is expanded."""
+    if session_id is not None and not _ID.match(session_id or ""):
+        return None
+    cmd = f"claude --resume {session_id}" if session_id is not None else "claude"
+    clean = one_line(message or "")
+    return f"{cmd} {ps_quote(clean)}" if clean else cmd
 
 
 def drop_launch(path: str) -> tuple[str, str | None] | None:
