@@ -21,7 +21,7 @@ TASKS = (
     ("Open the Notch", "claudenotch://open", "Show the notch and your sessions"),
     ("Settings", "claudenotch://settings", "Open ClaudeNotch Settings (Ctrl+Alt+,)"),
     ("Usage", "claudenotch://settings/usage", "Tokens, cost and limits"),
-    ("History", "claudenotch://history", "Past sessions and activity (Ctrl+Alt+Space)"),
+    ("History", "claudenotch://history", "Past sessions and activity (Ctrl+Alt+H)"),
 )
 
 

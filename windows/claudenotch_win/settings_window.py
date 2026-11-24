@@ -311,7 +311,7 @@ class SettingsWindow(QWidget):
         for key, title, default in (
                 ("settings_hotkey", "Open Settings", "Ctrl+Alt+,"),
                 ("notch_hotkey", "Open the notch", "Ctrl+Alt+N"),
-                ("history_hotkey", "Open history", "Ctrl+Alt+Space")):
+                ("history_hotkey", "Open history", "Ctrl+Alt+H")):
             edit = QKeySequenceEdit(QKeySequence(getattr(self.store.value, key, default)))
             edit.setMaximumSequenceLength(1)
             edit.setFixedWidth(150)
