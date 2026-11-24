@@ -36,7 +36,8 @@ class Tray(QSystemTrayIcon):
         self.status_action.setEnabled(False)
         menu.addAction(self.status_action)
         menu.addSeparator()
-        menu.addAction("Settings…", on_settings)
+        self.notch_action = menu.addAction("Open the Notch", lambda: overlay.show_sessions(8))
+        self.settings_action = menu.addAction("Settings…", on_settings)
         self.pause_action = QAction("Pause ClaudeNotch", menu, checkable=True)
         self.pause_action.toggled.connect(self._set_paused)
         menu.addAction(self.pause_action)
@@ -55,6 +56,15 @@ class Tray(QSystemTrayIcon):
         self._theme_timer = QTimer(self, interval=5000)
         self._theme_timer.timeout.connect(lambda: self.setIcon(tray_icon()))
         self._theme_timer.start()
+
+    def set_shortcuts(self, settings: str, notch: str) -> None:
+        """Show the system-wide shortcuts beside their items, as a Mac menu
+        shows key equivalents (a tab puts them in the shortcut column)."""
+        from . import hotkeys
+        for action, title, text in ((self.settings_action, "Settings…", settings),
+                                    (self.notch_action, "Open the Notch", notch)):
+            key = hotkeys.label(text)
+            action.setText(f"{title}\t{key}" if key else title)
 
     def _sync(self) -> None:
         on = bool(getattr(self.store.value, "show_pill", True))
