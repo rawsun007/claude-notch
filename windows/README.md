@@ -33,6 +33,15 @@ hooks when they start, so restart those.
 
 ## Use
 
+- **Opening it:** like the Mac app, ClaudeNotch is always a keystroke
+  away. **Ctrl+Alt+,** opens Settings from any app (the Mac's
+  Option-Command-Comma) and **Ctrl+Alt+N** opens the notch; change either
+  in Settings > General. The tray icon's menu has Open the Notch,
+  Settings, Pause and Quit. In Start, search for ClaudeNotch or
+  ClaudeNotch Settings; right-click either (or ClaudeNotch pinned to the
+  taskbar) for Open the Notch, Settings, Usage and History. Starting
+  ClaudeNotch again while it runs opens its Settings, as reopening a Mac
+  app does.
 - **Permission card:** Deny, Always Allow (this exact command, or every
   call of that tool; the same call is then answered without a card), or
   Allow. With several cards waiting, Allow All answers them at once.
