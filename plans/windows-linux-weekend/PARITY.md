@@ -52,7 +52,7 @@ Order within each section is roughly by how often a user meets it.
 | Notification card (bell, Dismiss, Open IDE) | NotificationCard | done | Waits until Dismiss or Open IDE. Open IDE brings back the window that was in front when it arrived. StopFailure is this card with the Mac's "⚠️ Rate limited, session stopped" wording. With Pet Mode on, a plan-limit warning has the fretting pet. The Update button is todo. |
 | Completed card (done, reply, Open IDE, audit) | CompletedCard | partial | Green seal, "Claude finished", project, Open IDE and Done; waits until answered. With Pet Mode on, the pet dances on it. Reply (needs compose) and the audit banner are todo. |
 | Auto-approved info card | AutoInfoCard | done | Button-less, four seconds, click to dismiss. |
-| Thinking pill | ThinkingPill | todo | |
+| Thinking pill | ThinkingPill | n/a | On the Mac only the Demos menu and a Settings button ever show it (pingThinking); no hook raises it, so there is nothing user-facing to port. The running command strip covers "what is it doing". |
 | Compose / reply card | NotchComposeCards | todo | |
 | Response detail (full reply, markdown) | ResponseDetailCard, NotchMarkdown | todo | |
 | History drawer (search, filters) | NotchHistoryCard | todo | |
