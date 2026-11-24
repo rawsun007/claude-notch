@@ -501,5 +501,20 @@ class OverlayTests(unittest.TestCase):
         _, _, _, sessions = self.state.snapshot()
         self.assertIsNone(IdleCardView(sessions).expand_button)
 
+    def test_mode_and_files_badges_on_the_open_notch(self):
+        from claudenotch_win.notchcards import IdleCardView
+        self.state.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "s1", "cwd": os.getcwd(),
+                                 "prompt": "go", "permission_mode": "bypassPermissions"})
+        for f in ("a.py", "b.py"):
+            self.state.handle_event({"hook_event_name": "PostToolUse", "session_id": "s1", "cwd": os.getcwd(),
+                                     "tool_name": "Edit", "tool_input": {"file_path": f}})
+        _, _, _, sessions = self.state.snapshot()
+        card = IdleCardView(sessions)
+        self.assertEqual(card.mode_badge.toolTip(), "Permissions are bypassed, every action runs without asking")
+        self.assertIsNotNone(card.files_badge)
+        plain = IdleCardView([])
+        self.assertIsNone(plain.mode_badge)
+        self.assertGreater(card.content_width, plain.content_width)
+
 if __name__ == "__main__":
     unittest.main()

@@ -301,9 +301,25 @@ class IdleCardView(QWidget):
             r1.addWidget(nw.ShimmerText(status, 10))
         else:
             r1.addWidget(nw.Text(status, 10, opacity=0.38, fixed=True))
+        top = sessions[0] if sessions else None
+        # The permission mode Claude Code reports (permissionModeBadge).
+        mode = cardmodel.permission_mode_badge(getattr(top, "permission_mode", "")) if top else None
+        self.mode_badge = None
+        if mode:
+            self.mode_badge = _badge(mode[0], mode[1], 0.18)
+            self.mode_badge.setToolTip(mode[2])
+            self.mode_badge.setAccessibleName(mode[2])
+            r1.addWidget(self.mode_badge)
         agents = sum(s.agents for s in sessions)
         if agents:
             r1.addWidget(_badge("1 agent" if agents == 1 else f"{agents} agents", ms.PURPLE, 0.18))
+        # Files Claude edited this session.
+        files = cardmodel.files_badge(len(getattr(top, "edited_files", ()) or ())) if top else ""
+        self.files_badge = None
+        if files:
+            self.files_badge = _badge(files, (100, 210, 255), 0.15)
+            self.files_badge.setToolTip("Files Claude edited this session")
+            r1.addWidget(self.files_badge)
         r1.addStretch(1)
         clock = nw.Glyph("clock.arrow.circlepath", 11, opacity=0.45)
         clock.setCursor(Qt.PointingHandCursor)
@@ -355,6 +371,9 @@ class IdleCardView(QWidget):
             v.addWidget(self.tasks)
         self.meter = m
         self.content_width = self._natural_width(name, status, agents, m)
+        for badge in (self.mode_badge, self.files_badge):
+            if badge is not None:
+                self.content_width += badge.sizeHint().width() + 6
         self.list_view = None
         if rows:
             self.list_view = SessionsListView(rows)

@@ -375,7 +375,8 @@ class Overlay(QWidget):
             # The list shows only with two or more sessions, as on the Mac.
             rows = cardmodel.session_rows(sessions, branches, waiting, time.monotonic())                 if len(sessions) >= 2 else []
             key = (v, tuple((s.id, s.status, s.last_prompt, s.agents, s.model, s.effort, s.context_pct,
-                             s.context_tokens, s.context_window, s.cost_usd, s.worktree, s.activity, s.activity_started, s.task_progress) for s in sessions),
+                             s.context_tokens, s.context_window, s.cost_usd, s.worktree, s.activity, s.activity_started, s.task_progress,
+                             s.permission_mode, len(s.edited_files)) for s in sessions),
                    tuple(branches.items()), tuple(r.waiting for r in rows), self.position)
             build = lambda: self._idle_card(sessions, branch, rows)  # noqa: E731
         elif v == view.TOAST:
@@ -795,7 +796,8 @@ class Overlay(QWidget):
         inner_h = self._formula_h - top - geom.CONTENT_BOTTOM_PAD
         week, daily = getattr(self, "_week_usage", ({}, {}))
         w = HistoryDrawerView(self.state, self._card_w - 2 * geom.CONTENT_H_PAD, inner_h,
-                              limits_line=cardmodel.limits_line(self.state.limits, time.time()),
+                              status_items=(lambda: cardmodel.status_items(self.state.limits, time.time()))
+                              if any(k in self.state.limits for k in ("five_hour_pct", "seven_day_pct")) else None,
                               week_costs=week, daily_cost=daily)
         w.closed.connect(self.close_history)
         w.resume.connect(self._history_resume)
