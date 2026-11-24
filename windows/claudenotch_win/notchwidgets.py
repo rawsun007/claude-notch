@@ -270,7 +270,7 @@ def draw_glyph(p: QPainter, name: str, r: QRectF, size: float, color: QColor) ->
         p.drawPath(path)
         _cutout(p, QRectF(cx - s / 2, cy - h / 2 + h * 0.18, s, h * 0.8), "!", s)
         return
-    if name in ("exclamationmark.bubble.fill", "questionmark.bubble.fill", "text.bubble"):
+    if name in ("exclamationmark.bubble.fill", "questionmark.bubble.fill", "text.bubble", "text.bubble.fill"):
         w, h = s * 1.0, s * 0.82
         body = QRectF(cx - w / 2, cy - h / 2 - s * 0.06, w, h)
         path = QPainterPath()
@@ -294,6 +294,14 @@ def draw_glyph(p: QPainter, name: str, r: QRectF, size: float, color: QColor) ->
         p.setPen(Qt.NoPen)
         p.setBrush(color)
         p.drawPath(path)
+        if name == "text.bubble.fill":
+            # Two text lines cut out in the card's black.
+            p.setPen(QPen(QColor(0, 0, 0), max(1.0, s * 0.1)))
+            for i, frac in enumerate((0.36, 0.62)):
+                y = body.top() + h * frac
+                p.drawLine(QPointF(body.left() + w * 0.24, y),
+                           QPointF(body.right() - w * (0.24 if i == 0 else 0.4), y))
+            return
         _cutout(p, body, "!" if name.startswith("exclamation") else "?", s)
         return
     if name == "dollarsign.circle.fill":
