@@ -77,7 +77,8 @@ NOTICES = {
     "failure": {"hook_event_name": "StopFailure", "failure_reason": "rate_limit", "message": "rate_limit"},
 }
 HISTORY_TABS = ("history", "history-projects", "history-activity")
-ALL = [*HISTORY_TABS, *PERMISSIONS, "budget", "queue", "question", "expired", "expired-question", *NOTICES, "limit", "idle", "hover", "working", "sessions"]
+COMPOSE = ("compose", "deny-reason")
+ALL = [*HISTORY_TABS, *COMPOSE, *PERMISSIONS, "budget", "queue", "question", "expired", "expired-question", *NOTICES, "limit", "idle", "hover", "working", "sessions"]
 
 
 def load(state: AppState, name: str) -> SimpleNamespace:
@@ -236,6 +237,19 @@ def _history(state: AppState) -> None:
 
 
 def _show(state: AppState, overlay, name: str) -> None:
+    if name == "compose":
+        _history(state)                       # recent projects for the target menu
+        overlay.begin_compose()
+        if overlay._compose_view is not None:
+            overlay._compose_view.edit.setPlainText("Now add a test for the empty search case")
+        return
+    if name == "deny-reason":
+        card = permission()
+        state.enqueue_permission(card)
+        overlay.begin_deny_reason(card)
+        if overlay._compose_view is not None:
+            overlay._compose_view.edit.setPlainText("Run the unit tests first, not the whole suite")
+        return
     if name in HISTORY_TABS:
         _history(state)
         overlay.open_history()
