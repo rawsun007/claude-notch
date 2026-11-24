@@ -376,8 +376,10 @@ class AppState:
                     self._save_approvals()
             elif decision == protocol.ALLOW:
                 self._note_manual_approval(card)
-            self._log({"allow": "allowed", "deny": "denied", "ask": "sent to terminal"}[decision],
-                      card.title, card.detail, card.project)
+            what = {"allow": "allowed", "deny": "denied", "ask": "sent to terminal"}[decision]
+            if decision == protocol.ALLOW and card.dangers:
+                what = "allowed, destructive"       # the Mac's .dangerous outcome
+            self._log(what, card.title, card.detail, card.project)
             if decision in (protocol.ALLOW, protocol.DENY):
                 self.stats.record("allowed" if decision == protocol.ALLOW else "denied")
             self._touch(card.session_id, card.cwd, "working" if decision == protocol.ALLOW else "ready")
