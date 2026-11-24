@@ -23,6 +23,7 @@ from typing import Callable
 
 from . import fsutil, protocol
 from .danger import danger_reasons
+from . import transcript
 from .redact import redact
 from .stats import StatsStore
 from .archive import Archive
@@ -123,6 +124,10 @@ class Session:
     activity_started: float | None = None
     # The task list (AppState+TaskMeter): TodoWrite's whole checklist, or
     # the ids TaskUpdate reports, for the open notch's progress bar.
+    # Claude's last reply (the Mac's fullResponse), redacted, from the Stop
+    # payload or the session's transcript; for the full-reply card.
+    last_reply: str = ""
+    last_reply_at: float = 0.0
     todo_total: int = 0
     todo_done: int = 0
     task_ids: set = field(default_factory=set)
@@ -484,6 +489,8 @@ class AppState:
         sid = str(payload.get("session_id") or "")
         cwd = str(payload.get("cwd") or "")
         toast = None
+        # Read before taking the lock: it is file I/O on the server's thread.
+        reply = transcript.reply_from(payload) if event == "Stop" else None
         with self._lock:
             if event == "SessionStart":
                 self._touch(sid, cwd, "ready")
@@ -509,6 +516,8 @@ class AppState:
                 if s:
                     s.agents = 0
                     s.activity, s.activity_started = "", None
+                    if reply:
+                        s.last_reply, s.last_reply_at = reply, time.time()
                     self.archive.note_turn(sid, s.cwd, s.project, prompt=s.last_prompt, model=s.model,
                                            branch=gitinfo.branch(s.cwd), cost_usd=s.cost_usd)
                 toast = Toast("Claude is done", s.project if s else "", kind="done", cwd=cwd)
