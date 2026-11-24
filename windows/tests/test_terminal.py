@@ -41,6 +41,16 @@ class TerminalTests(unittest.TestCase):
             self.assertIsNone(terminal.drop_launch(os.path.join(d, "missing")))
         self.assertEqual(terminal.ps_quote("a’; calc"), "'a’’; calc'")
 
+    def test_compose_rules(self):
+        self.assertTrue(terminal.is_terminal(r"C:\Program Files\WindowsApps\WindowsTerminal.exe"))
+        self.assertTrue(terminal.is_terminal("pwsh.exe"))
+        self.assertFalse(terminal.is_terminal(r"C:\Program Files\Microsoft VS Code\Code.exe"))
+        self.assertFalse(terminal.is_terminal("notepad.exe"))
+        self.assertEqual(terminal.terminal_name("mintty.exe"), "Git Bash")
+        self.assertEqual(terminal.one_line("fix it\n\tnow\x07 please "), "fix it now please")
+        self.assertEqual(terminal.claude_command("abc", "keep going\nthanks"), "claude --resume abc 'keep going thanks'")
+        self.assertIsNone(terminal.claude_command("bad id", "x"))
+
 
 if __name__ == "__main__":
     unittest.main()
