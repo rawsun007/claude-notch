@@ -124,6 +124,12 @@ class Session:
     activity_started: float | None = None
     # The task list (AppState+TaskMeter): TodoWrite's whole checklist, or
     # the ids TaskUpdate reports, for the open notch's progress bar.
+    # The permission mode Claude Code reports on every hook ("default",
+    # "plan", "acceptEdits", "auto", "dontAsk", "bypassPermissions").
+    permission_mode: str = ""
+    # Files Claude edited this session (Edit, MultiEdit, Write, NotebookEdit),
+    # for the "N files" badge; capped.
+    edited_files: set = field(default_factory=set)
     # Claude's last reply (the Mac's fullResponse), redacted, from the Stop
     # payload or the session's transcript; for the full-reply card.
     last_reply: str = ""
@@ -172,6 +178,17 @@ class AllowRule:
 
 
 MAX_TASK_IDS = 64
+MAX_EDITED_FILES = 200
+EDIT_TOOLS = ("Edit", "MultiEdit", "Write", "NotebookEdit")
+
+
+def note_edit(s: "Session", tool: str, tool_input) -> None:
+    """A file Claude changed (noteFileTouched), by its path."""
+    if tool not in EDIT_TOOLS or not isinstance(tool_input, dict):
+        return
+    path = tool_input.get("file_path") or tool_input.get("notebook_path")
+    if isinstance(path, str) and path and len(s.edited_files) < MAX_EDITED_FILES:
+        s.edited_files.add(path[:512])
 
 
 def note_tasks(s: "Session", tool: str, tool_input) -> None:
@@ -320,6 +337,8 @@ class AppState:
                 # Every PreToolUse passes here, answered by a card or not.
                 s = self._touch(card.session_id, card.cwd)
                 if s is not None:
+                    if getattr(card, "permission_mode", ""):
+                        s.permission_mode = card.permission_mode
                     s.activity = activity_label(card.tool, card.detail)
                     s.activity_started = time.time()
             if not card.dangers and any(r.matches(card) for r in self.rules):
@@ -484,6 +503,14 @@ class AppState:
         s.updated = time.time()
         return s
 
+    def _note_mode(self, payload: dict) -> None:
+        """Every hook says which permission mode the session is in."""
+        mode = payload.get("permission_mode")
+        if isinstance(mode, str) and mode:
+            s = self.sessions.get(str(payload.get("session_id") or "") or str(payload.get("cwd") or ""))
+            if s is not None:
+                s.permission_mode = mode[:32]
+
     def handle_event(self, payload: dict) -> None:
         event = payload.get("hook_event_name") or ""
         sid = str(payload.get("session_id") or "")
@@ -507,6 +534,7 @@ class AppState:
                 s = self._touch(sid, cwd, "working")
                 if s is not None and event == "PostToolUse":
                     note_tasks(s, str(payload.get("tool_name") or ""), payload.get("tool_input"))
+                    note_edit(s, str(payload.get("tool_name") or ""), payload.get("tool_input"))
             elif event == "SubagentStart":
                 s = self._touch(sid, cwd, "working")
                 if s:
@@ -536,6 +564,7 @@ class AppState:
             if toast:
                 self.toasts = (self.toasts + [toast])[-8:]
                 self._log("notice", toast.title, toast.body, "")
+            self._note_mode(payload)
         self._changed()
 
     def dismiss_auto_info(self) -> None:
@@ -580,6 +609,10 @@ class AppState:
                 v = getattr(r, attr)
                 if v is not None:
                     self.limits[attr] = v
+            if self.limits != limits or any(getattr(r, a) is not None for a in ("five_hour_pct", "seven_day_pct")):
+                # When Claude Code last reported a limit: an old reading must
+                # not pass for a current one (StatusBarRow.readingAge).
+                self.limits["updated_at"] = time.time()
             changed = changed or self.limits != limits
             if self.limit_warnings:
                 for key, name in (("five_hour", "5-hour"), ("seven_day", "weekly")):

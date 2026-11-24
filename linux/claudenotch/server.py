@@ -201,6 +201,7 @@ class HookServer:
         tool_input = payload.get("tool_input") if isinstance(payload.get("tool_input"), dict) else {}
         card = PermissionCard(str(payload.get("tool_name") or "tool"), tool_input, str(payload.get("cwd") or ""),
                               kind, str(payload.get("session_id") or ""), resolve=resolve)
+        card.permission_mode = str(payload.get("permission_mode") or "")[:32]
         self.state.enqueue_permission(card)
         if not done.wait(self.window):
             self.state.drop_permission(card.id)
