@@ -145,6 +145,21 @@ class PermissionTests(unittest.TestCase):
                        "rate_limits": {"five_hour": {"used_percentage": 30, "resets_at": 9999999999}}})))
         self.assertIn("updated_at", st.limits)
 
+    def test_a_minimized_question_waits_out_of_sight(self):
+        from claudenotch.state import QuestionCard
+        st, got = AppState(persist=False), []
+        a = QuestionCard([], "/p", "s1", resolve=got.append)
+        b = QuestionCard([], "/p", "s1", resolve=got.append)
+        st.enqueue_question(a)
+        st.enqueue_question(b)
+        st.minimize_question(a.id)
+        self.assertEqual((st.minimized_question_count, [c.id for c in st.questions]), (1, [a.id, b.id]))
+        self.assertEqual(got, [])                                     # nothing answered by hiding it
+        st.resolve_question(b.id, None)                               # the visible one, not the head
+        self.assertEqual([c.id for c in st.questions], [a.id])
+        st.restore_minimized_questions()
+        self.assertEqual(st.minimized_question_count, 0)
+
     def test_always_allow_answers_the_next_identical_call(self):
         st = AppState(persist=False)
         first = card()
