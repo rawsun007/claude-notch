@@ -151,6 +151,10 @@ def load(state: AppState, name: str) -> SimpleNamespace:
             state.enqueue_permission(PermissionCard("PowerShell", {"command": "npm run build -- --watch"}, HOME,
                                                     _protocol.PERMISSION, "demo"))
             state.sessions["demo"].activity_started = _time.time() - 75
+            state.handle_event({"hook_event_name": "PostToolUse", "session_id": "demo", "cwd": HOME,
+                                "tool_name": "TodoWrite", "tool_input": {"todos": [
+                                    {"status": "completed"}, {"status": "completed"}, {"status": "in_progress"},
+                                    {"status": "pending"}, {"status": "pending"}]}})
         # What Claude Code's status line reports, as the forwarder posts it.
         state.note_status(statusline.parse(statusline.flatten({
             "session_id": "demo", "model": {"id": "claude-opus-5-5"}, "effort": {"level": "high"},
