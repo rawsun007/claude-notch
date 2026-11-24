@@ -167,7 +167,29 @@ class Overlay(QWidget):
     # --- geometry ------------------------------------------------------------------
 
     def _screen(self):
+        """The screen the notch lives on: where the pointer last reached the
+        top (see _follow_pointer), the main display until then, and again if
+        that screen is unplugged."""
+        home = getattr(self, "_home", None)
+        if home is not None and home in QGuiApplication.screens():
+            return home
+        self._home = None
         return QGuiApplication.primaryScreen()
+
+    def _follow_pointer(self, pos) -> None:
+        """NotchWindowController: the notch moves to another display when the
+        pointer reaches that display's top centre, never while a card is up."""
+        screens = QGuiApplication.screens()
+        if len(screens) < 2:
+            return
+        current = self._screen()
+        rects = [(s.availableGeometry().x(), s.availableGeometry().y(), s.availableGeometry().width(),
+                  s.availableGeometry().height()) for s in screens]
+        idx = screens.index(current) if current in screens else 0
+        to = geom.screen_to_follow(rects, idx, pos.x(), pos.y(), busy=self._view != view.PILL)
+        if to != idx:
+            self._home = screens[to]
+            self._place()
 
     def _screen_rect(self) -> tuple[int, int, int, int]:
         s = self._screen()
@@ -716,6 +738,8 @@ class Overlay(QWidget):
         if not self.isVisible() or not self.top:
             return
         pos = QCursor.pos()
+        if not self.hovering:
+            self._follow_pointer(pos)
         screen = self._screen_rect()
         tw, th = (self._card_w, max(self._formula_h, self._target()[1])) if self._content else (380, 88)
         inside = geom.should_hover(
