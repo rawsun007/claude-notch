@@ -23,7 +23,7 @@ from typing import Callable
 
 from . import fsutil, protocol
 from .danger import danger_reasons
-from . import transcript
+from . import transcript, worktree
 from .redact import redact
 from .stats import StatsStore
 from .archive import Archive
@@ -130,6 +130,9 @@ class Session:
     # The permission mode Claude Code reports on every hook ("default",
     # "plan", "acceptEdits", "auto", "dontAsk", "bypassPermissions").
     permission_mode: str = ""
+    # Lines Claude changed this session, from the status line's cost block.
+    lines_added: int | None = None
+    lines_removed: int | None = None
     # Files Claude edited this session (Edit, MultiEdit, Write, NotebookEdit),
     # for the "N files" badge; capped.
     edited_files: set = field(default_factory=set)
@@ -295,6 +298,7 @@ class AppState:
         # here", only Dismiss) instead of letting it vanish. A UI that draws
         # that turns this on; otherwise such a card is simply removed.
         self.keep_expired = False
+        self._advised: set[str] = set()     # folders already given the worktree advice
         self._armed = {"five_hour": Armed(), "seven_day": Armed()}
         self.sessions: dict[str, Session] = {}
         self.history: list[dict] = []
@@ -528,6 +532,19 @@ class AppState:
         s.updated = time.time()
         return s
 
+    def _worktree_advice(self) -> "Toast | None":
+        """adviseWorktreeIfNeeded: once per folder, when more than one live
+        session works in it outside a worktree."""
+        for d in worktree.colliding_directories((s.cwd, s.worktree) for s in self.sessions.values()):
+            key = os.path.normcase(os.path.normpath(d))
+            if key in self._advised:
+                continue
+            if len(self._advised) >= worktree.ADVICE_CAP:
+                self._advised.clear()
+            self._advised.add(key)
+            return Toast(worktree.card_title(project_name(d)), worktree.CARD_DETAIL, kind="advice", cwd=d)
+        return None
+
     def _note_mode(self, payload: dict) -> None:
         """Every hook says which permission mode the session is in."""
         mode = payload.get("permission_mode")
@@ -555,6 +572,9 @@ class AppState:
                 s = self._touch(sid, cwd, "working")
                 if s:
                     s.last_prompt = redact(str(payload.get("prompt") or ""))[:200]
+                advice = self._worktree_advice()
+                if advice:
+                    toast = advice
             elif event in ("PostToolUse", "SubagentStop"):
                 s = self._touch(sid, cwd, "working")
                 if s is not None and event == "PostToolUse":
@@ -616,6 +636,10 @@ class AppState:
                 before = dict(vars(s))
                 if r.model:
                     s.model = r.model
+                if r.lines_added is not None:
+                    s.lines_added = r.lines_added
+                if r.lines_removed is not None:
+                    s.lines_removed = r.lines_removed
                 if r.effort:
                     s.effort = r.effort
                 if r.session_name:
