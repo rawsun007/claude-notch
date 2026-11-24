@@ -150,3 +150,25 @@ def test_entity_name_matches_the_mac():
     assert m.entity_name([Session("a", "/p", model="gpt-5-codex")]) == "Codex"
     assert m.entity_name([Session("a", "/p", model="claude-opus-5-5"),
                           Session("b", "/q", model="gpt-5")]) == "ClaudeNotch"
+
+
+
+def test_permission_mode_and_files_badges():
+    assert m.permission_mode_badge("plan")[0] == "PLAN"
+    assert m.permission_mode_badge("bypassPermissions")[0] == "BYPASS"
+    assert m.permission_mode_badge("default") is None
+    assert m.permission_mode_badge("acceptEdits") is None
+    assert (m.files_badge(0), m.files_badge(1), m.files_badge(4)) == ("", "1 file", "4 files")
+    assert [m.age_description(s) for s in (30, 720, 7500, 97200, 86400)] == ["just now", "12m", "2h 5m", "1d 3h", "1d"]
+
+
+def test_limits_status_bar():
+    now = 1_000_000.0
+    five, week = m.status_items({"five_hour_pct": 0.42, "five_hour_resets_at": now + 7500,
+                                 "seven_day_pct": 0.9, "seven_day_resets_at": now - 5, "updated_at": now - 30}, now)
+    assert (five.label, five.text, five.pct, five.reset_in, five.age) == ("5H", "42%", 0.42, "2h 5m", "")
+    assert (week.label, week.text, week.pct, week.reset_in) == ("WK", "—", None, "")    # the window has reset
+    old = m.status_items({"five_hour_pct": 0.42, "updated_at": now - 900}, now)[0]
+    assert old.age == "15m" and "last reported 15m ago" in old.tooltip
+    assert m.status_items({}, now, session_cost=1.5)[-1].text == "$1.50"
+    assert [m.bar_tint(p) for p in (0.3, 0.7, 0.95)] == [(100, 179, 237), (255, 159, 10), (255, 69, 58)]
