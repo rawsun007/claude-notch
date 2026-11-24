@@ -2,7 +2,7 @@
 
 The Mac opens Settings with Option-Command-Comma and the notch with
 Option-Command-N from any app. Here Ctrl+Alt stands in for Option-Command:
-Ctrl+Alt+, opens Settings and Ctrl+Alt+N opens the notch. Both can be
+Ctrl+Alt+, opens Settings and Ctrl+Alt+N the compose card. Both can be
 changed in Settings > General. Ctrl+Alt+H opens the history drawer
 (the Mac's Option-Command-Space; the Claude desktop app already holds
 Ctrl+Alt+Space).
@@ -21,7 +21,7 @@ MOD_ALT, MOD_CONTROL, MOD_SHIFT, MOD_WIN, MOD_NOREPEAT = 0x1, 0x2, 0x4, 0x8, 0x4
 WM_HOTKEY = 0x0312
 
 SETTINGS_DEFAULT = "Ctrl+Alt+,"
-NOTCH_DEFAULT = "Ctrl+Alt+N"
+NOTCH_DEFAULT = ""                    # off: Ctrl+Alt+N is compose, as on the Mac
 
 _MODS = {"ctrl": MOD_CONTROL, "control": MOD_CONTROL, "alt": MOD_ALT, "shift": MOD_SHIFT,
          "win": MOD_WIN, "meta": MOD_WIN}
@@ -75,7 +75,8 @@ def label(text: str) -> str:
                                                                  else key.strip().capitalize()])
 
 
-SETTINGS_ID, NOTCH_ID, HISTORY_ID = 1, 2, 3
+SETTINGS_ID, NOTCH_ID, HISTORY_ID, COMPOSE_ID = 1, 2, 3, 4
+COMPOSE_DEFAULT = "Ctrl+Alt+N"
 HISTORY_DEFAULT = "Ctrl+Alt+H"      # Ctrl+Alt+Space belongs to the Claude desktop app
 
 #: The running app's shortcuts, for the Settings page to report on.
