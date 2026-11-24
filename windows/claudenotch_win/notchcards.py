@@ -83,6 +83,9 @@ class PermissionCardView(QWidget):
             head.addWidget(nw.Text(self.text.project, 10, opacity=0.4, fixed=True))
         v.addLayout(head)
 
+        stale = bool(getattr(card, "stale", False))
+        if stale:
+            v.addWidget(nw.expired_banner(nw.TOO_LATE_PERMISSION))
         if dangerous:
             v.addWidget(nw.danger_banner(card.dangers, pet=pet))
         if block is not None:
@@ -110,6 +113,20 @@ class PermissionCardView(QWidget):
         # The buttons sit 18 under the content (8 spacing + 18 padding).
         v.addSpacing(18)
         row = _row(8)
+        if stale:
+            # Deny goes with Allow: neither reaches the session any more, and a
+            # Deny that silently does nothing would read as "I stopped that".
+            row.addStretch(1)
+            dismiss = nw.NotchButton("Dismiss", "primary")
+            dismiss.clicked.connect(lambda: self.decided.emit(protocol.DENY, ""))
+            row.addWidget(dismiss)
+            self.buttons["dismiss"] = dismiss
+            v.addLayout(row)
+            self.auth_message = nw.wrap_label("", 11, rgb=ms.ORANGE, opacity=0.95)
+            self.auth_message.hide()
+            self.setFixedWidth(int(width))
+            self._waiting.hide()
+            return
         deny = nw.NotchButton("Deny", "destructive", ESC_GLYPH)
         deny.clicked.connect(lambda: self.decided.emit(protocol.DENY, ""))
         row.addWidget(deny)
@@ -698,6 +715,8 @@ class QuestionCardView(QWidget):
                                fixed=True))
         head.addStretch(1)
         v.addLayout(head)
+        if getattr(card, "stale", False):
+            v.addWidget(nw.expired_banner(nw.TOO_LATE_QUESTION))
 
         body = QWidget()
         body.setAttribute(Qt.WA_TranslucentBackground)
@@ -745,13 +764,19 @@ class QuestionCardView(QWidget):
         v.addSpacing(18 - 10)
         row = _row(8)
         row.addStretch(1)
-        cancel = nw.NotchButton("Cancel", "secondary")
-        cancel.clicked.connect(lambda: self.answered.emit(None))
-        send = nw.NotchButton("Send", "primary")
-        send.clicked.connect(self._send)
-        row.addWidget(cancel)
-        row.addWidget(send)
-        self.buttons.update(skip=cancel, send=send)
+        if getattr(card, "stale", False):
+            dismiss = nw.NotchButton("Dismiss", "primary")
+            dismiss.clicked.connect(lambda: self.answered.emit(None))
+            row.addWidget(dismiss)
+            self.buttons.update(dismiss=dismiss)
+        else:
+            cancel = nw.NotchButton("Cancel", "secondary")
+            cancel.clicked.connect(lambda: self.answered.emit(None))
+            send = nw.NotchButton("Send", "primary")
+            send.clicked.connect(self._send)
+            row.addWidget(cancel)
+            row.addWidget(send)
+            self.buttons.update(skip=cancel, send=send)
         v.addLayout(row)
 
         self.setFixedWidth(int(width))

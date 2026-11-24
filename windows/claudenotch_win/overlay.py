@@ -74,6 +74,8 @@ class Overlay(QWidget):
     def __init__(self, state: AppState, store=None, on_settings=None, on_quit=None):
         super().__init__(None)
         self.state = state
+        # The Mac's "Too late to answer here": a card whose hook gave up stays.
+        state.keep_expired = True
         self.store = store
         self.on_settings = on_settings
         self.on_quit = on_quit
@@ -314,11 +316,11 @@ class Overlay(QWidget):
             build = lambda: self._auto_info_card(auto)  # noqa: E731
         elif v == view.PERMISSION:
             card = perms[0]
-            key = (v, card.id, len(perms), self.position)
+            key = (v, card.id, len(perms), card.stale, self.position)
             build = lambda: self._permission_card(card, len(perms))  # noqa: E731
         elif v == view.QUESTION:
             card = questions[0]
-            key = (v, card.id, len(questions), self.position)
+            key = (v, card.id, len(questions), card.stale, self.position)
             build = lambda: self._question_card(card, len(questions) - 1)  # noqa: E731
         elif v == view.SESSIONS:
             branches = {s.id: gitinfo.branch(s.cwd) for s in sessions}
