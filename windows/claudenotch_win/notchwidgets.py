@@ -1001,6 +1001,82 @@ def parse_activity(activity: str) -> tuple[str, str]:
     return _ACTIVITY_ICONS.get(tool.lower(), "bolt.fill"), arg or tool
 
 
+class StatusBar(QWidget):
+    """StatusBarRow: each item as a 9 pt label, a 52 x 3 bar tinted by how
+    full it is, the reading, the countdown to its reset and, once it is
+    old, its age; hairlines between, all centred. `items` is called again
+    every 30 s so the countdowns count down."""
+
+    def __init__(self, items, parent=None):
+        super().__init__(parent)
+        self.items = items
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setFixedHeight(16)
+        self.setMinimumWidth(1)
+        self._timer = QTimer(self, interval=30_000)
+        self._timer.timeout.connect(self._refresh)
+        self._timer.start()
+        self._refresh()
+
+    def _refresh(self) -> None:
+        self.current = list(self.items())
+        self.setToolTip("\n".join(i.tooltip for i in self.current))
+        self.setAccessibleName("; ".join(f"{i.tooltip}: {i.text}" for i in self.current))
+        self.update()
+
+    def _segments(self, item):
+        label_f, text_f, small_f = ms.font(9, "medium"), ms.font(9, "semibold"), ms.font(9)
+        segs = [(item.label, label_f, ms.rgba(WHITE, 0.35))]
+        if item.show_bar:
+            segs.append(("BAR", None, None))
+        segs.append((item.text, text_f, ms.rgba(WHITE, 0.65)))
+        if item.reset_in:
+            segs.append((item.reset_in, small_f, ms.rgba(WHITE, 0.32)))
+        if item.age:
+            segs.append((f"· {item.age} old", small_f, ms.rgba(WHITE, 0.28)))
+        return segs
+
+    def _width(self, item) -> float:
+        total = 0.0
+        for text, f, _ in self._segments(item):
+            total += 52 if text == "BAR" else QFontMetricsF(f).horizontalAdvance(text)
+        return total + 5 * (len(self._segments(item)) - 1)
+
+    def paintEvent(self, _e) -> None:
+        from . import cardmodel
+        items = getattr(self, "current", [])
+        if not items:
+            return
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing, True)
+        gap = 29
+        total = sum(self._width(i) for i in items) + gap * (len(items) - 1)
+        x = max(0.0, (self.width() - total) / 2)
+        cy = self.height() / 2
+        for n, item in enumerate(items):
+            for text, f, color in self._segments(item):
+                if text == "BAR":
+                    track = QPainterPath()
+                    track.addRoundedRect(QRectF(x, cy - 1.5, 52, 3), 1.5, 1.5)
+                    p.fillPath(track, ms.rgba(WHITE, 0.10))
+                    if item.pct:
+                        fill = QPainterPath()
+                        fill.addRoundedRect(QRectF(x, cy - 1.5, 52 * min(1.0, item.pct), 3), 1.5, 1.5)
+                        p.fillPath(fill, ms.rgba(cardmodel.bar_tint(item.pct), 0.9))
+                    x += 52 + 5
+                    continue
+                w = QFontMetricsF(f).horizontalAdvance(text)
+                p.setFont(f)
+                p.setPen(color)
+                p.drawText(QRectF(x, 0, w + 1, self.height()), Qt.AlignVCenter | Qt.AlignLeft, text)
+                x += w + 5
+            x -= 5
+            if n < len(items) - 1:
+                p.fillRect(QRectF(x + 14, cy - 5.5, 1, 11), ms.rgba(WHITE, 0.10))
+                x += gap
+        p.end()
+
+
 class TaskProgress(QWidget):
     """The task-list bar: a checklist glyph, a 4 pt capsule (blue, green
     when every task is done) and "done/total" at 9 pt."""

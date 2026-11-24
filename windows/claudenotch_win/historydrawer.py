@@ -205,7 +205,7 @@ class HistoryDrawerView(QWidget):
     export = Signal(str)
     clear = Signal(str)
 
-    def __init__(self, state, width: float, height: float, limits_line: str = "", week_costs=None,
+    def __init__(self, state, width: float, height: float, status_items=None, week_costs=None,
                  daily_cost=None, parent=None):
         super().__init__(parent)
         self.state = state
@@ -226,11 +226,15 @@ class HistoryDrawerView(QWidget):
         self.head.setSpacing(8)
         v.addWidget(self.head_box)
 
-        if limits_line:
+        # The plan limits (StatusBarRow): this is the screen you open when you
+        # want the numbers, with room for the reset countdowns in full.
+        self.status_bar = None
+        if status_items is not None:
             box = nw.RoundedBox(ms.rgba(ms.WHITE, 0.04), 8)
             lay = QHBoxLayout(box)
-            lay.setContentsMargins(10, 6, 10, 6)
-            lay.addWidget(nw.Text(limits_line, 11, opacity=0.7))
+            lay.setContentsMargins(16, 6, 16, 6)
+            self.status_bar = nw.StatusBar(status_items)
+            lay.addWidget(self.status_bar)
             v.addWidget(box)
 
         tabs = _row(6)
