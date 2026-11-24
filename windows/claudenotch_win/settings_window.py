@@ -1185,7 +1185,9 @@ class SettingsWindow(QWidget):
     def _page_about(self) -> QWidget:
         page, v = self._page("About")
         card = kit.Card(self.t)
-        card.add(kit.Row(self.t, "ClaudeNotch for Windows", f"Version {__version__}"))
+        check = kit.PushButton(self.t, "Check for Updates")
+        check.clicked.connect(self._check_updates)
+        self.version_row = card.add(kit.Row(self.t, "ClaudeNotch for Windows", f"Version {__version__}", check))
         for title, path in (("Log", paths.log_path()), ("ClaudeNotch settings", paths.config_dir()),
                             ("Claude Code settings", hooks.settings_path())):
             path = os.path.normpath(path)
@@ -1206,6 +1208,29 @@ class SettingsWindow(QWidget):
         v.addLayout(buttons)
         v.addStretch(1)
         return page
+
+    def _check_updates(self) -> None:
+        from . import updater
+        up = updater.APP
+        sub = self.version_row.subtitle
+        if up is None:
+            sub.setText(f"Version {__version__}. Checking needs the running app.")
+            return
+        sub.setText(f"Version {__version__}. Checking…")
+
+        def done(result: str) -> None:
+            try:
+                up.finished.disconnect(done)
+            except (RuntimeError, TypeError):
+                pass
+            text = {"update": f"ClaudeNotch {up.latest[0]} is out: get it from the tray menu's Update item."
+                    if up.latest else "",
+                    "current": "You have the latest version.",
+                    "failed": "Could not reach GitHub to check. Try again later."}.get(result, "")
+            sub.setText(f"Version {__version__}. {text}")
+
+        up.finished.connect(done)
+        up.check(asked=True)
 
     # --- state ------------------------------------------------------------------------------
 
