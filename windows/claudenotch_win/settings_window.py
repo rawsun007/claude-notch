@@ -17,8 +17,8 @@ import os
 import webbrowser
 
 from PySide6.QtCore import QObject, Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QDesktopServices, QIcon
-from PySide6.QtWidgets import (QButtonGroup, QComboBox, QDialog, QHBoxLayout, QRadioButton, QScrollArea,
+from PySide6.QtGui import QDesktopServices, QIcon, QKeySequence
+from PySide6.QtWidgets import (QButtonGroup, QComboBox, QDialog, QHBoxLayout, QKeySequenceEdit, QRadioButton, QScrollArea,
                                QStackedWidget, QVBoxLayout, QWidget)
 
 from claudenotch import autoapprove, hooks
@@ -305,6 +305,28 @@ class SettingsWindow(QWidget):
         v.addWidget(card)
         self._message("general", v)
 
+        v.addWidget(kit.section_label(self.t, "Keyboard shortcuts"))
+        keys = kit.Card(self.t)
+        self.hotkey_rows = {}
+        for key, title, default in (
+                ("settings_hotkey", "Open Settings", "Ctrl+Alt+,"),
+                ("notch_hotkey", "Open the notch", "Ctrl+Alt+N")):
+            edit = QKeySequenceEdit(QKeySequence(getattr(self.store.value, key, default)))
+            edit.setMaximumSequenceLength(1)
+            edit.setFixedWidth(150)
+            edit.editingFinished.connect(lambda e=edit, k=key: self._set_hotkey(k, e))
+            reset = kit.PushButton(self.t, "Default")
+            reset.clicked.connect(lambda _=False, e=edit, k=key, d=default: (e.setKeySequence(QKeySequence(d)),
+                                                                            self._set_hotkey(k, e)))
+            row = keys.add(kit.Row(self.t, title, " ", edit))
+            row.layout().insertWidget(1, reset)
+            self.hotkey_rows[key] = row
+        v.addWidget(keys)
+        v.addWidget(kit.label("Work from any app, like Option-Command-Comma on the Mac. Click a box and press the "
+                              "new keys; they need Ctrl, Alt or Win.", 11, color=self.t.secondary, wrap=True))
+        self._message("hotkeys", v)
+        self._refresh_hotkeys()
+
         v.addWidget(kit.section_label(self.t, "Auto-Approve"))
         auto = kit.Card(self.t)
         change = kit.PushButton(self.t, "Change…")
@@ -340,6 +362,36 @@ class SettingsWindow(QWidget):
         self._message("hooks", v)
         v.addStretch(1)
         return page
+
+    def _set_hotkey(self, key: str, edit) -> None:
+        from . import hotkeys
+        text = edit.keySequence().toString(QKeySequence.PortableText)
+        if text and hotkeys.parse(text) is None:
+            self._say("hotkeys", f"{text} cannot be a system-wide shortcut: it needs Ctrl, Alt or Win and one key.")
+            edit.setKeySequence(QKeySequence(getattr(self.store.value, key)))
+            return
+        self._say("hotkeys", None)
+        if text != getattr(self.store.value, key):
+            self.store.update(**{key: text})
+        QTimer.singleShot(50, self._refresh_hotkeys)
+
+    def _refresh_hotkeys(self) -> None:
+        from . import hotkeys
+        app = hotkeys.APP
+        for key, ident in (("settings_hotkey", hotkeys.SETTINGS_ID), ("notch_hotkey", hotkeys.NOTCH_ID)):
+            row = getattr(self, "hotkey_rows", {}).get(key)
+            if row is None or row.subtitle is None:
+                continue
+            text = getattr(self.store.value, key, "")
+            if not text:
+                note = "Off"
+            elif app is None:
+                note = hotkeys.label(text)
+            else:
+                _, ok = app.status.get(ident, (text, False))
+                note = (f"{hotkeys.label(text)} works from any app" if ok
+                        else f"{hotkeys.label(text)} is taken by another program; pick other keys")
+            row.subtitle.setText(note)
 
     def _set_autostart(self, on: bool) -> None:
         try:
