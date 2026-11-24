@@ -106,6 +106,13 @@ def _link(title: str, exe: str, args: str, desc: str) -> ctypes.c_void_p:
     return link
 
 
+def _com_init() -> None:
+    """COM for this thread. Already set up (Qt's GUI thread is, as an
+    apartment; another library may have chosen the other mode) is fine: the
+    objects used here work in either, so the answer is not checked."""
+    ctypes.windll.ole32.CoInitializeEx(None, 2)
+
+
 def install(app_id: str = paths.AUMID, exe: str | None = None) -> bool:
     """Write the jump list's tasks for `app_id`. False where it cannot be
     done (not Windows, not the installed exe, or the shell said no)."""
@@ -114,7 +121,7 @@ def install(app_id: str = paths.AUMID, exe: str | None = None) -> bool:
     exe = exe or (sys.executable if paths.frozen() else None)
     if not exe:
         return False
-    ctypes.oledll.ole32.CoInitializeEx(None, 2)  # apartment; Qt's GUI thread already is (S_FALSE)
+    _com_init()
     dest = coll = arr = None
     links = []
     try:
@@ -144,7 +151,7 @@ def remove(app_id: str = paths.AUMID) -> bool:
     if sys.platform != "win32":
         return False
     try:
-        ctypes.oledll.ole32.CoInitializeEx(None, 2)
+        _com_init()
         dest = _create(CLSID_DestinationList, IID_ICustomDestinationList)
         try:
             _method(dest, 10, ctypes.c_wchar_p)(app_id)                              # DeleteList
