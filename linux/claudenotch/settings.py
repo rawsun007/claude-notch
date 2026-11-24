@@ -81,8 +81,9 @@ class Settings:
     # and Option-Command-N, with Ctrl+Alt for Option-Command). "" turns one off.
     settings_hotkey: str = "Ctrl+Alt+,"
     notch_hotkey: str = "Ctrl+Alt+N"
-    # The history drawer, the Mac's Option-Command-Space.
-    history_hotkey: str = "Ctrl+Alt+Space"
+    # The history drawer, the Mac's Option-Command-Space. Not Ctrl+Alt+Space:
+    # the Claude desktop app holds that for its quick entry.
+    history_hotkey: str = "Ctrl+Alt+H"
 
 
 POSITIONS = ("top", "bottom-right")

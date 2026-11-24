@@ -3,7 +3,9 @@
 The Mac opens Settings with Option-Command-Comma and the notch with
 Option-Command-N from any app. Here Ctrl+Alt stands in for Option-Command:
 Ctrl+Alt+, opens Settings and Ctrl+Alt+N opens the notch. Both can be
-changed in Settings > General.
+changed in Settings > General. Ctrl+Alt+H opens the history drawer
+(the Mac's Option-Command-Space; the Claude desktop app already holds
+Ctrl+Alt+Space).
 
 RegisterHotKey with no window posts WM_HOTKEY to the thread that registered
 it, which is Qt's GUI thread, so a native event filter picks it up there.
@@ -74,7 +76,7 @@ def label(text: str) -> str:
 
 
 SETTINGS_ID, NOTCH_ID, HISTORY_ID = 1, 2, 3
-HISTORY_DEFAULT = "Ctrl+Alt+Space"
+HISTORY_DEFAULT = "Ctrl+Alt+H"      # Ctrl+Alt+Space belongs to the Claude desktop app
 
 #: The running app's shortcuts, for the Settings page to report on.
 APP: "GlobalHotkeys | None" = None
