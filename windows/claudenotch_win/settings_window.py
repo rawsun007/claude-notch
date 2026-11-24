@@ -310,7 +310,8 @@ class SettingsWindow(QWidget):
         self.hotkey_rows = {}
         for key, title, default in (
                 ("settings_hotkey", "Open Settings", "Ctrl+Alt+,"),
-                ("notch_hotkey", "Open the notch", "Ctrl+Alt+N"),
+                ("compose_hotkey", "Send to Claude", "Ctrl+Alt+N"),
+                ("notch_hotkey", "Open the notch", ""),
                 ("history_hotkey", "Open history", "Ctrl+Alt+H")):
             edit = QKeySequenceEdit(QKeySequence(getattr(self.store.value, key, default)))
             edit.setMaximumSequenceLength(1)
@@ -379,7 +380,8 @@ class SettingsWindow(QWidget):
     def _refresh_hotkeys(self) -> None:
         from . import hotkeys
         app = hotkeys.APP
-        for key, ident in (("settings_hotkey", hotkeys.SETTINGS_ID), ("notch_hotkey", hotkeys.NOTCH_ID),
+        for key, ident in (("settings_hotkey", hotkeys.SETTINGS_ID), ("compose_hotkey", hotkeys.COMPOSE_ID),
+                           ("notch_hotkey", hotkeys.NOTCH_ID),
                            ("history_hotkey", hotkeys.HISTORY_ID)):
             row = getattr(self, "hotkey_rows", {}).get(key)
             if row is None or row.subtitle is None:

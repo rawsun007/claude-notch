@@ -116,12 +116,14 @@ def run(args) -> int:
     def apply_hotkeys() -> None:
         want = {hotkeys.SETTINGS_ID: (store.value.settings_hotkey, lambda: open_settings()),
                 hotkeys.NOTCH_ID: (store.value.notch_hotkey, lambda: overlay.show_sessions(8)),
-                hotkeys.HISTORY_ID: (store.value.history_hotkey, overlay.toggle_history)}
+                hotkeys.HISTORY_ID: (store.value.history_hotkey, overlay.toggle_history),
+                hotkeys.COMPOSE_ID: (store.value.compose_hotkey, overlay.begin_compose)}
         for ident, (text, action) in want.items():
             if bound.get(ident) != text:
                 bound[ident] = text
                 keys.register(ident, text, action)
-        tray.set_shortcuts(store.value.settings_hotkey, store.value.notch_hotkey, store.value.history_hotkey)
+        tray.set_shortcuts(store.value.settings_hotkey, store.value.notch_hotkey, store.value.history_hotkey,
+                           store.value.compose_hotkey)
 
     apply_hotkeys()
     # Is a newer ClaudeNotch out? At start, then daily (the Mac's UpdateChecker).
@@ -146,6 +148,7 @@ def run(args) -> int:
             open_notch = Signal()
             standup = Signal()
             history = Signal()
+            compose = Signal()
             quit = Signal()
 
         controls = _Controls()
@@ -158,6 +161,8 @@ def run(args) -> int:
         server.controls["standup"] = controls.standup.emit
         controls.history.connect(overlay.open_history)
         server.controls["history"] = controls.history.emit
+        controls.compose.connect(overlay.begin_compose)
+        server.controls["compose"] = controls.compose.emit
         server.controls["quit"] = controls.quit.emit
         server.start()
     else:
@@ -193,6 +198,7 @@ def run(args) -> int:
         QTimer.singleShot(300, (lambda: open_settings(page or None)) if verb == "settings"
                           else tray.copy_standup if verb == "standup"
                           else overlay.open_history if verb == "history"
+                          else overlay.begin_compose if verb == "compose"
                           else (lambda: overlay.show_sessions(8)))
 
     # Ctrl+C in a console run: let Python see the signal now and then.

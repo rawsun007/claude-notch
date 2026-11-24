@@ -6,7 +6,8 @@ from claudenotch_win import hotkeys as hk
 class HotkeyTests(unittest.TestCase):
     def test_the_macs_shortcuts_with_ctrl_alt(self):
         self.assertEqual(hk.parse(hk.SETTINGS_DEFAULT), (hk.MOD_CONTROL | hk.MOD_ALT, 0xBC))
-        self.assertEqual(hk.parse(hk.NOTCH_DEFAULT), (hk.MOD_CONTROL | hk.MOD_ALT, ord("N")))
+        self.assertEqual(hk.parse(hk.COMPOSE_DEFAULT), (hk.MOD_CONTROL | hk.MOD_ALT, ord("N")))
+        self.assertIsNone(hk.parse(hk.NOTCH_DEFAULT))                      # off unless chosen
         self.assertEqual(hk.parse("win+shift+f5"), (hk.MOD_WIN | hk.MOD_SHIFT, 0x74))
         self.assertEqual(hk.parse("Ctrl+Alt++"), (hk.MOD_CONTROL | hk.MOD_ALT, 0xBB))
         self.assertEqual(hk.parse(hk.HISTORY_DEFAULT), (hk.MOD_CONTROL | hk.MOD_ALT, ord("H")))

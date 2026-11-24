@@ -80,7 +80,10 @@ class Settings:
     # Windows edition: system-wide shortcuts (the Mac's Option-Command-Comma
     # and Option-Command-N, with Ctrl+Alt for Option-Command). "" turns one off.
     settings_hotkey: str = "Ctrl+Alt+,"
-    notch_hotkey: str = "Ctrl+Alt+N"
+    # Option-Command-N on the Mac opens the compose card; opening the notch
+    # has no default shortcut (the tray and jump list do it).
+    compose_hotkey: str = "Ctrl+Alt+N"
+    notch_hotkey: str = ""
     # The history drawer, the Mac's Option-Command-Space. Not Ctrl+Alt+Space:
     # the Claude desktop app holds that for its quick entry.
     history_hotkey: str = "Ctrl+Alt+H"
