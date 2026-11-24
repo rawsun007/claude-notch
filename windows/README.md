@@ -59,6 +59,11 @@ hooks when they start, so restart those.
 - **Question cards:** the shrink button at the top right puts a question
   away without answering it; Claude keeps waiting, and the notch grows a
   small purple tab on its left. Click the tab to bring it back.
+- **This session's work:** Settings > Session shows the lines Claude
+  added and removed (from Claude Code's status line) and the files it
+  touched, each with Show to find it in File Explorer. When two sessions
+  work in the same folder at once, the notch says so once and suggests
+  `claude --worktree`, since they would edit the same files.
 - **History:** the clock on the open notch, Ctrl+Alt+H, the tray or the
   jump list opens the history drawer: past sessions (Resume reopens one),
   spend per project with the last seven days, and every card you answered,
