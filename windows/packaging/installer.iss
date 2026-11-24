@@ -20,9 +20,10 @@ PrivilegesRequired=lowest
 DefaultDirName={localappdata}\Programs\ClaudeNotch
 DisableProgramGroupPage=yes
 DisableDirPage=yes
-; The running app holds this mutex; the installer closes it before
-; replacing files, through the Restart Manager, and starts it again after.
-AppMutex=ClaudeNotch
+; No AppMutex: its check runs before anything else and only asks the user
+; to close the app (in a silent upgrade that prompt answers Cancel, so the
+; upgrade failed). PrepareToInstall below quits the running copy instead,
+; and the Restart Manager catches anything still holding a file.
 CloseApplications=force
 RestartApplications=yes
 OutputDir=..\dist
@@ -74,6 +75,19 @@ Filename: "{app}\{#AppExe}"; Parameters: "--quit-running --uninstall-hooks"; Fla
 Type: filesandordirs; Name: "{app}"
 
 [Code]
+// An upgrade quits the running copy itself, the app's own way: open cards
+// are answered "ask" so Claude Code falls back to its terminal prompt.
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+  Exe: String;
+begin
+  Exe := ExpandConstant('{app}\ClaudeNotch.exe');
+  if FileExists(Exe) then
+    Exec(Exe, '--quit-running', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := '';
+end;
+
 // Start at login lives in the user's Run key; take it out on uninstall.
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
