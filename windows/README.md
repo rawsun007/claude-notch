@@ -35,8 +35,9 @@ hooks when they start, so restart those.
 
 - **Opening it:** like the Mac app, ClaudeNotch is always a keystroke
   away. **Ctrl+Alt+,** opens Settings from any app (the Mac's
-  Option-Command-Comma), **Ctrl+Alt+N** opens the notch and **Ctrl+Alt+H**
-  its history; change any of them in Settings > General. The tray icon's menu has Open the Notch,
+  Option-Command-Comma), **Ctrl+Alt+N** opens the compose card (the Mac's
+  Option-Command-N) and **Ctrl+Alt+H** its history; change any of them
+  in Settings > General. The tray icon's menu has Open the Notch,
   Settings, Pause and Quit. In Start, search for ClaudeNotch or
   ClaudeNotch Settings; right-click either (or ClaudeNotch pinned to the
   taskbar) for Open the Notch, Settings, Usage and History. Starting
@@ -46,6 +47,12 @@ hooks when they start, so restart those.
   names the project) and Copy Today's Standup, as in the Mac's menu bar,
   and Update available when a newer ClaudeNotch is out. Drop a folder (or
   a file) on the notch to start Claude there.
+- **Send to Claude:** Ctrl+Alt+N (or Send to Claude in the tray) opens a
+  box to type Claude a message. Ctrl+Enter types it into the terminal you
+  were in; pick a project instead to start Claude there with it. Reply on
+  a done card answers that session. The bubble beside Deny denies with a
+  reason, which Claude sees. ClaudeNotch only ever types into a terminal
+  window (never an editor), and only when it is in front.
 - **History:** the clock on the open notch, Ctrl+Alt+H, the tray or the
   jump list opens the history drawer: past sessions (Resume reopens one),
   spend per project with the last seven days, and every card you answered,

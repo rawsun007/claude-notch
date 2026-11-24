@@ -42,7 +42,7 @@ Order within each section is roughly by how often a user meets it.
 | Write / plan / todo preview (12 lines, "…and N more lines") | WritePreviewView | done | |
 | Always Allow menu (exact command / whole tool) | PermissionCard | done | Core gained the whole-tool scope. |
 | Allow All (n) for a queue | PermissionCard | done | Never sweeps up a destructive card. |
-| Deny with a reason | onDenyReason, compose card | todo | Needs the compose card. |
+| Deny with a reason | onDenyReason, compose card | done | The bubble beside Deny opens the compose card in red; the note goes back to Claude as the deny reason (folded to one line). |
 | "allowed N times" nudge | priorApprovals | done | From the third hand approval of the same exact command, never for a dangerous one or one a rule covers; making the rule spends the tally. Kept in approvals.json as hashes, capped at 64. |
 | Sandbox badge | SandboxReader | todo | |
 | Too late to answer here (expired card) | PermissionCard.expiredBanner | done | The card stays with the Mac's orange banner and only Dismiss (questions too); pressing anything only dismisses it, Allow All passes over it, a live card always shows first. Opt-in in the core (keep_expired), so Linux is unchanged. |
@@ -53,7 +53,7 @@ Order within each section is roughly by how often a user meets it.
 | Completed card (done, reply, Open IDE, audit) | CompletedCard | partial | Green seal, "Claude finished", project, Open IDE and Done; waits until answered. With Pet Mode on, the pet dances on it. Reply (needs compose) and the audit banner are todo. |
 | Auto-approved info card | AutoInfoCard | done | Button-less, four seconds, click to dismiss. |
 | Thinking pill | ThinkingPill | n/a | On the Mac only the Demos menu and a Settings button ever show it (pingThinking); no hook raises it, so there is nothing user-facing to port. The running command strip covers "what is it doing". |
-| Compose / reply card | NotchComposeCards | todo | |
+| Compose / reply card | NotchComposeCards | done | Ctrl+Alt+N, the tray, the jump list or claudenotch://compose; Reply on a done card. Typed into the terminal you were in (or the session's) with SendInput, only into a terminal program, only when it is really in front and no modifier is held, as one line; or a fresh terminal in a chosen project with the message as the first prompt. Checked live: a typed message ran in a PowerShell window. Background agents (claude --bg) are todo. |
 | Response detail (full reply, markdown) | ResponseDetailCard, NotchMarkdown | todo | |
 | History drawer (search, filters) | NotchHistoryCard | done | Sessions (Resume under the pointer), Projects (7-day spend sparkline, money from the transcripts), Activity (the Mac's outcome colours and labels); search, All / Allowed / Denied / Risky / Q&A, Export, Clear, plan limits, Close. Opens from the clock on the open notch, Ctrl+Alt+H (the Mac's Option-Command-Space; the Claude desktop app holds Ctrl+Alt+Space), the tray, the jump list and claudenotch://history; takes the keyboard for its search. |
 
@@ -95,7 +95,7 @@ Order within each section is roughly by how often a user meets it.
 | Sounds | AppState+Sound | done | The Mac's events, per-tool sounds (PowerShell counts as shell), per-event overrides and None, mute; the app's own sounds under the Mac's names, or the user's copies of the macOS sounds (.aiff or .wav) from %APPDATA%\ClaudeNotch\Sounds. Settings > Sounds. |
 | Notifications mirrored to the OS | NotificationBridge | done | Windows toasts. |
 | URL scheme `claudenotch://` | URLScheme | partial | open, settings, settings/<page>, history, standup; registered per user by the installer. compose and resume are todo. |
-| Global hotkey for Settings | GlobalHotkey | done | Ctrl+Alt+, opens Settings and Ctrl+Alt+N the notch from any app (the Mac's Option-Command-Comma and Option-Command-N), `RegisterHotKey`; both changeable in Settings > General, which says when another program holds one. Plus the Windows places a Mac app lives: tray menu with the shortcuts shown, Start entries (ClaudeNotch, ClaudeNotch Settings), a taskbar/Start jump list (Open the Notch, Settings, Usage, History), relaunch opens Settings. |
+| Global hotkey for Settings | GlobalHotkey | done | Ctrl+Alt+, opens Settings, Ctrl+Alt+N the compose card and Ctrl+Alt+H history from any app (the Mac's Option-Command-Comma, Option-Command-N and Option-Command-Space), `RegisterHotKey`; both changeable in Settings > General, which says when another program holds one. Plus the Windows places a Mac app lives: tray menu with the shortcuts shown, Start entries (ClaudeNotch, ClaudeNotch Settings), a taskbar/Start jump list (Open the Notch, Settings, Usage, History), relaunch opens Settings. |
 | Start at login | (LaunchAgent) | done | HKCU Run. |
 | Single instance, take over an older copy | SingleInstance | done | |
 | Update check | UpdateChecker | done | GitHub releases tagged windows-v*, 20 s after start and daily; "Update available: x" in the tray opens the release page; Settings > About has Check for Updates. |
