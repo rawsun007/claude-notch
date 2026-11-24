@@ -78,6 +78,7 @@ NOTICES = {
 }
 HISTORY_TABS = ("history", "history-projects", "history-activity")
 COMPOSE = ("compose", "deny-reason", "reply")
+MINIMIZED = ("question-minimized",)
 DEMO_REPLY = """## Fixed the history drawer
 
 The search lost its text whenever **new activity** arrived, because the drawer was rebuilt on every
@@ -95,7 +96,7 @@ pytest windows/tests -k history
 ```
 
 All 31 tests pass."""
-ALL = [*HISTORY_TABS, *COMPOSE, *PERMISSIONS, "budget", "queue", "question", "expired", "expired-question", *NOTICES, "limit", "idle", "hover", "working", "sessions"]
+ALL = [*HISTORY_TABS, *COMPOSE, *MINIMIZED, *PERMISSIONS, "budget", "queue", "question", "expired", "expired-question", *NOTICES, "limit", "idle", "hover", "working", "sessions"]
 
 
 def load(state: AppState, name: str) -> SimpleNamespace:
@@ -256,6 +257,13 @@ def _history(state: AppState) -> None:
 
 
 def _show(state: AppState, overlay, name: str) -> None:
+    if name == "question-minimized":
+        # Two questions put away: the stub on the notch's left, with its count.
+        for _ in range(2):
+            q = question()
+            state.enqueue_question(q)
+            state.minimize_question(q.id)
+        return
     if name == "reply":
         state.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "demo",
                             "cwd": HOME + "\\claude-notch", "prompt": "fix the drawer"})
