@@ -338,5 +338,17 @@ class OverlayTests(unittest.TestCase):
         self.app.processEvents()
         self.assertEqual((self.state.permissions, got, self.state.rules), ([], [], []))
 
+    def test_allowed_n_times_beside_always_allow(self):
+        for _ in range(3):
+            card, _ = self.perm("npm test")
+            self.overlay.buttons["allow"].click()
+            self.app.processEvents()
+        card, _ = self.perm("npm test")
+        self.overlay.render()
+        self.app.processEvents()
+        from claudenotch_win import notchwidgets as nw
+        texts = [t._text for t in self.overlay.findChildren(nw.Text)]
+        self.assertIn("allowed 3 times", texts)
+
 if __name__ == "__main__":
     unittest.main()
