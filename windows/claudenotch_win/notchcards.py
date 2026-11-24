@@ -616,7 +616,10 @@ class NoticeCardView(QWidget):
         col.setSpacing(3)
         col.addWidget(nw.LinesText(self.text.title, 14, "semibold", max_lines=2))
         if self.text.detail:
-            if done:
+            if getattr(toast, "kind", "") == "advice":
+                # The worktree advice is a paragraph, not a one-liner.
+                col.addWidget(nw.LinesText(self.text.detail, 11, opacity=0.6, max_lines=4))
+            elif done:
                 col.addWidget(nw.LinesText(self.text.detail, 11, opacity=0.6, max_lines=2))
             else:
                 col.addWidget(nw.Text(self.text.detail, 11, opacity=0.55, elide=Qt.ElideMiddle))
