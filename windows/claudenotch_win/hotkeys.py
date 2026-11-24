@@ -73,7 +73,8 @@ def label(text: str) -> str:
                                                                  else key.strip().capitalize()])
 
 
-SETTINGS_ID, NOTCH_ID = 1, 2
+SETTINGS_ID, NOTCH_ID, HISTORY_ID = 1, 2, 3
+HISTORY_DEFAULT = "Ctrl+Alt+Space"
 
 #: The running app's shortcuts, for the Settings page to report on.
 APP: "GlobalHotkeys | None" = None
