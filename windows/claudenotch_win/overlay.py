@@ -526,8 +526,9 @@ class Overlay(QWidget):
         self._card_w = 620
         g = hello.gate(self._setting("require_hello", True), self._hello.available,
                        self._setting("skip_destructive_confirm", False))
+        prior = self.state.approval_count(card) if self.state.suggests_rule(card) else 0
         w = PermissionCardView(card, pending, width=620 - 2 * geom.CONTENT_H_PAD, gate=g, hwnd=self._hwnd(),
-                               pet=bool(self._setting("pet_enabled", False)))
+                               pet=bool(self._setting("pet_enabled", False)), prior_approvals=prior)
         if getattr(card, "confirm_now", False) and g == hello.HELLO:
             # Auto-Approve set to confirm destructive commands: the prompt
             # comes up on its own, so a glance or a finger allows it.

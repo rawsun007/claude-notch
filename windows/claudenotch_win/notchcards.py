@@ -53,7 +53,7 @@ class PermissionCardView(QWidget):
     _hello_done = Signal(bool, object)
 
     def __init__(self, card, pending: int = 1, width: float = 564, gate: str = "hold", hwnd: int = 0,
-                 parent=None, pet: bool = False):
+                 parent=None, pet: bool = False, prior_approvals: int = 0):
         super().__init__(parent)
         self.gate, self._hwnd = gate, hwnd
         self._hello_done.connect(self._hello_answered)
@@ -138,6 +138,13 @@ class PermissionCardView(QWidget):
                 f"Choose to always allow this exact command, or every {card.tool} call")
             row.addWidget(always)
             self.buttons["always"] = always
+            if prior_approvals > 0:
+                # Said at the one moment the answer is obvious: the same
+                # command waved through several times already.
+                hint = nw.Text(f"allowed {prior_approvals} times", 11, opacity=0.55, fixed=True)
+                hint.setAccessibleName(f"You have allowed this command {prior_approvals} times before")
+                row.addWidget(hint)
+                self.prior_hint = hint
         row.addStretch(1)
         if block is not None:
             # Over budget: explicit choices only, and no Return shortcut.
