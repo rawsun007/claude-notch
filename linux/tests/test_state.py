@@ -93,6 +93,20 @@ class PermissionTests(unittest.TestCase):
         self.assertEqual(migrate_exact("Bash", "command: x"), "command: x")
         self.assertTrue(AllowRule("PowerShell", migrate_exact("PowerShell", "command: npm test, then lint")).matches(c))
 
+    def test_task_list_progress(self):
+        st = AppState(persist=False)
+        post = lambda tool, ti: st.handle_event({"hook_event_name": "PostToolUse", "session_id": "s1",
+                                                 "cwd": "/p", "tool_name": tool, "tool_input": ti})
+        post("TaskUpdate", {"taskId": "1", "status": "in_progress"})
+        post("TaskUpdate", {"taskId": "2", "status": "completed"})
+        post("TaskUpdate", {"taskId": "3", "status": "pending"})
+        post("TaskUpdate", {"taskId": "3", "status": "deleted"})
+        self.assertEqual(st.sessions["s1"].task_progress, (1, 2))
+        post("TodoWrite", {"todos": [{"status": "completed"}, {"status": "in_progress"}, {"status": "pending"}, "x"]})
+        self.assertEqual(st.sessions["s1"].task_progress, (1, 3))        # the checklist wins
+        post("TodoWrite", {"todos": "nonsense"})
+        self.assertEqual(st.sessions["s1"].task_progress, (1, 2))
+
     def test_always_allow_answers_the_next_identical_call(self):
         st = AppState(persist=False)
         first = card()
