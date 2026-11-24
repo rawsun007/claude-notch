@@ -42,6 +42,15 @@ hooks when they start, so restart those.
   taskbar) for Open the Notch, Settings, Usage and History. Starting
   ClaudeNotch again while it runs opens its Settings, as reopening a Mac
   app does.
+- **From the tray:** Start Claude in Folder…, Resume Last Session (it
+  names the project) and Copy Today's Standup, as in the Mac's menu bar,
+  and Update available when a newer ClaudeNotch is out. Drop a folder (or
+  a file) on the notch to start Claude there.
+- **While Claude works:** the open notch shows the running command with a
+  clock (orange past a minute) and the task list's progress. A card Claude
+  Code stopped waiting for says "Too late to answer here" instead of
+  vanishing. After you allow the same command three times, the card says
+  "allowed 3 times" beside Always Allow.
 - **Permission card:** Deny, Always Allow (this exact command, or every
   call of that tool; the same call is then answered without a card), or
   Allow. With several cards waiting, Allow All answers them at once.

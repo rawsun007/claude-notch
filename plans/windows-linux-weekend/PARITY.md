@@ -25,9 +25,9 @@ Order within each section is roughly by how often a user meets it.
 | Never steals keyboard focus | NotchPanel (non-activating) | done | WS_EX_NOACTIVATE; foreground unchanged until the user clicks. |
 | Enter / Esc answer the card without focus | KeyboardMonitor (CGEventTap) | partial | Windows needs one click on the card first; a global hook that reads Enter while the terminal has focus would also eat the terminal's Enter. |
 | Hide from screen capture setting | NotchWindowController (`sharingType`) | done | `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)`, on by default, Settings > Privacy. |
-| Multi-monitor: notch follows the cursor's screen, mirrors | NotchWindowController, MouseTracker | todo | Primary screen only today. |
+| Multi-monitor: notch follows the cursor's screen, mirrors | NotchWindowController, MouseTracker | partial | The notch moves to the display whose top centre the pointer reaches (never while a card is up), back to the main display if its screen goes. The Mac's mirror copies on the other displays are todo. |
 | Minimized question stub left of the notch | MinimizedQuestionTab | todo | |
-| Drop a folder on the notch to open Claude there | NotchDrop | todo | |
+| Drop a folder on the notch to open Claude there | NotchDrop | done | A folder starts Claude there, a file in its folder with "@file" first (PowerShell single-quoted, curly quotes doubled too); a drop delivered twice opens one terminal. |
 | Pet mode (stage, rope, costumes, moods) | NotchPetViews, PetEngine, PetRig | done | PetEngine ported (moods, weights, durations, duty cycle, entry spring, poses for peek, look around, hang either corner, stroll, sleep, celebrate, boop, backflip, watch, flinch, fret, rope); the rope with its physics (fall, catch, damped swing, springy stretch) and the line that sags while slack; PetRig's limbs (arms about the shoulders, legs stepping, lifting and tucking, blinks, eyes on the pointer); PetCardBadge on the danger banner, the done card (the dance) and the plan-limit card (fret, teardrop); boop on click; Settings > Pet with a Play button per activity. Not ported, on purpose: the guest costumes, which recreate third-party characters. |
 
 ## Cards
@@ -43,9 +43,9 @@ Order within each section is roughly by how often a user meets it.
 | Always Allow menu (exact command / whole tool) | PermissionCard | done | Core gained the whole-tool scope. |
 | Allow All (n) for a queue | PermissionCard | done | Never sweeps up a destructive card. |
 | Deny with a reason | onDenyReason, compose card | todo | Needs the compose card. |
-| "allowed N times" nudge | priorApprovals | todo | |
+| "allowed N times" nudge | priorApprovals | done | From the third hand approval of the same exact command, never for a dangerous one or one a rule covers; making the rule spends the tally. Kept in approvals.json as hashes, capped at 64. |
 | Sandbox badge | SandboxReader | todo | |
-| Too late to answer here (expired card) | PermissionCard.expiredBanner | todo | The core drops the card at 285 s instead; the Mac keeps it with a Dismiss. |
+| Too late to answer here (expired card) | PermissionCard.expiredBanner | done | The card stays with the Mac's orange banner and only Dismiss (questions too); pressing anything only dismisses it, Allow All passes over it, a live card always shows first. Opt-in in the core (keep_expired), so Linux is unchanged. |
 | Budget block banner, Allow once, Raise to $X | BudgetBanner, AppState+Budget | done | Orange banner, Allow once, Raise to the Mac's next cap, Turn off. "Turn off" is a small button where the Mac draws plain text. |
 | Question card (AskUserQuestion), multi-question, Other text | QuestionCard | partial | Header, header pills, option rows (nothing picked at start), "Something else" field, Cancel / Send, the Mac's height budget and answer rules. Not yet: minimize and the stub beside the notch, the expired banner, the MCP sign-in link row. The Mac makes this card key at once; Windows waits for a click, so typing in the terminal is never caught. |
 | Plan approval (ExitPlanMode) | PermissionCard + WritePreview | done | Rendered as the plan preview card. |
@@ -65,8 +65,8 @@ Order within each section is roughly by how often a user meets it.
 | Agent and file badges | IdlePill | partial | Agents done; edited-file count needs PostToolUse paths. |
 | Model, effort, branch, /add-dir chip | IdlePill row 2 | partial | Model and version, effort and the branch chip (from .git/HEAD, worktrees followed) are done, from the top session only. The /add-dir chip is todo. |
 | Context and cost meter | ContextCostBar | done | From the status line: capsule warming blue, orange, red, "84k/200k", Claude Code's own cost. The cost-cap tint waits on spending caps; the window guess for sessions without a status line is todo. |
-| Running command strip with timer | CommandLineBlock | todo | Needs the last tool from PreToolUse. |
-| Task-list progress bar | AppState+TaskMeter | todo | |
+| Running command strip with timer | CommandLineBlock | done | From every PreToolUse (card, rule or Auto-Approve): icon, command cut in the middle, shimmering hairline, clock that turns orange past a minute. |
+| Task-list progress bar | AppState+TaskMeter | done | TodoWrite's checklist, else TaskUpdate ids; shown for more than one task, green with a check when done. |
 | Session list (2+ sessions) | NotchSessionList | partial | Rows for every session after the top one: dot, CODEX/GROK chip, folder, branch and worktree chips, hourglass while a card waits, agents, status, own meter; title names the agent or says ClaudeNotch for a mix. Not yet: clicking a row (opens the reply card), task meter, fork, sandbox, cache, permission-mode and PR chips, background-agent Attach/Reply, the live reply line, stale sessions dropping off. |
 | Status bar | NotchStatusBar | todo | |
 | Permission-mode and sandbox badges | IdlePill | todo | |
@@ -94,16 +94,16 @@ Order within each section is roughly by how often a user meets it.
 | Skills page | SkillsReader, SkillSettings, SkillTrash | partial | Personal, claude.ai, project and plugin skills; listing cost; On, Name only, Only when I type it, Off (skillOverrides); trash and restore. Per-project overrides (settings.local.json), plugin on/off switches, usage counts and Free up context are todo. |
 | Sounds | AppState+Sound | done | The Mac's events, per-tool sounds (PowerShell counts as shell), per-event overrides and None, mute; the app's own sounds under the Mac's names, or the user's copies of the macOS sounds (.aiff or .wav) from %APPDATA%\ClaudeNotch\Sounds. Settings > Sounds. |
 | Notifications mirrored to the OS | NotificationBridge | done | Windows toasts. |
-| URL scheme `claudenotch://` | URLScheme | partial | open, settings, settings/<page>, history; registered per user by the installer. compose, resume and standup are todo. |
+| URL scheme `claudenotch://` | URLScheme | partial | open, settings, settings/<page>, history, standup; registered per user by the installer. compose and resume are todo. |
 | Global hotkey for Settings | GlobalHotkey | done | Ctrl+Alt+, opens Settings and Ctrl+Alt+N the notch from any app (the Mac's Option-Command-Comma and Option-Command-N), `RegisterHotKey`; both changeable in Settings > General, which says when another program holds one. Plus the Windows places a Mac app lives: tray menu with the shortcuts shown, Start entries (ClaudeNotch, ClaudeNotch Settings), a taskbar/Start jump list (Open the Notch, Settings, Usage, History), relaunch opens Settings. |
 | Start at login | (LaunchAgent) | done | HKCU Run. |
 | Single instance, take over an older copy | SingleInstance | done | |
-| Update check | UpdateChecker | todo | |
+| Update check | UpdateChecker | done | GitHub releases tagged windows-v*, 20 s after start and daily; "Update available: x" in the tray opens the release page; Settings > About has Check for Updates. |
 | Translations (9 languages) | Resources/*.lproj | todo | English only. |
 | Onboarding | Onboarding* | partial | First-run toast and tray tip, no onboarding window. |
-| Crash reports (local) | CrashReporter | todo | |
+| Crash reports (local) | CrashReporter | done | Uncaught errors in any thread to Crashes\crash-*.txt, hard crashes to fatal.txt (faulthandler), newest ten kept, never sent; Settings > About opens the folder. |
 | AppleScript | AppleScriptSupport | n/a | No AppleScript on Windows; the URL scheme and the control endpoint cover automation. |
-| Terminal automation (resume in Terminal/iTerm) | TerminalAutomator | todo | Windows Terminal (`wt.exe`) and PowerShell instead. |
+| Terminal automation (resume in Terminal/iTerm) | TerminalAutomator | partial | Start Claude in Folder, Resume Last Session (claude --resume <id>) in Windows Terminal or PowerShell; the folder is only the working directory and ids must be plain. Copy Today's Standup in the tray. Keystroke injection into a running terminal is todo. |
 | Claude Desktop integration | ClaudeDesktop | todo | |
 
 ## Known gaps carried from before this work
