@@ -255,7 +255,9 @@ and on cards by `notchwidgets.PetBadge`).
 history via RegisterHotKey and a native event filter), **composecard.py**
 (ComposeCard) with **typer.py** (SendInput into a terminal window only,
 only when in front), **jumplist.py** (taskbar/Start tasks via
-ICustomDestinationList through ctypes), **historydrawer.py** with **historymodel.py** (pure, tested: the
+ICustomDestinationList through ctypes), **replycard.py** with **markdown.py** (pure: ResponseDetailCard,
+parseMarkdownBlocks; core **transcript.py** reads the last reply, path
+checked), **historydrawer.py** with **historymodel.py** (pure, tested: the
 notch's history drawer, NotchHistoryCard), **terminal.py** (start or resume
 Claude in Windows Terminal/PowerShell; folder only as cwd, ids and
 messages checked and quoted), **updater.py** (core **updatecheck.py**,

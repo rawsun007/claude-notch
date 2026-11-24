@@ -53,6 +53,9 @@ hooks when they start, so restart those.
   a done card answers that session. The bubble beside Deny denies with a
   reason, which Claude sees. ClaudeNotch only ever types into a terminal
   window (never an editor), and only when it is in front.
+- **Claude's last reply:** the expand button on the open notch (or a
+  session in its list) shows the reply in full, with headings, lists and
+  code, and Copy.
 - **History:** the clock on the open notch, Ctrl+Alt+H, the tray or the
   jump list opens the history drawer: past sessions (Resume reopens one),
   spend per project with the last seven days, and every card you answered,
