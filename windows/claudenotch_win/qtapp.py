@@ -121,6 +121,9 @@ def run(args) -> int:
         tray.set_shortcuts(store.value.settings_hotkey, store.value.notch_hotkey)
 
     apply_hotkeys()
+    # The taskbar and Start jump list: Open the Notch, Settings, Usage, History.
+    from . import jumplist
+    QTimer.singleShot(1500, jumplist.install)
     store.subscribe(lambda _s: QTimer.singleShot(0, apply_hotkeys))
     app.aboutToQuit.connect(keys.unregister_all)
 
