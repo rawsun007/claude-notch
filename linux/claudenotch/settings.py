@@ -77,6 +77,10 @@ class Settings:
     alert_sound: str = "Funk"
     sound_events: dict = field(default_factory=dict)
     sound_tools: dict = field(default_factory=dict)
+    # Windows edition: system-wide shortcuts (the Mac's Option-Command-Comma
+    # and Option-Command-N, with Ctrl+Alt for Option-Command). "" turns one off.
+    settings_hotkey: str = "Ctrl+Alt+,"
+    notch_hotkey: str = "Ctrl+Alt+N"
 
 
 POSITIONS = ("top", "bottom-right")
