@@ -43,6 +43,31 @@ class PermissionTests(unittest.TestCase):
         st2.drop_permission(c.id)
         self.assertEqual(st2.permissions, [])
 
+    def test_allowed_n_times_suggests_a_rule(self):
+        # The Mac's priorApprovals: three manual approvals of one exact command.
+        st = AppState(persist=False)
+        for i in range(3):
+            c = card()
+            self.assertFalse(st.suggests_rule(c))
+            st.enqueue_permission(c)
+            st.resolve_permission(c.id, protocol.ALLOW)
+        nxt = card()
+        self.assertEqual(st.approval_count(nxt), 3)
+        self.assertTrue(st.suggests_rule(nxt))
+        self.assertFalse(st.suggests_rule(card(command="npm run lint")))
+        self.assertNotIn("npm test", "".join(st.repeat_approvals))    # hashed, never the command
+        # Never for a dangerous command, however often.
+        for _ in range(4):
+            d = card(command="rm -rf build")
+            st.enqueue_permission(d)
+            st.resolve_permission(d.id, protocol.ALLOW)
+        self.assertFalse(st.suggests_rule(card(command="rm -rf build")))
+        # Making the rule spends the tally.
+        st.enqueue_permission(nxt)
+        st.resolve_permission(nxt.id, protocol.ALLOW, always=True)
+        self.assertEqual(st.approval_count(card()), 0)
+        self.assertFalse(st.suggests_rule(card()))
+
     def test_always_allow_answers_the_next_identical_call(self):
         st = AppState(persist=False)
         first = card()

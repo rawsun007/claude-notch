@@ -33,6 +33,8 @@ MAX_SESSIONS = 12
 MAX_QUEUE = 64
 MAX_HISTORY = 500
 MAX_RULES = 200
+RULE_SUGGESTION_THRESHOLD = 3     # the Mac's ruleSuggestionThreshold
+REPEAT_APPROVALS_CAP = 64         # and repeatApprovalsCap
 
 _ids = itertools.count(1)
 
@@ -196,6 +198,11 @@ class AppState:
         self._persist = persist
         # All-time counters for Settings > Usage (stats.py); kept on disk only
         # for the real app, so tests never write them.
+        # The Mac's repeat-approval tally (AppState+Suggestions): manual
+        # approvals per exact command, keyed by a hash so no command text
+        # (or a secret inside one) is written to disk.
+        self.repeat_approvals: dict[str, int] = {}
+        self._load_approvals()
         self.stats = StatsStore(os.path.join(config_dir(), "stats.json") if persist else None)
         # Past sessions for Settings > History (archive.py).
         self.archive = Archive(os.path.join(config_dir(), "sessions.json") if persist else None)
@@ -278,6 +285,12 @@ class AppState:
                 if rule not in self.rules:
                     self.rules = (self.rules + [rule])[-MAX_RULES:]
                     self._save_rules()
+                # The tally is spent: kept, it would argue with the user the
+                # moment they deleted the rule.
+                if self.repeat_approvals.pop(self.approval_key(card), None) is not None:
+                    self._save_approvals()
+            elif decision == protocol.ALLOW:
+                self._note_manual_approval(card)
             self._log({"allow": "allowed", "deny": "denied", "ask": "sent to terminal"}[decision],
                       card.title, card.detail, card.project)
             if decision in (protocol.ALLOW, protocol.DENY):
@@ -512,6 +525,62 @@ class AppState:
             self.rules = [r for r in self.rules if r != rule]
             self._save_rules()
         self._changed()
+
+    # --- "allowed N times" (AppState+Suggestions) ----------------------------
+
+    @staticmethod
+    def approval_key(card: PermissionCard) -> str:
+        import hashlib
+        return hashlib.sha256(f"{card.tool}\0{card.match_text}".encode("utf-8", "replace")).hexdigest()[:32]
+
+    def approval_count(self, card: PermissionCard) -> int:
+        return self.repeat_approvals.get(self.approval_key(card), 0)
+
+    def suggests_rule(self, card: PermissionCard) -> bool:
+        """Point at Always Allow: never for a dangerous command, never when
+        a rule already covers it, and only once it has become a habit."""
+        if card.dangers or any(r.matches(card) for r in self.rules):
+            return False
+        return self.approval_count(card) >= RULE_SUGGESTION_THRESHOLD
+
+    def _note_manual_approval(self, card: PermissionCard) -> None:
+        if card.dangers:
+            return
+        key = self.approval_key(card)
+        self.repeat_approvals[key] = self.repeat_approvals.get(key, 0) + 1
+        if len(self.repeat_approvals) > REPEAT_APPROVALS_CAP:
+            # Keep what became a habit; a genuine repeat climbs back quickly.
+            self.repeat_approvals = {k: v for k, v in self.repeat_approvals.items() if v > 1}
+        self._save_approvals()
+
+    def _approvals_path(self) -> str:
+        return os.path.join(config_dir(), "approvals.json")
+
+    def _load_approvals(self) -> None:
+        if not self._persist:
+            return
+        try:
+            with open(self._approvals_path(), encoding="utf-8") as f:
+                raw = json.load(f)
+            self.repeat_approvals = {str(k)[:64]: int(v) for k, v in raw.items()
+                                     if isinstance(v, int) and v > 0}
+            if len(self.repeat_approvals) > REPEAT_APPROVALS_CAP:
+                self.repeat_approvals = {}
+        except (OSError, ValueError, TypeError, AttributeError):
+            self.repeat_approvals = {}
+
+    def _save_approvals(self) -> None:
+        if not self._persist:
+            return
+        try:
+            d = config_dir()
+            os.makedirs(d, mode=0o700, exist_ok=True)
+            tmp = self._approvals_path() + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(self.repeat_approvals, f)
+            fsutil.replace(tmp, self._approvals_path())
+        except OSError:
+            pass
 
     def _rules_path(self) -> str:
         return os.path.join(config_dir(), "rules.json")
