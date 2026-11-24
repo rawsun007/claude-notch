@@ -32,6 +32,8 @@ FIRST_RUN_TIP = ("It sits at the top centre of your screen and in the tray. Wind
 
 def run(args) -> int:
     winutil.set_app_user_model_id(paths.AUMID)
+    from . import crashreport
+    crashreport.install()
 
     # --- one copy at a time ----------------------------------------------------------
     lock = instance.SingleInstance()

@@ -1188,7 +1188,9 @@ class SettingsWindow(QWidget):
         check = kit.PushButton(self.t, "Check for Updates")
         check.clicked.connect(self._check_updates)
         self.version_row = card.add(kit.Row(self.t, "ClaudeNotch for Windows", f"Version {__version__}", check))
-        for title, path in (("Log", paths.log_path()), ("ClaudeNotch settings", paths.config_dir()),
+        from . import crashreport
+        for title, path in (("Log", paths.log_path()), ("Crash reports", crashreport.folder()),
+                            ("ClaudeNotch settings", paths.config_dir()),
                             ("Claude Code settings", hooks.settings_path())):
             path = os.path.normpath(path)
             btn = kit.PushButton(self.t, "Open")
