@@ -253,7 +253,8 @@ dance; drawn by `notchwidgets.draw_pet` in the overlay's closed notch,
 and on cards by `notchwidgets.PetBadge`).
 **hotkeys.py** (Ctrl+Alt+, / Ctrl+Alt+N via RegisterHotKey and a native
 event filter), **jumplist.py** (taskbar/Start tasks via
-ICustomDestinationList through ctypes), **terminal.py** (start or resume
+ICustomDestinationList through ctypes), **historydrawer.py** with **historymodel.py** (pure, tested: the
+notch's history drawer, NotchHistoryCard), **terminal.py** (start or resume
 Claude in Windows Terminal/PowerShell; folder only as cwd, ids and
 messages checked and quoted), **updater.py** (core **updatecheck.py**,
 windows-v releases), **crashreport.py** (local reports), core
