@@ -379,6 +379,22 @@ def question_size(questions, screen_h: float = 900.0, link: bool = False) -> tup
     return (600.0, INSET + min(want, cap))
 
 
+STUB_OVERLAP = 14.0     # slid under the notch, so the seam is hidden
+
+
+def stub_width(count: int) -> float:
+    """MinimizedQuestionTab.width: short, the notch getting a little longer."""
+    return 66.0 if count > 1 else 52.0
+
+
+def stub_rect(center_x: float, top: float, count: int) -> tuple[float, float, float, float]:
+    """Where the minimized-question stub sits: flush against the resting
+    notch's left edge, partly under it, as tall as the closed notch."""
+    w = stub_width(count)
+    left = center_x - COLLAPSED_W / 2 - (w - STUB_OVERLAP)
+    return (left, top, w, float(COLLAPSED_H))
+
+
 def detail_size() -> tuple[float, float]:
     """NotchView.size(for: .responseDetail): 660 x inset + 360."""
     return (660.0, float(INSET + 360))

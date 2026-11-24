@@ -788,6 +788,8 @@ class QuestionCardView(QWidget):
     the Mac. Emits `answered(list | None)`."""
 
     answered = Signal(object)
+    #: The shrink button: put this question away, still waiting.
+    minimize = Signal()
 
     def __init__(self, card, width: float, height: float, allow_custom: bool = True, parent=None):
         super().__init__(parent)
@@ -808,6 +810,17 @@ class QuestionCardView(QWidget):
         head.addWidget(nw.Text(cardmodel.question_count_text(len(card.questions)), 11, "medium", opacity=0.55,
                                fixed=True))
         head.addStretch(1)
+        if not getattr(card, "stale", False):
+            # Top right, where a window's own minimize lives, not beside Cancel;
+            # a shrink glyph, not a minus, which would read as "remove this".
+            shrink = nw.Glyph("arrow.down.right.and.arrow.up.left", 11, opacity=0.45)
+            shrink.setFixedSize(24, 24)
+            shrink.setCursor(Qt.PointingHandCursor)
+            shrink.setToolTip("Put this away and keep it waiting")
+            shrink.setAccessibleName("Minimize this question")
+            shrink.mouseReleaseEvent = lambda e: self.minimize.emit() if e.button() == Qt.LeftButton else None
+            head.addWidget(shrink)
+            self.buttons["minimize"] = shrink
         v.addLayout(head)
         if getattr(card, "stale", False):
             v.addWidget(nw.expired_banner(nw.TOO_LATE_QUESTION))
