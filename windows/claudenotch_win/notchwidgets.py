@@ -964,6 +964,82 @@ def expired_banner(body: str) -> QWidget:
     return box
 
 
+_ACTIVITY_ICONS = {"bash": "terminal", "powershell": "terminal", "edit": "pencil", "multiedit": "pencil",
+                   "write": "square.and.pencil", "read": "doc.text", "websearch": "magnifyingglass",
+                   "webfetch": "globe", "todowrite": "checklist", "agent": "person.fill", "task": "person.fill",
+                   "notebookedit": "book", "skill": "wand.and.stars"}
+
+
+def parse_activity(activity: str) -> tuple[str, str]:
+    """NotchIdlePill.parseActivity: ("terminal", "npm test") from
+    "Bash: npm test"; the tool name alone when there is no detail."""
+    tool, _, arg = activity.partition(":")
+    tool, arg = tool.strip(), arg.strip()
+    return _ACTIVITY_ICONS.get(tool.lower(), "bolt.fill"), arg or tool
+
+
+class CommandStrip(QWidget):
+    """CommandLineBlock: what Claude is running, centred in mono 10 pt on a
+    4 % white strip whose hairline border shimmers, and how long it has been
+    going, warming to orange past a minute: "is it stuck or still working"
+    at a glance."""
+
+    def __init__(self, activity: str, started: float | None, parent=None):
+        super().__init__(parent)
+        self.icon, self.text = parse_activity(activity)
+        self.started = started
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setFixedHeight(22)
+        self.setMinimumWidth(1)
+        self._t0 = time.monotonic()
+        self._timer = QTimer(self, interval=33)
+        self._timer.timeout.connect(self.update)
+        self._timer.start()
+
+    def clock(self, now: float | None = None) -> str:
+        from claudenotch.state import running_duration
+        if self.started is None:
+            return ""
+        running = (now if now is not None else time.time()) - self.started
+        return running_duration(running) if running >= 1 else ""
+
+    def paintEvent(self, _e) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing, True)
+        r = QRectF(self.rect()).adjusted(0.25, 0.25, -0.25, -0.25)
+        path = QPainterPath()
+        path.addRoundedRect(r, 7, 7)
+        p.fillPath(path, ms.rgba(WHITE, 0.04))
+        phase = ((time.monotonic() - self._t0) % 2.5) / 2.5
+        pos = phase * 1.6 - 0.3
+        grad = QLinearGradient(r.topLeft(), r.topRight())
+        for at, a in ((0.0, 0.07), (max(0.0, min(1.0, pos - 0.22)), 0.07), (max(0.0, min(1.0, pos)), 0.28),
+                      (max(0.0, min(1.0, pos + 0.22)), 0.07), (1.0, 0.07)):
+            grad.setColorAt(at, ms.rgba(WHITE, a))
+        p.setPen(QPen(grad, 0.5))
+        p.drawPath(path)
+        clock = self.clock()
+        mono = ms.font(10, mono=True)
+        small = ms.font(9)
+        fm, fms = QFontMetricsF(mono), QFontMetricsF(small)
+        clock_w = fms.horizontalAdvance(clock) + 5 if clock else 0
+        room = max(0.0, self.width() - 20 - 15 - clock_w)
+        text = fm.elidedText(self.text, Qt.ElideMiddle, room)
+        total = 15 + fm.horizontalAdvance(text) + clock_w
+        x = (self.width() - total) / 2
+        cy = self.height() / 2
+        draw_glyph(p, self.icon, QRectF(x, cy - 5.5, 11, 11), 10, ms.rgba(WHITE, 0.38))
+        p.setFont(mono)
+        p.setPen(ms.rgba(WHITE, 0.42))
+        p.drawText(QRectF(x + 15, 0, fm.horizontalAdvance(text) + 1, self.height()), Qt.AlignVCenter, text)
+        if clock:
+            running = time.time() - (self.started or time.time())
+            p.setFont(small)
+            p.setPen(ms.rgba(ms.ORANGE if running >= 60 else WHITE, 0.5))
+            p.drawText(QRectF(x + total - clock_w + 5, 0, clock_w, self.height()), Qt.AlignVCenter, clock)
+        p.end()
+
+
 def code_box(detail: str) -> QWidget:
     """The command or path: 12 pt monospaced at 78 % white, two lines at
     most, cut in the middle, in a 6 % white box with 8 pt corners."""

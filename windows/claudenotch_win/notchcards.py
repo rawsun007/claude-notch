@@ -313,6 +313,12 @@ class IdleCardView(QWidget):
         r2.addStretch(1)
         r2.addWidget(nw.context_cost_bar(m.context_pct, m.tokens, m.window, m.cost))
         v.addLayout(r2)
+        # Row 3: the command strip, only while the top session is working.
+        top = sessions[0] if sessions else None
+        self.strip = None
+        if top is not None and top.status == "working" and getattr(top, "activity", ""):
+            self.strip = nw.CommandStrip(top.activity, getattr(top, "activity_started", None))
+            v.addWidget(self.strip)
         self.meter = m
         self.content_width = self._natural_width(name, status, agents, m)
         self.list_view = None

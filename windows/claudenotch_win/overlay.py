@@ -331,7 +331,7 @@ class Overlay(QWidget):
             # The list shows only with two or more sessions, as on the Mac.
             rows = cardmodel.session_rows(sessions, branches, waiting, time.monotonic())                 if len(sessions) >= 2 else []
             key = (v, tuple((s.id, s.status, s.last_prompt, s.agents, s.model, s.effort, s.context_pct,
-                             s.context_tokens, s.context_window, s.cost_usd, s.worktree) for s in sessions),
+                             s.context_tokens, s.context_window, s.cost_usd, s.worktree, s.activity, s.activity_started) for s in sessions),
                    tuple(branches.items()), tuple(r.waiting for r in rows), self.position)
             build = lambda: self._idle_card(sessions, branch, rows)  # noqa: E731
         elif v == view.TOAST:
