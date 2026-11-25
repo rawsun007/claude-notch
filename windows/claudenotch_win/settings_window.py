@@ -399,6 +399,35 @@ class SettingsWindow(QWidget):
                         else f"{hotkeys.label(text)} is taken by another program; pick other keys")
             row.subtitle.setText(note)
 
+    def _mac_sounds_note(self) -> str:
+        from . import macsounds
+        n = len(macsounds.have())
+        if n >= len(macsounds.NAMES):
+            return "In use: Apple's own Funk, Glass, Pop, Tink and the rest."
+        return (f"Downloads Apple's macOS sounds (about 4.6 MB) from "
+                f"{macsounds.SOURCE_PAGE.replace('https://', '')} into your sound folder"
+                + (f"; {n} of {len(macsounds.NAMES)} are here." if n else ". Until then, the app's own sounds."))
+
+    def _download_mac_sounds(self) -> None:
+        import threading
+        from . import macsounds
+        self.mac_sounds_btn.setEnabled(False)
+        self.mac_sounds_row.subtitle.setText("Downloading…")
+        bridge = getattr(self, "_sounds_bridge", None)
+        if bridge is None:
+            class _B(QObject):
+                done = Signal(int, list)
+            bridge = self._sounds_bridge = _B()
+            bridge.done.connect(self._mac_sounds_done)
+        threading.Thread(target=lambda: bridge.done.emit(*macsounds.download()), daemon=True).start()
+
+    def _mac_sounds_done(self, have: int, failed: list) -> None:
+        self.mac_sounds_btn.setEnabled(True)
+        note = self._mac_sounds_note()
+        if failed:
+            note += f" Could not get {', '.join(failed)}; try again."
+        self.mac_sounds_row.subtitle.setText(note)
+
     def _set_autostart(self, on: bool) -> None:
         try:
             autostart.set_enabled(on)
@@ -1006,6 +1035,11 @@ class SettingsWindow(QWidget):
         self._toggle_row(card, "sound_muted", "Mute all sounds", "Silence every notch sound.")
         self._toggle_row(card, "per_tool_sounds", "Per-tool sounds",
                          "Different sound for different kinds of tool request.")
+        from . import macsounds
+        self.mac_sounds_btn = kit.PushButton(self.t, "Download")
+        self.mac_sounds_btn.clicked.connect(self._download_mac_sounds)
+        self.mac_sounds_row = card.add(kit.Row(self.t, "The macOS sounds", self._mac_sounds_note(),
+                                               self.mac_sounds_btn))
         v.addWidget(card)
         names = [sounds.SILENT] + soundplay.available(sounds.CHOICES)
         self.sound_pickers = {}
