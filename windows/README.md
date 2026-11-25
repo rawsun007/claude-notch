@@ -64,6 +64,11 @@ hooks when they start, so restart those.
   touched, each with Show to find it in File Explorer. When two sessions
   work in the same folder at once, the notch says so once and suggests
   `claude --worktree`, since they would edit the same files.
+- **Model changes:** when a session switches model with /model the notch
+  says so, and when a session is suddenly on a cheaper model than it
+  started on (Opus to Sonnet at a cap, say) it says that once too. Turn
+  on Settings > Rules > Ask before switching to a pricier model to
+  approve a move up (sonnet to opus) before it happens.
 - **History:** the clock on the open notch, Ctrl+Alt+H, the tray or the
   jump list opens the history drawer: past sessions (Resume reopens one),
   spend per project with the last seven days, and every card you answered,
