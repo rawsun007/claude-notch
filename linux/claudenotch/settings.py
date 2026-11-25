@@ -32,6 +32,9 @@ class Settings:
     toasts: bool = True
     # Start with the desktop session (an autostart entry).
     start_at_login: bool = True
+    # Windows edition: the first-run window has been through (its choices
+    # are saved in the fields they set).
+    onboarded: bool = False
     # Windows edition only; other editions ignore them. Where the pill sits:
     # "top" (top centre, the default, as on Linux) or "bottom-right" (above
     # the tray, D3).
