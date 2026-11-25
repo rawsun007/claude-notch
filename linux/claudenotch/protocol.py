@@ -92,6 +92,7 @@ def answers_body(questions: list[Question], answers: list[list[str]]) -> str:
 PERMISSION = "permission"      # card with Allow / Deny, answered with pretool_body
 PERM_REQUEST = "permreq"       # same card, answered with permreq_body
 QUESTION = "question"          # AskUserQuestion card, answered with answers_body
+MODEL_GATE = "model_gate"      # PreModelSwitch: held only for an upgrade, when asked to
 PASS = "pass"                  # answer "ask" straight away
 EVENT = "event"                # informational: answer OK, update state
 
@@ -107,6 +108,8 @@ def classify(payload: dict) -> str:
         return PERMISSION
     if event == "PermissionRequest":
         return PERM_REQUEST
+    if event == "PreModelSwitch":
+        return MODEL_GATE
     return EVENT
 
 
@@ -146,6 +149,9 @@ def preview(tool: str, tool_input: dict) -> Preview:
         return Preview(f"Write {name}", path, "", str(ti.get("content") or ""))
     if tool == "NotebookEdit":
         return Preview(f"Edit {name}", path, "", str(ti.get("new_source") or ""))
+    if tool == "PreModelSwitch":
+        from .modelswitch import UPGRADE_TITLE, switch_detail
+        return Preview(UPGRADE_TITLE, switch_detail(str(ti.get("from_model") or ""), str(ti.get("to_model") or "")))
     if tool in ("WebFetch", "WebSearch"):
         return Preview(tool, str(ti.get("url") or ti.get("query") or ""))
     if tool in ("shell", "local_shell", "exec", "exec_command", "unified_exec"):

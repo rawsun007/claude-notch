@@ -187,6 +187,8 @@ class HookServer:
             return self._wait_for_permission(kind, payload)
         if kind == protocol.QUESTION:
             return self._wait_for_question(payload)
+        if kind == protocol.MODEL_GATE:
+            return self._model_gate(payload)
         self.state.handle_event(payload)
         return protocol.OK_BODY
 
@@ -210,6 +212,29 @@ class HookServer:
         if kind == protocol.PERM_REQUEST:
             return protocol.permreq_body(decision)
         return protocol.pretool_body(decision, reason)
+
+    def _model_gate(self, payload: dict) -> str:
+        """PreModelSwitch: a card only for a move UP a family, only when the
+        user asked for one. Anything else, a card nobody answers included,
+        is a plain OK: the user's own /model goes ahead."""
+        from . import modelswitch
+        frm, to = str(payload.get("from_model") or ""), str(payload.get("to_model") or "")
+        if self.paused.is_set() or not self.state.gate_model_upgrades or not modelswitch.is_upgrade(frm, to):
+            return protocol.OK_BODY
+        done = threading.Event()
+        result: list = [protocol.ASK, None]
+
+        def resolve(decision: str, reason: str | None) -> None:
+            result[0], result[1] = decision, reason
+            done.set()
+
+        card = PermissionCard("PreModelSwitch", {"from_model": frm, "to_model": to}, str(payload.get("cwd") or ""),
+                              protocol.PERMISSION, str(payload.get("session_id") or ""), resolve=resolve)
+        self.state.enqueue_permission(card)
+        if not done.wait(self.window):
+            self.state.drop_permission(card.id)
+            return protocol.OK_BODY
+        return modelswitch.reply(result[0], result[1])
 
     def _wait_for_question(self, payload: dict) -> str:
         questions = protocol.parse_questions(payload)
