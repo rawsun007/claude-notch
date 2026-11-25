@@ -15,7 +15,10 @@ class TerminalTests(unittest.TestCase):
     def test_folder_is_only_the_working_directory(self):
         with tempfile.TemporaryDirectory() as d:
             argv, cwd = terminal.plan(d, "abc", wt=r"C:\wt.exe")
-            self.assertEqual(argv[:3], [r"C:\wt.exe", "-d", os.path.abspath(d)])
+            self.assertEqual(argv[:6], [r"C:\wt.exe", "-w", "new", "new-tab", "-d", os.path.abspath(d)])
+            self.assertEqual(argv[6:9], ["--title", terminal.window_title(d), "--suppressApplicationTitle"])
+            self.assertTrue(terminal.window_title(d).startswith("Claude Code · "))
+            self.assertNotIn(";", terminal.window_title(r"C:;b"))
             self.assertEqual(argv[-1], "claude --resume abc")
             self.assertEqual(cwd, os.path.abspath(d))
             argv, _ = terminal.plan(d, None, wt=None)
