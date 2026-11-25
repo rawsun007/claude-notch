@@ -3,7 +3,8 @@
 Where a name is looked up, in order:
 1. %APPDATA%\\ClaudeNotch\\Sounds\\<name>.wav: the user's own copy, for
    instance the macOS sound of that name if they have it;
-2. the app's own sounds, made under the Mac's names (resources/sounds);
+2. the sounds that ship with the app, under the Mac's names (resources/sounds;
+   where they come from is in SOURCE.md there);
 3. Windows' sounds in C:\\Windows\\Media, for older settings that named one.
 
 A name is a bare word: it can never point outside those folders. A missing
