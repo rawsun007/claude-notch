@@ -4,6 +4,15 @@ Windows releases are tagged `windows-v<version>` on the
 [releases page](https://github.com/rawsun007/claude-notch/releases). The
 version line is shared with the Linux edition; the Mac app has its own.
 
+## 0.45.2: the Mac's sounds, built in
+
+### Changed
+
+- **The Mac's sounds come with the app.** Funk, Glass, Pop, Tink,
+  Submarine and the rest are in the installer, so every install sounds like
+  the Mac from the first card, with nothing to download. The download, its
+  switch in the first-run window and its button in Settings are gone.
+
 ## 0.45.1: a first-run window, the macOS sounds, no Windows toasts
 
 ### Added

@@ -12,4 +12,4 @@ so it is testable on any machine with Python.
 """
 
 # Matches the macOS release it ships with, so one release page carries both.
-__version__ = "0.45.1"
+__version__ = "0.45.2"
