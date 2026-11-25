@@ -627,18 +627,16 @@ class OverlayTests(unittest.TestCase):
         from claudenotch.settings import Store
         from claudenotch_win import onboarding
         store = Store(persist=False)
-        with mock.patch.object(onboarding.winstatus, "install_hooks") as hooks_,                 mock.patch.object(onboarding.autostart, "set_enabled") as login,                 mock.patch.object(onboarding.macsounds, "download", return_value=(13, [])):
+        with mock.patch.object(onboarding.winstatus, "install_hooks") as hooks_,                 mock.patch.object(onboarding.autostart, "set_enabled") as login:
             w = onboarding.Onboarding(self.state, store)
             self.assertEqual(w.choices(), {"start_at_login": True, "auto_approve": True,
-                                           "auto_approve_scope": "everything", "auto_approve_dangerous": "allow",
-                                           "sounds": True})
+                                           "auto_approve_scope": "everything", "auto_approve_dangerous": "allow"})
             self.assertFalse(w.switches["hooks"].isEnabled())           # required
             w.switches["auto"].setChecked(False)                         # destructive follows auto off
             self.assertFalse(w.switches["danger"].isEnabled())
             self.assertEqual(w.choices()["auto_approve_dangerous"], "ask")
             w.switches["auto"].setChecked(True)
             w.switches["danger"].setChecked(True)
-            w.switches["sounds"].setChecked(False)
             w.finish()
             self.app.processEvents()
             hooks_.assert_called_once()

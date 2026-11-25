@@ -7,8 +7,6 @@ a switch that starts on, and one button to start.
   shows what ran.
 - Destructive commands too: also approved without asking (the project
   owner's default; every one is logged in History).
-- Use the macOS sounds: downloads Apple's sound files (macsounds) into the
-  user's own sound folder.
 
 Closing the window keeps everything as it was and does not come back; the
 same switches are in Settings.
@@ -16,23 +14,17 @@ same switches are in Settings.
 
 from __future__ import annotations
 
-import threading
-
-from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QHBoxLayout, QVBoxLayout, QWidget
 
 from claudenotch import hooks
 
-from . import autostart, macsounds, paths, winstatus
+from . import autostart, paths, winstatus
 from . import settingskit as kit
 
 TIP = ("ClaudeNotch sits at the top centre of your screen and in the tray (Windows may tuck new tray icons "
        "under the ^ arrow). Ctrl+Alt+, opens Settings from anywhere.")
-
-
-class _Sounds(QObject):
-    done = Signal(int, list)
 
 
 class Onboarding(QWidget):
@@ -91,9 +83,6 @@ class Onboarding(QWidget):
             "danger", "Destructive commands too",
             "Remove-Item -Recurse, rd /s, git push --force and the like also run without asking. Every one is "
             "logged in History.", danger=True)
-        row("sounds", "Use the macOS sounds",
-            f"Downloads Apple's macOS sounds (about 4.6 MB) from {macsounds.SOURCE_PAGE.replace('https://', '')} "
-            "into your sound folder. Off: the app's own sounds.")
         self.switches["auto"].toggled.connect(self._auto_changed)
         v.addWidget(card)
 
@@ -110,8 +99,6 @@ class Onboarding(QWidget):
         box = QWidget()
         box.setLayout(buttons)
         v.addWidget(box)
-        self._sounds = _Sounds()
-        self._sounds.done.connect(self._sounds_done)
         # As tall as its content at this width: a wrapped label alone asks for
         # more height than it needs, which left gaps between the rows.
         self.resize(600, max(420, self.layout().heightForWidth(600)))
@@ -127,8 +114,7 @@ class Onboarding(QWidget):
         auto = s["auto"].isChecked()
         return {"start_at_login": s["login"].isChecked(), "auto_approve": auto,
                 "auto_approve_scope": "everything",
-                "auto_approve_dangerous": "allow" if auto and s["danger"].isChecked() else "ask",
-                "sounds": s["sounds"].isChecked()}
+                "auto_approve_dangerous": "allow" if auto and s["danger"].isChecked() else "ask"}
 
     def finish(self) -> None:
         """Apply the switches, then say hello in the notch."""
@@ -149,19 +135,6 @@ class Onboarding(QWidget):
         if problems:
             self.status.setText(" ".join(problems))
             self.status.show()
-        if c["sounds"]:
-            self.status.setText("Downloading the macOS sounds…")
-            self.status.show()
-            self.start.setEnabled(False)
-            threading.Thread(target=lambda: self._sounds.done.emit(*macsounds.download()), daemon=True,
-                             name="mac-sounds").start()
-            return
-        self._close_with_hello()
-
-    def _sounds_done(self, have: int, failed: list) -> None:
-        if failed and self.state is not None:
-            self.state.notice("Some macOS sounds did not download",
-                              f"{have} of {len(macsounds.NAMES)} are in place. Try again in Settings > Sounds.")
         self._close_with_hello()
 
     def _close_with_hello(self) -> None:
