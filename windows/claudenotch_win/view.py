@@ -22,6 +22,7 @@ AUTO = "auto"            # the button-less "Auto-allowed" card
 HISTORY = "history"      # the history drawer (NotchHistoryCard)
 COMPOSE = "compose"      # the compose card (ComposeCard)
 DETAIL = "detail"        # Claude's last reply in full (ResponseDetailCard)
+DROP = "drop"            # a file is being dragged over the notch (dropZone)
 AUTO_INFO_SECONDS = 4.0  # an approval is a receipt; the Mac shows it 4 s
 
 
@@ -97,12 +98,15 @@ def allow_label(dangerous: bool, confirming: bool) -> str:
 
 
 def choose(perms, questions, toasts, hovering: bool, hover_sessions: bool, auto_info=None,
-           history: bool = False, compose: bool = False, detail: bool = False) -> str:
+           history: bool = False, compose: bool = False, detail: bool = False, drop: bool = False) -> str:
     """Which card wins, in AppState.recompute's order: the history drawer
     while it is open (you asked for it), a question, then a permission,
     then a notification or done card, and only then the open card on
     hover. A card that is waiting for you is not hidden by pointing at
     the notch."""
+    if drop:
+        # A drag over the notch takes over the whole card while it lasts.
+        return DROP
     if history:
         return HISTORY
     if detail:

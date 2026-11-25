@@ -379,6 +379,12 @@ def question_size(questions, screen_h: float = 900.0, link: bool = False) -> tup
     return (600.0, INSET + min(want, cap))
 
 
+def drop_size() -> tuple[float, float]:
+    """NotchView.size while a file is dragged over it: at least 260 wide,
+    inset + 70 tall."""
+    return (max(float(COLLAPSED_W), 260.0), float(INSET + 70))
+
+
 STUB_OVERLAP = 14.0     # slid under the notch, so the seam is hidden
 
 
