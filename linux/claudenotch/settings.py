@@ -84,6 +84,12 @@ class Settings:
     # has no default shortcut (the tray and jump list do it).
     compose_hotkey: str = "Ctrl+Alt+N"
     notch_hotkey: str = ""
+    # Hold a /model change that moves UP to a pricier family for approval
+    # (the Mac's gateModelUpgrades). Off by default: it interrupts something
+    # the user just did themselves.
+    gate_model_upgrades: bool = False
+    # A card when a session's model drops a tier without anyone saying so.
+    model_drift_alerts: bool = True
     # The history drawer, the Mac's Option-Command-Space. Not Ctrl+Alt+Space:
     # the Claude desktop app holds that for its quick entry.
     history_hotkey: str = "Ctrl+Alt+H"

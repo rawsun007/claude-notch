@@ -23,7 +23,7 @@ from typing import Callable
 
 from . import fsutil, protocol
 from .danger import danger_reasons
-from . import transcript, worktree
+from . import modelswitch, transcript, worktree
 from .redact import redact
 from .stats import StatsStore
 from .archive import Archive
@@ -299,6 +299,12 @@ class AppState:
         # that turns this on; otherwise such a card is simply removed.
         self.keep_expired = False
         self._advised: set[str] = set()     # folders already given the worktree advice
+        # Hold a /model move up to a pricier family for approval (opt in).
+        self.gate_model_upgrades = False
+        # Say when a session's model drops a tier without anyone saying so.
+        self.model_drift_alerts = True
+        self._last_switch: dict[str, tuple[str, float]] = {}
+        self._drift_said: set[str] = set()
         self._armed = {"five_hour": Armed(), "seven_day": Armed()}
         self.sessions: dict[str, Session] = {}
         self.history: list[dict] = []
@@ -339,6 +345,17 @@ class AppState:
         self.stats.record("tool", card.tool)
         if card.dangers:
             self.stats.record("dangerous")
+        if card.tool == "PreModelSwitch":
+            # The user turned this gate on deliberately: no rule or Auto-Approve
+            # may answer it for them, or the setting would be on and do nothing.
+            with self._lock:
+                if len(self.permissions) >= MAX_QUEUE:
+                    card.resolve(protocol.ASK, None)
+                    return False
+                self.permissions.append(card)
+                self._touch(card.session_id, card.cwd, "waiting")
+            self._changed()
+            return True
         with self._lock:
             if card.kind == protocol.PERMISSION:
                 # Every PreToolUse passes here, answered by a card or not.
@@ -532,6 +549,40 @@ class AppState:
         s.updated = time.time()
         return s
 
+    def _model_switched(self, sid: str, cwd: str, frm: str, to: str) -> "Toast | None":
+        """noteModelSwitched: the session's model is updated whatever happens;
+        a card says so, unless the same switch was just reported."""
+        if not to or to == frm:
+            return None
+        s = self._touch(sid, cwd)
+        if s is not None:
+            s.model = to[:64]
+        last = self._last_switch.get(sid)
+        now = time.monotonic()
+        detail = modelswitch.switch_detail(frm, to)
+        if last and last[0] == to and now - last[1] < modelswitch.GRACE:
+            self._log("notice", modelswitch.SWITCHED_TITLE, detail, project_name(cwd))
+            return None
+        self._last_switch[sid] = (to, now)
+        if len(self._last_switch) > MAX_SESSIONS * 4:
+            self._last_switch.pop(next(iter(self._last_switch)))
+        return Toast(modelswitch.SWITCHED_TITLE, detail, kind="model", cwd=cwd)
+
+    def _model_drift(self, s: "Session", new_model: str) -> "Toast | None":
+        """noteModelChange: once per session and change, a drop in tier."""
+        if not self.model_drift_alerts:
+            return None
+        change = modelswitch.drift(s.model, new_model)
+        if change is None:
+            return None
+        mark = f"{s.id}|{change[0]}>{change[1]}"
+        if mark in self._drift_said:
+            return None
+        if len(self._drift_said) >= 64:
+            self._drift_said.clear()
+        self._drift_said.add(mark)
+        return Toast(modelswitch.drift_title(change), modelswitch.drift_detail(change), kind="advice", cwd=s.cwd)
+
     def _worktree_advice(self) -> "Toast | None":
         """adviseWorktreeIfNeeded: once per folder, when more than one live
         session works in it outside a worktree."""
@@ -580,6 +631,9 @@ class AppState:
                 if s is not None and event == "PostToolUse":
                     note_tasks(s, str(payload.get("tool_name") or ""), payload.get("tool_input"))
                     note_edit(s, str(payload.get("tool_name") or ""), payload.get("tool_input"))
+            elif event == "PostModelSwitch":
+                toast = self._model_switched(sid, cwd, str(payload.get("from_model") or ""),
+                                             str(payload.get("to_model") or "").strip())
             elif event == "SubagentStart":
                 s = self._touch(sid, cwd, "working")
                 if s:
@@ -635,6 +689,10 @@ class AppState:
                     s = self._touch(r.session_id, r.cwd)
                 before = dict(vars(s))
                 if r.model:
+                    drifted = self._model_drift(s, r.model)
+                    if drifted is not None:
+                        self.toasts = (self.toasts + [drifted])[-8:]
+                        self._log("notice", drifted.title, drifted.body, s.project)
                     s.model = r.model
                 if r.lines_added is not None:
                     s.lines_added = r.lines_added

@@ -39,6 +39,13 @@ EVENTS: list[tuple[str, str | None]] = [
     ("SessionEnd", ".*"),
     ("SubagentStart", None),
     ("SubagentStop", None),
+    # A session changing model (Claude Code 2.1.251+; older versions ignore
+    # these). The matcher is tested against the destination model, so ".*" is
+    # every switch. PreModelSwitch is installed even with its gate off: it
+    # answers a plain OK at once, and adding or removing an entry when the
+    # setting flips would rewrite settings.json under every running session.
+    ("PostModelSwitch", ".*"),
+    ("PreModelSwitch", ".*"),
 ]
 
 
