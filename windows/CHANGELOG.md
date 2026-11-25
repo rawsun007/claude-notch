@@ -4,6 +4,23 @@ Windows releases are tagged `windows-v<version>` on the
 [releases page](https://github.com/rawsun007/claude-notch/releases). The
 version line is shared with the Linux edition; the Mac app has its own.
 
+## 0.45.1: a first-run window, the macOS sounds, no Windows toasts
+
+### Added
+
+- **A first-run window**: Connect Claude Code, Launch at login,
+  Auto-approve everything, Destructive commands too, and Use the macOS
+  sounds, each with a switch that starts on, then Start using ClaudeNotch.
+  It shows once; every switch is in Settings later.
+- **The real macOS sounds**: the first-run window, or Settings > Sounds >
+  Download, fetches Apple's own Funk, Glass, Pop, Tink and the rest onto
+  your PC, and the notch plays those instead of its own.
+
+### Changed
+
+- **No Windows toasts unless you turn them on.** The start-up tip, the
+  update notice and error messages show as cards in the notch instead.
+
 ## 0.45.0: the first Windows release
 
 ClaudeNotch puts the Mac app's notch at the top centre of your Windows
