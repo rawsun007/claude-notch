@@ -78,7 +78,7 @@ NOTICES = {
 }
 HISTORY_TABS = ("history", "history-projects", "history-activity")
 COMPOSE = ("compose", "deny-reason", "reply")
-MINIMIZED = ("question-minimized", "worktree-advice", "model-gate", "model-switched", "model-drift")
+MINIMIZED = ("drop", "drop-hot", "question-minimized", "worktree-advice", "model-gate", "model-switched", "model-drift")
 DEMO_REPLY = """## Fixed the history drawer
 
 The search lost its text whenever **new activity** arrived, because the drawer was rebuilt on every
@@ -257,6 +257,10 @@ def _history(state: AppState) -> None:
 
 
 def _show(state: AppState, overlay, name: str) -> None:
+    if name in ("drop", "drop-hot"):
+        # A folder being dragged over the notch, then right over the box.
+        overlay._set_drop(True, name == "drop-hot")
+        return
     if name == "model-gate":
         from claudenotch.state import PermissionCard
         from claudenotch import protocol as _p
