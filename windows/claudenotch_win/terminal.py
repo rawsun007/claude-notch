@@ -92,8 +92,19 @@ def plan(folder: str, session_id: str | None = None, wt: str | None = None,
     shell = ["powershell.exe", "-NoExit", "-NoLogo", "-Command", cmd]
     # Windows Terminal reads ";" as "next command" anywhere in its arguments.
     if wt and ";" not in folder and ";" not in cmd:
-        return [wt, "-d", folder, *shell], folder
+        # Its own window, as Terminal.app opens one on the Mac, named for the
+        # project so it is easy to find among other terminal windows. No -p:
+        # the window takes the user's default profile's look; the title is
+        # kept even when the shell tries to set its own.
+        return [wt, "-w", "new", "new-tab", "-d", folder, "--title", window_title(folder),
+                "--suppressApplicationTitle", *shell], folder
     return shell, folder
+
+
+def window_title(folder: str) -> str:
+    """ "Claude Code · api-server"; no ";" (Windows Terminal would split there)."""
+    name = os.path.basename(os.path.normpath(folder)) or folder
+    return ("Claude Code · " + name).replace(";", " ")[:80]
 
 
 def launch(folder: str, session_id: str | None = None, message: str | None = None) -> bool:
