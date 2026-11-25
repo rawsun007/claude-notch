@@ -5,7 +5,15 @@ from unittest import mock
 
 from claudenotch_win import macsounds, soundplay
 
-from test_soundplay import _aiff
+
+
+def _aiff():
+    """A minimal valid AIFF: stereo, 16-bit, 44.1 kHz, four frames."""
+    import struct
+    comm = struct.pack(">hIh", 2, 4, 16) + bytes.fromhex("400EAC44000000000000")
+    ssnd = struct.pack(">II", 0, 0) + bytes(16)
+    body = b"AIFF" + b"COMM" + struct.pack(">I", len(comm)) + comm + b"SSND" + struct.pack(">I", len(ssnd)) + ssnd
+    return b"FORM" + struct.pack(">I", len(body)) + body, None
 
 
 class MacSoundsTests(unittest.TestCase):
