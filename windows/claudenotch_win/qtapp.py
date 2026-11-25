@@ -26,8 +26,6 @@ from claudenotch.state import AppState
 from . import __version__, autostart, instance, paths, urlscheme, winstatus, winutil
 from .app import control, quit_running, running_version, say
 
-FIRST_RUN_TIP = ("It sits at the top centre of your screen and in the tray. Windows may tuck new tray icons "
-                 "under the ^ arrow; drag ClaudeNotch onto the taskbar to keep it in view.")
 
 
 def run(args) -> int:
@@ -167,9 +165,9 @@ def run(args) -> int:
         server.start()
     else:
         tray.set_listening(False, "port in use")
-        tray.showMessage("ClaudeNotch is not listening",
-                         f"{listen_error}. Close that program, then start ClaudeNotch again. "
-                         "Claude Code keeps asking in its terminal meanwhile.", QSystemTrayIcon.MessageIcon.Warning, 15000)
+        tray.alert("ClaudeNotch is not listening",
+                   f"{listen_error}. Close that program, then start ClaudeNotch again. "
+                   "Claude Code keeps asking in its terminal meanwhile.", warn=True)
 
     # --- start at login --------------------------------------------------------------------
     try:
@@ -182,12 +180,12 @@ def run(args) -> int:
 
     # --- hello ------------------------------------------------------------------------------
     if hook_error:
-        tray.showMessage("ClaudeNotch could not install its hooks",
-                         f"{hook_error}. Fix it, then use Settings > Claude Code > Install hooks.",
-                         QSystemTrayIcon.MessageIcon.Warning, 15000)
-    if args.first_run:
-        state.greet(version=__version__)
-        tray.showMessage("ClaudeNotch is running", FIRST_RUN_TIP, QSystemTrayIcon.MessageIcon.Information, 12000)
+        tray.alert("ClaudeNotch could not install its hooks",
+                   f"{hook_error}. Fix it, then use Settings > General > Install hooks.", warn=True)
+    if args.first_run or not store.value.onboarded:
+        # The first-run window (the Mac's onboarding): its switches, then a hello.
+        from .onboarding import Onboarding
+        QTimer.singleShot(600, lambda: Onboarding.present(state, store, overlay))
     elif updated_from or (store.value.greeting and not args.background):
         state.greet(updated_from=updated_from, version=__version__)
     if args.settings:
