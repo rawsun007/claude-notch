@@ -1,0 +1,75 @@
+# ClaudeNotch for Windows: changelog
+
+Windows releases are tagged `windows-v<version>` on the
+[releases page](https://github.com/rawsun007/claude-notch/releases). The
+version line is shared with the Linux edition; the Mac app has its own.
+
+## 0.45.0: the first Windows release
+
+ClaudeNotch puts the Mac app's notch at the top centre of your Windows
+screen: Claude Code's permission prompts, questions and status, without
+switching back to the terminal.
+
+### Approve and answer from the notch
+
+- **Permission cards** for every tool call, with the command or the diff:
+  Allow, Deny, Always Allow (this exact command, or every call of the
+  tool), and Allow All when several are waiting. Enter allows, Esc denies.
+- **Destructive commands** (`Remove-Item -Recurse`, `rd /s`, `iwr | iex`,
+  `git push --force` and more, for PowerShell, cmd and Bash) get a red
+  card and need Windows Hello or a press-and-hold to allow.
+- **Deny with a reason**: tell Claude what to do instead.
+- **Questions** (AskUserQuestion), several at once, with your own answer;
+  put one away and it waits in a small tab beside the notch.
+- **Auto-Approve**, with a scope, a choice for destructive commands, and
+  "for 15 minutes / 30 minutes / an hour".
+- **"Allowed 3 times"** next to Always Allow for commands you keep approving.
+- **Too late to answer here**: a card Claude Code stopped waiting for says
+  so instead of vanishing.
+- **Ask before switching to a pricier model** (opt in).
+
+### See what Claude is doing
+
+- The open notch: model, effort, branch, context and cost meter, the
+  running command with its clock, the task list's progress, permission mode
+  and edited files; every session when you run several.
+- **Claude's last reply** in full, with headings, lists and code, and Copy.
+- **History drawer** (Ctrl+Alt+H): past sessions with Resume, spend per
+  project, and every card you answered, with search and filters.
+- **Plan limits** at 80 % and 95 %, budgets with a hard stop, and cards when
+  a session finishes, fails, changes model, or shares a folder with another.
+
+### Talk to Claude
+
+- **Send to Claude** (Ctrl+Alt+N): type a message into the terminal you
+  were in, or start Claude in a project with it.
+- **Reply** to a finished session from its card.
+- **Drop a folder or file on the notch** to start Claude there.
+- Start Claude in Folder, Resume Last Session and Copy Today's Standup in
+  the tray.
+
+### A Windows app
+
+- Per-user installer: no administrator rights, no UAC prompt.
+- Start menu (ClaudeNotch and ClaudeNotch Settings), tray menu, a jump list,
+  `claudenotch://` links, and launch at login.
+- **Ctrl+Alt+,** opens Settings from anywhere; all shortcuts can be changed.
+- Settings like the Mac's: usage and cost charts, history, sounds, skills,
+  budgets, rules, privacy.
+- Pet Mode, the Mac's sounds, hidden from screen capture by default,
+  follows you to the display you use, checks for updates, keeps local crash
+  reports.
+
+### Requirements
+
+- Windows 10 (1809 or later) or Windows 11, x64. Windows on Arm runs it
+  under emulation.
+- Claude Code (the CLI, or the VS Code extension).
+
+### Known limits
+
+- **The installer is not code-signed yet**, so Windows SmartScreen may warn
+  when you open it. Signing is coming in a later release.
+- Not yet on winget.
+- English only. No Codex CLI support yet. No copy of the notch on other
+  displays (it moves to the one you use instead).
