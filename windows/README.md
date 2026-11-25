@@ -16,15 +16,13 @@ under emulation.
 
 ## Install
 
-With winget (recommended):
+Download `ClaudeNotch-<version>-windows-x64-setup.exe` from the
+[latest Windows release](https://github.com/rawsun007/claude-notch/releases/tag/windows-v0.45.0)
+(Windows releases are tagged `windows-v...`) and open it. What changed in
+each release is in [CHANGELOG.md](CHANGELOG.md). winget is coming.
 
-```powershell
-winget install Rawsun.ClaudeNotch
-```
-
-Or download `ClaudeNotch-<version>-windows-x64-setup.exe` from the
-[releases page](https://github.com/rawsun007/claude-notch/releases)
-(Windows releases are tagged `windows-v...`).
+The installer is not code-signed yet, so Windows SmartScreen may warn when
+you open it; signing is coming in a later release.
 
 The installer is per-user: no administrator rights and no UAC prompt. It
 installs to `%LOCALAPPDATA%\Programs\ClaudeNotch`, wires Claude Code to the
