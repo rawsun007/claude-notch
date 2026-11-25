@@ -594,5 +594,33 @@ class OverlayTests(unittest.TestCase):
         self.assertEqual((text.source, text.title, text.detail), ("Claude Code", "Model switched",
                                                                   "sonnet 5.5 to opus 5.5"))
 
+    def test_dragging_a_folder_over_the_notch_shows_the_drop_panel(self):
+        import tempfile
+        from unittest import mock
+        from PySide6.QtCore import QMimeData, QPointF, Qt, QUrl
+        from PySide6.QtGui import QDragEnterEvent, QDragLeaveEvent, QDragMoveEvent, QDropEvent
+        from claudenotch_win import terminal, view
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(terminal, "launch") as launch:
+            mime = QMimeData()
+            mime.setUrls([QUrl.fromLocalFile(d)])
+            far = QPointF(1, 1)
+            self.overlay.dragEnterEvent(QDragEnterEvent(far.toPoint(), Qt.CopyAction, mime, Qt.LeftButton,
+                                                        Qt.NoModifier))
+            self.app.processEvents()
+            self.assertEqual(self.overlay._view, view.DROP)
+            panel = self.overlay._drop_view
+            self.assertFalse(panel.hot)                                   # blue: "Drop here"
+            centre = panel.mapTo(self.overlay, panel.rect().center())
+            self.overlay.dragMoveEvent(QDragMoveEvent(centre, Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier))
+            self.assertTrue(panel.hot)                                    # green: "Release to open"
+            self.overlay.dragLeaveEvent(QDragLeaveEvent())
+            self.app.processEvents()
+            self.assertNotEqual(self.overlay._view, view.DROP)            # the drag left: back to normal
+            self.overlay.dragEnterEvent(QDragEnterEvent(centre, Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier))
+            self.overlay.dropEvent(QDropEvent(QPointF(centre), Qt.CopyAction, mime, Qt.LeftButton, Qt.NoModifier))
+            self.app.processEvents()
+            launch.assert_called_once()
+            self.assertNotEqual(self.overlay._view, view.DROP)
+
 if __name__ == "__main__":
     unittest.main()
