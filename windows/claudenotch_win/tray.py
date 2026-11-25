@@ -73,6 +73,15 @@ class Tray(QSystemTrayIcon):
         self._theme_timer.timeout.connect(lambda: self.setIcon(tray_icon()))
         self._theme_timer.start()
 
+    def alert(self, title: str, body: str, warn: bool = False) -> None:
+        """The app's own message. A card in the notch, since Windows toasts are
+        off by default; a toast only for someone who switched them on."""
+        if bool(getattr(self.store.value, "desktop_notifications", False)):
+            icon = QSystemTrayIcon.MessageIcon.Warning if warn else QSystemTrayIcon.MessageIcon.Information
+            self.showMessage(title, body, icon, 12000)
+        else:
+            self.overlay.state.notice(title, body)
+
     def show_update(self, version: str, page: str) -> None:
         from claudenotch import updatecheck
         if not page.startswith(updatecheck.PAGE_PREFIX):
@@ -82,7 +91,7 @@ class Tray(QSystemTrayIcon):
         self.update_action.setText(f"Update available: {version}")
         self.update_action.setVisible(True)
         if first:
-            self.showMessage("ClaudeNotch update", f"ClaudeNotch {version} is out. Open the tray menu to get it.")
+            self.alert(f"ClaudeNotch {version} is out", "Open the tray menu's Update item to get it.")
 
     def _open_update(self) -> None:
         from claudenotch import updatecheck
@@ -111,14 +120,14 @@ class Tray(QSystemTrayIcon):
         from . import terminal
         r = self._last()
         if r is not None and not terminal.launch(r.cwd, r.id):
-            self.showMessage("ClaudeNotch", "Could not open a terminal to resume that session.")
+            self.alert("Could not resume that session", "No terminal could be opened in its folder.")
 
     def start_in_folder(self) -> None:
         from PySide6.QtWidgets import QFileDialog
         from . import terminal
         folder = QFileDialog.getExistingDirectory(None, "Start Claude here")
         if folder and not terminal.launch(folder):
-            self.showMessage("ClaudeNotch", "Could not open a terminal in that folder.")
+            self.alert("Could not start Claude there", "No terminal could be opened in that folder.")
 
     def copy_standup(self) -> None:
         import threading
