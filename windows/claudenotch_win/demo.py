@@ -78,7 +78,7 @@ NOTICES = {
 }
 HISTORY_TABS = ("history", "history-projects", "history-activity")
 COMPOSE = ("compose", "deny-reason", "reply")
-MINIMIZED = ("question-minimized", "worktree-advice")
+MINIMIZED = ("question-minimized", "worktree-advice", "model-gate", "model-switched", "model-drift")
 DEMO_REPLY = """## Fixed the history drawer
 
 The search lost its text whenever **new activity** arrived, because the drawer was rebuilt on every
@@ -257,6 +257,26 @@ def _history(state: AppState) -> None:
 
 
 def _show(state: AppState, overlay, name: str) -> None:
+    if name == "model-gate":
+        from claudenotch.state import PermissionCard
+        from claudenotch import protocol as _p
+        state.enqueue_permission(PermissionCard("PreModelSwitch", {"from_model": "claude-sonnet-5-5",
+                                                                   "to_model": "claude-opus-5-5"},
+                                                HOME + "\\claude-notch", _p.PERMISSION, "demo"))
+        return
+    if name in ("model-switched", "model-drift"):
+        from claudenotch import statusline as _sl
+        state.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "demo",
+                            "cwd": HOME + "\\claude-notch", "prompt": "go"})
+        if name == "model-switched":
+            state.handle_event({"hook_event_name": "PostModelSwitch", "session_id": "demo",
+                                "cwd": HOME + "\\claude-notch", "from_model": "claude-sonnet-5-5",
+                                "to_model": "claude-opus-5-5"})
+        else:
+            for model in ("claude-opus-5-5", "claude-sonnet-5-5"):
+                state.note_status(_sl.parse(_sl.flatten({"session_id": "demo", "model": {"id": model},
+                                                         "cost": {"total_cost_usd": 1.0}})))
+        return
     if name == "worktree-advice":
         for sid in ("w1", "w2"):
             state.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": sid,
