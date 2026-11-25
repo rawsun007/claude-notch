@@ -7,10 +7,9 @@ a sound per kind of tool. Any of them can be changed, or set to "None" to
 silence just that one, and a mute switch silences them all.
 
 Same names and defaults as the Mac (Funk for prompts, Glass for a finished
-task, Pop, Tink, Submarine...). Apple's recordings are not ours to ship, so
-the Windows edition plays its own sounds made under those names
-(windows/tools/make_sounds.py), or the user's own copies if they put them
-in %APPDATA%\\ClaudeNotch\\Sounds.
+task, Pop, Tink, Submarine...). The Windows edition ships these
+sounds (windows/resources/sounds, with where they come from in SOURCE.md
+there), and plays the user's own copies instead if they put some in %APPDATA%\\ClaudeNotch\\Sounds.
 """
 
 from __future__ import annotations
