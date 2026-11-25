@@ -574,5 +574,25 @@ class OverlayTests(unittest.TestCase):
         view = NoticeCardView(advice[0], 444)
         self.assertTrue(view.findChildren(nw.LinesText))
 
+    def test_the_model_gate_card(self):
+        from claudenotch_win import cardmodel
+        self._with_settings(gate_model_upgrades=True)
+        self.overlay.render()
+        self.assertTrue(self.state.gate_model_upgrades)
+        got = []
+        card = PermissionCard("PreModelSwitch", {"from_model": "claude-sonnet-5-5", "to_model": "claude-opus-5-5"},
+                              os.getcwd(), protocol.PERMISSION, "s1", resolve=lambda d, r: got.append(d))
+        self.state.enqueue_permission(card)
+        self.app.processEvents()
+        self.assertNotIn("always", self.overlay.buttons)                # no rule may answer it
+        self.assertEqual(cardmodel.card_text(card).title, "Switch to a pricier model?")
+        self.overlay.buttons["allow"].click()
+        self.app.processEvents()
+        self.assertEqual(got, ["allow"])
+        from claudenotch.state import Toast
+        text = cardmodel.notice_text(Toast("Model switched", "sonnet 5.5 to opus 5.5", kind="model", cwd="/p"))
+        self.assertEqual((text.source, text.title, text.detail), ("Claude Code", "Model switched",
+                                                                  "sonnet 5.5 to opus 5.5"))
+
 if __name__ == "__main__":
     unittest.main()

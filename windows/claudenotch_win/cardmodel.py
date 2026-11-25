@@ -322,6 +322,13 @@ def status_items(limits: dict, now: float, session_cost: float | None = None) ->
 
 def card_text(card) -> CardText:
     """Everything the permission card prints, from a core PermissionCard."""
+    if card.tool == "PreModelSwitch":
+        # The model gate: the Mac's "Switch to a pricier model?" card.
+        from claudenotch import modelswitch
+        ti = card.tool_input if isinstance(card.tool_input, dict) else {}
+        return CardText(source="Claude Code", tool="Model", title=modelswitch.UPGRADE_TITLE,
+                        detail=modelswitch.switch_detail(str(ti.get("from_model") or ""), str(ti.get("to_model") or "")),
+                        project=card.project, preview=None)
     return CardText(
         source="Claude Code",
         tool=card.tool,
@@ -400,6 +407,9 @@ def notice_text(toast) -> NoticeText:
         title = toast.body if toast.body and toast.body != default else (
             toast.title if toast.title != "Claude Code" else default)
         return NoticeText("notification", "Claude Code", title, project)
+    if kind == "model":
+        # PostModelSwitch: Claude Code's own news, "sonnet 5.5 to opus 5.5".
+        return NoticeText("notification", "Claude Code", toast.title, toast.body)
     if kind == "limit":
         # A plan-limit warning: the app's own notification card, which waits.
         return NoticeText("notification", "ClaudeNotch", toast.title, toast.body)

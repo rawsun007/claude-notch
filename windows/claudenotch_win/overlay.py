@@ -337,6 +337,8 @@ class Overlay(QWidget):
 
     def render(self) -> None:
         self.state.limit_warnings = self._setting("limit_warnings", True)
+        self.state.gate_model_upgrades = bool(self._setting("gate_model_upgrades", False))
+        self.state.model_drift_alerts = bool(self._setting("model_drift_alerts", True))
         perms, questions, toasts, sessions = self.state.snapshot()
         # The visible question (visibleQuestion): never one that was put away.
         minimized = sum(1 for q in questions if q.minimized)

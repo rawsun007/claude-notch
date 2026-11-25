@@ -138,7 +138,8 @@ class PermissionCardView(QWidget):
         why.clicked.connect(lambda: self.decided.emit(protocol.DENY, "reason"))
         row.addWidget(why)
         self.buttons["deny_reason"] = why
-        if not dangerous and block is None:
+        if not dangerous and block is None and card.tool != "PreModelSwitch":
+            # (No Always Allow on the model gate: no rule may answer it.)
             always = nw.CapsuleButton("Always Allow…", chevron=True)
             always.clicked.connect(self._always_menu)
             always.setAccessibleDescription(
