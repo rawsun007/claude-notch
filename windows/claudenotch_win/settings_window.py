@@ -57,6 +57,8 @@ SEARCH = [
     kit.SearchItem("Show the notch when idle", "hide idle pill", "notch"),
     kit.SearchItem("Hide over fullscreen apps", "game video presentation", "notch"),
     kit.SearchItem("Pet Mode", "mascot creature animation boop", "pet"),
+    kit.SearchItem("Ask before switching to a pricier model", "model switch opus sonnet gate upgrade cost", "rules"),
+    kit.SearchItem("When a session's model drops a tier", "model downgrade fallback opus sonnet drift", "alerts"),
     kit.SearchItem("Auto-approve for a while", "timed window minutes", "session"),
     kit.SearchItem("Skills", "skill skills slash command plugin context listing tokens disable enable off trash delete restore",
                    "skills"),
@@ -773,6 +775,10 @@ class SettingsWindow(QWidget):
                          "A card in the notch when a session finishes or Claude Code sends a notification.")
         self._toggle_row(card, "limit_warnings", "Plan-limit warnings",
                          "A card at 80% and again at 95% of your 5-hour or weekly plan limit, once per window.")
+        self._toggle_row(card, "model_drift_alerts", "When a session's model drops a tier",
+                         "A card once when a session is suddenly on a cheaper family than it started on, Opus to "
+                         "Sonnet for example. It says only what changed: Claude Code does not say whether you or "
+                         "your plan switched it.")
         v.addWidget(card)
         v.addWidget(kit.section_label(self.t, "Windows notifications"))
         win = kit.Card(self.t)
@@ -1174,6 +1180,14 @@ class SettingsWindow(QWidget):
                               "never are, whatever is listed here.", 12, color=self.t.secondary, wrap=True))
         self.rules_card = kit.Card(self.t)
         v.addWidget(self.rules_card)
+        v.addWidget(kit.section_label(self.t, "Model switches"))
+        gate = kit.Card(self.t)
+        self._toggle_row(gate, "gate_model_upgrades", "Ask before switching to a pricier model",
+                         "Hold a session's /model change for your approval when it moves up to a more expensive "
+                         "family, such as sonnet to opus. Switching down, or between versions of the same family, "
+                         "is never held. Off by default: this is the one card that interrupts something you just "
+                         "did yourself, and the session waits in the terminal until you answer it.")
+        v.addWidget(gate)
         v.addStretch(1)
         self._refresh_rules()
         return page
@@ -1297,7 +1311,8 @@ class SettingsWindow(QWidget):
         for key in ("greeting", "hover_sessions", "toasts", "show_pill", "hide_in_fullscreen",
                     "desktop_notifications", "notify_dangerous_only", "keep_open", "hide_from_capture",
                     "require_hello", "skip_destructive_confirm", "auto_approve", "limit_warnings",
-                    "enforce_budget", "sound_muted", "per_tool_sounds", "pet_enabled"):
+                    "enforce_budget", "sound_muted", "per_tool_sounds", "pet_enabled",
+                    "gate_model_upgrades", "model_drift_alerts"):
             values[key] = getattr(v, key, False)
         for key, value in values.items():
             sw = self.switches.get(key)
