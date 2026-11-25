@@ -101,6 +101,11 @@ class Overlay(QWidget):
         self._compose_view = None
         self.detail: tuple[str, str] | None = None
         self._detail_view = None
+        # NotchDrop: a drag over the notch, and whether it is right over the box.
+        self.drop_target = False
+        self._drop_view = None
+        self._drag_catch = False
+        self._was_outside = True
         self._usage_ready.connect(self._usage_arrived)
         self._focus_return = 0
         self.buttons: dict[str, QWidget] = {}
@@ -307,6 +312,8 @@ class Overlay(QWidget):
         w, h = self._sizer.size
         r = self._card_rect(w, h)
         collapsed = self.collapsed and not self._sizer.running
+        if self._drag_catch:
+            p.fillRect(self.rect(), QColor(0, 0, 0, 1))      # the catcher: invisible, but not see-through
         stub = self._stub_rect()
         if stub is not None:
             self._paint_stub(p, stub)
@@ -360,8 +367,11 @@ class Overlay(QWidget):
             auto = None
         v = view.choose(perms, questions, toasts, hovering, self._setting("hover_sessions", True), auto,
                         history=self.history_open, compose=self.compose is not None,
-                        detail=self.detail is not None)
-        if v == view.HISTORY:
+                        detail=self.detail is not None, drop=self.drop_target)
+        if v == view.DROP:
+            key = (v, self.position)
+            build = self._drop_card
+        elif v == view.HISTORY:
             key = (v, self.position)
             build = self._history_card
         elif v == view.DETAIL:
@@ -532,15 +542,56 @@ class Overlay(QWidget):
 
     # --- NotchDrop: drop a folder (or a file) to start Claude there ----------------------
 
-    def dragEnterEvent(self, event) -> None:
+    def _drop_card(self) -> QWidget:
+        from .dropzone import DropZoneView
+        self._card_w, self._formula_h = geom.drop_size()
+        top = geom.INSET + geom.CONTENT_TOP_GAP if self.top else 14
+        w = DropZoneView(self._card_w - 2 * geom.CONTENT_H_PAD, self._formula_h - top - geom.CONTENT_BOTTOM_PAD)
+        self._drop_view = w
+        return w
+
+    def _over_box(self, pos) -> bool:
+        """Is the drag right over the dashed box (isDropHot)?"""
+        w = self._drop_view
+        if w is None or not w.isVisible():
+            return False
+        return w.rect().contains(w.mapFrom(self, pos.toPoint() if hasattr(pos, "toPoint") else pos))
+
+    def _set_drop(self, target: bool, hot: bool = False) -> None:
+        if target != self.drop_target:
+            self.drop_target = target
+            if not target:
+                self._drop_view = None
+            self.render()
+        if self._drop_view is not None:
+            self._drop_view.set_hot(hot)
+
+    @staticmethod
+    def _droppable(event) -> bool:
         urls = event.mimeData().urls() if event.mimeData().hasUrls() else []
-        if urls and urls[0].isLocalFile():
+        return bool(urls) and urls[0].isLocalFile()
+
+    def dragEnterEvent(self, event) -> None:
+        if self._droppable(event):
             event.acceptProposedAction()
+            self._set_drop(True, self._over_box(event.position()))
         else:
             event.ignore()
 
+    def dragMoveEvent(self, event) -> None:
+        if self._droppable(event):
+            event.acceptProposedAction()
+            # Only on a change: a move arrives dozens of times a second.
+            self._set_drop(True, self._over_box(event.position()))
+
+    def dragLeaveEvent(self, event) -> None:
+        self._set_drop(False)
+
     def dropEvent(self, event) -> None:
         from . import terminal
+        self._set_drop(False)
+        self._drag_catch = False
+        self.update()
         urls = event.mimeData().urls() if event.mimeData().hasUrls() else []
         launch = terminal.drop_launch(urls[0].toLocalFile()) if urls and urls[0].isLocalFile() else None
         now = time.monotonic()
@@ -1116,6 +1167,21 @@ class Overlay(QWidget):
         if not self.hovering:
             self._follow_pointer(pos)
         screen = self._screen_rect()
+        # A drag reaching the notch: while the button is held after coming in
+        # from elsewhere, the whole window catches it (the Mac's invisible
+        # catcher). Transparent pixels let a drag fall through, and only during
+        # a drag, so an ordinary click near the notch still reaches the window
+        # underneath.
+        held = bool(QGuiApplication.mouseButtons() & Qt.LeftButton)
+        zone = geom.contains(geom.trigger_zone(screen), pos.x(), pos.y())
+        catch = held and zone and (self._drag_catch or self._was_outside)
+        if not held:
+            self._was_outside = not zone
+        if catch != self._drag_catch:
+            self._drag_catch = catch
+            self.update()
+            if not catch and self.drop_target and not held:
+                self._set_drop(False)
         tw, th = (self._card_w, max(self._formula_h, self._target()[1])) if self._content else (380, 88)
         inside = geom.should_hover(
             is_hovering=self.hovering,
