@@ -622,5 +622,47 @@ class OverlayTests(unittest.TestCase):
             launch.assert_called_once()
             self.assertNotEqual(self.overlay._view, view.DROP)
 
+    def test_first_run_window_starts_with_everything_on_and_applies_it(self):
+        from unittest import mock
+        from claudenotch.settings import Store
+        from claudenotch_win import onboarding
+        store = Store(persist=False)
+        with mock.patch.object(onboarding.winstatus, "install_hooks") as hooks_,                 mock.patch.object(onboarding.autostart, "set_enabled") as login,                 mock.patch.object(onboarding.macsounds, "download", return_value=(13, [])):
+            w = onboarding.Onboarding(self.state, store)
+            self.assertEqual(w.choices(), {"start_at_login": True, "auto_approve": True,
+                                           "auto_approve_scope": "everything", "auto_approve_dangerous": "allow",
+                                           "sounds": True})
+            self.assertFalse(w.switches["hooks"].isEnabled())           # required
+            w.switches["auto"].setChecked(False)                         # destructive follows auto off
+            self.assertFalse(w.switches["danger"].isEnabled())
+            self.assertEqual(w.choices()["auto_approve_dangerous"], "ask")
+            w.switches["auto"].setChecked(True)
+            w.switches["danger"].setChecked(True)
+            w.switches["sounds"].setChecked(False)
+            w.finish()
+            self.app.processEvents()
+            hooks_.assert_called_once()
+            login.assert_called_once_with(True)
+            v = store.value
+            self.assertEqual((v.auto_approve, v.auto_approve_dangerous, v.onboarded), (True, "allow", True))
+            self.assertIn("ClaudeNotch is running", [t.title for t in self.state.toasts])
+        closed = onboarding.Onboarding(self.state, Store(persist=False))
+        closed.close()                                                   # closed without choosing
+        self.assertTrue(closed.store.value.onboarded)
+        self.assertFalse(closed.store.value.auto_approve)
+
+    def test_app_messages_go_to_the_notch_unless_toasts_are_on(self):
+        from claudenotch_win.tray import Tray
+        from claudenotch.settings import Store
+        store = Store(persist=False)
+        tray = Tray(self.overlay, store, on_settings=lambda: None, on_quit=lambda: None)
+        shown = []
+        tray.showMessage = lambda *a, **k: shown.append(a[0])
+        tray.alert("Could not start Claude there", "No terminal.")
+        self.assertEqual((shown, self.state.toasts[-1].title), ([], "Could not start Claude there"))
+        store.update(desktop_notifications=True)
+        tray.alert("Toast now", "x")
+        self.assertEqual(shown, ["Toast now"])
+
 if __name__ == "__main__":
     unittest.main()
