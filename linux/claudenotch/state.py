@@ -747,6 +747,14 @@ class AppState:
             self.toasts = (self.toasts + [toast])[-8:]
         self._changed()
 
+    def notice(self, title: str, body: str) -> None:
+        """The app's own message as a card in the notch that waits to be
+        dismissed (an update, or something it could not do), for a UI that
+        keeps Windows toasts off."""
+        with self._lock:
+            self.toasts = (self.toasts + [Toast(title[:120], body[:300])])[-8:]
+        self._changed()
+
     def dismiss_toast(self, toast_id: int) -> None:
         with self._lock:
             self.toasts = [t for t in self.toasts if t.id != toast_id]

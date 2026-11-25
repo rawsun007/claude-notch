@@ -160,6 +160,12 @@ class PermissionTests(unittest.TestCase):
         st.restore_minimized_questions()
         self.assertEqual(st.minimized_question_count, 0)
 
+    def test_the_apps_own_notice_waits(self):
+        st = AppState(persist=False)
+        st.notice("ClaudeNotch 0.45.1 is out", "Open the tray menu to get it.")
+        t = st.toasts[-1]
+        self.assertEqual((t.title, t.system, t.kind), ("ClaudeNotch 0.45.1 is out", False, ""))
+
     def test_always_allow_answers_the_next_identical_call(self):
         st = AppState(persist=False)
         first = card()
