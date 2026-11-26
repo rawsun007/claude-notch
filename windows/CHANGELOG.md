@@ -4,6 +4,14 @@ Windows releases are tagged `windows-v<version>` on the
 [releases page](https://github.com/rawsun007/claude-notch/releases). The
 version line is shared with the Linux edition; the Mac app has its own.
 
+## 0.45.4: a paw for Pet Mode
+
+### Fixed
+
+- **The Pet page in Settings shows a paw print.** It showed a slice of
+  pizza: Windows' icon font has no paw, and the symbol it used is its
+  pizza. The paw is now drawn by the app, as on the Mac.
+
 ## 0.45.3: every command shows in the notch
 
 ### Fixed
