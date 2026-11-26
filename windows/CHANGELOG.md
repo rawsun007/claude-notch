@@ -4,6 +4,15 @@ Windows releases are tagged `windows-v<version>` on the
 [releases page](https://github.com/rawsun007/claude-notch/releases). The
 version line is shared with the Linux edition; the Mac app has its own.
 
+## 0.45.3: every command shows in the notch
+
+### Fixed
+
+- **Auto-allowed commands show again after a finished turn.** The "Claude
+  is done" card stayed up into the next turn and hid every "Auto-allowed"
+  card behind it, so a whole turn of commands ran with only the old card
+  on screen. Sending that session a new prompt now clears its done card.
+
 ## 0.45.2: the Mac's sounds, built in
 
 ### Changed
