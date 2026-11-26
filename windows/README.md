@@ -1,5 +1,9 @@
 # ClaudeNotch for Windows
 
+> **Beta.** ClaudeNotch for Windows is still being developed, so you may
+> run into errors. If something goes wrong or you have a suggestion, please
+> [open an issue on GitHub](https://github.com/rawsun007/claude-notch/issues/new).
+
 Claude Code's permission prompts and questions, answered from a card at the
 top of your screen instead of the terminal. The same hooks, the same danger
 warnings and the same secret redaction as the macOS and Linux apps, plus
