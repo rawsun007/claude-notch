@@ -215,7 +215,6 @@ _FLUENT = {
     "dollarsign.circle": "",
     "creditcard": "",
     "speaker.wave.2": "",
-    "pawprint": "",
     "wand.and.stars.nav": "",
     "hammer": "",
 }
@@ -271,6 +270,18 @@ def draw_glyph(p: QPainter, name: str, r: QRectF, size: float, color: QColor) ->
         p.setBrush(color)
         p.drawPath(path)
         _cutout(p, QRectF(cx - s / 2, cy - h / 2 + h * 0.18, s, h * 0.8), "!", s)
+        return
+    if name == "pawprint":
+        # SF's pawprint. Segoe Fluent Icons has no paw (its U+ED56 is a pizza),
+        # so it is drawn: four toes in an arc over a rounded pad.
+        p.setPen(Qt.NoPen)
+        p.setBrush(color)
+        for dx, dy, w, h in ((-0.40, -0.10, 0.20, 0.26), (-0.15, -0.34, 0.22, 0.28),
+                             (0.15, -0.34, 0.22, 0.28), (0.40, -0.10, 0.20, 0.26)):
+            p.drawEllipse(QPointF(cx + dx * s, cy + dy * s), w * s / 2, h * s / 2)
+        pad = QPainterPath()
+        pad.addRoundedRect(QRectF(cx - s * 0.27, cy + s * 0.02, s * 0.54, s * 0.40), s * 0.18, s * 0.18)
+        p.drawPath(pad)
         return
     if name in ("exclamationmark.bubble.fill", "questionmark.bubble.fill", "text.bubble", "text.bubble.fill"):
         w, h = s * 1.0, s * 0.82
