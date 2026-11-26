@@ -343,3 +343,13 @@ class SessionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DoneCardTests(unittest.TestCase):
+    def test_new_prompt_clears_that_sessions_done_card(self):
+        # Left up, a done card outranks every auto-allowed card of the next turn.
+        st = AppState(persist=False)
+        st.handle_event({"hook_event_name": "Stop", "session_id": "a", "cwd": "C:/a"})
+        st.handle_event({"hook_event_name": "Stop", "session_id": "b", "cwd": "C:/b"})
+        st.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "a", "cwd": "C:/a", "prompt": "go"})
+        self.assertEqual([t.cwd for t in st.toasts if t.kind == "done"], ["C:/b"])
