@@ -353,3 +353,38 @@ class DoneCardTests(unittest.TestCase):
         st.handle_event({"hook_event_name": "Stop", "session_id": "b", "cwd": "C:/b"})
         st.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "a", "cwd": "C:/a", "prompt": "go"})
         self.assertEqual([t.cwd for t in st.toasts if t.kind == "done"], ["C:/b"])
+
+
+class AutoDeniedTests(unittest.TestCase):
+    def test_permission_denied_shows_the_auto_card_with_its_reason(self):
+        st = AppState(persist=False)
+        st.handle_event({"hook_event_name": "PermissionDenied", "session_id": "a", "cwd": "C:/a",
+                         "tool_name": "Bash", "tool_input": {"command": "git push --force"},
+                         "reason": "rewrites\nshared   history"})
+        self.assertEqual(st.auto_info.tool, "Bash")
+        self.assertEqual(st.auto_info.denial_reason, "rewrites shared history")
+        self.assertEqual(st.history[-1]["what"], "auto-denied")
+        self.assertIn("(denied: rewrites shared history)", st.history[-1]["detail"])
+
+    def test_no_reason_still_says_denied(self):
+        st = AppState(persist=False)
+        st.handle_event({"hook_event_name": "PermissionDenied", "session_id": "a", "cwd": "C:/a",
+                         "tool_name": "Bash", "tool_input": {"command": "ls"}})
+        self.assertEqual(st.auto_info.denial_reason, "")
+
+    def test_an_approved_card_has_no_denial(self):
+        card = PermissionCard("Bash", {"command": "ls"}, "C:/a", protocol.PERMISSION)
+        self.assertIsNone(card.denial_reason)
+
+
+class DenialReasonTests(unittest.TestCase):
+    def test_documented_field_then_fallbacks(self):
+        self.assertEqual(protocol.denial_reason({"reason": " no "}), "no")
+        self.assertEqual(protocol.denial_reason({"reason": "  ", "message": "m"}), "m")
+        self.assertEqual(protocol.denial_reason({"denialReason": "d"}), "d")
+        self.assertEqual(protocol.denial_reason({"reason": 3}), "")
+        self.assertEqual(protocol.denial_reason({}), "")
+
+    def test_one_line_and_capped(self):
+        self.assertEqual(protocol.denial_reason({"reason": "a\r\nb"}), "a b")
+        self.assertEqual(len(protocol.denial_reason({"reason": "x" * 500})), 240)

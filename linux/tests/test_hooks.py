@@ -44,6 +44,13 @@ class MergeTests(unittest.TestCase):
         self.assertFalse(hooks.is_installed(hooks.merged({}, "t"), "other"))
         self.assertFalse(hooks.is_installed({}, "t"))
 
+    def test_an_install_without_permission_denied_is_migrated(self):
+        # Older installs lack it; is_installed says no, so start-up adds it.
+        old = hooks.merged({}, "t")
+        del old["hooks"]["PermissionDenied"]
+        self.assertFalse(hooks.is_installed(old, "t"))
+        self.assertEqual(hooks.merged(old, "t")["hooks"]["PermissionDenied"][0]["matcher"], ".*")
+
 
 class DiskTests(unittest.TestCase):
     def setUp(self):

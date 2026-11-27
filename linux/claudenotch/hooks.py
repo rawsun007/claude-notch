@@ -46,6 +46,10 @@ EVENTS: list[tuple[str, str | None]] = [
     # setting flips would rewrite settings.json under every running session.
     ("PostModelSwitch", ".*"),
     ("PreModelSwitch", ".*"),
+    # Auto mode blocked a tool call. Without it the notch shows what auto
+    # mode lets through but never what it stops, and a session blocked over
+    # and over looks like a session thinking.
+    ("PermissionDenied", ".*"),
 ]
 
 

@@ -113,6 +113,23 @@ def classify(payload: dict) -> str:
     return EVENT
 
 
+DENIAL_REASON_KEYS = ("reason", "denial_reason", "message", "permissionDecisionReason",
+                      "decision_reason", "denialReason")
+
+
+def denial_reason(payload: dict) -> str:
+    """Why auto mode blocked a call (PermissionDenied), as
+    EventServer.denialReason: `reason` is the documented field, the rest are
+    fallbacks so a renamed key degrades to a card with no reason, not to no
+    card. One line, at most 240 characters: it is model-written text of any
+    length shown on a two-line card. The caller redacts it."""
+    for key in DENIAL_REASON_KEYS:
+        v = payload.get(key)
+        if isinstance(v, str) and v.strip():
+            return " ".join(v.split())[:240]
+    return ""
+
+
 def timeout_body(kind: str) -> str:
     """What a card that nobody answered replies with: no opinion."""
     if kind == PERMISSION:
