@@ -21,7 +21,7 @@ under emulation.
 ## Install
 
 Download `ClaudeNotch-<version>-windows-x64-setup.exe` from the
-[latest Windows release](https://github.com/rawsun007/claude-notch/releases/tag/windows-v0.45.5)
+[latest Windows release](https://github.com/rawsun007/claude-notch/releases/tag/windows-v0.45.6)
 (Windows releases are tagged `windows-v...`) and open it. What changed in
 each release is in [CHANGELOG.md](CHANGELOG.md). winget is coming.
 

@@ -4,6 +4,18 @@ Windows releases are tagged `windows-v<version>` on the
 [releases page](https://github.com/rawsun007/claude-notch/releases). The
 version line is shared with the Linux edition; the Mac app has its own.
 
+## 0.45.6: every auto-approved command shows
+
+### Fixed
+
+- **Commands allowed by an Always Allow rule show in the notch.** With
+  Auto-Approve on, a rule such as "Always allow Bash" answered every
+  command silently, so none of them showed. They now get the same
+  Auto-allowed card. With Auto-Approve off, rule matches stay silent.
+- **"Claude is waiting for your input" clears on your next prompt** in
+  that session, like the done card, so it no longer hides the command
+  cards behind it.
+
 ## 0.45.5: see what auto mode blocks
 
 ### Added
