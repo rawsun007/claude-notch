@@ -60,6 +60,9 @@ class PermissionCard:
 
     def __post_init__(self):
         self.confirm_now = False
+        # Set when auto mode blocked this call (PermissionDenied): the auto
+        # card then says Auto-denied, with this reason ("" when none given).
+        self.denial_reason: str | None = None
         # Claude Code stopped waiting (see AppState.keep_expired).
         self.stale = False
         pv = protocol.preview(self.tool, self.tool_input)
@@ -636,6 +639,19 @@ class AppState:
                 if s is not None and event == "PostToolUse":
                     note_tasks(s, str(payload.get("tool_name") or ""), payload.get("tool_input"))
                     note_edit(s, str(payload.get("tool_name") or ""), payload.get("tool_input"))
+            elif event == "PermissionDenied":
+                tool_input = payload.get("tool_input")
+                card = PermissionCard(str(payload.get("tool_name") or "tool")[:64],
+                                      tool_input if isinstance(tool_input, dict) else {}, cwd,
+                                      protocol.PERMISSION, session_id=sid)
+                card.denial_reason = redact(protocol.denial_reason(payload))
+                self._touch(sid, cwd)
+                self.auto_info = card
+                self.auto_info_at = time.monotonic()
+                self.stats.record("denied")
+                self._log("auto-denied", card.title,
+                          f"{card.detail}  (denied: {card.denial_reason})" if card.denial_reason else card.detail,
+                          card.project)
             elif event == "PostModelSwitch":
                 toast = self._model_switched(sid, cwd, str(payload.get("from_model") or ""),
                                              str(payload.get("to_model") or "").strip())
