@@ -635,11 +635,13 @@ class AppState:
                 s = self._touch(sid, cwd, "working")
                 if s:
                     s.last_prompt = redact(str(payload.get("prompt") or ""))[:200]
-                # A new turn answers that session's "done" card: you are back in
-                # the terminal. Left up, it outranks every auto-allowed card and
-                # the whole turn runs with nothing but the old card on screen.
+                # A new turn answers that session's "done" and "waiting for your
+                # input" cards: you are back in the terminal. Left up, they
+                # outrank every auto-allowed card and the whole turn runs with
+                # nothing but the old card on screen.
                 if cwd:
-                    self.toasts = [t for t in self.toasts if not (t.kind == "done" and t.cwd == cwd)]
+                    self.toasts = [t for t in self.toasts
+                                   if not (t.kind in ("done", "notice") and t.cwd == cwd)]
                 advice = self._worktree_advice()
                 if advice:
                     toast = advice
