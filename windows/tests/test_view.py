@@ -83,3 +83,10 @@ class ChooseTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AutoLingerTests(unittest.TestCase):
+    def test_a_denial_stays_longer_than_an_approval(self):
+        self.assertEqual(view.auto_linger(S(denial_reason=None)), view.AUTO_INFO_SECONDS)
+        self.assertEqual(view.auto_linger(S(denial_reason="")), view.AUTO_DENIED_SECONDS)
+        self.assertEqual(view.auto_linger(S(denial_reason="why")), 8.0)

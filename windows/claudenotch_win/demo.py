@@ -75,6 +75,9 @@ NOTICES = {
     "notification": {"hook_event_name": "Notification", "message": "Claude is waiting for your input"},
     "completed": {"hook_event_name": "Stop"},
     "failure": {"hook_event_name": "StopFailure", "failure_reason": "rate_limit", "message": "rate_limit"},
+    "auto-denied": {"hook_event_name": "PermissionDenied", "tool_name": "PowerShell",
+                    "tool_input": {"command": "git push --force origin main"},
+                    "reason": "Force-pushing to the default branch rewrites shared history; auto mode does not allow it without you."},
 }
 HISTORY_TABS = ("history", "history-projects", "history-activity")
 COMPOSE = ("compose", "deny-reason", "reply")
