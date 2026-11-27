@@ -4,6 +4,16 @@ Windows releases are tagged `windows-v<version>` on the
 [releases page](https://github.com/rawsun007/claude-notch/releases). The
 version line is shared with the Linux edition; the Mac app has its own.
 
+## 0.45.5: see what auto mode blocks
+
+### Added
+
+- **An Auto-denied card.** When Claude Code's auto mode blocks a command,
+  the notch says so: an orange card with the command and the reason it
+  was blocked, for eight seconds, with the deny sound. Before, a session
+  that kept being blocked looked like a session thinking. Restart Claude
+  Code sessions that were already open so they pick up the new hook.
+
 ## 0.45.4: a paw for Pet Mode
 
 ### Fixed
