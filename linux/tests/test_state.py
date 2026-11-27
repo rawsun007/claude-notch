@@ -410,3 +410,13 @@ class RuleMatchCardTests(unittest.TestCase):
         st.approver = lambda c: "card"
         st.enqueue_permission(self._card())
         self.assertIsNone(st.auto_info)
+
+
+class NoticeCardTests(unittest.TestCase):
+    def test_new_prompt_clears_that_sessions_waiting_card(self):
+        st = AppState(persist=False)
+        for sid in ("a", "b"):
+            st.handle_event({"hook_event_name": "Notification", "session_id": sid, "cwd": "C:/" + sid,
+                             "message": "Claude is waiting for your input"})
+        st.handle_event({"hook_event_name": "UserPromptSubmit", "session_id": "a", "cwd": "C:/a", "prompt": "go"})
+        self.assertEqual([t.cwd for t in st.toasts if t.kind == "notice"], ["C:/b"])
