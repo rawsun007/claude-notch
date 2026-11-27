@@ -388,3 +388,25 @@ class DenialReasonTests(unittest.TestCase):
     def test_one_line_and_capped(self):
         self.assertEqual(protocol.denial_reason({"reason": "a\r\nb"}), "a b")
         self.assertEqual(len(protocol.denial_reason({"reason": "x" * 500})), 240)
+
+
+class RuleMatchCardTests(unittest.TestCase):
+    def _card(self):
+        return PermissionCard("Bash", {"command": "echo hi"}, "C:/a", protocol.PERMISSION)
+
+    def test_with_auto_approve_on_a_rule_match_shows_the_auto_card(self):
+        st = AppState(persist=False)
+        st.rules = [AllowRule("Bash", "")]
+        st.approver = lambda c: "allow"
+        card, got = self._card(), []
+        card.resolve = lambda d, r: got.append(d)
+        self.assertFalse(st.enqueue_permission(card))
+        self.assertEqual(got, [protocol.ALLOW])
+        self.assertIs(st.auto_info, card)
+
+    def test_with_auto_approve_off_a_rule_match_stays_silent(self):
+        st = AppState(persist=False)
+        st.rules = [AllowRule("Bash", "")]
+        st.approver = lambda c: "card"
+        st.enqueue_permission(self._card())
+        self.assertIsNone(st.auto_info)

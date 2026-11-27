@@ -371,6 +371,15 @@ class AppState:
             if not card.dangers and any(r.matches(card) for r in self.rules):
                 self._log("auto-allowed", card.title, card.detail, card.project)
                 decided = protocol.ALLOW
+                if verdict == "allow":
+                    # Auto-Approve is on and would have allowed it too: show
+                    # the Auto-allowed card, as for any auto-approved call.
+                    # The Mac keeps a rule match silent; with an "Always
+                    # Allow Bash" rule that hid every command a session ran,
+                    # while Auto-Approve promises you see them go by. With
+                    # Auto-Approve off, a rule match stays silent.
+                    self.auto_info = card
+                    self.auto_info_at = time.monotonic()
             elif verdict == "allow":
                 # Auto-Approve answered it. A destructive one is logged as such.
                 self._log("auto-approved, destructive" if card.dangers else "auto-approved",
