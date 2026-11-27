@@ -1,3 +1,4 @@
+import os
 import unittest
 
 from claudenotch import worktree as w
@@ -6,11 +7,17 @@ from claudenotch.state import AppState
 
 class WorktreeAdviceTests(unittest.TestCase):
     def test_collisions(self):
+        got = w.colliding_directories([("/p/api", ""), ("/p/api/", ""), ("/p/web", ""),
+                                       ("/p/web", "feature-x"), ("", ""), ("", "")])
+        self.assertEqual(got, ["/p/api"])
+        self.assertEqual(w.colliding_directories([("/p", ""), ("/q", "")]), [])
+
+    @unittest.skipUnless(os.name == "nt", "case and separator folding is Windows path semantics")
+    def test_collisions_fold_case_and_separators_on_windows(self):
         got = w.colliding_directories([("C:\\p\\api", ""), ("c:\\P\\API\\", ""), ("C:\\p\\web", ""),
                                        ("C:\\p\\web", "feature-x"), ("", ""), ("", "")])
         self.assertEqual(len(got), 1)
         self.assertTrue(got[0].lower().startswith("c:\\p\\api"))
-        self.assertEqual(w.colliding_directories([("/p", ""), ("/q", "")]), [])
 
     def test_said_once_per_folder(self):
         st = AppState(persist=False)
