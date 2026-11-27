@@ -363,7 +363,7 @@ class Overlay(QWidget):
         hovering = (self.hovering or time.monotonic() < self.pinned_until
                     or self._setting("keep_open", False))
         auto = self.state.auto_info
-        if auto is not None and time.monotonic() - self.state.auto_info_at > view.AUTO_INFO_SECONDS:
+        if auto is not None and time.monotonic() - self.state.auto_info_at > view.auto_linger(auto):
             auto = None
         v = view.choose(perms, questions, toasts, hovering, self._setting("hover_sessions", True), auto,
                         history=self.history_open, compose=self.compose is not None,
@@ -670,7 +670,9 @@ class Overlay(QWidget):
             self._sound({"done": "completed", "limit": "limit"}.get(kind, "permission"),
                         "Notification" if kind in ("notice", "failure") else None)
         elif v == view.AUTO:
-            self._sound("autoApproved", auto.tool)
+            # A denial gets the deny sound: hearing the approval sound for a
+            # blocked call teaches you to read "allowed" when it was not.
+            self._sound("autoApproved" if auto.denial_reason is None else "dismissed", auto.tool)
 
     def _frame_content(self, inner: QWidget) -> QWidget:
         """NotchView's padding around every card: 28 a side, inset + 10 on
@@ -1002,7 +1004,7 @@ class Overlay(QWidget):
             self._decide(perms[0], protocol.ALLOW)
 
     def _auto_info_card(self, card) -> QWidget:
-        self._card_w, self._formula_h = geom.auto_info_size()
+        self._card_w, self._formula_h = geom.auto_info_size(bool(card.denial_reason))
         w = AutoInfoCardView(card, self._card_w - 2 * geom.CONTENT_H_PAD)
         w.clicked.connect(self.state.dismiss_auto_info)
         return w
@@ -1229,7 +1231,7 @@ class Overlay(QWidget):
         for t in toasts:
             if t.system and now - t.created > view.TOAST_SECONDS:
                 self.state.dismiss_toast(t.id)
-        if self.state.auto_info is not None and now - self.state.auto_info_at > view.AUTO_INFO_SECONDS:
+        if self.state.auto_info is not None and now - self.state.auto_info_at > view.auto_linger(self.state.auto_info):
             self.state.dismiss_auto_info()
         fg = winutil.foreground_window()
         if fg and fg != self._hwnd():

@@ -417,6 +417,8 @@ def history_size(screen_h: float = 900.0) -> tuple[float, float]:
     return (640.0, float(min(INSET + 520, screen_h * 0.72)))
 
 
-def auto_info_size() -> tuple[float, float]:
-    """AutoInfoCard: compact and button-less, 460 x inset + 96."""
-    return (460.0, float(INSET + 96))
+def auto_info_size(reason: bool = False) -> tuple[float, float]:
+    """AutoInfoCard: compact and button-less, 460 x inset + 96. A denial's
+    reason adds up to two lines; the Mac keeps 96 and lets them crowd the
+    card, here the card grows so the reason is never cut."""
+    return (460.0, float(INSET + 96 + (34 if reason else 0)))

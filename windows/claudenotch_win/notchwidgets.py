@@ -331,8 +331,8 @@ def draw_glyph(p: QPainter, name: str, r: QRectF, size: float, color: QColor) ->
         path.lineTo(cx + s * 0.36, cy - s * 0.16)
         p.drawPath(path)
         return
-    if name == "bolt.badge.checkmark.fill":
-        # A lightning bolt with a small check badge at its foot.
+    if name in ("bolt.badge.checkmark.fill", "bolt.badge.xmark.fill"):
+        # A lightning bolt with a small badge at its foot: a check, or an x.
         bolt = QPainterPath()
         pts = [(0.08, -0.5), (-0.3, 0.06), (-0.02, 0.06), (-0.12, 0.46), (0.28, -0.12), (0.0, -0.12), (0.08, -0.5)]
         bolt.moveTo(cx + pts[0][0] * s, cy + pts[0][1] * s)
@@ -345,9 +345,16 @@ def draw_glyph(p: QPainter, name: str, r: QRectF, size: float, color: QColor) ->
         p.drawEllipse(QPointF(bx, by), br, br)
         p.save()
         p.setCompositionMode(QPainter.CompositionMode_Clear)
-        tick = QPainterPath(QPointF(bx - br * 0.5, by))
-        tick.lineTo(bx - br * 0.1, by + br * 0.4)
-        tick.lineTo(bx + br * 0.55, by - br * 0.4)
+        if name == "bolt.badge.xmark.fill":
+            k = br * 0.42
+            tick = QPainterPath(QPointF(bx - k, by - k))
+            tick.lineTo(bx + k, by + k)
+            tick.moveTo(bx + k, by - k)
+            tick.lineTo(bx - k, by + k)
+        else:
+            tick = QPainterPath(QPointF(bx - br * 0.5, by))
+            tick.lineTo(bx - br * 0.1, by + br * 0.4)
+            tick.lineTo(bx + br * 0.55, by - br * 0.4)
         p.setPen(QPen(Qt.black, max(1.0, br * 0.35), Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
         p.setBrush(Qt.NoBrush)
         p.drawPath(tick)

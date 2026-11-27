@@ -24,6 +24,12 @@ COMPOSE = "compose"      # the compose card (ComposeCard)
 DETAIL = "detail"        # Claude's last reply in full (ResponseDetailCard)
 DROP = "drop"            # a file is being dragged over the notch (dropZone)
 AUTO_INFO_SECONDS = 4.0  # an approval is a receipt; the Mac shows it 4 s
+AUTO_DENIED_SECONDS = 8.0  # a denial may need acting on, and its reason reading
+
+
+def auto_linger(card) -> float:
+    """How long the auto card stays: longer for a denial (showAutoInfo)."""
+    return AUTO_DENIED_SECONDS if getattr(card, "denial_reason", None) is not None else AUTO_INFO_SECONDS
 
 
 def place(position: str, avail: tuple[int, int, int, int], width: int, height: int) -> tuple[int, int]:
